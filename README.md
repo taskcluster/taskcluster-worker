@@ -1,7 +1,12 @@
 TaskCluster Worker
 ==================
 
+** Warning very EARLY notes**
+
 Place we outline interfaces and patterns for next generation worker.
+
+
+```
 Goal: have all interfaces and central classes defined and documented.
 
 
@@ -150,14 +155,4 @@ New(platform)
 ExclusiveCache(name string) CacheFolder
 SharedCache
 
-
-
-
-
-
-
-
-
-
-
-
+```
