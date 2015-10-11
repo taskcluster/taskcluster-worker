@@ -1,20 +1,20 @@
 package gc
 
-
 import (
-  "errors"
+	"errors"
+	"time"
 )
 
-const (
-  // Error used by Disposable to indicate that a resource doesn't support a
-  // a size function like MemorySize() or DiskSize()
-  ErrDisposableSizeNotSupported = errors.New("Disposable instance doesn't support"),
-  // Error used by Disposable to indicate that a resource is currently in
-  // use and cannot be disposed
-  ErrDisposableInUse = errors.New("Disposable is currently in use"),
+var (
+	// ErrDisposableSizeNotSupported is used by Disposable to indicate that a resource
+	// doesn't support a size function like MemorySize() or DiskSize()
+	ErrDisposableSizeNotSupported = errors.New("Disposable instance doesn't support")
+	// ErrDisposableInUse is used by Disposable to indicate that a resource is currently in
+	// use and cannot be disposed
+	ErrDisposableInUse = errors.New("Disposable is currently in use")
 )
 
-// Interface to be implemented by resources that can be managed by the
+// The Disposable Interface to be implemented by resources that can be managed by the
 // GarbageCollector. To have the resource garbage collected you must call
 // GarbageCollector.Register(&resource). The garbage collector will call
 // resource.Dispose() when it wants to remove your resource, you must check
@@ -30,26 +30,24 @@ const (
 // Note, all methods on this must be thread-safe, an implementation of most
 // of these methods can be obtained by extending DisposableResource.
 type Disposable interface {
-  // Get memory size used by resource, return ErrDisposableSizeNotSupported
-  // if you don't know how much memory it uses, but knows that it uses some
-  // non-trivial amount. If it just uses a small fixed amount, you can return
-  // 1 for simplicity.
-  MemorySize() uint64, error
-  // Get disk space used by resource, return ErrDisposableSizeNotSupported
-  // if you don't know how much disk space it uses, but knows that it uses some
-  // non-trivial amount. If it just uses a small fixed amount, you can return
-  // 1 for simplicity.
-  DiskSize() uint64, error
-  // Clean up after this resource, return ErrDisposableInUse if the resource is
-  // in use. Note that implementors should use this method to also remove any
-  // references to this resource from the resource manager, which typically has
-  // an internal list of cached resources.
-  //
-  // Warning, return an error other than ErrDisposableInUse and the worker will
-  // panic, abort tasks, alert operation and crash.
-  Dispose() error
-  // Last time the cache was used
-  LastUsed() time.Time
+	// Get memory size used by resource, return ErrDisposableSizeNotSupported
+	// if you don't know how much memory it uses, but knows that it uses some
+	// non-trivial amount. If it just uses a small fixed amount, you can return
+	// 1 for simplicity.
+	MemorySize() (uint64, error)
+	// Get disk space used by resource, return ErrDisposableSizeNotSupported
+	// if you don't know how much disk space it uses, but knows that it uses some
+	// non-trivial amount. If it just uses a small fixed amount, you can return
+	// 1 for simplicity.
+	DiskSize() (uint64, error)
+	// Clean up after this resource, return ErrDisposableInUse if the resource is
+	// in use. Note that implementors should use this method to also remove any
+	// references to this resource from the resource manager, which typically has
+	// an internal list of cached resources.
+	//
+	// Warning, return an error other than ErrDisposableInUse and the worker will
+	// panic, abort tasks, alert operation and crash.
+	Dispose() error
+	// Last time the cache was used
+	LastUsed() time.Time
 }
-
-
