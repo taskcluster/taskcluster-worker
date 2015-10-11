@@ -1,6 +1,9 @@
 package engine
 
-import "github.com/taskcluster/taskcluster-worker/engine/mock"
+import (
+	"github.com/taskcluster/taskcluster-worker/engine/mock"
+	"github.com/taskcluster/taskcluster-worker/runtime"
+)
 
 // An Engine implementation provides and backend upon which tasks can be
 // executed. We do not intend for a worker to use multiple engines in parallel,
@@ -9,13 +12,16 @@ import "github.com/taskcluster/taskcluster-worker/engine/mock"
 //
 // Obviously not all engines are available on all platforms and not all features
 // can be implemented on all platforms. See individual methods to see which are
-// required and which can be implemented by returning ErrFeatureNotSupport.
+// required and which can be implemented by returning ErrFeatureNotSupported.
 type Engine interface {
-	// NewExecution returns a new instance of the Execution engine. We'll create
-	// an Execution for each task run. Hence, Execution may be stateful.
-	NewExecution() Execution
+	// NewSandbox returns a new instance of the Sandbox interface. We'll create
+	// a Sandbox for each task run. Hence, the Sandbox may be stateful.
+	//
+	// This operation should parse the task-specific payload and return a
+	// MalformedPayloadError error if the payload isn't valid.
+	NewSandbox(payload *SandboxPayload, context *runtime.SandboxContext) (Sandbox, error)
 	// NewCacheFolder returns a new CacheFolder, if CacheFolder folders are
-	// supported, otherwise it may return ErrFeatureNotSupport without causing
+	// supported, otherwise it may return ErrFeatureNotSupported without causing
 	// a panic (any other error will cause the worker to panic)
 	NewCacheFolder() (CacheFolder, error)
 }
@@ -26,9 +32,9 @@ type Engine interface {
 //
 // This function is intended to be called once immediately after startup, with
 // engine of choice as given by configuration.
-func NewEngine(engineName string) Engine {
+func NewEngine(engineName string, runtime *runtime.EngineContext) Engine {
 	if platform == "mock" {
-		return mock.NewMockPlatform()
+		return mock.NewMockEngine(runtime)
 	}
 	return nil
 }
