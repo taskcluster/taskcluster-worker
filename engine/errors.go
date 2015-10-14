@@ -14,6 +14,12 @@ var (
 	// workaround if possible, but most likely resolve the task as "exception"
 	// with reason "malformed-payload".
 	ErrFeatureNotSupported = errors.New("Feature not support by current engine")
+
+	ErrReadOnlyCacheNotSupported = errors.new("Engine doesn't support read-only caches")
+	ErrMutableCacheNotSupported  = errors.new("Engine doesn't support mutable caches")
+	ErrProxiesNotSupported       = errors.new("Engine doesn't support proxies")
+
+	ErrEngineIsSingleton = errors.New("Engine cannot run multiple sandboxes in parallel")
 )
 
 // The MalformedPayloadError error type is used to indicate that some operation
