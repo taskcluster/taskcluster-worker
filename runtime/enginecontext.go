@@ -11,6 +11,9 @@ import "github.com/taskcluster/taskcluster-worker/runtime/gc"
 // and sandboxes. For task run speific properties
 type EngineContext struct {
 	garbageCollector *gc.GarbageCollector
+	//TODO: Add some sort of interface to the system logger, unless the library
+	// we choose is global...
+	//TODO: Add some interface to submit statistics for influxdb
 }
 
 // GarbageCollector returns a gc.GarbageCollector that engines can use to have

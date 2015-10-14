@@ -19,7 +19,12 @@ var (
 	ErrMutableCacheNotSupported  = errors.new("Engine doesn't support mutable caches")
 	ErrProxiesNotSupported       = errors.new("Engine doesn't support proxies")
 
-	ErrEngineIsSingleton = errors.New("Engine cannot run multiple sandboxes in parallel")
+	ErrResourceNotFound      = errors.New("The referenced resource wasn't found")
+	ErrSandboxTerminated     = errors.new("The Sandbox has terminated")
+	ErrSandboxAborted        = errors.new("Exection of sandbox was aborted")
+	ErrNonFatalInternalError = errors.new("Engine encountered a non-fatal internal error")
+	ErrContractViolation     = errors.new("Engine has detected a contract violation")
+	ErrEngineIsSingleton     = errors.New("Engine cannot run multiple sandboxes in parallel")
 )
 
 // The MalformedPayloadError error type is used to indicate that some operation
