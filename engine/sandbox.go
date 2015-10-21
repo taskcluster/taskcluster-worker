@@ -6,73 +6,15 @@ import (
 	"net/http"
 )
 
-// The PreparationOptions structure contains the engine specific parts of the
+// The SandboxOptions structure contains the engine specific parts of the
 // task payload, and other things an engine may need to prepare a sandbox.
-type PreparationOptions struct {
+type SandboxOptions struct {
 	// The task.payload.start property is engine specific and we leave to the
 	// engine implementor to parse it.
 	Start json.RawMessage
 	// The task.payload.options property is engine specific and we leave to the
 	// engine implementor to parse it.
 	Options json.RawMessage
-}
-
-// The StartOptions structure contains the cache folders, proxies and other
-// things  an engine needs may need to start execution in a sandbox.
-type StartOptions struct {
-	// Mapping from identifier string to CacheFolder, the engine implementor may
-	// assume that the CacheFolder was created with Engine.NewCacheFolder, hence,
-	// it's safe to cast it to an internal type.
-	//
-	// The idea of cache folders is that some code inside the sandbox may cache
-	// things between tasks, or access read-only caches that have been setup by
-	// the runtime. This ensures that not everything has to be downloaded. As an
-	// engine implementor you need not concern yourself with what is inside a
-	// cache, when it is disposed or in what sandbox boxes it is mounted. You just
-	// implement a CacheFolder abstraction, and ensure that it can be mounted in
-	// your sandbox.
-	//
-	// Interpretation of the string identifier is left to the engine. Engine
-	// specific documentation should reflect how it is used. The ideal solution
-	// is obviously to let the identifier be a file path where the cache folder
-	// is mounted. But not all platforms supports this, so you could also use it
-	// as the name of environment variable that points to the mount point for
-	// the CacheFolder.
-	//
-	// Either way interpretation of the identifier is engine specific and must be
-	// documented by the engine implementor. The implementor is free to restrict
-	// the format of the string, in which case StartSandbox() should return
-	// MalformedPayloadError if the string violates these restrictions.
-	//
-	// If this engine doesn't support read-only and/or mutable caches it may
-	// return ErrReadOnlyCacheNotSupported or ErrMutableCacheNotSupported from
-	// StartSandbox() if ReadOnlyCaches or MutableCaches isn't empty.
-	ReadOnlyCaches map[string]CacheFolder
-	MutableCaches  map[string]CacheFolder
-	// Mapping from identifier string to HTTP request handler for proxy.
-	//
-	// This idea of a proxy is that some code inside the sandbox may perform an
-	// http request that is forwarded to the worker side. Here we may implement
-	// different proxies, ranging from simply forwarding the requests to adding
-	// authentication or transmitting the request to a special host on a VPN.
-	// As an engine implementor it's not really your concern what happens to the
-	// request, merely that the request gets to the http.Handler.
-	//
-	// Interpretation of string identifier is left ot the engine. Engine speific
-	// documentation should reflect how it's used. The ideal solution is obviously
-	// to let the string be a hostname. However, some platforms may not support
-	// this, and an alternative may be to let the identifier be a environment
-	// variable containing IP and port, or some other way to submit an HTTP
-	// request to the proxy.
-	//
-	// Either way interpretation of the identifier is engine specific and must be
-	// documented by the engine implementor. The implementor is free to restrict
-	// the format of the string, in which case StartSandbox() should return
-	// MalformedPayloadError if the string violates these restrictions.
-	//
-	// Engines that doesn't support proxies may return ErrProxiesNotSupported
-	// from StartSandbox() if this mapping isn't empty.
-	Proxies map[string]http.Handler
 }
 
 // The PreparedSandbox interface wraps the state required to start a Sandbox.
@@ -88,6 +30,8 @@ type StartOptions struct {
 // only ever once. If StartSandbox() is called twice a sane implementor should
 // return ErrContractViolation, or feel free to exhibit undefined behavior.
 type PreparedSandbox interface {
+	AttachVolume(mountpoint string, volume Volume, readOnly bool) error
+	AttachProxy(name string, handler http.Handler) error
 	// Start execution of task in sandbox. After a call to this method resources
 	// held by the PreparedSandbox instance should be released or transferred to
 	// the Sandbox implementation.
@@ -105,7 +49,7 @@ type PreparedSandbox interface {
 	//
 	// Non-fatal errors: MalformedPayloadError, ErrProxiesNotSupported,
 	// ErrReadOnlyCacheNotSupported, ErrMutableCacheNotSupported.
-	StartSandbox(options *ExecutionOptions) (Sandbox, error)
+	StartSandbox() (Sandbox, error)
 	// Abort must free all resources held by the PreparedSandbox interface.
 	// Any error returned is fatal, so do not return an error unless there is
 	// something very wrong.

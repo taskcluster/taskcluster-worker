@@ -13,18 +13,15 @@ var (
 	// When the worker encounters this error from an optional method, it should
 	// workaround if possible, but most likely resolve the task as "exception"
 	// with reason "malformed-payload".
-	ErrFeatureNotSupported = errors.New("Feature not support by current engine")
-
-	ErrReadOnlyCacheNotSupported = errors.new("Engine doesn't support read-only caches")
-	ErrMutableCacheNotSupported  = errors.new("Engine doesn't support mutable caches")
-	ErrProxiesNotSupported       = errors.new("Engine doesn't support proxies")
-
+	ErrFeatureNotSupported   = errors.New("Feature not support by current engine")
 	ErrResourceNotFound      = errors.New("The referenced resource wasn't found")
 	ErrSandboxTerminated     = errors.new("The Sandbox has terminated")
 	ErrSandboxAborted        = errors.new("Exection of sandbox was aborted")
 	ErrNonFatalInternalError = errors.new("Engine encountered a non-fatal internal error")
 	ErrContractViolation     = errors.new("Engine has detected a contract violation")
 	ErrEngineIsSingleton     = errors.New("Engine cannot run multiple sandboxes in parallel")
+	ErrEngineNotSupported    = errors.New("Engine is not available in the current configuration")
+	ErrEngineUnknown         = errors.New("Engine with the given doesn't exist")
 )
 
 // The MalformedPayloadError error type is used to indicate that some operation
