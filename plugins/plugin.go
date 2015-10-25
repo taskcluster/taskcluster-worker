@@ -12,10 +12,11 @@ type PluginProvider interface {
 	// NewPlugin method will be called once for each task. The Plugin instance
 	// returned will be called for each stage in the task execution.
 	//
-	// Notice that this method may in fact do long running operations. It will
-	// run in parallel with PrepareSandbox(), so if that is loading a docker image
-	// you may take your time here.
-	NewPlugin(context *runtime.SandboxContext) Plugin
+	// This method is a called before PrepareSandbox(), this is not a good place
+	// to do any operation that may fail as you won't be able to log anything.
+	// This is, however, the place to register things that you wish to expose to
+	// engine and other plugins, such as a log drain.
+	NewPlugin(builder *runtime.SandboxContextBuilder) Plugin
 }
 
 // Plugin holds the task-specific state for a plugin
@@ -30,6 +31,13 @@ type PluginProvider interface {
 // If a required feature is unsupport the methods may return a
 // MalformedPayloadError. All other errors are fatal.
 type Plugin interface {
+	// Prepare will be called in parallel with PrepareSandbox(), this is a good
+	// place to start downloading and extracting resources required.
+	//
+	// Notice that this method may in fact do long running operations. It will
+	// run in parallel with PrepareSandbox(), so if that is loading a docker image
+	// you may take your time here.
+	Prepare(context *runtime.SandboxContext) error
 	// Prepared is called once PrepareSandbox() has returned.
 	//
 	// This is the place to mount caches, proxies, etc.

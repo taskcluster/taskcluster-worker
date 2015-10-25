@@ -5,6 +5,34 @@ import (
 	"io"
 )
 
+// The SandboxContextBuilder structure contains methods
+// that plugins can use to build the SandboxContext
+//
+// Note, all method on this object must be thread-safe,
+// as they are intended to be called by different
+// plugins in the newPlugin() method.
+type SandboxContextBuilder struct {
+	logDrains []io.Writer
+}
+
+// AttachLogDrain takes an io.Writer drain for logs to
+// be written to.
+//
+// This allows multiple plugins to consume log messages,
+// whether they want stream, upload or aggregate the
+// anything written to SandboxContext.LogDrain() will
+// also be written to the drain given here.
+func (b *SandboxContextBuilder) AttachLogDrain(drain io.Writer) {
+	b.logDrains = append(b.logDrains, drain)
+}
+
+// newSandboxContext creates a new SandboxContext
+func (b *SandboxContextBuilder) newSandboxContext() *SandboxContext {
+	return &SandboxContext{
+		logDrain: io.MultiWriter(b.logDrains...),
+	}
+}
+
 // The SandboxContext structure contains auxiliary methods
 type SandboxContext struct {
 	logDrain io.Writer
