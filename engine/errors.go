@@ -24,6 +24,10 @@ var (
 	ErrEngineUnknown         = errors.New("Engine with the given doesn't exist")
 )
 
+// TODO: MalformedPayloadError should be define in the runtime
+// TODO: MalformedPayloadError should have a merge to join two of these
+//       errors (useful if we have multiple of them)
+
 // The MalformedPayloadError error type is used to indicate that some operation
 // failed because of malformed-payload. For example a string expected to be
 // path contained invalid characters, a required property was missing, or an

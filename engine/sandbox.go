@@ -17,6 +17,8 @@ type SandboxOptions struct {
 	Options json.RawMessage
 }
 
+//TODO: Rename PreparedSandbox to SandboxBuilder
+
 // The PreparedSandbox interface wraps the state required to start a Sandbox.
 //
 // Before returning a PreparedSandbox engine implementors should download and

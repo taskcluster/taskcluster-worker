@@ -73,6 +73,11 @@ type Plugin interface {
 // the methods you care about.
 type PluginBase struct{}
 
+// Prepare ignores the sandbox preparation stage.
+func (PluginBase) Prepare(*runtime.SandboxContext) error {
+	return nil
+}
+
 // Prepared ignores the sandbox preparation stage.
 func (PluginBase) Prepared(engine.PreparedSandbox) error {
 	return nil
