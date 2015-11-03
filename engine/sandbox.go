@@ -17,25 +17,26 @@ type SandboxOptions struct {
 	Options json.RawMessage
 }
 
-//TODO: Rename PreparedSandbox to SandboxBuilder
-
-// The PreparedSandbox interface wraps the state required to start a Sandbox.
+// The SandboxBuilder interface wraps the state required to start a Sandbox.
 //
-// Before returning a PreparedSandbox engine implementors should download and
-// setup all the resources needed to start execution. A docker based engine may
-// wish to ensure the docker image is downloaded, and lay a claim on it so the
-// GarbageCollector won't remove it. A naive Windows engine may wish to create
-// a new user account and setup a folder for the sandbox.
+// Before returning a SandboxBuilder engine implementors should start
+// downloading and setting up all the resources needed to start execution.
+// A docker based engine may wish to ensure the docker image is downloaded, or
+// lay a claim on it so the GarbageCollector won't remove it. A naive Windows
+// engine may wish to create a new user account and setup a folder for the
+// sandbox.
 //
 // Implementors can be sure that any instance of this interface will only be
-// called once. That is either StartSandbox() or Abort() will be called, and
-// only ever once. If StartSandbox() is called twice a sane implementor should
-// return ErrContractViolation, or feel free to exhibit undefined behavior.
-type PreparedSandbox interface {
+// used to create a single Sandbox, that is StartSandbox() will atmost be called
+// once. If StartSandbox() is called twice a sane implementor should return
+// ErrContractViolation, and feel free to exhibit undefined behavior.
+//
+// All methods of this interface must be thread-safe.
+type SandboxBuilder interface {
 	AttachVolume(mountpoint string, volume Volume, readOnly bool) error
 	AttachProxy(name string, handler http.Handler) error
 	// Start execution of task in sandbox. After a call to this method resources
-	// held by the PreparedSandbox instance should be released or transferred to
+	// held by the SandboxBuilder instance should be released or transferred to
 	// the Sandbox implementation.
 	//
 	// This method may return a MalformedPayloadError if any of the identifiers
@@ -46,13 +47,13 @@ type PreparedSandbox interface {
 	// support proxy attachments.
 	//
 	// If the method returns an error then it must also free any resources held
-	// by the PreparedSandbox implemention. As no method on the PreparedSandbox
+	// by the SandboxBuilder implemention. As no method on the SandboxBuilder
 	// will be invoked again.
 	//
 	// Non-fatal errors: MalformedPayloadError, ErrProxiesNotSupported,
 	// ErrReadOnlyCacheNotSupported, ErrMutableCacheNotSupported.
 	StartSandbox() (Sandbox, error)
-	// Abort must free all resources held by the PreparedSandbox interface.
+	// Abort must free all resources held by the SandboxBuilder interface.
 	// Any error returned is fatal, so do not return an error unless there is
 	// something very wrong.
 	Abort() error
@@ -69,19 +70,22 @@ type Shell interface {
 }
 
 // The Sandbox interface represents an active sandbox.
+//
+// All methods on this interface must be thread-safe.
 type Sandbox interface {
 	// Wait for task execution and termination of all associated shells, and
 	// return immediately if sandbox execution has finished.
 	//
 	// When this method returns all resources held by the Sandbox instance must
 	// have been released or transferred to the ResultSet instance returned. If an
-	// internal error occured resources may be freed and Wait() may return
-	// ErrNonFatalInternalError if the error didn't leak resources and we don't
-	// expect the error to be persistent.
+	// internal error occured resources may be freed and WaitForResult() may
+	// return ErrNonFatalInternalError if the error didn't leak resources and we
+	// don't expect the error to be persistent.
 	//
 	// When this method has returned any calls to Abort() or NewShell() should
-	// return ErrSandboxTerminated. If Abort() is called before Wait() returns
-	// Wait() should return ErrSandboxAborted and release all resources held.
+	// return ErrSandboxTerminated. If Abort() is called before WaitForResult()
+	// returns, WaitForResult() should return ErrSandboxAborted and release all
+	// resources held.
 	//
 	// Notice that this method may be invoked more than once. In all cases it
 	// should return the same value when it decides to return. In particular, it
@@ -90,7 +94,7 @@ type Sandbox interface {
 	// different ResultSet instances.
 	//
 	// Non-fatal errors: ErrNonFatalInternalError, ErrSandboxAborted.
-	Wait() (ResultSet, error)
+	WaitForResult() (ResultSet, error)
 	// NewShell creates a new Shell for interaction with the sandbox. This is
 	// useful for debugging and other purposes.
 	//
@@ -98,20 +102,20 @@ type Sandbox interface {
 	// ErrFeatureNotSupported. This should not interrupt/abort the execution of
 	// the task which should proceed as normal.
 	//
-	// If the Wait() method has returned and the sandbox isn't running anymore
-	// this method must return ErrSandboxTerminated, signaling that you can't
-	// interact with the sandbox anymore.
+	// If the WaitForResult() method has returned and the sandbox isn't running
+	// anymore this method must return ErrSandboxTerminated, signaling that you
+	// can't interact with the sandbox anymore.
 	//
 	// Non-fatal errors: ErrFeatureNotSupported, ErrSandboxTerminated.
 	NewShell() (Shell, error)
 	// Abort the sandbox, this means killing the task execution as well as all
 	// associated shells and releasing all resources held.
 	//
-	// If called before the sandbox execution finished, then Wait() must return
-	// ErrSandboxAborted. If sandbox execution has finished when Abort() is called
-	// Abort() should return ErrSandboxTerminated and not release any resources
-	// as they should have been released by Wait() or transferred to the ResultSet
-	// instance returned.
+	// If called before the sandbox execution finished, then WaitForResult() must
+	// return ErrSandboxAborted. If sandbox execution has finished when Abort() is
+	// called Abort() should return ErrSandboxTerminated and not release any
+	// resources as they should have been released by WaitForResult() or
+	// transferred to the ResultSet instance returned.
 	//
 	// Non-fatal errors: ErrSandboxTerminated
 	Abort() error
@@ -131,6 +135,8 @@ type ArtifactReader struct {
 // When returned from Sandbox this takes ownership of all resources. If the
 // engine uses docker then the ResultSet would have ownership of cache folders
 // as well as the terminated docker container.
+//
+// All methods on this interface must be thread-safe.
 type ResultSet interface {
 	// Success, returns true if the execution was successful, typically implying
 	// that the process exited zero.

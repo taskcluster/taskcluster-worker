@@ -2,73 +2,58 @@ package plugins
 
 import (
 	"sync"
-	"sync/atomic"
 
 	"github.com/taskcluster/taskcluster-worker/engine"
+	"github.com/taskcluster/taskcluster-worker/plugins/success"
 	rt "github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/utils"
 )
 
-//TODO Find a home for AtomicBool
-type atomicBool struct {
-	value int
-}
-
-func (b *atomicBool) Set(value bool) {
-	if value {
-		return atomic.StoreInt32(&b.value, 1)
-	}
-	atomic.StoreInt32(&b.value, 0)
-}
-func (b *atomicBool) Swap(value bool) bool {
-	if value {
-		return atomic.SwapInt32(&b.value, 1) != 0
-	}
-	return atomic.SwapInt32(&b.value, 0) != 0
-}
-func (b *atomicBool) Get() bool {
-	return atomic.LoadInt32(&b.value) != 0
-}
-
-// The pluginManager wraps multiple plugin providers
+// The pluginManager wraps multiple plugin factories
 type pluginManager struct {
-	providers []PluginProvider
+	factories []PluginFactory
 }
 
 type pluginWrapper struct {
 	plugins []Plugin
-	working atomicBool
+	working utils.AtomicBool
 }
 
-// NewPluginProvider creates a PluginProvider that wraps all the other
-// PluginProviders. This is also the place to register your plugin provider.
+// NewPluginFactory creates a PluginFactory that wraps all the other
+// plugin factories. This is also the place to register your PluginFactory.
 //
-// Really there is no need to implement the PluginProvider interface, it's just
+// Really there is no need to implement the PluginFactory interface, it's just
 // elegant and if we make generic Plugin tests we can run them for the
 // pluginManager too.
-func NewPluginProvider(engine engine.Engine, ctx *rt.EngineContext) PluginProvider {
+func NewPluginFactory(engine engine.Engine, ctx *rt.EngineContext) PluginFactory {
 	return &pluginManager{
-		providers: []PluginProvider{
 		// List your plugins here
-		// Example: plugins.mock.NewPluginProvider(engine, ctx)
+		factories: []PluginFactory{
+			// Success plugin ensures task is declared "failed" if execution isn't
+			// success (exit code non-zero in most cases)
+			success.NewPluginFactory(engine, ctx),
+			// Dummy plugin that does absolutely nothing always added to make sure
+			// that it doesn't have any side-effects
+			PluginBase{},
 		},
 	}
 }
 
 func (m *pluginManager) NewPlugin(builder *rt.SandboxContextBuilder) Plugin {
 	// Create an array for plugins
-	plugins := make([]Plugin, len(m.providers))
+	plugins := make([]Plugin, len(m.factories))
 	// Wait group, so we can wait for all plugins to finish
 	var wg sync.WaitGroup
-	wg.Add(len(m.providers))
+	wg.Add(len(m.factories))
 
-	// For each provider we call NewPlugin() in parallel, just in case someone
+	// For each factory we call NewPlugin() in parallel, just in case someone
 	// doesn't something expensive.
-	for i, provider := range m.providers {
+	for i, factory := range m.factories {
 		// I can't believe golang made the same mistake as javascript, so stupid
 		// and it just recently got fixed in ES6
-		i, provider := i, provider
+		i, factory := i, factory
 		go func() {
-			plugins[i] = provider.NewPlugin(builder)
+			plugins[i] = factory.NewPlugin(builder)
 			wg.Done()
 		}()
 	}
@@ -121,7 +106,7 @@ func (w *pluginWrapper) Prepare(context *rt.SandboxContext) error {
 	return waitForErrors(errors, len(m.plugins))
 }
 
-func (w *pluginWrapper) Prepared(preparedSandbox engine.PreparedSandbox) error {
+func (w *pluginWrapper) BuildSandbox(sandboxBuilder engine.SandboxBuilder) error {
 	// Sanity check that no two methods on plugin is running in parallel
 	if w.working.Swap(true) {
 		panic("Another plugin method is currently running, or Dispose() has been called!")
@@ -132,7 +117,7 @@ func (w *pluginWrapper) Prepared(preparedSandbox engine.PreparedSandbox) error {
 	errors := make(chan error)
 	for _, plugin := range w.plugins {
 		plugin := plugin
-		go func() { errors <- plugin.Prepared(preparedSandbox) }()
+		go func() { errors <- plugin.BuildSandbox(sandboxBuilder) }()
 	}
 	return waitForErrors(errors, len(m.plugins))
 }
@@ -161,8 +146,7 @@ func (w *pluginWrapper) Stopped(resultSet engine.ResultSet) (bool, error) {
 	defer w.working.Set(false)
 
 	// Use atomic bool to return true, if no plugin returns false
-	var result atomicBool
-	result.Set(true)
+	result := utils.NewAtomicBool(true)
 
 	// Run method on plugins in parallel
 	errors := make(chan error)

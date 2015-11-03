@@ -2,7 +2,7 @@
 //
 // A plugin is an object that gets called for each step in the task execution
 // flow. At each step the plugin will get access to engine and runtime object,
-// such as the PreparedSandbox, the Sandbox, the SandboxContext, etc.
+// such as the SandboxBuilder, the Sandbox, the SandboxContext, etc.
 // A plugin is then supposed to implement a specific feature using these object,
 // this could be live logging, artifact uploading, attachment of proxies,
 // mouting of caches, archival of caches, and many other things.
@@ -18,10 +18,10 @@
 // return a MalformedPayloadError, or simply ignore the error and workaround it.
 //
 // Plugin packages should provide a method:
-//   NewXXXPluginProvider(engine.Engine,*runtime.EngineContext) PluginProvider
+//   NewXXXPluginFactory(engine.Engine,*runtime.EngineContext) PluginFactory
 // and have it registered in pluginmanager.go
 //
-// At high-level PluginProvider stores the global state owned by the plugin, and
+// At high-level PluginFactory stores the global state owned by the plugin, and
 // Plugin stores the task-specific state owned by the plugin. A new Plugin
 // instance will be created for each task.
 //
