@@ -121,13 +121,13 @@ type Sandbox interface {
 	Abort() error
 }
 
-// An ArtifactReader contains logic to read an artifact and know it's file path
-type ArtifactReader struct {
-	// Read/Close the file stream
-	io.ReadCloser
-	// Path to the artifact within the Sandbox
-	Path string
-}
+// FileHandler is given as callback when iterating through a list of files.
+//
+// ResultSet.ExtractFolder(path, handler) takes a FileHandler as the handler
+// parameter. This function maybe called sequentially or concurrently, but if
+// it returns an the ResultSet should stop calling it and pass the error through
+// as return value from ResultSet.ExtractFolder.
+type FileHandler func(path string, stream io.ReadCloser) error
 
 // The ResultSet interface represents the results of a sandbox that has finished
 // execution, but is hanging around while results are being extracted.
@@ -154,7 +154,7 @@ type ResultSet interface {
 	//
 	// Non-fatal erorrs: ErrFeatureNotSupported, ErrResourceNotFound,
 	// MalformedPayloadError
-	ExtractFile(path string) (ArtifactReader, error)
+	ExtractFile(path string) (io.ReadCloser, error)
 	// Extract a folder from the sandbox.
 	//
 	// Interpretation of the string path format is engine specific and must be
@@ -166,15 +166,18 @@ type ResultSet interface {
 	// ErrResourceNotFound. Further more the engine may return
 	// ErrFeatureNotSupported rather than implementing this method.
 	//
-	// If no immediate error occurs then ExtractFolder() should returns two
-	// channels, a channel over which ArtifactReader structures are transmitted
-	// until the channel is closed. And an error channel over which errors can
-	// be transmitted, after the ArtifactReader channel is closed.
+	// For each file found under the given path the handler(path, stream) is
+	// called. Implementor may call this function sequentially or in parallel.
+	// If a handler(path, stream) call returns an error the error should passed
+	// through as return value from the ExtractFolder call.
 	//
-	// The only non-fatal erorr the error channel can transmit is
-	// ErrNonFatalInternalError, indicating that something went wrong while
-	// streaming out artfacts and all artifacts may not have been extracted, or
-	// they may not have been streamed out completely.
+	// If an error occurs during iteration iteration is halted, and when all
+	// calls to handler(path, stream) has returned ExtractFolder may with return
+	// with the error.
+	//
+	// The only non-fatal error is ErrNonFatalInternalError, indicating that
+	// something went wrong while streaming out artfacts and all artifacts may not
+	// have been extracted, or they may not have been streamed out completely.
 	//
 	// The ErrNonFatalInternalError may only be returned if the engine expected
 	// further request to be successful. And attempts to call other methods or
@@ -182,7 +185,7 @@ type ResultSet interface {
 	//
 	// Non-fatal erorrs: ErrFeatureNotSupported, ErrResourceNotFound,
 	// MalformedPayloadError, ErrNonFatalInternalError
-	ExtractFolder(path string) (<-chan (ArtifactReader), <-chan (error), error)
+	ExtractFolder(path string, handler FileHandler) error
 	// ArchiveSandbox streams out the entire sandbox (or as much as possible)
 	// as a tar-stream. Ideally this also includes cache folders.
 	ArchiveSandbox() (io.ReadCloser, error)
