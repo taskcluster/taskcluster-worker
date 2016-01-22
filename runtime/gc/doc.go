@@ -1,5 +1,5 @@
 // Package gc contains the GarbageCollector which allows cacheable resources
-// to register themselves for diposal when we run low on resources.
+// to register themselves for disposal when we run low on resources.
 //
 // The idea is that cacheable resources like cache folders, docker images,
 // downloaded artifacts. Any resource that can be recreated if needed, but

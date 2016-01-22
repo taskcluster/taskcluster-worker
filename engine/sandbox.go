@@ -1,21 +1,9 @@
 package engine
 
 import (
-	"encoding/json"
 	"io"
 	"net/http"
 )
-
-// The SandboxOptions structure contains the engine specific parts of the
-// task payload, and other things an engine may need to prepare a sandbox.
-type SandboxOptions struct {
-	// The task.payload.start property is engine specific and we leave to the
-	// engine implementor to parse it.
-	Start json.RawMessage
-	// The task.payload.options property is engine specific and we leave to the
-	// engine implementor to parse it.
-	Options json.RawMessage
-}
 
 // The SandboxBuilder interface wraps the state required to start a Sandbox.
 //

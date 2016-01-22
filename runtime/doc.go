@@ -1,2 +1,3 @@
-// Package runtime contains the runtime that executes tasks with an engine.
+// Package runtime contains the generic functionality that an engine and plugins
+// use.
 package runtime
