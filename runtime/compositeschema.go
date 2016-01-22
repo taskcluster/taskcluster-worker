@@ -3,11 +3,14 @@ package runtime
 import (
 	"encoding/json"
 	"errors"
+
+	"github.com/xeipuuv/gojsonschema"
 )
 
 // ErrConflictingSchemas is returned if two schema entries are conflicting.
 var ErrConflictingSchemas = errors.New("Two schema entries are conflicting!")
 
+// CompositeSchema hides one or more composed JSON schemas.
 type CompositeSchema interface {
 	Parse(data map[string]json.RawMessage) (interface{}, error)
 	visit(visitor func(*schemaEntry))
@@ -23,6 +26,7 @@ type schemaEntry struct {
 	schema     string
 	required   bool
 	makeTarget func() interface{}
+	validator  *gojsonschema.Schema
 }
 
 // NewCompositeSchema creates a CompositeSchema from the description of a single
@@ -38,13 +42,18 @@ func NewCompositeSchema(
 	schema string,
 	required bool,
 	makeTarget func() interface{},
-) CompositeSchema {
+) (CompositeSchema, error) {
+	validator, err := gojsonschema.NewSchema(gojsonschema.NewStringLoader(schema))
+	if err != nil {
+		return nil, err
+	}
 	return &schemaEntry{
 		property:   property,
 		schema:     schema,
 		required:   required,
 		makeTarget: makeTarget,
-	}
+		validator:  validator,
+	}, nil
 }
 
 // MergeCompositeSchemas will merge two or more CompositeSchema
@@ -88,11 +97,24 @@ func (s *schemaEntry) Parse(data map[string]json.RawMessage) (interface{}, error
 		return nil, nil
 	}
 
-	// TODO: validate value against json schema
+	// Validate value against json schema
+	result, err := s.validator.Validate(gojsonschema.NewStringLoader(string(value)))
+	if err != nil {
+		return nil, err
+	}
+	// Check for validation errors
+	if !result.Valid() {
+		message := "JSON schema validation failed:\n"
+		for _, err := range result.Errors() {
+			// Err implements the ResultError interface
+			message += err.Description() + "\n"
+		}
+		return nil, errors.New(message)
+	}
 
 	// Unmarshal value to target
 	target := s.makeTarget()
-	err := json.Unmarshal(value, target)
+	err = json.Unmarshal(value, target)
 	if err != nil {
 		return nil, err
 	}
