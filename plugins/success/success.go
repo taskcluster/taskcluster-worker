@@ -13,29 +13,18 @@
 package success
 
 import (
-	"github.com/taskcluster/taskcluster-worker/engine"
 	"github.com/taskcluster/taskcluster-worker/plugins"
-	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/plugins/extpoints"
 )
 
-type successPlugin struct{}
-type successFactory struct {
+func init() {
+	extpoints.PluginFactories.Register(NewSuccessPlugin, "success")
+}
+
+func NewSuccessPlugin(options *plugins.PluginOptions) plugins.Plugin {
+	return Success{}
+}
+
+type Success struct {
 	plugins.PluginBase
-}
-
-// NewPluginFactory returns a new SuccessPluginFactory which creates plugins
-// that checks the ResultSet for Success().
-func NewPluginFactory(engine.Engine, *runtime.EngineContext) plugins.PluginFactory {
-	return successFactory{}
-}
-
-func (successFactory) NewPlugin(*runtime.SandboxContextBuilder) Plugin {
-	return successPlugin{}
-}
-
-func (successPlugin) Stopped(result engine.ResultSet) (bool, error) {
-	// Here we return false resulting in the task being declared "failed", unless
-	// the sandbox had a successful exit code. In practice this means the process
-	// inside the sandbox exited non-zero.
-	return result.Success(), nil
 }

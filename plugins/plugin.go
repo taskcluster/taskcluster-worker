@@ -3,44 +3,9 @@ package plugins
 import (
 	"io"
 
-	"github.com/taskcluster/taskcluster-worker/engine"
+	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
-
-// The PluginOptions is a wrapper for the set of arguments given to NewPlugin.
-//
-// We wrap the arguments in a single argument to maintain source compatibility
-// when introducing additional arguments.
-type PluginOptions struct {
-	TaskInfo runtime.TaskInfo
-	Payload  interface{}
-}
-
-// PluginEnvironment holds the definition of a plugin and any global state
-// shared between instances of the Plugin.
-//
-// All method on this interface must be thread-safe.
-type PluginEnvironment interface {
-	PayloadSchema() runtime.CompositeSchema
-	// NewPlugin method will be called once for each task. The Plugin instance
-	// returned will be called for each stage in the task execution.
-	//
-	// This is a poor place to do any processing, and not a great place to start
-	// long-running operations as you don't have a place to write log messages.
-	// Consider waiting until Prepare() is called with TaskContext that you can
-	// write log messages to.
-	//
-	// Plugins implementing logging should not return an error here, as it
-	// naturally follows that such an error can't be logged if no logging plugin
-	// is created. Other plugins may also postpone additional payload valdation if
-	// they wish to log additional messages in case of errors.
-	//
-	// Implementors may return nil, if the plugin doesn't have any hooks for the
-	// given tasks.
-	//
-	// Non-fatal errors: MalformedPayloadError
-	NewPlugin(options PluginOptions) (Plugin, error)
-}
 
 // An ExceptionReason specifies the reason a task reached an exception state.
 type ExceptionReason int
@@ -70,6 +35,7 @@ const (
 // Exception() which may be called following any method, and Dispose() which
 // will always be called as a final step allowing you to clean up.
 type Plugin interface {
+	PayloadSchema() runtime.CompositeSchema
 	// Prepare will be called in parallel with NewSandboxBuilder().
 	//
 	// Notice that this method is a good place to start long-running operations,
@@ -78,7 +44,7 @@ type Plugin interface {
 	// BuildSandbox() or whatever hook you need them in.
 	//
 	// Non-fatal errors: MalformedPayloadError
-	Prepare(context *runtime.TaskContext) error
+	Prepare(context runtime.TaskContext) error
 
 	// BuildSandbox is called once NewSandboxBuilder() has returned.
 	//
@@ -86,13 +52,13 @@ type Plugin interface {
 	// finished, before mounting caches, proxies, etc. and returning.
 	//
 	// Non-fatal errors: MalformedPayloadError
-	BuildSandbox(SandboxBuilder engine.SandboxBuilder) error
+	BuildSandbox(SandboxBuilder engines.SandboxBuilder) error
 
 	// Started is called once the sandbox has started execution. This is a good
 	// place to hook if you want to do interactive things.
 	//
 	// Non-fatal errors: MalformedPayloadError
-	Started(sandbox engine.Sandbox) error
+	Started(sandbox engines.Sandbox) error
 
 	// Stopped is called once the sandbox has terminated. Returns true, if the
 	// task execution was successful.
@@ -101,7 +67,7 @@ type Plugin interface {
 	// to clean-up resources if such clean-up is expected to take a while.
 	//
 	// Non-fatal errors: MalformedPayloadError
-	Stopped(result engine.ResultSet) (bool, error)
+	Stopped(result engines.ResultSet) (bool, error)
 
 	// Finished is called once the sandbox has terminated and Stopped() have been
 	// called.
@@ -136,29 +102,18 @@ type Plugin interface {
 	Dispose() error
 }
 
-// PluginEnvironment is a base implementation of the PluginEnvironment interface.
-//
-// Implementors should embed this to ensure forward compatibility when we add
-// new optional methods.
-type PluginEnvironment struct{}
-
-// PayloadSchema returns an empty composite schema for plugins that doesn't
-// take any payload.
-func (PluginEnvironment) PayloadSchema() runtime.CompositeSchema {
-	return runtime.NewEmptyCompositeSchema()
-}
-
-// NewPlugin returns nil which will be ignored
-func (PluginEnvironment) NewPlugin(PluginOptions) (Plugin, error) {
-	return nil, nil
-}
-
 // PluginBase is a base implementation of the plugin interface, it just handles
 // all methods and does nothing.
 //
 // Implementors should embed this to ensure forward compatibility when we add
 // new optional methods.
 type PluginBase struct{}
+
+// PayloadSchema returns an empty composite schema for plugins that doesn't
+// take any payload.
+func (PluginBase) PayloadSchema() runtime.CompositeSchema {
+	return runtime.NewEmptyCompositeSchema()
+}
 
 // LogDrain ignores the log setup and returns nil
 func (PluginBase) LogDrain() (io.Writer, error) {
@@ -171,22 +126,30 @@ func (PluginBase) Prepare(runtime.TaskContext) error {
 }
 
 // BuildSandbox ignores the sandbox building stage.
-func (PluginBase) BuildSandbox(engine.SandboxBuilder) error {
+func (PluginBase) BuildSandbox(engines.SandboxBuilder) error {
 	return nil
 }
 
 // Started ignores the stage where the sandbox has started
-func (PluginBase) Started(engine.Sandbox) error {
+func (PluginBase) Started(engines.Sandbox) error {
 	return nil
 }
 
 // Stopped ignores the stage where the sandbox has returned a ResultSet, and
 // returns true saying the task was successful, as not to poison the water.
-func (PluginBase) Stopped(engine.ResultSet) (bool, error) {
+func (PluginBase) Stopped(engines.ResultSet) (bool, error) {
 	return true, nil
 }
 
 // Dispose ignores the stage where resources are disposed.
 func (PluginBase) Dispose() error {
+	return nil
+}
+
+func (PluginBase) Exception(reason ExceptionReason) error {
+	return nil
+}
+
+func (PluginBase) Finished(success bool) error {
 	return nil
 }

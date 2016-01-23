@@ -1,84 +1,42 @@
 package plugins
 
 import (
-	"sync"
-
-	"github.com/taskcluster/taskcluster-worker/engine"
-	"github.com/taskcluster/taskcluster-worker/plugins/success"
+	"github.com/taskcluster/taskcluster-worker/engines"
 	rt "github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/utils"
 )
 
-// The pluginManager wraps multiple plugin factories
-type pluginManager struct {
-	factories []PluginFactory
+// The PluginOptions is a wrapper for the set of arguments given to NewPlugin.
+//
+// We wrap the arguments in a single argument to maintain source compatibility
+// when introducing additional arguments.
+type PluginOptions struct {
+	Task *rt.TaskContext
 }
 
-type pluginWrapper struct {
-	plugins []Plugin
+// Plugin Manager is responsible for maintaining a set of plugins initialized
+// for a given task execution.
+//
+// Wrappers around the stages of the plugin lifecycle are given to ensure all
+// plugins complete their stage before moving on.
+type PluginManager struct {
+	Plugins []Plugin
 	working utils.AtomicBool
 }
 
-// NewPluginFactory creates a PluginFactory that wraps all the other
-// plugin factories. This is also the place to register your PluginFactory.
-//
-// Really there is no need to implement the PluginFactory interface, it's just
-// elegant and if we make generic Plugin tests we can run them for the
-// pluginManager too.
-func NewPluginFactory(engine engine.Engine, ctx *rt.EngineContext) PluginFactory {
-	return &pluginManager{
-		// List your plugins here
-		factories: []PluginFactory{
-			// Success plugin ensures task is declared "failed" if execution isn't
-			// success (exit code non-zero in most cases)
-			success.NewPluginFactory(engine, ctx),
-			// Dummy plugin that does absolutely nothing always added to make sure
-			// that it doesn't have any side-effects
-			PluginBase{},
-		},
-	}
-}
-
-func (m *pluginManager) NewPlugin(builder *rt.SandboxContextBuilder) Plugin {
-	// Create an array for plugins
-	plugins := make([]Plugin, len(m.factories))
-	// Wait group, so we can wait for all plugins to finish
-	var wg sync.WaitGroup
-	wg.Add(len(m.factories))
-
-	// For each factory we call NewPlugin() in parallel, just in case someone
-	// doesn't something expensive.
-	for i, factory := range m.factories {
-		// I can't believe golang made the same mistake as javascript, so stupid
-		// and it just recently got fixed in ES6
-		i, factory := i, factory
-		go func() {
-			plugins[i] = factory.NewPlugin(builder)
-			wg.Done()
-		}()
-	}
-
-	// Wait for plugins to be create and return a plugin wrapper
-	wg.Wait()
-	return &pluginWrapper{
-		plugins: plugins,
-	}
-}
-
-// Plugin implementation for pluginWrapper
+// Plugin implementation for PluginManager
 
 // waitForErrors returns it has received count results from the errors channel.
 // Note, that errors might be nil, if all are nil it'll return nil otherwise
 // it'll merge the errors.
-func waitForErrors(errors <-chan error, count int) error {
-	retval := nil
+func waitForErrors(errors <-chan error, count int) []error {
+	var retval []error
 	for err := range errors {
 		if err != nil {
-			// TODO Merge the errors instead of taking the last
 			// TODO MalformedPayloadError needs special care, if we only have these
 			//      it is very different from having a list of other errors, Hence,
 			//      we need to maintain the type rather than mindlessly wrap them.
-			retval = err
+			retval = append(retval, err)
 		}
 		count--
 		if count == 0 {
@@ -88,57 +46,57 @@ func waitForErrors(errors <-chan error, count int) error {
 	return retval
 }
 
-func (w *pluginWrapper) Prepare(context *rt.SandboxContext) error {
+func (w *PluginManager) Prepare(context rt.TaskContext) []error {
 	// Sanity check that no two methods on plugin is running in parallel, this way
 	// plugins don't have to be thread-safe, and we ensure nothing is called after
 	// Dispose() has been called.
 	if w.working.Swap(true) {
 		panic("Another plugin method is currently running, or Dispose() has been called!")
 	}
-	defer w.worker.Set(false)
+	defer w.working.Set(false)
 
 	// Run method on plugins in parallel
 	errors := make(chan error)
-	for _, plugin := range w.plugins {
+	for _, plugin := range w.Plugins {
 		plugin := plugin
 		go func() { errors <- plugin.Prepare(context) }()
 	}
-	return waitForErrors(errors, len(m.plugins))
+	return waitForErrors(errors, len(w.Plugins))
 }
 
-func (w *pluginWrapper) BuildSandbox(sandboxBuilder engine.SandboxBuilder) error {
+func (w *PluginManager) BuildSandbox(sandboxBuilder engines.SandboxBuilder) []error {
 	// Sanity check that no two methods on plugin is running in parallel
 	if w.working.Swap(true) {
 		panic("Another plugin method is currently running, or Dispose() has been called!")
 	}
-	defer w.worker.Set(false)
+	defer w.working.Set(false)
 
 	// Run method on plugins in parallel
 	errors := make(chan error)
-	for _, plugin := range w.plugins {
+	for _, plugin := range w.Plugins {
 		plugin := plugin
 		go func() { errors <- plugin.BuildSandbox(sandboxBuilder) }()
 	}
-	return waitForErrors(errors, len(m.plugins))
+	return waitForErrors(errors, len(w.Plugins))
 }
 
-func (w *pluginWrapper) Started(sandbox engine.Sandbox) error {
+func (w *PluginManager) Started(sandbox engines.Sandbox) []error {
 	// Sanity check that no two methods on plugin is running in parallel
 	if w.working.Swap(true) {
 		panic("Another plugin method is currently running, or Dispose() has been called!")
 	}
-	defer w.worker.Set(false)
+	defer w.working.Set(false)
 
 	// Run method on plugins in parallel
 	errors := make(chan error)
-	for _, plugin := range w.plugins {
+	for _, plugin := range w.Plugins {
 		plugin := plugin
 		go func() { errors <- plugin.Started(sandbox) }()
 	}
-	return waitForErrors(errors, len(m.plugins))
+	return waitForErrors(errors, len(w.Plugins))
 }
 
-func (w *pluginWrapper) Stopped(resultSet engine.ResultSet) (bool, error) {
+func (w *PluginManager) Stopped(resultSet engines.ResultSet) (bool, []error) {
 	// Sanity check that no two methods on plugin is running in parallel
 	if w.working.Swap(true) {
 		panic("Another plugin method is currently running, or Dispose() has been called!")
@@ -150,7 +108,7 @@ func (w *pluginWrapper) Stopped(resultSet engine.ResultSet) (bool, error) {
 
 	// Run method on plugins in parallel
 	errors := make(chan error)
-	for _, plugin := range w.plugins {
+	for _, plugin := range w.Plugins {
 		plugin := plugin
 		go func() {
 			success, err := plugin.Stopped(resultSet)
@@ -161,12 +119,12 @@ func (w *pluginWrapper) Stopped(resultSet engine.ResultSet) (bool, error) {
 		}()
 	}
 	// Wait for errors (before we read the result variable)
-	err := waitForErrors(errors, len(m.plugins))
+	errs := waitForErrors(errors, len(w.Plugins))
 	// Return true if result was
-	return result.Get(), err
+	return result.Get(), errs
 }
 
-func (w *pluginWrapper) Dispose() error {
+func (w *PluginManager) Dispose() []error {
 	// Sanity check that no two methods on plugin is running in parallel
 	if w.working.Swap(true) {
 		panic("Another plugin method is currently running, or Dispose() has been called!")
@@ -176,9 +134,9 @@ func (w *pluginWrapper) Dispose() error {
 
 	// Call dispose on all plugins in parallel
 	errors := make(chan error)
-	for _, plugin := range w.plugins {
+	for _, plugin := range w.Plugins {
 		plugin := plugin
 		go func() { errors <- plugin.Dispose() }()
 	}
-	return waitForErrors(errors, len(m.plugins))
+	return waitForErrors(errors, len(w.Plugins))
 }

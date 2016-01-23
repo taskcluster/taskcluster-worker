@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -8,7 +9,9 @@ import (
 )
 
 // The TaskInfo struct exposes generic properties from a task definition.
-type TaskInfo struct{}
+type Task struct {
+	payload json.RawMessage
+}
 
 // The TaskContext exposes generic properties and functionality related to a
 // task that is currently being executed.
@@ -18,7 +21,7 @@ type TaskInfo struct{}
 // task. This includes log drains, per-task credentials, generic task
 // properties, and abortion notifications.
 type TaskContext struct {
-	TaskInfo
+	Task      Task
 	logStream *stream.Stream
 }
 

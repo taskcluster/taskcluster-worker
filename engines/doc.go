@@ -1,5 +1,3 @@
-//go:generate go-extpoints
-
 // Package engine specfies the interfaces that each engine must implement.
 //
 // This is all rooted at the EngineProvider interface specified in the extpoints
@@ -12,4 +10,4 @@
 // Notice that many of the features specified are optional, and it's often
 // possible to return an ErrFeatureNotSupported error rather than implementing
 // the feature.
-package engine
+package engines
