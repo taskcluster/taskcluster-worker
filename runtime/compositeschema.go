@@ -16,11 +16,8 @@ type CompositeSchema interface {
 	visit(visitor func(*schemaEntry))
 }
 
-type composedSchema struct {
-	entries []CompositeSchema
-}
+type emptySchema struct{}
 
-// A SchemaEntry describes a property of a CompositeSchema
 type schemaEntry struct {
 	property   string
 	schema     string
@@ -28,6 +25,22 @@ type schemaEntry struct {
 	makeTarget func() interface{}
 	validator  *gojsonschema.Schema
 }
+
+type composedSchema struct {
+	entries []CompositeSchema
+}
+
+// NewEmptyCompositeSchema returns a CompositeSchema schema that is empty.
+// The resulting value from Parse is nil, and the schema does no validation.
+func NewEmptyCompositeSchema() CompositeSchema {
+	return &emptySchema{}
+}
+
+func (*emptySchema) Parse(map[string]json.RawMessage) (interface{}, error) {
+	return nil, nil
+}
+
+func (*emptySchema) visit(func(*schemaEntry)) {}
 
 // NewCompositeSchema creates a CompositeSchema from the description of a single
 // property and a function to produce unmarshalling targets with.
