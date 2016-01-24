@@ -13,15 +13,17 @@ var (
 	// When the worker encounters this error from an optional method, it should
 	// workaround if possible, but most likely resolve the task as "exception"
 	// with reason "malformed-payload".
-	ErrFeatureNotSupported   = errors.New("Feature not support by current engine")
-	ErrResourceNotFound      = errors.New("The referenced resource wasn't found")
-	ErrSandboxTerminated     = errors.New("The Sandbox has terminated")
-	ErrSandboxAborted        = errors.New("Exection of sandbox was aborted")
-	ErrNonFatalInternalError = errors.New("Engine encountered a non-fatal internal error")
-	ErrContractViolation     = errors.New("Engine has detected a contract violation")
-	ErrEngineIsSingleton     = errors.New("Engine cannot run multiple sandboxes in parallel")
-	ErrEngineNotSupported    = errors.New("Engine is not available in the current configuration")
-	ErrEngineUnknown         = errors.New("Engine with the given doesn't exist")
+	ErrFeatureNotSupported        = errors.New("Feature not support by current engine")
+	ErrMutableMountNotSupported   = errors.New("The engine doesn't support mutable volume attachments")
+	ErrImmutableMountNotSupported = errors.New("The engine doesn't support immutable volume attachements")
+	ErrResourceNotFound           = errors.New("The referenced resource wasn't found")
+	ErrSandboxTerminated          = errors.New("The Sandbox has terminated")
+	ErrSandboxAborted             = errors.New("Exection of sandbox was aborted")
+	ErrNonFatalInternalError      = errors.New("Engine encountered a non-fatal internal error")
+	ErrContractViolation          = errors.New("Engine has detected a contract violation")
+	ErrEngineIsSingleton          = errors.New("Engine cannot run multiple sandboxes in parallel")
+	ErrEngineNotSupported         = errors.New("Engine is not available in the current configuration")
+	ErrEngineUnknown              = errors.New("Engine with the given doesn't exist")
 )
 
 // TODO: MalformedPayloadError should be define in the runtime
