@@ -65,3 +65,23 @@ type Sandbox interface {
 	// Non-fatal errors: ErrSandboxTerminated
 	Abort() error
 }
+
+// SandboxBase is a base implemenation of Sandbox. It will implement all
+// optional methods such that they return ErrFeatureNotSupported.
+//
+// Note: This will not implement WaitForResult() and other required methods.
+//
+// Implementors of SandBox should embed this struct to ensure source
+// compatibility when we add more optional methods to SandBox.
+type SandboxBase struct{}
+
+// NewShell returns ErrFeatureNotSupported indicating that the feature isn't
+// supported.
+func (SandboxBase) NewShell() (Shell, error) {
+	return nil, ErrFeatureNotSupported
+}
+
+// Abort returns nil indicating that resources have been released.
+func (SandboxBase) Abort() error {
+	return nil
+}
