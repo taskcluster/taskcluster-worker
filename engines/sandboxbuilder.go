@@ -65,10 +65,10 @@ type SandboxBuilder interface {
 	// Non-fatal errors: MalformedPayloadError
 	StartSandbox() (Sandbox, error)
 
-	// Abort must free all resources held by the SandboxBuilder interface.
+	// Discard must free all resources held by the SandboxBuilder interface.
 	// Any error returned is fatal, so do not return an error unless there is
 	// something very wrong.
-	Abort() error
+	Discard() error
 }
 
 // SandboxBuilderBase is a base implemenation of SandboxBuilder. It will
@@ -92,7 +92,7 @@ func (SandboxBuilderBase) AttachProxy(string, http.Handler) error {
 	return ErrFeatureNotSupported
 }
 
-// Abort returns nil, indicating that resources have been released.
-func (SandboxBuilderBase) Abort() error {
+// Discard returns nil, indicating that resources have been released.
+func (SandboxBuilderBase) Discard() error {
 	return nil
 }

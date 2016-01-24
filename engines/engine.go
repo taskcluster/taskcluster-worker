@@ -105,4 +105,40 @@ type Engine interface {
 // list features for which we critically need up-front feature testing.
 type Capabilities struct {
 	IsSingletonEngine bool
+	// Note: the zero value of Capabilities should always indicate the sane
+	// defaults, typically that a feature isn't supported.
+	// (IsSingletonEngine is an excellent example of a valid exception)
+}
+
+// EngineBase is a base implemenation of Engine. It will implement all optional
+// methods such that they return ErrFeatureNotSupported.
+//
+// Note: This will not implement NewSandboxBuilder() and other required methods.
+//
+// Implementors of Engine should embed this struct to ensure source
+// compatibility when we add more optional methods to Engine.
+type EngineBase struct{}
+
+// PayloadSchema returns an empty CompositeSchema indicating that a nil
+// payload is sufficient.
+func (EngineBase) PayloadSchema() runtime.CompositeSchema {
+	return runtime.NewEmptyCompositeSchema()
+}
+
+// Capabilities returns an zero value Capabilities struct indicating that
+// most features aren't supported.
+func (EngineBase) Capabilities() Capabilities {
+	return Capabilities{}
+}
+
+// NewCacheFolder returns ErrFeatureNotSupported indicating that the feature
+// isn't supported.
+func (EngineBase) NewCacheFolder() (Volume, error) {
+	return nil, ErrFeatureNotSupported
+}
+
+// NewMemoryDisk returns ErrFeatureNotSupported indicating that the feature
+// isn't supported.
+func (EngineBase) NewMemoryDisk() (Volume, error) {
+	return nil, ErrFeatureNotSupported
 }
