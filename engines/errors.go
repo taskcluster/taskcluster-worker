@@ -2,29 +2,52 @@ package engines
 
 import "errors"
 
-var (
-	// ErrFeatureNotSupported is a common error that may be returned from optional
-	// Engine methods to indicate the engine implementation doesn't support the
-	// given feature.
-	//
-	// Note, all methods are allowed to return this error, some methods are
-	// required, and may not return this error.
-	//
-	// When the worker encounters this error from an optional method, it should
-	// workaround if possible, but most likely resolve the task as "exception"
-	// with reason "malformed-payload".
-	ErrFeatureNotSupported        = errors.New("Feature not support by current engine")
-	ErrMutableMountNotSupported   = errors.New("The engine doesn't support mutable volume attachments")
-	ErrImmutableMountNotSupported = errors.New("The engine doesn't support immutable volume attachements")
-	ErrResourceNotFound           = errors.New("The referenced resource wasn't found")
-	ErrSandboxTerminated          = errors.New("The Sandbox has terminated")
-	ErrSandboxAborted             = errors.New("Exection of sandbox was aborted")
-	ErrNonFatalInternalError      = errors.New("Engine encountered a non-fatal internal error")
-	ErrContractViolation          = errors.New("Engine has detected a contract violation")
-	ErrEngineIsSingleton          = errors.New("Engine cannot run multiple sandboxes in parallel")
-	ErrEngineNotSupported         = errors.New("Engine is not available in the current configuration")
-	ErrEngineUnknown              = errors.New("Engine with the given doesn't exist")
-)
+// ErrFeatureNotSupported is a common error that may be returned from optional
+// Engine methods to indicate the engine implementation doesn't support the
+// given feature.
+//
+// Note, all methods are allowed to return this error, some methods are
+// required, and may not return this error.
+//
+// When the worker encounters this error from an optional method, it should
+// workaround if possible, but most likely resolve the task as "exception"
+// with reason "malformed-payload".
+var ErrFeatureNotSupported = errors.New("Feature not support by current engine")
+
+// ErrMutableMountNotSupported is returned when volume attachments are
+// supported, but mutable mounts aren't supported.
+var ErrMutableMountNotSupported = errors.New("The engine doesn't support mutable volume attachments")
+
+// ErrImmutableMountNotSupported is returned when volume attachements are
+// supported, but immutable mounts aren't supported.
+var ErrImmutableMountNotSupported = errors.New("The engine doesn't support immutable volume attachements")
+
+// ErrResourceNotFound is returned when trying to extract a file or folder that
+// doesn't exist.
+var ErrResourceNotFound = errors.New("The referenced resource wasn't found")
+
+// ErrSandboxTerminated is used to indicate that a SandBox has already
+// terminated and can't be aborted.
+var ErrSandboxTerminated = errors.New("The Sandbox has terminated")
+
+// ErrSandboxAborted is used to indicate that a Sandbox has been aborted.
+var ErrSandboxAborted = errors.New("Exection of sandbox was aborted")
+
+// ErrNonFatalInternalError is used to indicate that the operation failed
+// because of internal error that isn't expected to affect other tasks.
+var ErrNonFatalInternalError = errors.New("Engine encountered a non-fatal internal error")
+
+// ErrContractViolation is returned when a contract with the engine has been
+// violated.
+var ErrContractViolation = errors.New("Engine has detected a contract violation")
+
+// ErrEngineIsSingleton is returned when attempts to start multiple sandboxes of
+// a singleton engine.
+var ErrEngineIsSingleton = errors.New("Engine cannot run multiple sandboxes in parallel")
+
+// ErrEngineNotSupported is used to indicate that the engine isn't supported in
+// the current configuration.
+var ErrEngineNotSupported = errors.New("Engine is not available in the current configuration")
 
 // TODO: MalformedPayloadError should be define in the runtime
 // TODO: MalformedPayloadError should have a merge to join two of these
