@@ -7,14 +7,13 @@ import (
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
-	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 func init() {
 	// Register the mock engine as an import side-effect
-	extpoints.EngineProviders.Register(NewEngine, "mock")
+	extpoints.EngineProviders.Register(newMockEngine, "mock")
 }
 
-func NewEngine(environment *runtime.Environment, options *engines.EngineOptions) (engines.Engine, error) {
+func newMockEngine(options extpoints.EngineOptions) (engines.Engine, error) {
 	return nil, errors.New("Engine not yet implemented")
 }

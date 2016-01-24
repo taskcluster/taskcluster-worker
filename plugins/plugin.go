@@ -1,11 +1,57 @@
+//go:generate go-extpoints
+
 package plugins
 
 import (
-	"io"
-
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
+
+// The TaskPluginOptions is a wrapper for the set of arguments given to
+// NewTaskPlugin.
+//
+// We wrap the arguments in a single argument to maintain source compatibility
+// when introducing additional arguments.
+type TaskPluginOptions struct {
+	TaskInfo *runtime.TaskInfo
+	Payload  interface{}
+	// Note: This is passed by-value for efficiency (and to prohibit nil), if
+	// adding any large fields please consider adding them as pointers.
+	// Note: This is intended to be a simple argument wrapper, do not add methods
+	// to this struct.
+}
+
+// Plugin is a plugin to the worker, for each task NewTaskPlugin is created.
+// The Plugin instance is responsible for creating these objects and managing
+// data shared between TaskPlugin instances.
+//
+// All methods on this interface must be thread-safe.
+type Plugin interface {
+	// PayloadSchema returns the CompositeSchema that represents the payload.
+	//
+	// The Payload property on PluginOptions given to NewPlugin will be the result
+	// from CompositeSchema.Parse() on the CompositeSchema returned from this
+	// method.
+	PayloadSchema() (runtime.CompositeSchema, error)
+
+	// NewTaskPlugin method will be called once for each task. The TaskPlugin
+	// instance returned will be called for each stage in the task execution.
+	//
+	// This is a poor place to do any processing, and not a great place to start
+	// long-running operations as you don't have a place to write log messages.
+	// Consider waiting until Prepare() is called with TaskContext that you can
+	// write log messages to.
+	//
+	// Plugins implementing logging should not return an error here, as it
+	// naturally follows that such an error can't be logged if no logging plugin
+	// is created.
+	//
+	// Implementors may return nil, if the plugin doesn't have any hooks for the
+	// given tasks.
+	//
+	// Non-fatal errors: MalformedPayloadError
+	NewTaskPlugin(options TaskPluginOptions) (TaskPlugin, error)
+}
 
 // An ExceptionReason specifies the reason a task reached an exception state.
 type ExceptionReason int
@@ -18,7 +64,7 @@ const (
 	WorkerShutdown
 )
 
-// Plugin holds the task-specific state for a plugin
+// TaskPlugin holds the task-specific state for a plugin
 //
 // Each method on this interface represents stage in the task execution and will
 // be called when this stage is reached. The some methods are allowed to
@@ -27,15 +73,14 @@ const (
 // These methods does not have to be thread-safe, we will never call the next
 // method, before the previous method has returned.
 //
-// Implementors of this interface should be sure to embed PluginBase. This will
-// do absolutely nothing, but provide empty implementations for any current and
-// future methods that isn't implemented.
+// Implementors of this interface should be sure to embed TaskPluginBase.
+// This will do absolutely nothing, but provide empty implementations for any
+// current and future methods that isn't implemented.
 //
 // The methods are called in the order listed here with the exception of
 // Exception() which may be called following any method, and Dispose() which
 // will always be called as a final step allowing you to clean up.
-type Plugin interface {
-	PayloadSchema() runtime.CompositeSchema
+type TaskPlugin interface {
 	// Prepare will be called in parallel with NewSandboxBuilder().
 	//
 	// Notice that this method is a good place to start long-running operations,
@@ -44,7 +89,7 @@ type Plugin interface {
 	// BuildSandbox() or whatever hook you need them in.
 	//
 	// Non-fatal errors: MalformedPayloadError
-	Prepare(context runtime.TaskContext) error
+	Prepare(context *runtime.TaskContext) error
 
 	// BuildSandbox is called once NewSandboxBuilder() has returned.
 	//
@@ -102,8 +147,8 @@ type Plugin interface {
 	Dispose() error
 }
 
-// PluginBase is a base implementation of the plugin interface, it just handles
-// all methods and does nothing.
+// PluginBase is a base implementation of the Plugin interface, it just
+// handles all methods and does nothing.
 //
 // Implementors should embed this to ensure forward compatibility when we add
 // new optional methods.
@@ -111,45 +156,55 @@ type PluginBase struct{}
 
 // PayloadSchema returns an empty composite schema for plugins that doesn't
 // take any payload.
-func (PluginBase) PayloadSchema() runtime.CompositeSchema {
-	return runtime.NewEmptyCompositeSchema()
+func (PluginBase) PayloadSchema() (runtime.CompositeSchema, error) {
+	return runtime.NewEmptyCompositeSchema(), nil
 }
 
-// LogDrain ignores the log setup and returns nil
-func (PluginBase) LogDrain() (io.Writer, error) {
+// NewTaskPlugin returns nil ignoring the request to create a TaskPlugin for
+// the given task.
+func (PluginBase) NewTaskPlugin(TaskPluginOptions) (TaskPlugin, error) {
 	return nil, nil
 }
 
+// TaskPluginBase is a base implementation of the TaskPlugin interface, it just
+// handles all methods and does nothing.
+//
+// Implementors should embed this to ensure forward compatibility when we add
+// new optional methods.
+type TaskPluginBase struct{}
+
 // Prepare ignores the sandbox preparation stage.
-func (PluginBase) Prepare(runtime.TaskContext) error {
+func (TaskPluginBase) Prepare(*runtime.TaskContext) error {
 	return nil
 }
 
 // BuildSandbox ignores the sandbox building stage.
-func (PluginBase) BuildSandbox(engines.SandboxBuilder) error {
+func (TaskPluginBase) BuildSandbox(engines.SandboxBuilder) error {
 	return nil
 }
 
 // Started ignores the stage where the sandbox has started
-func (PluginBase) Started(engines.Sandbox) error {
+func (TaskPluginBase) Started(engines.Sandbox) error {
 	return nil
 }
 
 // Stopped ignores the stage where the sandbox has returned a ResultSet, and
 // returns true saying the task was successful, as not to poison the water.
-func (PluginBase) Stopped(engines.ResultSet) (bool, error) {
+func (TaskPluginBase) Stopped(engines.ResultSet) (bool, error) {
 	return true, nil
 }
 
+// Finished ignores the stage where a task has been finished
+func (TaskPluginBase) Finished(success bool) error {
+	return nil
+}
+
+// Exception ignores the stage where a task is resolved exception
+func (TaskPluginBase) Exception(reason ExceptionReason) error {
+	return nil
+}
+
 // Dispose ignores the stage where resources are disposed.
-func (PluginBase) Dispose() error {
-	return nil
-}
-
-func (PluginBase) Exception(reason ExceptionReason) error {
-	return nil
-}
-
-func (PluginBase) Finished(success bool) error {
+func (TaskPluginBase) Dispose() error {
 	return nil
 }

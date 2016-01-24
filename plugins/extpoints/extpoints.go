@@ -127,49 +127,49 @@ func (ep *extensionPoint) unregister(name string) bool {
 	return true
 }
 
-// PluginFactory
+// PluginProvider
 
-var PluginFactories = &pluginFactoryExt{
-	newExtensionPoint(new(PluginFactory)),
+var PluginProviders = &pluginProviderExt{
+	newExtensionPoint(new(PluginProvider)),
 }
 
-type pluginFactoryExt struct {
+type pluginProviderExt struct {
 	*extensionPoint
 }
 
-func (ep *pluginFactoryExt) Unregister(name string) bool {
+func (ep *pluginProviderExt) Unregister(name string) bool {
 	return ep.unregister(name)
 }
 
-func (ep *pluginFactoryExt) Register(extension PluginFactory, name string) bool {
+func (ep *pluginProviderExt) Register(extension PluginProvider, name string) bool {
 	return ep.register(extension, name)
 }
 
-func (ep *pluginFactoryExt) Lookup(name string) PluginFactory {
+func (ep *pluginProviderExt) Lookup(name string) PluginProvider {
 	ext := ep.lookup(name)
 	if ext == nil {
 		return nil
 	}
-	return ext.(PluginFactory)
+	return ext.(PluginProvider)
 }
 
-func (ep *pluginFactoryExt) Select(names []string) []PluginFactory {
-	var selected []PluginFactory
+func (ep *pluginProviderExt) Select(names []string) []PluginProvider {
+	var selected []PluginProvider
 	for _, name := range names {
 		selected = append(selected, ep.Lookup(name))
 	}
 	return selected
 }
 
-func (ep *pluginFactoryExt) All() map[string]PluginFactory {
-	all := make(map[string]PluginFactory)
+func (ep *pluginProviderExt) All() map[string]PluginProvider {
+	all := make(map[string]PluginProvider)
 	for k, v := range ep.all() {
-		all[k] = v.(PluginFactory)
+		all[k] = v.(PluginProvider)
 	}
 	return all
 }
 
-func (ep *pluginFactoryExt) Names() []string {
+func (ep *pluginProviderExt) Names() []string {
 	var names []string
 	for k := range ep.all() {
 		names = append(names, k)

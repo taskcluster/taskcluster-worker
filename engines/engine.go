@@ -1,20 +1,6 @@
 package engines
 
-import (
-	"github.com/taskcluster/taskcluster-worker/runtime"
-	"github.com/taskcluster/taskcluster-worker/runtime/gc"
-)
-
-// An EngineOptions is a wrapper for the set of options/arguments given when
-// an Engine is created.
-//
-// We pass all options as a single argument, so that we can add additional
-// properties without breaking source compatibility.
-type EngineOptions struct {
-	GarbageCollector *gc.GarbageCollector
-	//TODO: Add some sort of interface to the system logger
-	//TODO: Add some interface to submit statistics for influxdb/signalfx
-}
+import "github.com/taskcluster/taskcluster-worker/runtime"
 
 // The SandboxOptions structure is a wrapper around the options/arguments for
 // creating a NewSandboxBuilder. This allows us to added new arguments without

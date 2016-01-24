@@ -13,18 +13,31 @@
 package success
 
 import (
+	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/plugins/extpoints"
 )
 
-func init() {
-	extpoints.PluginFactories.Register(NewSuccessPlugin, "success")
-}
-
-func NewSuccessPlugin(options *plugins.PluginOptions) plugins.Plugin {
-	return Success{}
-}
-
-type Success struct {
+type plugin struct {
 	plugins.PluginBase
+}
+
+type taskPlugin struct {
+	plugins.TaskPluginBase
+}
+
+func init() {
+	extpoints.PluginProviders.Register(func(
+		extpoints.PluginOptions,
+	) (plugins.Plugin, error) {
+		return plugin{}, nil
+	}, "success")
+}
+
+func (plugin) NewTaskPlugin(plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
+	return taskPlugin{}, nil
+}
+
+func (taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
+	return result.Success(), nil
 }
