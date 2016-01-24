@@ -61,7 +61,7 @@ type MalformedPayloadError struct {
 	message string
 }
 
-func (e *MalformedPayloadError) Error() string {
+func (e MalformedPayloadError) Error() string {
 	return e.message
 }
 

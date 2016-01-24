@@ -21,16 +21,58 @@ func init() {
 	}, "mock")
 }
 
+// task.payload.start when engine is "mock"
+type payload struct {
+	Function string `json:"function"`
+	Argument string `json:"argument"`
+	Delay    int64  `json:"delay"`
+}
+
 func (engine) PayloadSchema() runtime.CompositeSchema {
-	return runtime.NewEmptyCompositeSchema()
+	// Declare the schema for the "task.payload.start" property
+	schema, err := runtime.NewCompositeSchema("start", `{
+    "type": "object",
+    "properties": {
+      "delay": {"type": "integer"},
+      "function": {
+        "type": "string",
+        "enum": [
+          "true",
+          "false",
+          "set-volume",
+          "get-volume",
+          "ping-proxy",
+          "write-log"
+        ]
+      },
+      "argument": {"type": "string"}
+    },
+    "required": ["delay", "function", "argument"],
+    "additionalProperties": false
+  }`, true, func() interface{} { return &payload{} })
+	if err != nil {
+		// Any errors here are supposed to be static
+		panic(err)
+	}
+	return schema
 }
 
 func (engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {
-	return &sandbox{}, nil
+	// We know that payload was created with CompositeSchema.Parse() from the
+	// schema returned by PayloadSchema(), so here we type assert that it is
+	// indeed a pointer to such a thing.
+	p, valid := options.Payload.(*payload)
+	if !valid {
+		// TODO: Write to some sort of log if the type assertion fails
+		return nil, engines.ErrContractViolation
+	}
+	return &sandbox{
+		payload: p,
+		context: options.TaskContext,
+	}, nil
 }
 
-// NewCacheFolder returns ErrFeatureNotSupported indicating that the feature
-// isn't supported.
 func (engine) NewCacheFolder() (engines.Volume, error) {
-	return nil, engines.ErrFeatureNotSupported
+	// Create a new cache folder
+	return &volume{}, nil
 }
