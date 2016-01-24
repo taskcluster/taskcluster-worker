@@ -29,9 +29,9 @@ type TaskPluginOptions struct {
 type Plugin interface {
 	// PayloadSchema returns the CompositeSchema that represents the payload.
 	//
-	// The Payload property on PluginOptions given to NewPlugin will be the result
-	// from CompositeSchema.Parse() on the CompositeSchema returned from this
-	// method.
+	// The Payload property on TaskPluginOptions given to NewTaskPlugin will be
+	// the result from CompositeSchema.Parse() on the CompositeSchema returned
+	// from this method.
 	PayloadSchema() (runtime.CompositeSchema, error)
 
 	// NewTaskPlugin method will be called once for each task. The TaskPlugin
