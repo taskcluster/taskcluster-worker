@@ -22,6 +22,7 @@ type ResultSet interface {
 	// Success, returns true if the execution was successful, typically implying
 	// that the process exited zero.
 	Success() bool
+
 	// Extract a file from the sandbox.
 	//
 	// Interpretation of the string path format is engine specific and must be
@@ -36,6 +37,7 @@ type ResultSet interface {
 	// Non-fatal erorrs: ErrFeatureNotSupported, ErrResourceNotFound,
 	// MalformedPayloadError
 	ExtractFile(path string) (io.ReadCloser, error)
+
 	// Extract a folder from the sandbox.
 	//
 	// Interpretation of the string path format is engine specific and must be
@@ -67,9 +69,11 @@ type ResultSet interface {
 	// Non-fatal erorrs: ErrFeatureNotSupported, ErrResourceNotFound,
 	// MalformedPayloadError, ErrNonFatalInternalError
 	ExtractFolder(path string, handler FileHandler) error
+
 	// ArchiveSandbox streams out the entire sandbox (or as much as possible)
 	// as a tar-stream. Ideally this also includes cache folders.
 	ArchiveSandbox() (io.ReadCloser, error)
+
 	// Dispose shall release all resources.
 	//
 	// CacheFolders given to the sandbox shall not be disposed, instead they are
@@ -78,4 +82,36 @@ type ResultSet interface {
 	// Implementors should only return an error if cleaning up fails and the
 	// worker therefor needs to stop operation.
 	Dispose() error
+}
+
+// ResultSetBase is a base implemenation of ResultSet. It will implement all
+// optional methods such that they return ErrFeatureNotSupported.
+//
+// Note: This will not implement Success() and other required methods.
+//
+// Implementors of ResultSet should embed this struct to ensure source
+// compatibility when we add more optional methods to ResultSet.
+type ResultSetBase struct{}
+
+// ExtractFile returns ErrFeatureNotSupported indicating that the feature isn't
+// supported.
+func (ResultSetBase) ExtractFile(string) (io.ReadCloser, error) {
+	return nil, ErrFeatureNotSupported
+}
+
+// ExtractFolder returns ErrFeatureNotSupported indicating that the feature
+// isn't supported.
+func (ResultSetBase) ExtractFolder(string, FileHandler) error {
+	return ErrFeatureNotSupported
+}
+
+// ArchiveSandbox returns ErrFeatureNotSupported indicating that the feature
+// isn't supported.
+func (ResultSetBase) ArchiveSandbox() (io.ReadCloser, error) {
+	return nil, ErrFeatureNotSupported
+}
+
+// Dispose returns nil indicating that resources have been released.
+func (ResultSetBase) Dispose() error {
+	return nil
 }
