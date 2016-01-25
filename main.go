@@ -45,8 +45,8 @@ func main() {
 		log.Fatalf("Must supply a valid engine.  Supported Engines %v", engineNames)
 	}
 
-	provider := extpoints.EngineProviders.Lookup(engine)
-	engineInstance, err := provider(nil, nil)
+	engineProvider := extpoints.EngineProviders.Lookup(engine)
+	engineInstance, err := engineProvider(extpoints.EngineOptions{})
 	if err != nil {
 		panic(err)
 	}

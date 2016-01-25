@@ -1,28 +1,20 @@
 package engines
 
-import (
-	"github.com/taskcluster/taskcluster-worker/runtime"
-	"github.com/taskcluster/taskcluster-worker/runtime/gc"
-)
-
-// An EngineOptions is a wrapper for the set of options/arguments given when
-// an Engine is created.
-//
-// We pass all options as a single argument, so that we can add additional
-// properties without breaking source compatibility.
-type EngineOptions struct {
-	GarbageCollector *gc.GarbageCollector
-	//TODO: Add some sort of interface to the system logger
-	//TODO: Add some interface to submit statistics for influxdb/signalfx
-}
+import "github.com/taskcluster/taskcluster-worker/runtime"
 
 // The SandboxOptions structure is a wrapper around the options/arguments for
 // creating a NewSandboxBuilder. This allows us to added new arguments without
 // source compatibility with older Engine implementations.
 type SandboxOptions struct {
+	// Task contains information about the task we're starting a sandbox for.
+	TaskContext *runtime.TaskContext
 	// Result from PayloadSchema().Parse() implementors should feel safe in
 	// type asserting this back to their target type.
 	Payload interface{}
+	// Note: This is passed by-value for efficiency (and to prohibit nil), if
+	// adding any large fields please consider adding them as pointers.
+	// Note: This is intended to be a simple argument wrapper, do not add methods
+	// to this struct.
 }
 
 // An Engine implementation provides and backend upon which tasks can be
@@ -44,6 +36,11 @@ type SandboxOptions struct {
 // can be implemented on all platforms. See individual methods to see which are
 // required and which can be implemented by returning ErrFeatureNotSupported.
 type Engine interface {
+	// PayloadSchema returns the CompositeSchema that represents the payload.
+	//
+	// The Payload property on SandboxOptions given to NewSandboxBuilder will be
+	// the result from CompositeSchema.Parse() on the CompositeSchema returned
+	// from this method.
 	PayloadSchema() runtime.CompositeSchema
 
 	// Capabilities returns a structure declaring which features are supported,
@@ -76,16 +73,15 @@ type Engine interface {
 	// is invalid.
 	//
 	// Non-fatal errors: MalformedPayloadError, ErrEngineIsSingleton.
-	NewSandboxBuilder(
-		options *SandboxOptions,
-		context *runtime.SandboxContext,
-	) (SandboxBuilder, error)
+	NewSandboxBuilder(options SandboxOptions) (SandboxBuilder, error)
+
 	// NewCacheFolder returns a new Volume backed by a file system folder
 	// if cache-folders folders are supported, otherwise it must return
 	// ErrFeatureNotSupported.
 	//
 	// Non-fatal errors: ErrFeatureNotSupported
 	NewCacheFolder() (Volume, error)
+
 	// NewMemoryDisk returns a new Volume backed by a ramdisk, if ramdisks are
 	// supported, otherwise it must return ErrFeatureNotSupported.
 	//
@@ -109,4 +105,40 @@ type Engine interface {
 // list features for which we critically need up-front feature testing.
 type Capabilities struct {
 	IsSingletonEngine bool
+	// Note: the zero value of Capabilities should always indicate the sane
+	// defaults, typically that a feature isn't supported.
+	// (IsSingletonEngine is an excellent example of a valid exception)
+}
+
+// EngineBase is a base implemenation of Engine. It will implement all optional
+// methods such that they return ErrFeatureNotSupported.
+//
+// Note: This will not implement NewSandboxBuilder() and other required methods.
+//
+// Implementors of Engine should embed this struct to ensure source
+// compatibility when we add more optional methods to Engine.
+type EngineBase struct{}
+
+// PayloadSchema returns an empty CompositeSchema indicating that a nil
+// payload is sufficient.
+func (EngineBase) PayloadSchema() runtime.CompositeSchema {
+	return runtime.NewEmptyCompositeSchema()
+}
+
+// Capabilities returns an zero value Capabilities struct indicating that
+// most features aren't supported.
+func (EngineBase) Capabilities() Capabilities {
+	return Capabilities{}
+}
+
+// NewCacheFolder returns ErrFeatureNotSupported indicating that the feature
+// isn't supported.
+func (EngineBase) NewCacheFolder() (Volume, error) {
+	return nil, ErrFeatureNotSupported
+}
+
+// NewMemoryDisk returns ErrFeatureNotSupported indicating that the feature
+// isn't supported.
+func (EngineBase) NewMemoryDisk() (Volume, error) {
+	return nil, ErrFeatureNotSupported
 }

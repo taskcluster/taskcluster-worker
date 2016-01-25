@@ -1,3 +1,5 @@
+//TODO: Update this documentation, it's very out of date
+
 // Package plugins defines interfaces to be implemented by feature plugins.
 //
 // A plugin is an object that gets called for each step in the task execution

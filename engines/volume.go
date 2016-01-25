@@ -10,6 +10,18 @@ package engines
 // data through the defined interface, extracting data through the defined
 // interface and deleting the underlying storage when Dispose is called.
 type Volume interface {
-	// Dispose deletes all resources used by the Volume
+	// Dispose deletes all resources used by the Volume.
 	Dispose() error
+}
+
+// VolumeBase is a base implemenation of Volume. It will implement all
+// optional methods such that they return ErrFeatureNotSupported.
+//
+// Implementors of Volume should embed this struct to ensure source
+// compatibility when we add more optional methods to Volume.
+type VolumeBase struct{}
+
+// Dispose returns nil indicating that resources were released.
+func (VolumeBase) Dispose() error {
+	return nil
 }
