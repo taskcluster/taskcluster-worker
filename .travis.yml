@@ -28,7 +28,7 @@ install:
   - "go get -d -t ./..."
 
 script:
-  - "go install -v ./..."
+  - "make rebuild"
   - "if test $GIMME_OS.$GIMME_ARCH = linux.amd64; then ${GOPATH}/bin/gotestcover -v -coverprofile=coverage.report ./...; go tool cover -func=coverage.report; fi"
 
 after_script:
