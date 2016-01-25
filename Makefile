@@ -5,7 +5,7 @@
 
 all: build
 build:
-	go build
+	go install ./...
 
 generate:
 	go get github.com/progrium/go-extpoints
