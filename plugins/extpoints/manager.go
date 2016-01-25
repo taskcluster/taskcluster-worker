@@ -4,10 +4,10 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/taskcluster/taskcluster-worker/atomics"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
-	"github.com/taskcluster/taskcluster-worker/utils"
 )
 
 type pluginManager struct {
@@ -16,7 +16,7 @@ type pluginManager struct {
 
 type taskPluginManager struct {
 	taskPlugins []plugins.TaskPlugin
-	working     utils.AtomicBool
+	working     atomics.Bool
 }
 
 // mergeErrors merges a list of errors into one error, ignoring nil entries,
@@ -185,7 +185,7 @@ func (m *taskPluginManager) Stopped(r engines.ResultSet) (bool, error) {
 	defer m.working.Set(false)
 
 	// Use atomic bool to return true, if no plugin returns false
-	result := utils.NewAtomicBool(true)
+	result := atomics.NewBool(true)
 
 	// Run method on plugins in parallel
 	errors := make(chan error)
