@@ -9,6 +9,7 @@ build:
 
 generate:
 	go get github.com/progrium/go-extpoints
+	go get github.com/jonasfj/go-import-subtree
 	go generate ./...
 
 rebuild: generate build test
