@@ -3,6 +3,9 @@
 # remember the right command. So let's keep this simple, just targets and
 # commands.
 
+# Ensure go-extpoints and go-import-subtree are available for go generate
+export PATH := $(GOPATH)/bin:$(PATH)
+
 all: build
 build:
 	go install ./...
