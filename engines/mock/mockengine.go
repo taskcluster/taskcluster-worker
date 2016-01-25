@@ -3,6 +3,8 @@
 package mockengine
 
 import (
+	"net/http"
+
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -69,6 +71,8 @@ func (engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sandbox
 	return &sandbox{
 		payload: p,
 		context: options.TaskContext,
+		mounts:  make(map[string]*mount),
+		proxies: make(map[string]http.Handler),
 	}, nil
 }
 
