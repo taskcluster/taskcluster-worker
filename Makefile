@@ -8,6 +8,7 @@ build:
 	go build
 
 generate:
+	go get github.com/progrium/go-extpoints
 	go generate ./...
 
 rebuild: generate build test
