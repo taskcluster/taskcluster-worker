@@ -13,16 +13,24 @@ import (
 // can create volumes, mount and read/write to volumes.
 type VolumeTestCase struct {
 	engineProvider
-	Engine             string
-	Mountpoint         string
+	// Name of engine
+	Engine string
+	// A valid mountpoint
+	Mountpoint string
+	// A task.payload as accepted by the engine, which will write something to the
+	// mountpoint given.
 	WriteVolumePayload string
+	// A task.payload as accepted by the engine, which will check that something
+	// was written to the mountpoint given.
 	CheckVolumePayload string
 }
 
+// Construct SandboxBuilder, Attach volume to sandbox and run it
 func (c *VolumeTestCase) writeVolume(volume engines.Volume, readOnly bool) bool {
-	// Construct SandboxBuilder, Attach volume to sandbox and run it
+	ctx, control := c.newTestTaskContext()
+	defer control.CloseLog()
 	sandboxBuilder, err := c.engine.NewSandboxBuilder(engines.SandboxOptions{
-		TaskContext: nil, // TODO: Create a TaskContext
+		TaskContext: ctx,
 		Payload:     parseTestPayload(c.engine, c.WriteVolumePayload),
 	})
 	nilOrpanic(err, "Error creating SandboxBuilder")
@@ -31,10 +39,12 @@ func (c *VolumeTestCase) writeVolume(volume engines.Volume, readOnly bool) bool 
 	return buildRunSandbox(sandboxBuilder)
 }
 
+// Construct SandboxBuilder, Attach volume to sandbox and run it
 func (c *VolumeTestCase) readVolume(volume engines.Volume, readOnly bool) bool {
-	// Construct SandboxBuilder, Attach volume to sandbox and run it
+	ctx, control := c.newTestTaskContext()
+	defer control.CloseLog()
 	sandboxBuilder, err := c.engine.NewSandboxBuilder(engines.SandboxOptions{
-		TaskContext: nil, // TODO: Create a TaskContext
+		TaskContext: ctx,
 		Payload:     parseTestPayload(c.engine, c.CheckVolumePayload),
 	})
 	nilOrpanic(err, "Error creating SandboxBuilder")
@@ -48,6 +58,7 @@ func (c *VolumeTestCase) TestWriteReadVolume() {
 	c.ensureEngine(c.Engine)
 	volume, err := c.engine.NewCacheFolder()
 	nilOrpanic(err, "Failed to create a new cache folder")
+	defer nilOrpanic(volume.Dispose(), "Failed to dispose cache folder")
 	if !c.writeVolume(volume, false) {
 		fmtPanic("Running with writeVolumePayload didn't finish successfully")
 	}
@@ -55,7 +66,6 @@ func (c *VolumeTestCase) TestWriteReadVolume() {
 		fmtPanic("Running with CheckVolumePayload didn't finish successfully, ",
 			"after we ran writeVolumePayload with same volume (writing something)")
 	}
-	nilOrpanic(volume.Dispose(), "Failed to dispose cache folder")
 }
 
 // TestReadEmptyVolume tests that read from empty volume doesn't work
@@ -63,11 +73,11 @@ func (c *VolumeTestCase) TestReadEmptyVolume() {
 	c.ensureEngine(c.Engine)
 	volume, err := c.engine.NewCacheFolder()
 	nilOrpanic(err, "Failed to create a new cache folder")
+	defer nilOrpanic(volume.Dispose(), "Failed to dispose cache folder")
 	if c.readVolume(volume, false) {
 		fmtPanic("Running with CheckVolumePayload with an empty volume was successful.",
 			"It really shouldn't have been.")
 	}
-	nilOrpanic(volume.Dispose(), "Failed to dispose new cache folder 2")
 }
 
 // TestWriteToReadOnlyVolume tests that write doesn't work to a read-only volume
@@ -75,11 +85,11 @@ func (c *VolumeTestCase) TestWriteToReadOnlyVolume() {
 	c.ensureEngine(c.Engine)
 	volume, err := c.engine.NewCacheFolder()
 	nilOrpanic(err, "Failed to create a new cache folder")
+	defer nilOrpanic(volume.Dispose(), "Failed to dispose cache folder")
 	c.writeVolume(volume, true)
 	if c.readVolume(volume, false) {
 		fmtPanic("Write on read-only volume didn't give us is an issue when reading")
 	}
-	nilOrpanic(volume.Dispose(), "Failed to dispose cache folder")
 }
 
 // TestReadToReadOnlyVolume tests that we can read from a read-only volume
@@ -87,6 +97,7 @@ func (c *VolumeTestCase) TestReadToReadOnlyVolume() {
 	c.ensureEngine(c.Engine)
 	volume, err := c.engine.NewCacheFolder()
 	nilOrpanic(err, "Failed to create a new cache folder")
+	defer nilOrpanic(volume.Dispose(), "Failed to dispose cache folder")
 	if !c.writeVolume(volume, false) {
 		fmtPanic("Running with writeVolumePayload didn't finish successfully")
 	}
@@ -95,7 +106,6 @@ func (c *VolumeTestCase) TestReadToReadOnlyVolume() {
 			"after we ran writeVolumePayload with same volume (writing something) ",
 			"This was with a readOnly attachment when reading")
 	}
-	nilOrpanic(volume.Dispose(), "Failed to dispose cache folder")
 }
 
 // Test runs all tests on the test case.

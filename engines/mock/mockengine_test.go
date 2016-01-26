@@ -41,3 +41,31 @@ var volumeTestCase = enginetest.VolumeTestCase{
 }
 
 func TestVolumeTestCase(t *testing.T) { t.Parallel(); volumeTestCase.Test(t) }
+
+var loggingTestCase = enginetest.LoggingTestCase{
+	Engine: "mock",
+	Target: "Hello World",
+	TargetPayload: `{
+    "start": {
+      "delay": 10,
+      "function": "write-log",
+      "argument": "Hello World"
+    }
+  }`,
+	FailingPayload: `{
+    "start": {
+      "delay": 10,
+      "function": "write-error-log",
+      "argument": "Hello World"
+    }
+  }`,
+	SilentPayload: `{
+    "start": {
+      "delay": 10,
+      "function": "write-log",
+      "argument": "Okay, let's try on Danish then: 'Hej Verden'"
+    }
+  }`,
+}
+
+//func TestLoggingTestCase(t *testing.T) { t.Parallel(); loggingTestCase.Test(t) }

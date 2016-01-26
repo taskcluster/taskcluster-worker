@@ -43,7 +43,7 @@ type temporaryFile struct {
 
 // NewTemporaryStorage TemporaryStorage rooted in the given path.
 func NewTemporaryStorage(path string) (TemporaryStorage, error) {
-	err := os.MkdirAll(path, 0644)
+	err := os.MkdirAll(path, 0777)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (s *temporaryFolder) Path() string {
 
 func (s *temporaryFolder) NewFolder() (TemporaryFolder, error) {
 	path := filepath.Join(s.path, slugid.V4())
-	err := os.Mkdir(path, 0644)
+	err := os.Mkdir(path, 0777)
 	if err != nil {
 		return nil, err
 	}
