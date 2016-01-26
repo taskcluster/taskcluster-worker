@@ -2,13 +2,13 @@ package mockengine
 
 import (
 	"encoding/json"
-	"testing"
+	t "testing"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/enginetest"
 )
 
-func parseTestPayload(t *testing.T, engine engines.Engine, payload string) interface{} {
+func parseTestPayload(t *t.T, engine engines.Engine, payload string) interface{} {
 	jsonPayload := map[string]json.RawMessage{}
 	err := json.Unmarshal([]byte(payload), &jsonPayload)
 	if err != nil {
@@ -40,7 +40,12 @@ var volumeTestCase = enginetest.VolumeTestCase{
   }`,
 }
 
-func TestVolumeTestCase(t *testing.T) { t.Parallel(); volumeTestCase.Test(t) }
+func TestWriteReadVolume(*t.T)       { volumeTestCase.TestWriteReadVolume() }
+func TestReadEmptyVolume(*t.T)       { volumeTestCase.TestReadEmptyVolume() }
+func TestWriteToReadOnlyVolume(*t.T) { volumeTestCase.TestWriteToReadOnlyVolume() }
+func TestReadToReadOnlyVolume(*t.T)  { volumeTestCase.TestReadToReadOnlyVolume() }
+
+func TestVolumeTestCase(t *t.T) { t.Parallel(); volumeTestCase.Test(t) }
 
 var loggingTestCase = enginetest.LoggingTestCase{
 	Engine: "mock",
@@ -68,4 +73,8 @@ var loggingTestCase = enginetest.LoggingTestCase{
   }`,
 }
 
-//func TestLoggingTestCase(t *testing.T) { t.Parallel(); loggingTestCase.Test(t) }
+func TestLogTarget(t *t.T)            { loggingTestCase.TestLogTarget() }
+func TestLogTargetWhenFailing(t *t.T) { loggingTestCase.TestLogTargetWhenFailing() }
+func TestSilentTask(t *t.T)           { loggingTestCase.TestSilentTask() }
+
+func TestLoggingTestCase(t *t.T) { t.Parallel(); loggingTestCase.Test(t) }

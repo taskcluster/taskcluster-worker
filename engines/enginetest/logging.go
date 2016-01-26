@@ -28,6 +28,7 @@ type LoggingTestCase struct {
 
 func (c *LoggingTestCase) grepLogFromPayload(payload string, needle string, success bool) bool {
 	ctx, control := c.newTestTaskContext()
+	defer evalNilOrPanic(control.Dispose, "Dispose TaskContext")
 	sandboxBuilder, err := c.engine.NewSandboxBuilder(engines.SandboxOptions{
 		TaskContext: ctx,
 		Payload:     parseTestPayload(c.engine, payload),
@@ -37,16 +38,21 @@ func (c *LoggingTestCase) grepLogFromPayload(payload string, needle string, succ
 	if s != success {
 		fmtPanic("Task with payload: ", payload, " had ResultSet.Success(): ", s)
 	}
-	control.CloseLog()
-	log, err := ctx.NewLogReader()
-	defer nilOrpanic(log.Close(), "Failed to close log reader")
+	err = control.CloseLog()
+	nilOrpanic(err, "Failed to close log file")
+
+	reader, err := ctx.NewLogReader()
 	nilOrpanic(err, "Failed to create log reader")
-	data, err := ioutil.ReadAll(log)
+	defer evalNilOrPanic(reader.Close, "Failed to close log reader")
+	data, err := ioutil.ReadAll(reader)
+	nilOrpanic(err, "Failed to read log")
+
 	return strings.Contains(string(data), needle)
 }
 
 // TestLogTarget check that Target is logged by TargetPayload
 func (c *LoggingTestCase) TestLogTarget() {
+	c.ensureEngine(c.Engine)
 	if !c.grepLogFromPayload(c.TargetPayload, c.Target, true) {
 		fmtPanic("Couldn't find target: ", c.Target, " in logs from TargetPayload")
 	}
@@ -54,6 +60,7 @@ func (c *LoggingTestCase) TestLogTarget() {
 
 // TestLogTargetWhenFailing check that Target is logged by FailingPayload
 func (c *LoggingTestCase) TestLogTargetWhenFailing() {
+	c.ensureEngine(c.Engine)
 	if !c.grepLogFromPayload(c.FailingPayload, c.Target, false) {
 		fmtPanic("Couldn't find target: ", c.Target, " in logs from FailingPayload")
 	}
@@ -61,7 +68,8 @@ func (c *LoggingTestCase) TestLogTargetWhenFailing() {
 
 // TestSilentTask checks that Target isn't logged by SilentPayload
 func (c *LoggingTestCase) TestSilentTask() {
-	if !c.grepLogFromPayload(c.SilentPayload, c.Target, true) {
+	c.ensureEngine(c.Engine)
+	if c.grepLogFromPayload(c.SilentPayload, c.Target, true) {
 		fmtPanic("Found target: ", c.Target, " in logs from SilentPayload")
 	}
 }

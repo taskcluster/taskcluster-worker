@@ -23,6 +23,10 @@ func nilOrpanic(err error, a ...interface{}) {
 	}
 }
 
+func evalNilOrPanic(f func() error, a ...interface{}) {
+	nilOrpanic(f(), a...)
+}
+
 // Type can embed so that we can reuse ensure engine
 type engineProvider struct {
 	sync.Mutex
@@ -52,14 +56,8 @@ func (p *engineProvider) ensureEngine(engineName string) {
 }
 
 func (p *engineProvider) newTestTaskContext() (*runtime.TaskContext, *runtime.TaskContextController) {
-	file, err := p.environment.TemporaryStorage.NewFile()
-	nilOrpanic(err, "Failed to create temp file")
-	ctx, control, err := runtime.NewTaskContext(file.Path())
+	ctx, control, err := runtime.NewTaskContext(p.environment.TemporaryStorage.NewFilePath())
 	nilOrpanic(err, "Failed to create new TaskContext")
-	rt.SetFinalizer(control, func(c *runtime.TaskContextController) {
-		c.Dispose()
-		file.Close()
-	})
 	return ctx, control
 }
 
