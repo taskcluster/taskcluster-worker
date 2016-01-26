@@ -16,8 +16,6 @@ generate:
 	go get github.com/jonasfj/go-import-subtree
 	go generate ./...
 	go fmt ./...
-	# report if this resulted in any code changes
-	git status --porcelain {engines,plugins}/extpoints/extpoints.go
 
 rebuild: generate build test
 
@@ -26,4 +24,5 @@ test:
 	go test -race ./...
 	go vet ./...
 	# tests should fail if go generate or go fmt results in uncommitted code
-	test `git status --porcelain | wc -l` == 0
+	git status --porcelain
+	/bin/bash -c 'test $$(git status --porcelain | wc -l) == 0'
