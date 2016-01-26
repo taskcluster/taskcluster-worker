@@ -15,6 +15,7 @@ before_install:
   - chmod u+x gimme
   - unset GOROOT GOTOOLDIR
   - eval "$(./gimme 1.4)"
+  - rm gimme
   - go version
   - go env
 # end of workaround ###
@@ -28,8 +29,7 @@ install:
   - "go get -d -t ./..."
 
 script:
-  - "make rebuild"
-  - "if test $GIMME_OS.$GIMME_ARCH = linux.amd64; then ${GOPATH}/bin/gotestcover -v -coverprofile=coverage.report ./...; go tool cover -func=coverage.report; fi"
+  - "if test $GIMME_OS.$GIMME_ARCH = linux.amd64; then make rebuild; ${GOPATH}/bin/gotestcover -v -coverprofile=coverage.report ./...; go tool cover -func=coverage.report; else go install ./...; fi"
 
 after_script:
   - "$HOME/gopath/bin/goveralls -coverprofile=coverage.report -service=travis-ci"
