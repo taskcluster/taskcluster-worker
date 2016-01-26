@@ -56,7 +56,7 @@ notifications:
     # encrpyted string was "irc.mozilla.org#taskcluster-bots"
       - secure: "oTVLnjY0DGp95VEO6+PkEgRdg6CFQkLRBiEYbS/Ak0o4wdD4nrZ1XGpMcl9HwGsy6jZ6m0TfvT4Db2RXfmaA5r0rvt0miZkHTrgqrn5qy/XzDSykP8x724+/wan3iCDtqeMI+pSzZqyxMDwuY0M01NlEK4+6sZUL310LBGFS56S4qinAYrgAgDs8vRB+n6Nv3eA4uaxIXN7+6TmOq8cZyHUMO5J+qSe5TjcQt0mheb1gcUupvUhPOTk95oQVm7YH1iYIcKdWB4msrziRGo9zC1hnVupAaanD4avJRZ9i5EQDVl9YicgzhfotwW4Sh8SXVs1DIL20kqyw0AvB4wdNxo/Dgakdg6KjZvmNjEEbWWydWAZrbXz2e6Qa6HKy9R5F/eClfbHCC9c1ebi35mh9OLgnhPpjXTYH3eaiFjk6POaiBktzIUKTM8SaZpKeuyxZPe6dJDhsYPkDohhv2dMnGDxoJOHVoUza+d8NcuJ4wCD3amAigCPmG3mIKO1dv5GPVBnj9j08Iq3ign0qGPXeu+ouBQ6PtTM1wL3MWJktD0xsMAS+WY3NXFVDSBe593jweMBDCQAs0i8+5BgPOvlAh0vDzxvPpA85761lD8GGXIxRk7AdRja0h7cNLJP5zsxQxcI2MZPpTbrCpgeYJZI+r4Txw3+gLItpcNpmPWEnRFQ="
     on_failure: always
-    on_success: always
+    on_success: change
     template:
       - "%{repository}#%{build_number} (%{branch} - %{commit} : %{author}): %{message}"
       - "Change view : %{compare_url}"
