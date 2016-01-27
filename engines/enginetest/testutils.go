@@ -102,6 +102,6 @@ func buildRunSandbox(b engines.SandboxBuilder) bool {
 	nilOrpanic(err, "WaitForResult failed")
 
 	// Get result and dispose ResultSet
-	defer nilOrpanic(resultSet.Dispose(), "Failed to dispose of ResultSet")
+	defer evalNilOrPanic(resultSet.Dispose, "Failed to dispose of ResultSet")
 	return resultSet.Success()
 }
