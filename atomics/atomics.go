@@ -4,8 +4,8 @@ package atomics
 
 import "sync/atomic"
 
-// The AtomicBool is an atomic boolean, no need for locking which makes
-// the code faster and simpler.
+// The atomics.Bool is an atomic boolean, no need for locking which makes the
+// code faster and simpler.
 //
 // This interface is really just to abstract away the 0 or 1 value of an int32
 // modified using the sync/atomic package. Hopefully the go compiler will inline
@@ -14,10 +14,10 @@ type Bool struct {
 	value int32
 }
 
-// NewAtomicBool returns an AtomicBool initialized with value.
+// NewBool returns an atomics.Bool initialized with value.
 //
-// Note it is perfectly safe just declare an AtomicBool it defaults to false
-// just like a normal boolean would do.
+// Note it is perfectly safe to just declare an atomics.Bool; it defaults to
+// false just like a normal boolean would do.
 func NewBool(value bool) Bool {
 	if value {
 		return Bool{value: 1}
