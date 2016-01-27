@@ -3,21 +3,22 @@ package engines
 import "github.com/taskcluster/taskcluster-worker/runtime"
 
 // The SandboxOptions structure is a wrapper around the options/arguments for
-// creating a NewSandboxBuilder. This allows us to added new arguments without
-// source compatibility with older Engine implementations.
+// creating a NewSandboxBuilder. This allows us to add new arguments without
+// breaking source compatibility with older Engine implementations.
 type SandboxOptions struct {
-	// Task contains information about the task we're starting a sandbox for.
+	// TaskContext contains information about the task we're starting a sandbox
+	// for.
 	TaskContext *runtime.TaskContext
-	// Result from PayloadSchema().Parse() implementors should feel safe in
-	// type asserting this back to their target type.
-	Payload interface{}
+	// Result from PayloadSchema().Parse(). Implementors are safe to assert
+	// this back to their target type.
 	// Note: This is passed by-value for efficiency (and to prohibit nil), if
 	// adding any large fields please consider adding them as pointers.
 	// Note: This is intended to be a simple argument wrapper, do not add methods
 	// to this struct.
+	Payload interface{}
 }
 
-// An Engine implementation provides and backend upon which tasks can be
+// An Engine implementation provides a backend upon which tasks can be
 // executed.
 //
 // We do not intend for a worker to use multiple engines at the same time,
