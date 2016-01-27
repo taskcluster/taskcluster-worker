@@ -22,11 +22,6 @@ Options:
   -e, --engine <engine>    Execution engine to run tasks in
 `
 
-func validateEngine(engine string, engines map[string]extpoints.EngineProvider) bool {
-	_, exists := engines[engine]
-	return exists
-}
-
 func main() {
 	args, err := docopt.Parse(usage, nil, true, version, false, true)
 	if err != nil {
@@ -40,17 +35,16 @@ func main() {
 
 	engine := e.(string)
 
-	if validateEngine(engine, extpoints.EngineProviders.All()) == false {
+	engineProvider := extpoints.EngineProviders.Lookup(engine)
+
+	if engineProvider == nil {
 		engineNames := extpoints.EngineProviders.Names()
 		log.Fatalf("Must supply a valid engine.  Supported Engines %v", engineNames)
 	}
 
-	engineProvider := extpoints.EngineProviders.Lookup(engine)
 	engineInstance, err := engineProvider(extpoints.EngineOptions{})
 	if err != nil {
 		panic(err)
 	}
-
 	fmt.Println(engineInstance)
-
 }
