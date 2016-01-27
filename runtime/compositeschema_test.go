@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 )
 
@@ -47,4 +48,48 @@ func TestSingleRequiredSchema(t *testing.T) {
 	if target.Count != 42 {
 		t.Error("Expected 42")
 	}
+}
+
+func TestEmptyCompositeSchema(t *testing.T) {
+	t.Parallel()
+
+	ec := NewEmptyCompositeSchema()
+	if reflect.TypeOf(ec).String() != "*runtime.emptySchema" {
+		t.Fatal("Empty schema not created")
+	}
+
+	type Target struct {
+		Count int `json:"count"`
+	}
+
+	// Parse something (all this happens in one place only)
+	data := map[string]json.RawMessage{}
+	result, err := ec.Parse(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result != nil {
+		t.Fatalf("Result should have been nil, but got %s", result)
+	}
+}
+
+func TestInvalidSchemaReference(t *testing.T) {
+	t.Parallel()
+
+	invalidSchema := `
+		{
+			"type": "object",
+			"properties": {
+		}
+	`
+	schema, err := NewCompositeSchema("prop", invalidSchema, true, func() interface{} { return nil })
+	if schema != nil {
+		t.Fatal("Schema should not have been created with an invalid schema reference")
+	}
+
+	if err == nil {
+		t.Fatal("Error not returned indicating a composite schema could not be created")
+	}
+
 }
