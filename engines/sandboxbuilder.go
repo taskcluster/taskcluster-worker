@@ -42,21 +42,23 @@ type SandboxBuilder interface {
 
 	// Attach a proxy to the sandbox.
 	//
-	// The name is a engine-specific format. If the given name violates
+	// The hostname is a engine-specific format. If the given hostname violates
 	// engine-specific format, a MalformedPayloadError should be returned.
-	// For example a docker engine may expect the name to be a hostname, where as
-	// a different engine could have ot being the path of a unix-domain socket,
-	// a port on localhost, or the prefix of a URL path.
+	// For example a docker engine may expect the hostname to be an actual
+	// hostname, where as a different engine could have it being the path of a
+	// unix-domain socket, a port on localhost, or the prefix of a URL path.
 	//
 	// It is the engines responsbility to ensure that requests aimed at the given
 	// name is forwarded to the handler. And to ensure that no other processes are
 	// able to forward requests to the handler.
+	// When forarding the hostname should be set to what was given on attachment,
+	// the any path prefixes should also be removed.
 	//
 	// If the engine doesn't support proxy attachments, it should return
 	// ErrFeatureNotSupported.
 	//
 	// Non-fatal errors: MalformedPayloadError, ErrFeatureNotSupported,
-	AttachProxy(name string, handler http.Handler) error
+	AttachProxy(hostname string, handler http.Handler) error
 
 	// Start execution of task in sandbox. After a call to this method resources
 	// held by the SandboxBuilder instance should be released or transferred to

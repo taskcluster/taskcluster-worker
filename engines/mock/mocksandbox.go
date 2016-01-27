@@ -3,6 +3,7 @@ package mockengine
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sync"
 	"time"
 
@@ -93,12 +94,19 @@ var functions = map[string]func(*sandbox, string) bool{
 		return mount.volume.value
 	},
 	"ping-proxy": func(s *sandbox, arg string) bool {
-		handler := s.proxies[arg]
+		u, err := url.Parse(arg)
+		if err != nil {
+			s.context.Log("Failed to parse url: ", arg, " got error: ", err)
+			return false
+		}
+		handler := s.proxies[u.Host]
 		if handler == nil {
+			s.context.Log("No proxy for hostname: ", u.Host, " in: ", arg)
 			return false
 		}
 		// Make a fake HTTP request and http response recorder
-		req, err := http.NewRequest("GET", "http://"+arg, nil)
+		s.context.Log("Pinging")
+		req, err := http.NewRequest("GET", arg, nil)
 		if err != nil {
 			panic(err)
 		}
@@ -106,7 +114,7 @@ var functions = map[string]func(*sandbox, string) bool{
 		handler.ServeHTTP(w, req)
 		// Log response
 		s.context.Log(w.Body.String())
-		return w.Code == 200
+		return w.Code == http.StatusOK
 	},
 	"write-log": func(s *sandbox, arg string) bool {
 		s.context.Log(arg)
