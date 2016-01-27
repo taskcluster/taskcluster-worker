@@ -112,6 +112,10 @@ var functions = map[string]func(*sandbox, string) bool{
 		s.context.Log(arg)
 		return true
 	},
+	"write-error-log": func(s *sandbox, arg string) bool {
+		s.context.Log(arg)
+		return false
+	},
 }
 
 func (s *sandbox) WaitForResult() (engines.ResultSet, error) {

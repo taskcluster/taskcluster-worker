@@ -44,7 +44,8 @@ func (engine) PayloadSchema() runtime.CompositeSchema {
           "set-volume",
           "get-volume",
           "ping-proxy",
-          "write-log"
+          "write-log",
+					"write-error-log"
         ]
       },
       "argument": {"type": "string"}

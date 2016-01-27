@@ -12,6 +12,7 @@ import (
 type TemporaryStorage interface {
 	NewFolder() (TemporaryFolder, error)
 	NewFile() (TemporaryFile, error)
+	NewFilePath() string
 }
 
 // TemporaryFolder is a temporary folder that is backed by the filesystem.
@@ -43,7 +44,7 @@ type temporaryFile struct {
 
 // NewTemporaryStorage TemporaryStorage rooted in the given path.
 func NewTemporaryStorage(path string) (TemporaryStorage, error) {
-	err := os.MkdirAll(path, 0644)
+	err := os.MkdirAll(path, 0777)
 	if err != nil {
 		return nil, err
 	}
@@ -55,16 +56,20 @@ func (s *temporaryFolder) Path() string {
 }
 
 func (s *temporaryFolder) NewFolder() (TemporaryFolder, error) {
-	path := filepath.Join(s.path, slugid.V4())
-	err := os.Mkdir(path, 0644)
+	path := s.NewFilePath()
+	err := os.Mkdir(path, 0777)
 	if err != nil {
 		return nil, err
 	}
 	return &temporaryFolder{path: path}, nil
 }
 
+func (s *temporaryFolder) NewFilePath() string {
+	return filepath.Join(s.path, slugid.V4())
+}
+
 func (s temporaryFolder) NewFile() (TemporaryFile, error) {
-	path := filepath.Join(s.path, slugid.V4())
+	path := s.NewFilePath()
 	file, err := os.Create(path)
 	if err != nil {
 		return nil, err

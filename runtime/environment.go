@@ -2,6 +2,7 @@ package runtime
 
 import "github.com/taskcluster/taskcluster-worker/runtime/gc"
 
+// Environment is a collection of objects that makes up a runtime environment.
 type Environment struct {
 	GarbageCollector *gc.GarbageCollector
 	//TODO: Add some sort of interface to the system logger
