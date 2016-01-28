@@ -163,7 +163,7 @@ func TestMergeComposedSchemas(t *testing.T) {
 
 	m := merged.(*composedSchema)
 	if len(m.entries) != 2 {
-		t.Fatalf("Merged schema should have 4 entries but had %d", len(m.entries))
+		t.Fatalf("Merged schema should have 2 entries but had %d", len(m.entries))
 	}
 }
 
@@ -195,5 +195,113 @@ func TestConflictingMergedCompositeSchemas(t *testing.T) {
 
 	if _, err = MergeCompositeSchemas(c1, c2); err == nil {
 		t.Fatalf("Merged composite schema should not have been created.")
+	}
+}
+
+func TestRequiredSchemaPropertyMissing(t *testing.T) {
+	t.Parallel()
+	// Create composite schema, this is part of the plugin/engine implementations
+	type Target struct {
+		Count int `json:"count"`
+	}
+	c, err := NewCompositeSchema("prop", `{
+    "type": "object",
+    "properties": {
+      "count": {"type": "integer"}
+    },
+    "additionalProperties": false
+  }`, true, func() interface{} { return &Target{} })
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Parse something (all this happens in one place only)
+	data := map[string]json.RawMessage{}
+	jsonMessage := `
+		{
+			"prop1": {
+			  "count": 42
+			},
+			"other": 55
+		}
+	`
+	if err = json.Unmarshal([]byte(jsonMessage), &data); err != nil {
+		t.Fatal("test definition error", err)
+	}
+
+	if _, err = c.Parse(data); err == nil {
+		t.Fatalf("Error should have been returned for missing property. Received: '%s'", err)
+	}
+}
+
+func TestUnrequiredSchemaPropertyMissing(t *testing.T) {
+	t.Parallel()
+	// Create composite schema, this is part of the plugin/engine implementations
+	type Target struct {
+		Count int `json:"count"`
+	}
+	c, err := NewCompositeSchema("prop", `{
+    "type": "object",
+    "properties": {
+      "count": {"type": "integer"}
+    },
+    "additionalProperties": false
+  }`, false, func() interface{} { return &Target{} })
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Parse something (all this happens in one place only)
+	data := map[string]json.RawMessage{}
+	jsonMessage := `
+		{
+			"prop1": {
+			  "count": 42
+			},
+			"other": 55
+		}
+	`
+	if err = json.Unmarshal([]byte(jsonMessage), &data); err != nil {
+		t.Fatal("test definition error", err)
+	}
+
+	if result, err := c.Parse(data); err != nil || result != nil {
+		t.Fatal("Error and result should be nil when unrequired property not found")
+	}
+}
+
+func TestSchemaUnmarshalToInvalidType(t *testing.T) {
+	t.Parallel()
+
+	type Target struct {
+		//  Trying to unmarshal an int to a string datatype should
+		//  cause a validation error
+		Count string `json:"count"`
+	}
+	c, err := NewCompositeSchema("prop", `{
+    "type": "object",
+    "properties": {
+      "count": {"type": "integer"}
+    },
+    "additionalProperties": false
+  }`, true, func() interface{} { return &Target{} })
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Parse something (all this happens in one place only)
+	data := map[string]json.RawMessage{}
+	err = json.Unmarshal([]byte(`{
+    "prop": {
+      "count": 42
+    },
+    "other": 55
+  }`), &data)
+	if err != nil {
+		t.Fatal("test definition error", err)
+	}
+
+	if _, err = c.Parse(data); err == nil {
+		t.Fatal("Error should have been reported when unmarshalling an int to a string.")
 	}
 }
