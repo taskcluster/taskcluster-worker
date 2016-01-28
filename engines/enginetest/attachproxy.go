@@ -149,7 +149,7 @@ func (c *ProxyTestCase) TestLiveLogging() {
 		defer evalNilOrPanic(reader.Close, "Failed to close livelog reader")
 		nilOrpanic(err, "Failed to open livelog reader")
 		buf := bytes.Buffer{}
-		for strings.Contains(string(buf.Bytes()), "Pinging") {
+		for !strings.Contains(string(buf.Bytes()), "Pinging") {
 			b := []byte{0}
 			n, err := reader.Read(b)
 			nilOrpanic(err, "Failed while reading from livelog...")
