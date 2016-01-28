@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/djherbis/stream"
+	"gopkg.in/djherbis/stream.v1"
 )
 
 // The TaskInfo struct exposes generic properties from a task definition.
