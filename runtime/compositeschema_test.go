@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -58,10 +59,6 @@ func TestEmptyCompositeSchema(t *testing.T) {
 		t.Fatal("Empty schema not created")
 	}
 
-	type Target struct {
-		Count int `json:"count"`
-	}
-
 	// Parse something (all this happens in one place only)
 	data := map[string]json.RawMessage{}
 	result, err := ec.Parse(data)
@@ -91,5 +88,112 @@ func TestInvalidSchemaReference(t *testing.T) {
 	if err == nil {
 		t.Fatal("Error not returned indicating a composite schema could not be created")
 	}
+}
 
+func TestCreateMergedCompositeSchemas(t *testing.T) {
+	t.Parallel()
+
+	c1, err := NewCompositeSchema("prop1", `{
+		"type": "object",
+        "properties": {
+			"count": {"type": "integer"}
+        },
+		"additionalProperties": false
+	}`, true, func() interface{} { return nil })
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c2, err := NewCompositeSchema("prop2", `{
+		"type": "object",
+        "properties": {
+			"count": {"type": "integer"}
+        },
+		"additionalProperties": false
+	}`, true, func() interface{} { return nil })
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = MergeCompositeSchemas(c1, c2); err != nil {
+		t.Fatalf("Error creating a merged composite scheme. %v", err)
+	}
+}
+
+func TestMergeComposedSchemas(t *testing.T) {
+	t.Parallel()
+
+	schema := `
+		{
+			"type": "object",
+			"properties": {
+				"count": {"type": "integer"}
+			},
+			"additionalProperties": false
+		}
+	`
+
+	composites := make([]CompositeSchema, 4)
+	for i := range composites {
+		// Create unique property names to avoid collision resulting in error
+		propertyName := fmt.Sprintf("prop%d", i)
+		composite, err := NewCompositeSchema(propertyName, schema, true, func() interface{} { return nil })
+		if err != nil {
+			t.Fatal(err)
+		}
+		composites[i] = composite
+	}
+
+	composed1, err := MergeCompositeSchemas(composites[0:2]...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	composed2, err := MergeCompositeSchemas(composites[2:]...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	merged, err := MergeCompositeSchemas(composed1, composed2)
+	if err != nil {
+		t.Fatalf("Error creating a merged composite scheme. %v", err)
+	}
+
+	m := merged.(*composedSchema)
+	if len(m.entries) != 2 {
+		t.Fatalf("Merged schema should have 4 entries but had %d", len(m.entries))
+	}
+}
+
+func TestConflictingMergedCompositeSchemas(t *testing.T) {
+	c1, err := NewCompositeSchema("prop", `{
+		"type": "object",
+        "properties": {
+			"count": {"type": "integer"}
+        },
+		"additionalProperties": false
+	}`, true, func() interface{} { return nil })
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a schema that has the same property name, but a different schema.
+	c2, err := NewCompositeSchema("prop", `{
+		"type": "object",
+        "properties": {
+			"id": {"type": "integer"}
+        },
+		"additionalProperties": false
+	}`, true, func() interface{} { return nil })
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = MergeCompositeSchemas(c1, c2); err == nil {
+		t.Fatalf("Merged composite schema should not have been created.")
+	}
 }
