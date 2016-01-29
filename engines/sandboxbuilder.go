@@ -37,7 +37,7 @@ type SandboxBuilder interface {
 	// respectively.
 	//
 	// Non-fatal errors: MalformedPayloadError, ErrMutableMountNotSupported,
-	// ErrImmutableMountNotSupported, ErrFeatureNotSupported.
+	// ErrImmutableMountNotSupported, ErrFeatureNotSupported, ErrNamingConflict
 	AttachVolume(mountpoint string, volume Volume, readOnly bool) error
 
 	// Attach a proxy to the sandbox.
@@ -58,7 +58,21 @@ type SandboxBuilder interface {
 	// ErrFeatureNotSupported.
 	//
 	// Non-fatal errors: MalformedPayloadError, ErrFeatureNotSupported,
+	// ErrNamingConflict
 	AttachProxy(hostname string, handler http.Handler) error
+
+	// Set an environement variable.
+	//
+	// If the format of the environment variable name is invalid this method
+	// should return a MalformedPayloadError with explaining why the name is
+	// invalid.
+	//
+	// If the environment variable have previously been declared, this method
+	// must return ErrNamingConflict.
+	//
+	// Non-fatal errors: ErrFeatureNotSupported, MalformedPayloadError,
+	// ErrNamingConflict
+	SetEnvironmentVariable(name string, value string) error
 
 	// Start execution of task in sandbox. After a call to this method resources
 	// held by the SandboxBuilder instance should be released or transferred to
@@ -91,6 +105,12 @@ func (SandboxBuilderBase) AttachVolume(string, Volume, bool) error {
 // AttachProxy returns ErrFeatureNotSupported indicating that the feature
 // isn't supported.
 func (SandboxBuilderBase) AttachProxy(string, http.Handler) error {
+	return ErrFeatureNotSupported
+}
+
+// SetEnvironmentVariable return ErrFeatureNotSupported indicating that the
+// feature isn't supported.
+func (SandboxBuilderBase) SetEnvironmentVariable(string, string) error {
 	return ErrFeatureNotSupported
 }
 

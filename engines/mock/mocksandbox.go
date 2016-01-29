@@ -1,9 +1,13 @@
 package mockengine
 
 import (
+	"bytes"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,6 +33,7 @@ type sandbox struct {
 	context *runtime.TaskContext
 	mounts  map[string]*mount
 	proxies map[string]http.Handler
+	files   map[string][]byte
 	result  bool
 }
 
@@ -124,6 +129,12 @@ var functions = map[string]func(*sandbox, string) bool{
 		s.context.Log(arg)
 		return false
 	},
+	"write-files": func(s *sandbox, arg string) bool {
+		for _, path := range strings.Split(arg, " ") {
+			s.files[path] = []byte("Hello World")
+		}
+		return true
+	},
 }
 
 func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
@@ -139,6 +150,42 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 	defer s.Unlock()
 	s.result = result
 	return s, nil
+}
+
+func (s *sandbox) ExtractFile(path string) (io.ReadCloser, error) {
+	data := s.files[path]
+	if data == nil {
+		return nil, engines.ErrResourceNotFound
+	}
+	return ioutil.NopCloser(bytes.NewBuffer(data)), nil
+}
+
+func (s *sandbox) ExtractFolder(folder string, handler engines.FileHandler) error {
+	if !strings.HasSuffix(folder, "/") {
+		folder += "/"
+	}
+	wg := sync.WaitGroup{}
+	foundFolder := false
+	for path, data := range s.files {
+		if strings.HasPrefix(path, folder) {
+			foundFolder = true
+			if path == folder {
+				// In this engine a filename ending with / is a folder, and its content
+				// is ignored, it's only used as indicator of folder existence
+				continue
+			}
+			wg.Add(1)
+			go func(path string, data []byte) {
+				handler(path, ioutil.NopCloser(bytes.NewBuffer(data)))
+				wg.Done()
+			}(path, data)
+		}
+	}
+	wg.Done()
+	if !foundFolder {
+		return engines.ErrResourceNotFound
+	}
+	return nil
 }
 
 ///////////////////////////// Implementation of ResultSet interface
