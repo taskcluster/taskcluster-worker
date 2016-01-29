@@ -1,10 +1,8 @@
-// Package atomics provides types that can be concurrently accessed and
-// modified, without caller code needing to implement locking.
 package atomics
 
 import "sync/atomic"
 
-// The atomics.Bool is an atomic boolean, no need for locking which makes the
+// Bool is an atomic boolean, no need for locking which makes the
 // code faster and simpler.
 //
 // This interface is really just to abstract away the 0 or 1 value of an int32
