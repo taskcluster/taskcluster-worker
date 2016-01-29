@@ -12,6 +12,15 @@ type Shell interface {
 	Wait() (bool, error)
 }
 
+// The Display struct holds information about a display that exists inside
+// a running sandbox.
+type Display struct {
+	Name        string
+	Description string
+	Width       int
+	Height      int
+}
+
 // The Sandbox interface represents an active sandbox.
 //
 // All methods on this interface must be thread-safe.
@@ -53,6 +62,22 @@ type Sandbox interface {
 	// Non-fatal errors: ErrFeatureNotSupported, ErrSandboxTerminated.
 	NewShell() (Shell, error)
 
+	// ListDisplays returns a list of Display objects that describes displays
+	// that exists inside the Sandbox while it's running.
+	//
+	// Non-fatal errors: ErrFeatureNotSupported, ErrSandboxTerminated.
+	ListDisplays() ([]Display, error)
+
+	// OpenDisplay returns an active VNC connection to a display with the given
+	// name inside the running Sandbox.
+	//
+	// If no such display exist within the sandbox this method should return:
+	// ErrNoSuchDisplay.
+	//
+	// Non-fatal errors: ErrFeatureNotSupported, ErrNoSuchDisplay,
+	// ErrSandboxTerminated.
+	OpenDisplay(name string) (io.ReadWriteCloser, error)
+
 	// Abort the sandbox, this means killing the task execution as well as all
 	// associated shells and releasing all resources held.
 	//
@@ -78,6 +103,18 @@ type SandboxBase struct{}
 // NewShell returns ErrFeatureNotSupported indicating that the feature isn't
 // supported.
 func (SandboxBase) NewShell() (Shell, error) {
+	return nil, ErrFeatureNotSupported
+}
+
+// ListDisplays returns ErrFeatureNotSupported indicating that the feature isn't
+// supported.
+func (SandboxBase) ListDisplays() ([]Display, error) {
+	return nil, ErrFeatureNotSupported
+}
+
+// OpenDisplay returns ErrFeatureNotSupported indicating that the feature isn't
+// supported.
+func (SandboxBase) OpenDisplay(string) (io.ReadWriteCloser, error) {
 	return nil, ErrFeatureNotSupported
 }
 

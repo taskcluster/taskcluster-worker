@@ -33,6 +33,9 @@ var ErrSandboxTerminated = errors.New("The Sandbox has terminated")
 // ErrSandboxAborted is used to indicate that a Sandbox has been aborted.
 var ErrSandboxAborted = errors.New("Exection of sandbox was aborted")
 
+// ErrNoSuchDisplay is used to indicate that a requested display doesn't exist.
+var ErrNoSuchDisplay = errors.New("No such display exists")
+
 // ErrNonFatalInternalError is used to indicate that the operation failed
 // because of internal error that isn't expected to affect other tasks.
 var ErrNonFatalInternalError = errors.New("Engine encountered a non-fatal internal error")
