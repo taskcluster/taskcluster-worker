@@ -11,6 +11,7 @@ import (
 	"github.com/docopt/docopt-go"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	logger "github.com/taskcluster/taskcluster-worker/log"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 const version = "taskcluster-worker 0.0.1"
@@ -43,10 +44,6 @@ func main() {
 		panic("Must supply engine type")
 	}
 
-	// Move this to the runtime Environment at some point
-	options := map[string]interface{}{"engine": e}
-	logger := logger.NewLogger(os.Stdout, logger.DEBUG, options)
-
 	engine := e.(string)
 
 	engineProvider := extpoints.EngineProviders.Lookup(engine)
@@ -60,5 +57,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	logger.Debug("Worker started up", nil)
+
+	options := map[string]interface{}{"engine": e}
+	logger := logger.New(os.Stdout, logger.DEBUG, options)
+
+	runtimeEnvironment := runtime.Environment{Logger: logger}
+	runtimeEnvironment.Logger.Debug("Worker started up", nil)
 }

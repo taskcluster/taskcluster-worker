@@ -22,15 +22,15 @@ const (
 var restrictedFields = []string{"level", "time", "message"}
 
 // Creates a new logging instance
-func NewLogger(out io.Writer, level loggingLevel, fields map[string]interface{}) *logger {
-	return &logger{
+func New(out io.Writer, level loggingLevel, fields map[string]interface{}) *Logger {
+	return &Logger{
 		out:           out,
 		defaultFields: fields,
 		level:         level,
 	}
 }
 
-type logger struct {
+type Logger struct {
 	// Create a lock when writing to `out` so output is not intermingled
 	mu  sync.Mutex
 	out io.Writer
@@ -41,7 +41,7 @@ type logger struct {
 }
 
 // Log a debug message as long as the logger's debug level is set to at least Debug
-func (l *logger) Debug(message string, fields map[string]interface{}) {
+func (l *Logger) Debug(message string, fields map[string]interface{}) {
 	if l.level > DEBUG {
 		return
 	}
@@ -51,7 +51,7 @@ func (l *logger) Debug(message string, fields map[string]interface{}) {
 }
 
 // Log an informational message as long as the logger's debug level is set to at least Info
-func (l *logger) Info(message string, fields map[string]interface{}) {
+func (l *Logger) Info(message string, fields map[string]interface{}) {
 	if l.level > INFO {
 		return
 	}
@@ -62,13 +62,13 @@ func (l *logger) Info(message string, fields map[string]interface{}) {
 
 // Log a critical message.  Critical Messages will have "[alert-operator]" prepended to them
 // for alerting purposes.
-func (l *logger) Critical(message string, fields map[string]interface{}) {
+func (l *Logger) Critical(message string, fields map[string]interface{}) {
 	f := l.createMessage(message, fields)
 	f["level"] = "critical"
 	f["message"] = fmt.Sprintf("[alert-operator] %s", f["message"])
 	l.Write(f)
 }
-func (l *logger) Write(message map[string]interface{}) {
+func (l *Logger) Write(message map[string]interface{}) {
 	// ignore if there is an error, logging failure should not cause something fatal
 	if output, err := json.Marshal(message); err == nil {
 		l.mu.Lock()
@@ -84,7 +84,7 @@ func (l *logger) Write(message map[string]interface{}) {
 
 // Creates a map with the default fields along with any fields that were added at
 // the time of logging the message.
-func (l *logger) createMessage(message string, fields map[string]interface{}) map[string]interface{} {
+func (l *Logger) createMessage(message string, fields map[string]interface{}) map[string]interface{} {
 	f := map[string]interface{}{
 		"message": message,
 		"time":    time.Now().Unix(),
