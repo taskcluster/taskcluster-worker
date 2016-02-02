@@ -5,21 +5,31 @@
 package main
 
 import (
-	"fmt"
 	"log"
+	"os"
 
 	"github.com/docopt/docopt-go"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
+	logger "github.com/taskcluster/taskcluster-worker/log"
 )
 
 const version = "taskcluster-worker 0.0.1"
 const usage = `
-Usage: taskcluster-worker [options]
-Runs a worker with the given options.
-Options:
-  -V, --version            Display the version of go-import-subtree and exit.
-  -h, --help               Print this help information.
-  -e, --engine <engine>    Execution engine to run tasks in
+TaskCluster worker
+This worker is meant to be used with the taskcluster platform for the execution and
+resolution of tasks.
+
+  Usage:
+    taskcluster-worker --help
+    taskcluster-worker --version
+    taskcluster-worker --engine <engine>
+    taskcluster-worker --engine <engine> --logging <level>
+
+  Options:
+    --help  				Show this help screen.
+    --version  				Display the version of go-import-subtree and exit.
+    -e --engine <engine>  	Engine to use for task execution sandboxes.
+    -l --logging <level>  	Set logging at <level>.
 `
 
 func main() {
@@ -33,6 +43,10 @@ func main() {
 		panic("Must supply engine type")
 	}
 
+	// Move this to the runtime Environment at some point
+	options := map[string]interface{}{"engine": e}
+	logger := logger.NewLogger(os.Stdout, logger.DEBUG, options)
+
 	engine := e.(string)
 
 	engineProvider := extpoints.EngineProviders.Lookup(engine)
@@ -42,9 +56,9 @@ func main() {
 		log.Fatalf("Must supply a valid engine.  Supported Engines %v", engineNames)
 	}
 
-	engineInstance, err := engineProvider(extpoints.EngineOptions{})
+	_, err = engineProvider(extpoints.EngineOptions{})
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(engineInstance)
+	logger.Debug("Worker started up", nil)
 }
