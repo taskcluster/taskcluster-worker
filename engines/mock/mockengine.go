@@ -7,19 +7,22 @@ import (
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
+	log "github.com/taskcluster/taskcluster-worker/log"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 type engine struct {
 	engines.EngineBase
+	Log log.Logger
 }
 
 func init() {
 	// Register the mock engine as an import side-effect
 	extpoints.EngineProviders.Register(func(
-		options extpoints.EngineOptions,
+		options *extpoints.EngineOptions,
 	) (engines.Engine, error) {
-		return engine{}, nil
+		logger := options.Environment.Log.WithField("engine", "mock")
+		return engine{Log: logger}, nil
 	}, "mock")
 }
 
@@ -30,7 +33,7 @@ type payload struct {
 	Delay    int64  `json:"delay"`
 }
 
-func (engine) PayloadSchema() runtime.CompositeSchema {
+func (e engine) PayloadSchema() runtime.CompositeSchema {
 	// Declare the schema for the "task.payload.start" property
 	schema, err := runtime.NewCompositeSchema("start", `{
     "type": "object",
@@ -60,10 +63,11 @@ func (engine) PayloadSchema() runtime.CompositeSchema {
 	return schema
 }
 
-func (engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {
+func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {
 	// We know that payload was created with CompositeSchema.Parse() from the
 	// schema returned by PayloadSchema(), so here we type assert that it is
 	// indeed a pointer to such a thing.
+	e.Log.Debug("Building Sandbox")
 	p, valid := options.Payload.(*payload)
 	if !valid {
 		// TODO: Write to some sort of log if the type assertion fails

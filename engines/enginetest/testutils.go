@@ -9,6 +9,7 @@ import (
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
+	log "github.com/taskcluster/taskcluster-worker/log"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
@@ -48,7 +49,7 @@ func (p *engineProvider) ensureEngine(engineName string) {
 		fmtPanic("Couldn't find EngineProvider: ", engineName)
 	}
 	// Create Engine instance
-	engine, err := engineProvider(extpoints.EngineOptions{
+	engine, err := engineProvider(&extpoints.EngineOptions{
 		Environment: p.environment,
 	})
 	nilOrpanic(err, "Failed to create Engine")
@@ -77,9 +78,17 @@ func newTestEnvironment() *runtime.Environment {
 	rt.SetFinalizer(folder, func(f runtime.TemporaryFolder) {
 		f.Remove()
 	})
+
+	logger, err := log.CreateLogger(os.Getenv("LOGGING_LEVEL"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating logger. %s", err)
+		os.Exit(1)
+	}
+
 	return &runtime.Environment{
 		GarbageCollector: &gc.GarbageCollector{},
 		TemporaryStorage: folder,
+		Log:              logger,
 	}
 }
 

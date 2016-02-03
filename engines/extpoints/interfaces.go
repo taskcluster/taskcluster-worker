@@ -32,4 +32,4 @@ type EngineOptions struct {
 // Any error here will be fatal and likely cause the worker to stop working.
 // If an implementor can determine that the platform isn't supported at
 // compile-time it is recommended to not register the implementation.
-type EngineProvider func(options EngineOptions) (engines.Engine, error)
+type EngineProvider func(options *EngineOptions) (engines.Engine, error)

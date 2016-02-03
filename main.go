@@ -5,9 +5,12 @@
 package main
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"fmt"
+	"os"
+
 	"github.com/docopt/docopt-go"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
+	log "github.com/taskcluster/taskcluster-worker/log"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
@@ -24,41 +27,41 @@ resolution of tasks.
     taskcluster-worker --engine <engine> --logging <level>
 
   Options:
-    --help  				Show this help screen.
-    --version  				Display the version of go-import-subtree and exit.
-    -e --engine <engine>  	Engine to use for task execution sandboxes.
-    -l --logging <level>  	Set logging at <level>.
+    --help  						Show this help screen.
+    --version  						Display the version of go-import-subtree and exit.
+    -e --engine <engine>  			Engine to use for task execution sandboxes.
+    -l --logging-level <level>  	Set logging at <level>.
 `
 
 func main() {
 	args, err := docopt.Parse(usage, nil, true, version, false, true)
 	if err != nil {
-		log.Fatalf("Error parsing arguments. %v", err)
+		fmt.Fprintf(os.Stderr, "Error parsing arguments. %v", err)
+		os.Exit(1)
+	}
+
+	logger, err := log.CreateLogger(args["--logging-level"])
+	if err != nil {
+		os.Stderr.WriteString(err.Error())
+		os.Exit(1)
 	}
 
 	e := args["--engine"]
-	if e == nil {
-		panic("Must supply engine type")
-	}
-
 	engine := e.(string)
 
 	engineProvider := extpoints.EngineProviders.Lookup(engine)
 
 	if engineProvider == nil {
 		engineNames := extpoints.EngineProviders.Names()
-		log.Fatalf("Must supply a valid engine.  Supported Engines %v", engineNames)
+		logger.Fatalf("Must supply a valid engine.  Supported Engines %v", engineNames)
 	}
-
-	_, err = engineProvider(extpoints.EngineOptions{})
-	if err != nil {
-		panic(err)
-	}
-
-	logger := log.WithFields(log.Fields{
-		"engine": e,
-	})
 
 	runtimeEnvironment := runtime.Environment{Log: logger}
+
+	_, err = engineProvider(&extpoints.EngineOptions{Environment: &runtimeEnvironment})
+	if err != nil {
+		logger.Fatal(err.Error())
+	}
+
 	runtimeEnvironment.Log.Info("Worker started up")
 }

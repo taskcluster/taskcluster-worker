@@ -12,5 +12,5 @@ type Environment struct {
 	//TODO: Add some interface to submit statistics for influxdb/signalfx
 	//TODO: Add some interface to attach a http.Handler to public facing server
 	TemporaryStorage TemporaryStorage
-	Log              *logrus.Entry
+	Log              *logrus.Logger
 }
