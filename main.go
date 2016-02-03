@@ -5,12 +5,9 @@
 package main
 
 import (
-	"log"
-	"os"
-
+	log "github.com/Sirupsen/logrus"
 	"github.com/docopt/docopt-go"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
-	logger "github.com/taskcluster/taskcluster-worker/log"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
@@ -58,9 +55,10 @@ func main() {
 		panic(err)
 	}
 
-	options := map[string]interface{}{"engine": e}
-	logger := logger.New(os.Stdout, logger.DEBUG, options)
+	logger := log.WithFields(log.Fields{
+		"engine": e,
+	})
 
-	runtimeEnvironment := runtime.Environment{Logger: logger}
-	runtimeEnvironment.Logger.Debug("Worker started up", nil)
+	runtimeEnvironment := runtime.Environment{Log: logger}
+	runtimeEnvironment.Log.Info("Worker started up")
 }

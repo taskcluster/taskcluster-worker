@@ -1,114 +1,36 @@
 package log
 
-import (
-	"encoding/json"
-	"fmt"
-	"io"
-	"sync"
-	"time"
-)
+import "github.com/Sirupsen/logrus"
 
-type loggingLevel int
+type Logger interface {
+	WithField(key string, value interface{}) *logrus.Entry
+	WithFields(fields logrus.Fields) *logrus.Entry
+	WithError(err error) *logrus.Entry
 
-// Log messages can have one of 3 possible states.
-const (
-	DEBUG loggingLevel = 1 << iota
-	INFO
-	CRITICAL
-)
+	Debugf(format string, args ...interface{})
+	Infof(format string, args ...interface{})
+	Printf(format string, args ...interface{})
+	Warnf(format string, args ...interface{})
+	Warningf(format string, args ...interface{})
+	Errorf(format string, args ...interface{})
+	Fatalf(format string, args ...interface{})
+	Panicf(format string, args ...interface{})
 
-// List of fields that should not be overwritten by fields specified when logging
-// a message
-var restrictedFields = []string{"level", "time", "message"}
+	Debug(args ...interface{})
+	Info(args ...interface{})
+	Print(args ...interface{})
+	Warn(args ...interface{})
+	Warning(args ...interface{})
+	Error(args ...interface{})
+	Fatal(args ...interface{})
+	Panic(args ...interface{})
 
-// Creates a new logging instance
-func New(out io.Writer, level loggingLevel, fields map[string]interface{}) *Logger {
-	return &Logger{
-		out:           out,
-		defaultFields: fields,
-		level:         level,
-	}
-}
-
-type Logger struct {
-	// Create a lock when writing to `out` so output is not intermingled
-	mu  sync.Mutex
-	out io.Writer
-	// List of default fields that will be serialized
-	// along with the message and written to `out`
-	defaultFields map[string]interface{}
-	level         loggingLevel
-}
-
-// Log a debug message as long as the logger's debug level is set to at least Debug
-func (l *Logger) Debug(message string, fields map[string]interface{}) {
-	if l.level > DEBUG {
-		return
-	}
-	f := l.createMessage(message, fields)
-	f["level"] = "debug"
-	l.Write(f)
-}
-
-// Log an informational message as long as the logger's debug level is set to at least Info
-func (l *Logger) Info(message string, fields map[string]interface{}) {
-	if l.level > INFO {
-		return
-	}
-	f := l.createMessage(message, fields)
-	f["level"] = "info"
-	l.Write(f)
-}
-
-// Log a critical message.  Critical Messages will have "[alert-operator]" prepended to them
-// for alerting purposes.
-func (l *Logger) Critical(message string, fields map[string]interface{}) {
-	f := l.createMessage(message, fields)
-	f["level"] = "critical"
-	f["message"] = fmt.Sprintf("[alert-operator] %s", f["message"])
-	l.Write(f)
-}
-func (l *Logger) Write(message map[string]interface{}) {
-	// ignore if there is an error, logging failure should not cause something fatal
-	if output, err := json.Marshal(message); err == nil {
-		l.mu.Lock()
-		defer l.mu.Unlock()
-		if _, err := l.out.Write(output); err != nil {
-			fmt.Println("Error writing to out")
-		}
-		if _, err := l.out.Write([]byte("\n")); err != nil {
-			fmt.Println("Error writing to out")
-		}
-	}
-}
-
-// Creates a map with the default fields along with any fields that were added at
-// the time of logging the message.
-func (l *Logger) createMessage(message string, fields map[string]interface{}) map[string]interface{} {
-	f := map[string]interface{}{
-		"message": message,
-		"time":    time.Now().Unix(),
-	}
-	for k, v := range fields {
-		fieldName := k
-		if contains(restrictedFields, k) {
-			fieldName = fmt.Sprintf("field_%s", k)
-		}
-		f[fieldName] = v
-	}
-
-	for k, v := range l.defaultFields {
-		f[k] = v
-	}
-
-	return f
-}
-
-func contains(list []string, value interface{}) bool {
-	for _, v := range list {
-		if v == value {
-			return true
-		}
-	}
-	return false
+	Debugln(args ...interface{})
+	Infoln(args ...interface{})
+	Println(args ...interface{})
+	Warnln(args ...interface{})
+	Warningln(args ...interface{})
+	Errorln(args ...interface{})
+	Fatalln(args ...interface{})
+	Panicln(args ...interface{})
 }
