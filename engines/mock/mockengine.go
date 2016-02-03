@@ -7,13 +7,12 @@ import (
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
-	log "github.com/taskcluster/taskcluster-worker/log"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 type engine struct {
 	engines.EngineBase
-	Log log.Logger
+	Log runtime.Logger
 }
 
 func init() {

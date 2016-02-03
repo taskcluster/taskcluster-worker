@@ -10,7 +10,6 @@ import (
 
 	"github.com/docopt/docopt-go"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
-	log "github.com/taskcluster/taskcluster-worker/log"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
@@ -40,7 +39,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger, err := log.CreateLogger(args["--logging-level"])
+	logger, err := runtime.CreateLogger(args["--logging-level"])
 	if err != nil {
 		os.Stderr.WriteString(err.Error())
 		os.Exit(1)

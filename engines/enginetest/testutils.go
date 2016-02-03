@@ -9,7 +9,6 @@ import (
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
-	log "github.com/taskcluster/taskcluster-worker/log"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
@@ -79,7 +78,7 @@ func newTestEnvironment() *runtime.Environment {
 		f.Remove()
 	})
 
-	logger, err := log.CreateLogger(os.Getenv("LOGGING_LEVEL"))
+	logger, err := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating logger. %s", err)
 		os.Exit(1)
