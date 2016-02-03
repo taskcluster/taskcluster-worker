@@ -48,8 +48,9 @@ func (p *engineProvider) ensureEngine(engineName string) {
 		fmtPanic("Couldn't find EngineProvider: ", engineName)
 	}
 	// Create Engine instance
-	engine, err := engineProvider(&extpoints.EngineOptions{
+	engine, err := engineProvider(extpoints.EngineOptions{
 		Environment: p.environment,
+		Log:         p.environment.Log.WithField("engine", engineName),
 	})
 	nilOrpanic(err, "Failed to create Engine")
 	p.engine = engine

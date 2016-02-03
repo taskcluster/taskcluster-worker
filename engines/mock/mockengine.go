@@ -3,8 +3,10 @@
 package mockengine
 
 import (
+	"fmt"
 	"net/http"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -12,16 +14,16 @@ import (
 
 type engine struct {
 	engines.EngineBase
-	Log runtime.Logger
+	Log *logrus.Entry
 }
 
 func init() {
 	// Register the mock engine as an import side-effect
 	extpoints.EngineProviders.Register(func(
-		options *extpoints.EngineOptions,
+		options extpoints.EngineOptions,
 	) (engines.Engine, error) {
-		logger := options.Environment.Log.WithField("engine", "mock")
-		return engine{Log: logger}, nil
+		fmt.Println(options.Log)
+		return engine{Log: options.Log}, nil
 	}, "mock")
 }
 

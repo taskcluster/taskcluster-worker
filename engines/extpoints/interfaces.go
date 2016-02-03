@@ -3,6 +3,7 @@
 package extpoints
 
 import (
+	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
@@ -20,6 +21,7 @@ type EngineOptions struct {
 	// Note: This is intended to be a simple argument wrapper, do not add methods
 	// to this struct.
 	Environment *runtime.Environment
+	Log         *logrus.Entry
 }
 
 // EngineProvider is the interface engine implementors must implement and
@@ -32,4 +34,4 @@ type EngineOptions struct {
 // Any error here will be fatal and likely cause the worker to stop working.
 // If an implementor can determine that the platform isn't supported at
 // compile-time it is recommended to not register the implementation.
-type EngineProvider func(options *EngineOptions) (engines.Engine, error)
+type EngineProvider func(options EngineOptions) (engines.Engine, error)
