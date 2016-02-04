@@ -1,4 +1,4 @@
-package taskManager
+package taskmgr
 
 import (
 	"github.com/Sirupsen/logrus"
@@ -9,21 +9,29 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
+// Manager is resonsible for managing the entire task lifecyle from claiming the
+// task, creating a sandbox environment, and reporting the results fo the execution.
+// The manager will also be responsible for ensuring tasks do not run past their max run
+// time and are aborted if a cancellation message is received.
 type Manager struct {
-	Tasks         []*runtime.TaskContext
+	// List of Tasks Contexts for running tasks
+	Tasks []*runtime.TaskContextController
+	// Maxmimum capacity that the worker is configured for.
 	MaxCapacity   int
 	Engine        *engines.Engine
 	Log           *logrus.Entry
 	Queue         *queueService
 	ProvisionerId string
-	WorkerType    string
+	WorkerGroup   string
+	WorkerId      string
 }
 
 // Start the task manager and begin executing tasks.
 func (m *Manager) Start() {
-
 }
 
+// Create a new instance of the task manager that will be responsible for claiming,
+// executing, and resolving units of work (tasks).
 func New(config *config.Config, engine *engines.Engine, log *logrus.Entry) *Manager {
 	queue := tcqueue.New(
 		&tcclient.Credentials{
@@ -35,7 +43,7 @@ func New(config *config.Config, engine *engines.Engine, log *logrus.Entry) *Mana
 	service := &queueService{
 		client:           queue,
 		ProvisionerId:    config.ProvisionerId,
-		WorkerType:       config.WorkerType,
+		WorkerGroup:      config.WorkerGroup,
 		Log:              log.WithField("component", "Queue Service"),
 		ExpirationOffset: config.QueueService.ExpirationOffset,
 	}
@@ -46,6 +54,7 @@ func New(config *config.Config, engine *engines.Engine, log *logrus.Entry) *Mana
 		MaxCapacity:   config.Capacity,
 		Queue:         service,
 		ProvisionerId: config.ProvisionerId,
-		WorkerType:    config.WorkerType,
+		WorkerGroup:   config.WorkerGroup,
+		WorkerId:      config.WorkerId,
 	}
 }

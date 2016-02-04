@@ -12,7 +12,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/config"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	"github.com/taskcluster/taskcluster-worker/runtime"
-	"github.com/taskcluster/taskcluster-worker/task_manager"
+	"github.com/taskcluster/taskcluster-worker/taskmgr"
 )
 
 const version = "taskcluster-worker 0.0.1"
@@ -84,7 +84,8 @@ func main() {
 		},
 		Capacity:      5,
 		ProvisionerId: "tasckluster-worker-provisioner",
-		WorkerType:    "taskcluster-worker-test-worker",
+		WorkerGroup:   "taskcluster-worker-test-worker-group",
+		WorkerId:      "taskcluster-worker-test-worker",
 		QueueService: struct {
 			ExpirationOffset int
 		}{
@@ -92,7 +93,7 @@ func main() {
 		},
 	}
 
-	taskManager := taskManager.New(config, &engine, logger.WithField("component", "Task Manager"))
+	taskManager := taskmgr.New(config, &engine, logger.WithField("component", "Task Manager"))
 
 	runtimeEnvironment.Log.Debugf("Created taskManager %+v", taskManager)
 	runtimeEnvironment.Log.Info("Worker started up")
