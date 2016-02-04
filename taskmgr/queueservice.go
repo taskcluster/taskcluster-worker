@@ -1,4 +1,4 @@
-package taskManager
+package taskmgr
 
 import (
 	"encoding/base64"
@@ -71,18 +71,71 @@ type (
 		client           *tcqueue.Queue
 		ProvisionerId    string
 		WorkerType       string
+		WorkerId         string
+		WorkerGroup      string
 		Log              *logrus.Entry
 	}
 )
 
-func (q queueService) ClaimWork(ntasks int) (*[]*TaskRun, error) {
+// Given a number of tasks needed, the Azure task queues will be polled in order
+// of priority until either there are no more tasks to claim, or the given number of
+// tasks has been fulfilled.
+func (q queueService) ClaimWork(ntasks int) []*TaskRun {
 	q.Log.Debugf("Attempting to claim %d tasks.", ntasks)
+	tasks := []*TaskRun{}
 	taskRuns, err := q.retrieveTasksFromQueue(ntasks)
 	if err != nil {
-		return nil, err
+		// Log the error but just return an empty set of Task Runs.
+		q.Log.WithField("error", err).Error("Error retrieving tasks to execute.")
+		return []*TaskRun{}
 	}
 
-	return taskRuns, nil
+	tasks = q.claimTasks(*taskRuns)
+	return tasks
+}
+
+func (q queueService) claimTasks(tasks []*TaskRun) []*TaskRun {
+	var wg sync.WaitGroup
+	claims := []*TaskRun{}
+	claimed := make(chan *TaskRun)
+	wg.Add(len(tasks))
+	for _, task := range tasks {
+		go func(task *TaskRun) {
+			defer wg.Done()
+			success := q.claimTask(task)
+			if success {
+				claimed <- task
+			}
+		}(task)
+	}
+	wg.Wait()
+
+	for claim := range claimed {
+		claims = append(claims, claim)
+	}
+
+	return claims
+}
+
+// TODO (garndt): Move to some methods used by task manager as well.
+func (q queueService) claimTask(task *TaskRun) bool {
+	update := TaskStatusUpdate{
+		Task:          task,
+		Status:        Claimed,
+		WorkerId:      q.WorkerId,
+		ProvisionerId: q.ProvisionerId,
+		WorkerGroup:   q.WorkerGroup,
+	}
+
+	err := <-UpdateTaskStatus(update, q.client, q.Log)
+	if err != nil {
+		if err.StatusCode != 401 || err.StatusCode != 403 || err.StatusCode < 500 {
+			_ = q.deleteFromAzure(task.TaskId, task.SignedDeleteUrl)
+		}
+		return false
+	}
+	_ = q.deleteFromAzure(task.TaskId, task.SignedDeleteUrl)
+	return true
 }
 
 // deleteFromAzure will attempt to delete a task from the Azure queue and
@@ -98,8 +151,7 @@ func (q queueService) deleteFromAzure(taskId string, deleteUrl string) error {
 	// either case the worker should delete the message as we don't want
 	// another worker to receive message later.
 
-	logger := q.Log.WithField("taskId", taskId)
-	logger.Info("Deleting task from Azure queue")
+	q.Log.Info("Deleting task from Azure queue")
 	httpCall := func() (*http.Response, error, error) {
 		req, err := http.NewRequest("DELETE", deleteUrl, nil)
 		if err != nil {
@@ -231,7 +283,7 @@ func (q *queueService) pollTaskUrl(taskQueue *TaskQueue, ntasks int, logger *log
 		if err != nil {
 			// try to delete from Azure, if it fails, nothing we can do about it
 			// not very serious - another worker will try to delete it
-			q.Log.Fatalf("Not able to base64 decode the Message Text '%s' in Azure QueueMessage response.'", qm.MessageText)
+			q.Log.Errorf("Not able to base64 decode the Message Text '%s' in Azure QueueMessage response.'", qm.MessageText)
 			q.Log.Info("Deleting from Azure queue as other workers will have the same problem.")
 			err := q.deleteFromAzure("", signedDeleteUrl)
 			if err != nil {
@@ -312,7 +364,7 @@ func (q queueService) retrieveTasksFromQueue(ntasks int) (*[]*TaskRun, error) {
 		if len(tasks) >= ntasks {
 			return &tasks, nil
 		}
-		taskRuns, err := q.pollTaskUrl(&queue, ntasks, q.Log)
+		taskRuns, err := q.pollTaskUrl(&queue, ntasks-len(tasks), q.Log)
 		if err != nil {
 			q.Log.Warnf("Could not retrieve tasks from the Azure queue. %s", err)
 			continue

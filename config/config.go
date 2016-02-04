@@ -7,7 +7,8 @@ type Config struct {
 		Certificate string
 	}
 	ProvisionerId string
-	WorkerType    string
+	WorkerGroup   string
+	WorkerId      string
 	Capacity      int
 	QueueService  struct {
 		ExpirationOffset int
