@@ -9,8 +9,10 @@ import (
 	"os"
 
 	"github.com/docopt/docopt-go"
+	"github.com/taskcluster/taskcluster-worker/config"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/task_manager"
 )
 
 const version = "taskcluster-worker 0.0.1"
@@ -50,9 +52,9 @@ func main() {
 	}
 
 	e := args["--engine"]
-	engine := e.(string)
+	engineName := e.(string)
 
-	engineProvider := extpoints.EngineProviders.Lookup(engine)
+	engineProvider := extpoints.EngineProviders.Lookup(engineName)
 
 	if engineProvider == nil {
 		engineNames := extpoints.EngineProviders.Names()
@@ -61,13 +63,37 @@ func main() {
 
 	runtimeEnvironment := runtime.Environment{Log: logger}
 
-	_, err = engineProvider(extpoints.EngineOptions{
+	engine, err := engineProvider(extpoints.EngineOptions{
 		Environment: &runtimeEnvironment,
-		Log:         logger.WithField("engine", engine),
+		Log:         logger.WithField("engine", engineName),
 	})
 	if err != nil {
 		logger.Fatal(err.Error())
 	}
 
+	// TODO (garndt): Need to load up a real config in the future
+	config := &config.Config{
+		Taskcluster: struct {
+			ClientId    string
+			AccessToken string
+			Certificate string
+		}{
+			ClientId:    "abc",
+			AccessToken: "123",
+			Certificate: "",
+		},
+		Capacity:      5,
+		ProvisionerId: "tasckluster-worker-provisioner",
+		WorkerType:    "taskcluster-worker-test-worker",
+		QueueService: struct {
+			ExpirationOffset int
+		}{
+			ExpirationOffset: 300,
+		},
+	}
+
+	taskManager := taskManager.New(config, &engine, logger.WithField("component", "Task Manager"))
+
+	runtimeEnvironment.Log.Debugf("Created taskManager %+v", taskManager)
 	runtimeEnvironment.Log.Info("Worker started up")
 }
