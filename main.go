@@ -39,7 +39,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger, err := runtime.CreateLogger(args["--logging-level"])
+	var level string
+	if l := args["--logging-level"]; l != nil {
+		level = l.(string)
+	}
+	logger, err := runtime.CreateLogger(level)
 	if err != nil {
 		os.Stderr.WriteString(err.Error())
 		os.Exit(1)
