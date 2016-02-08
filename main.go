@@ -23,7 +23,7 @@ resolution of tasks.
     taskcluster-worker --help
     taskcluster-worker --version
     taskcluster-worker --engine <engine>
-    taskcluster-worker --engine <engine> --logging <level>
+    taskcluster-worker --engine <engine> --logging-level <level>
 
   Options:
     --help  						Show this help screen.
