@@ -12,10 +12,6 @@ import (
 //
 // We wrap all arguments so that we can add additional properties without
 // breaking source compatibility with older plugins.
-// Note: This is passed by-value for efficiency (and to prohibit nil), if
-// adding any large fields please consider adding them as pointers.
-// Note: This is intended to be a simple argument wrapper, do not add methods
-// to this struct.
 type PluginOptions struct {
 	environment *runtime.Environment
 	engine      *engines.Engine
