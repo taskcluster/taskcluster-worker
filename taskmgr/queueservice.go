@@ -63,12 +63,25 @@ type (
 
 	taskRuns []*TaskRun
 
+	// TaskclusterQueue is an interface to the Queue client provided by the
+	// taskcluster-client-go package.  Passing around an interface allows the
+	// queue client to be mocked
+	TaskclusterQueue interface {
+		ReportCompleted(string, string) (*tcqueue.TaskStatusResponse, *tcclient.CallSummary, error)
+		ReportException(string, string, *tcqueue.TaskExceptionRequest) (*tcqueue.TaskStatusResponse, *tcclient.CallSummary, error)
+		ReportFailed(string, string) (*tcqueue.TaskStatusResponse, *tcclient.CallSummary, error)
+		ClaimTask(string, string, *tcqueue.TaskClaimRequest) (*tcqueue.TaskClaimResponse, *tcclient.CallSummary, error)
+		ReclaimTask(string, string) (*tcqueue.TaskReclaimResponse, *tcclient.CallSummary, error)
+		PollTaskUrls(string, string) (*tcqueue.PollTaskUrlsResponse, *tcclient.CallSummary, error)
+		CancelTask(string) (*tcqueue.TaskStatusResponse, *tcclient.CallSummary, error)
+	}
+
 	queueService struct {
 		mu               sync.Mutex
 		queues           []taskQueue
 		Expires          tcclient.Time
 		ExpirationOffset int
-		client           *tcqueue.Queue
+		client           TaskclusterQueue
 		ProvisionerId    string
 		WorkerType       string
 		WorkerId         string

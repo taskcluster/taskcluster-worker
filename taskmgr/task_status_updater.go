@@ -44,7 +44,7 @@ func (e updateError) Error() string {
 	return e.err
 }
 
-func UpdateTaskStatus(ts TaskStatusUpdate, queue *tcclient.Queue, log *logrus.Entry) (err <-chan *updateError) {
+func UpdateTaskStatus(ts TaskStatusUpdate, queue TaskclusterQueue, log *logrus.Entry) (err <-chan *updateError) {
 	e := make(chan *updateError)
 
 	logger := log.WithFields(logrus.Fields{
