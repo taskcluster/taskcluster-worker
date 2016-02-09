@@ -21,13 +21,13 @@ import (
 
 type (
 	// Used for modelling the xml we get back from Azure
-	QueueMessagesList struct {
+	queueMessagesList struct {
 		XMLName       xml.Name       `xml:"QueueMessagesList"`
-		QueueMessages []QueueMessage `xml:"QueueMessage"`
+		queueMessages []queueMessage `xml:"QueueMessage"`
 	}
 
 	// Used for modelling the xml we get back from Azure
-	QueueMessage struct {
+	queueMessage struct {
 		XMLName         xml.Name        `xml:"QueueMessage"`
 		MessageId       string          `xml:"MessageId"`
 		InsertionTime   azureTimeFormat `xml:"InsertionTime"`
@@ -45,7 +45,7 @@ type (
 	}
 
 	// TaskId and RunId are taken from the json encoding of
-	// QueueMessage.MessageId that we get back from Azure
+	// queueMessage.MessageId that we get back from Azure
 	TaskRun struct {
 		TaskId              string                         `json:"taskId"`
 		RunId               uint                           `json:"runId"`
@@ -56,16 +56,16 @@ type (
 		reclaimTimer        *time.Timer
 	}
 
-	TaskQueue struct {
+	taskQueue struct {
 		SignedDeleteUrl string `json:"signedDeleteUrl"`
 		SignedPollUrl   string `json:"signedPollUrl"`
 	}
 
-	TaskRuns []*TaskRun
+	taskRuns []*TaskRun
 
 	queueService struct {
 		mu               sync.Mutex
-		queues           []TaskQueue
+		queues           []taskQueue
 		Expires          tcclient.Time
 		ExpirationOffset int
 		client           *tcqueue.Queue
@@ -186,9 +186,9 @@ func (q queueService) deleteFromAzure(taskId string, deleteUrl string) error {
 }
 
 // Retrieves the number of tasks requested from the Azure queues.
-func (q *queueService) pollTaskUrl(taskQueue *TaskQueue, ntasks int, logger *logrus.Entry) ([]*TaskRun, error) {
+func (q *queueService) pollTaskUrl(taskQueue *taskQueue, ntasks int, logger *logrus.Entry) ([]*TaskRun, error) {
 	taskRuns := []*TaskRun{}
-	queueMessagesList := &QueueMessagesList{}
+	queueMessagesList := &queueMessagesList{}
 	// To poll an Azure Queue the worker must do a `GET` request to the
 	// `signedPollUrl` from the object, representing the Azure queue. To
 	// receive multiple messages at once the parameter `&numofmessages=N`
@@ -231,12 +231,12 @@ func (q *queueService) pollTaskUrl(taskQueue *TaskQueue, ntasks int, logger *log
 		q.Log.Debugf("ERROR: not able to xml decode the response from the azure Queue: %s", string(fullBody))
 		return nil, err
 	}
-	if len(queueMessagesList.QueueMessages) == 0 {
-		q.Log.Debug("Zero tasks returned in Azure XML QueueMessagesList")
+	if len(queueMessagesList.queueMessages) == 0 {
+		q.Log.Debug("Zero tasks returned in Azure XML queueMessagesList")
 		return nil, nil
 	}
-	if size := len(queueMessagesList.QueueMessages); size > ntasks {
-		return nil, fmt.Errorf("%v tasks returned in Azure XML QueueMessagesList, even though &numofmessages=%d was specified in poll url", size, ntasks)
+	if size := len(queueMessagesList.queueMessages); size > ntasks {
+		return nil, fmt.Errorf("%v tasks returned in Azure XML queueMessagesList, even though &numofmessages=%d was specified in poll url", size, ntasks)
 	}
 
 	// Utility method for replacing a placeholder within a uri with
@@ -245,7 +245,7 @@ func (q *queueService) pollTaskUrl(taskQueue *TaskQueue, ntasks int, logger *log
 		return strings.Replace(uri, placeholder, strings.Replace(url.QueryEscape(rawValue), "+", "%20", -1), -1)
 	}
 
-	for _, qm := range queueMessagesList.QueueMessages {
+	for _, qm := range queueMessagesList.queueMessages {
 
 		// Before using the signedDeleteUrl the worker must replace the placeholder
 		// {{messageId}} with the contents of the <MessageId> tag. It is also
@@ -283,7 +283,7 @@ func (q *queueService) pollTaskUrl(taskQueue *TaskQueue, ntasks int, logger *log
 		if err != nil {
 			// try to delete from Azure, if it fails, nothing we can do about it
 			// not very serious - another worker will try to delete it
-			q.Log.Errorf("Not able to base64 decode the Message Text '%s' in Azure QueueMessage response.'", qm.MessageText)
+			q.Log.Errorf("Not able to base64 decode the Message Text '%s' in Azure queueMessage response.'", qm.MessageText)
 			q.Log.Info("Deleting from Azure queue as other workers will have the same problem.")
 			err := q.deleteFromAzure("", signedDeleteUrl)
 			if err != nil {
@@ -338,9 +338,9 @@ func (q *queueService) refreshTaskQueueUrls() error {
 		return errors.New("Error retrieving task urls.")
 	}
 
-	taskQueues := []TaskQueue{}
+	taskQueues := []taskQueue{}
 	for _, pair := range signedURLs.Queues {
-		taskQueues = append(taskQueues, TaskQueue(pair))
+		taskQueues = append(taskQueues, taskQueue(pair))
 	}
 
 	q.mu.Lock()
@@ -378,6 +378,9 @@ func (q queueService) retrieveTasksFromQueue(ntasks int) (*[]*TaskRun, error) {
 // Evaluate if the current time is getting close to the url expiration as decided
 // by the ExpirationOffset.
 func (q queueService) shouldRefreshQueueUrls() bool {
+	if len(q.queues) == 0 {
+		return true
+	}
 	// If the duration between Expiration and current time is less than the expiration
 	// off set then it's time to refresh the urls
 	if int(time.Time(q.Expires).Sub(time.Now()).Seconds()) < q.ExpirationOffset {

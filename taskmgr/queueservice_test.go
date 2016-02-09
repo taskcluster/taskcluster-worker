@@ -50,14 +50,26 @@ func TestRetrievePollTaskUrls(t *testing.T) {
 
 func TestShouldRefreshURLCheck(t *testing.T) {
 	service := queueService{
-		Expires:          tcclient.Time(time.Now().Add(time.Minute * 6)),
 		ExpirationOffset: 300,
 	}
 
-	shouldRefresh := service.shouldRefreshQueueUrls()
-	assert.Equal(t, shouldRefresh, false)
+	// Should refresh since there are no queues currently stored
+	assert.Equal(t, service.shouldRefreshQueueUrls(), true)
 
+	// When expiration is still within limits, and the queue slice has already been
+	// populated, the queue service should not need to refresh
+	service.Expires = tcclient.Time(time.Now().Add(time.Minute * 6))
+	service.queues = []taskQueue{taskQueue{}, taskQueue{}}
+	assert.Equal(t, service.shouldRefreshQueueUrls(), false)
+
+	// Expiration is coming close, need to refresh
 	service.Expires = tcclient.Time(time.Now().Add(time.Minute * 2))
-	shouldRefresh = service.shouldRefreshQueueUrls()
-	assert.Equal(t, shouldRefresh, true)
+	assert.Equal(t, service.shouldRefreshQueueUrls(), true)
+}
+
+func TestRefreshTaskQueueUrls(t *testing.T) {
+	service := queueService{
+		ExpirationOffset: 300,
+	}
+	fmt.Println(service)
 }
