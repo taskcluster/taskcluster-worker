@@ -81,6 +81,11 @@ func NewPluginManager(pluginsToLoad []string, options PluginOptions) (plugins.Pl
 	return &pluginManager{plugins: pluginObjects}, nil
 }
 
+// Currently no config required for plugin manager
+func (m *pluginManager) ConfigSchema() []byte {
+	return []byte("{}")
+}
+
 func (m *pluginManager) PayloadSchema() (runtime.CompositeSchema, error) {
 	schemas := []runtime.CompositeSchema{}
 	for _, plugin := range m.plugins {

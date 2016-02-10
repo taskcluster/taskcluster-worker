@@ -11,10 +11,6 @@ type SandboxOptions struct {
 	TaskContext *runtime.TaskContext
 	// Result from PayloadSchema().Parse(). Implementors are safe to assert
 	// this back to their target type.
-	// Note: This is passed by-value for efficiency (and to prohibit nil), if
-	// adding any large fields please consider adding them as pointers.
-	// Note: This is intended to be a simple argument wrapper, do not add methods
-	// to this struct.
 	Payload interface{}
 }
 
@@ -43,6 +39,10 @@ type Engine interface {
 	// the result from CompositeSchema.Parse() on the CompositeSchema returned
 	// from this method.
 	PayloadSchema() runtime.CompositeSchema
+
+	// ConfigSchema returns the json schema that defines the structure of the
+	// config used by the engine
+	ConfigSchema() []byte
 
 	// Capabilities returns a structure declaring which features are supported,
 	// this is used for up-front feature checking. Unsupport methods must also
@@ -124,6 +124,12 @@ type EngineBase struct{}
 // payload is sufficient.
 func (EngineBase) PayloadSchema() runtime.CompositeSchema {
 	return runtime.NewEmptyCompositeSchema()
+}
+
+// ConfigSchema returns an empty jsonschema indicating that no custom config is
+// required.
+func (EngineBase) ConfigSchema() []byte {
+	return []byte("{}")
 }
 
 // Capabilities returns an zero value Capabilities struct indicating that

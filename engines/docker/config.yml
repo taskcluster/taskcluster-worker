@@ -1,0 +1,14 @@
+$schema:            http://json-schema.org/draft-04/schema#
+title:              Docker Config
+description: |
+  Config applicable to docker engine
+type:               object
+properties:
+  rootVolume:
+    title:          Root Volume
+    description: |
+      Root Volume blah blah
+    type:           string
+additionalProperties: false
+required:
+  - rootVolume

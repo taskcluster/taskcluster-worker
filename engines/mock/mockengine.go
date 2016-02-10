@@ -34,6 +34,11 @@ type payload struct {
 	Delay    int64  `json:"delay"`
 }
 
+// mock config contains no fields
+func (e engine) ConfigSchema() []byte {
+	return []byte("{}")
+}
+
 func (e engine) PayloadSchema() runtime.CompositeSchema {
 	// Declare the schema for the "task.payload.start" property
 	schema, err := runtime.NewCompositeSchema("start", `{

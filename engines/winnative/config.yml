@@ -1,0 +1,14 @@
+$schema:            http://json-schema.org/draft-04/schema#
+title:              Windows Native
+description: |
+  Config applicable to windows native engine
+type:               object
+properties:
+  usePsExec:
+    title:          Use PSExec
+    description: |
+      Whether to use PSExec for executing processes
+    type:           boolean
+additionalProperties: false
+required:
+  - usePsExec

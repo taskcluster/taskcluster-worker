@@ -34,6 +34,8 @@ type Plugin interface {
 	// from this method.
 	PayloadSchema() (runtime.CompositeSchema, error)
 
+	ConfigSchema() []byte
+
 	// NewTaskPlugin method will be called once for each task. The TaskPlugin
 	// instance returned will be called for each stage in the task execution.
 	//
@@ -158,6 +160,11 @@ type PluginBase struct{}
 // take any payload.
 func (PluginBase) PayloadSchema() (runtime.CompositeSchema, error) {
 	return runtime.NewEmptyCompositeSchema(), nil
+}
+
+// PluginBase requires no custom config
+func (PluginBase) ConfigSchema() []byte {
+	return []byte("{}")
 }
 
 // NewTaskPlugin returns nil ignoring the request to create a TaskPlugin for
