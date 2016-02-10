@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -23,25 +24,15 @@ type (
 	// Used for modelling the xml we get back from Azure
 	queueMessagesList struct {
 		XMLName       xml.Name       `xml:"QueueMessagesList"`
-		queueMessages []queueMessage `xml:"QueueMessage"`
+		QueueMessages []queueMessage `xml:"QueueMessage"`
 	}
 
 	// Used for modelling the xml we get back from Azure
 	queueMessage struct {
-		XMLName         xml.Name        `xml:"QueueMessage"`
-		MessageId       string          `xml:"MessageId"`
-		InsertionTime   azureTimeFormat `xml:"InsertionTime"`
-		ExpirationTime  azureTimeFormat `xml:"ExpirationTime"`
-		DequeueCount    uint            `xml:"DequeueCount"`
-		PopReceipt      string          `xml:"PopReceipt"`
-		TimeNextVisible azureTimeFormat `xml:"TimeNextVisible"`
-		MessageText     string          `xml:"MessageText"`
-	}
-
-	// Custom time format to enable unmarshalling of azure xml directly into go
-	// object with native go time.Time implementation under-the-hood
-	azureTimeFormat struct {
-		time.Time
+		MessageId    string `xml:"MessageId"`
+		PopReceipt   string `xml:"PopReceipt"`
+		DequeueCount int    `xml:"DequeueCount"`
+		MessageText  string `xml:"MessageText"`
 	}
 
 	// TaskId and RunId are taken from the json encoding of
@@ -103,7 +94,7 @@ func (q queueService) ClaimWork(ntasks int) []*TaskRun {
 		return []*TaskRun{}
 	}
 
-	tasks = q.claimTasks(*taskRuns)
+	tasks = q.claimTasks(taskRuns)
 	return tasks
 }
 
@@ -199,16 +190,16 @@ func (q queueService) deleteFromAzure(taskId string, deleteUrl string) error {
 }
 
 // Retrieves the number of tasks requested from the Azure queues.
-func (q *queueService) pollTaskUrl(taskQueue *taskQueue, ntasks int, logger *logrus.Entry) ([]*TaskRun, error) {
+func (q *queueService) pollTaskUrl(taskQueue *taskQueue, ntasks int) ([]*TaskRun, error) {
 	taskRuns := []*TaskRun{}
-	queueMessagesList := &queueMessagesList{}
+	var r queueMessagesList
 	// To poll an Azure Queue the worker must do a `GET` request to the
 	// `signedPollUrl` from the object, representing the Azure queue. To
 	// receive multiple messages at once the parameter `&numofmessages=N`
 	// may be appended to `signedPollUrl`. The parameter `N` is the
 	// maximum number of messages desired, `N` can be up to 32.
 	// Since we can only process one task at a time, grab only one.
-	resp, _, err := httpbackoff.Get(fmt.Sprintf("%s%s%d", taskQueue.SignedPollUrl, "&numofmessages=", ntasks))
+	resp, _, err := httpbackoff.Get(fmt.Sprintf("%s%s%d", taskQueue.SignedPollUrl, "&numofmessages=", int(math.Min(32, float64(ntasks)))))
 	if err != nil {
 		return nil, err
 	}
@@ -230,26 +221,22 @@ func (q *queueService) pollTaskUrl(taskQueue *taskQueue, ntasks int, logger *log
 	// </QueueMessagesList>
 	// ```
 	// We unmarshal the response into go objects, using the go xml decoder.
+	defer resp.Body.Close()
+	data, err := ioutil.ReadAll(resp.Body)
+	if err := xml.Unmarshal(data, &r); err != nil {
+		//if err := xml.NewDecoder(resp.Body).Decode(&queueMessagesList); err != nil {
+		q.Log.WithFields(logrus.Fields{
+			"body":  resp.Body,
+			"error": err.Error(),
+		}).Debugf("Not able to xml decode the response from the Azure queue")
+		return nil, errors.New(
+			fmt.Sprintf("Not able to xml decode the response from the Azure queue. Body: %s, Error: %s", resp.Body, err),
+		)
+	}
 
-	// TODO (garndt): Find out if it's necessary to read the entire body when using
-	//                NewDecoder
-	fullBody, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	reader := strings.NewReader(string(fullBody))
-	dec := xml.NewDecoder(reader)
-	err = dec.Decode(&queueMessagesList)
-	if err != nil {
-		q.Log.Debugf("ERROR: not able to xml decode the response from the azure Queue: %s", string(fullBody))
-		return nil, err
-	}
-	if len(queueMessagesList.queueMessages) == 0 {
+	if len(r.QueueMessages) == 0 {
 		q.Log.Debug("Zero tasks returned in Azure XML queueMessagesList")
-		return nil, nil
-	}
-	if size := len(queueMessagesList.queueMessages); size > ntasks {
-		return nil, fmt.Errorf("%v tasks returned in Azure XML queueMessagesList, even though &numofmessages=%d was specified in poll url", size, ntasks)
+		return []*TaskRun{}, nil
 	}
 
 	// Utility method for replacing a placeholder within a uri with
@@ -258,7 +245,7 @@ func (q *queueService) pollTaskUrl(taskQueue *taskQueue, ntasks int, logger *log
 		return strings.Replace(uri, placeholder, strings.Replace(url.QueryEscape(rawValue), "+", "%20", -1), -1)
 	}
 
-	for _, qm := range queueMessagesList.queueMessages {
+	for _, qm := range r.QueueMessages {
 
 		// Before using the signedDeleteUrl the worker must replace the placeholder
 		// {{messageId}} with the contents of the <MessageId> tag. It is also
@@ -296,13 +283,14 @@ func (q *queueService) pollTaskUrl(taskQueue *taskQueue, ntasks int, logger *log
 		if err != nil {
 			// try to delete from Azure, if it fails, nothing we can do about it
 			// not very serious - another worker will try to delete it
-			q.Log.Errorf("Not able to base64 decode the Message Text '%s' in Azure queueMessage response.'", qm.MessageText)
-			q.Log.Info("Deleting from Azure queue as other workers will have the same problem.")
+			q.Log.WithField("messageText", qm.MessageText).Errorf("Not able to base64 decode the Message Text in Azure message response.")
+			q.Log.WithField("messageId", qm.MessageId).Info("Deleting from Azure queue as other workers will have the same problem.")
 			err := q.deleteFromAzure("", signedDeleteUrl)
 			if err != nil {
 				q.Log.WithFields(logrus.Fields{
-					"url":   signedDeleteUrl,
-					"error": err,
+					"messageId": qm.MessageId,
+					"url":       signedDeleteUrl,
+					"error":     err,
 				}).Warn("Not able to call Azure delete URL")
 			}
 			return nil, err
@@ -316,13 +304,13 @@ func (q *queueService) pollTaskUrl(taskQueue *taskQueue, ntasks int, logger *log
 		// now populate remaining json fields of TaskRun from json string m
 		err = json.Unmarshal(m, &taskRun)
 		if err != nil {
-			logger.WithFields(logrus.Fields{
+			q.Log.WithFields(logrus.Fields{
 				"error":   err,
 				"message": m,
 			}).Warn("Not able to unmarshal json from base64 decoded MessageText")
 			err := q.deleteFromAzure("", signedDeleteUrl)
 			if err != nil {
-				logger.WithFields(logrus.Fields{
+				q.Log.WithFields(logrus.Fields{
 					"url":   signedDeleteUrl,
 					"error": err,
 				}).Warn("Not able to call Azure delete URL")
@@ -364,7 +352,7 @@ func (q *queueService) refreshTaskQueueUrls() error {
 	return nil
 }
 
-func (q queueService) retrieveTasksFromQueue(ntasks int) (*[]*TaskRun, error) {
+func (q queueService) retrieveTasksFromQueue(ntasks int) ([]*TaskRun, error) {
 	err := q.refreshTaskQueueUrls()
 	if err != nil {
 		return nil, err
@@ -375,9 +363,9 @@ func (q queueService) retrieveTasksFromQueue(ntasks int) (*[]*TaskRun, error) {
 		// It hopefully would never be greater, but just incase, we would want to return
 		// and run what tasks we do have.
 		if len(tasks) >= ntasks {
-			return &tasks, nil
+			return tasks, nil
 		}
-		taskRuns, err := q.pollTaskUrl(&queue, ntasks-len(tasks), q.Log)
+		taskRuns, err := q.pollTaskUrl(&queue, ntasks-len(tasks))
 		if err != nil {
 			q.Log.Warnf("Could not retrieve tasks from the Azure queue. %s", err)
 			continue
@@ -385,7 +373,7 @@ func (q queueService) retrieveTasksFromQueue(ntasks int) (*[]*TaskRun, error) {
 		tasks = append(tasks, taskRuns...)
 
 	}
-	return &tasks, nil
+	return tasks, nil
 }
 
 // Evaluate if the current time is getting close to the url expiration as decided
