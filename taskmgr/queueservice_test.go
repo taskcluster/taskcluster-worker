@@ -20,6 +20,7 @@ import (
 const PROVISIONER_ID = "dummy-provisioner"
 
 var WORKER_TYPE = (fmt.Sprintf("dummy-type-%s", slugid.Nice()))[0:22]
+var WORKER_ID = fmt.Sprintf("dummy-worker-%s", slugid.Nice())
 
 func TestRetrievePollTaskUrls(t *testing.T) {
 	logger, _ := runtime.CreateLogger("")
@@ -218,7 +219,7 @@ func TestPollTaskUrlNonEmptyMessageList(t *testing.T) {
 	assert.NotEqual(t, tasks[0].SignedDeleteUrl, tasks[1].SignedDeleteUrl)
 }
 
-func TestPollTaskUrlInvalidMessageText(t *testing.T) {
+func TestPollTaskUrlInvalidMessageTextContents(t *testing.T) {
 	// MessageText is {"abc",0} which is an invalid format when
 	// unmarshalling.
 	messages := `<?xml version="1.0" encoding="utf-8"?>
@@ -253,6 +254,52 @@ func TestPollTaskUrlInvalidMessageText(t *testing.T) {
 	tasks, err := service.pollTaskUrl(&service.queues[0], 3)
 	assert.Nil(t, err, "Error should not have been raised when unmarshalling invalid MessageText")
 	assert.Equal(t, 0, len(tasks))
+}
+
+func TestPollTaskUrlInvalidMessageTextEncoding(t *testing.T) {
+	// MessageText is not a valid base64 encoded string
+	messages := `<?xml version="1.0" encoding="utf-8"?>
+	<QueueMessagesList>
+	  <QueueMessage>
+		<MessageId>5974b586-0df3-4e2d-ad0c-18e3892bfca3</MessageId>
+		<InsertionTime>Fri, 09 Oct 2009 21:04:30 GMT</InsertionTime>
+		<ExpirationTime>Fri, 16 Oct 2009 21:04:30 GMT</ExpirationTime>
+		<PopReceipt>YzQ4Yzg1MDItYTc0Ny00OWNjLTkxYTUtZGM0MDFiZDAwYzEw</PopReceipt>
+		<TimeNextVisible>Fri, 09 Oct 2009 23:29:20 GMT</TimeNextVisible>
+		<DequeueCount>1</DequeueCount>
+		<MessageText>eyJhYmMiLDB9xxxxxxx</MessageText>
+	  </QueueMessage>
+
+	</QueueMessagesList>`
+
+	// When there is an error decoding, message should be deleted from Azure
+	deleteCalled := false
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/delete/5974b586-0df3-4e2d-ad0c-18e3892bfca3/YzQ4Yzg1MDItYTc0Ny00OWNjLTkxYTUtZGM0MDFiZDAwYzEw" {
+			deleteCalled = true
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.Write([]byte(messages))
+	}
+
+	s := httptest.NewServer(http.HandlerFunc(handler))
+	defer s.Close()
+	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
+	service := queueService{
+		Log: logger.WithField("component", "Queue Service"),
+		queues: []taskQueue{{
+			SignedDeleteUrl: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
+			SignedPollUrl:   fmt.Sprintf("%s/tasks", s.URL),
+		}},
+	}
+
+	tasks, err := service.pollTaskUrl(&service.queues[0], 3)
+	assert.Nil(t, err, "Error should not have been raised when unmarshalling invalid MessageText")
+	assert.Equal(t, 0, len(tasks))
+	assert.True(t, deleteCalled, "Delete URL not called after attempting to decode messageText")
 }
 
 func TestSuccessfullyDeleteFromAzureQueue(t *testing.T) {
@@ -357,7 +404,7 @@ func TestRetrieveTasksFromQueue(t *testing.T) {
 		},
 	}
 
-	tasks, err := service.retrieveTasksFromQueue(5)
+	tasks, err := service.retrieveTasksFromQueue(3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -367,4 +414,341 @@ func TestRetrieveTasksFromQueue(t *testing.T) {
 	for i, v := range taskIds {
 		assert.Equal(t, v, tasks[i].TaskId)
 	}
+}
+
+func TestRetrieveTasksFromQueueDoesNotQueryLowPriority(t *testing.T) {
+	messages := []string{
+		// MessageText is {"taskId": "abc", "runId": 1}
+		`<?xml version="1.0" encoding="utf-8"?>
+	<QueueMessagesList>
+	  <QueueMessage>
+		<MessageId>5974b586-0df3-4e2d-ad0c-18e3892bfca3</MessageId>
+		<InsertionTime>Fri, 09 Oct 2009 21:04:30 GMT</InsertionTime>
+		<ExpirationTime>Fri, 16 Oct 2009 21:04:30 GMT</ExpirationTime>
+		<PopReceipt>YzQ4Yzg1MDItYTc0Ny00OWNjLTkxYTUtZGM0MDFiZDAwYzEw</PopReceipt>
+		<TimeNextVisible>Fri, 09 Oct 2009 23:29:20 GMT</TimeNextVisible>
+		<DequeueCount>1</DequeueCount>
+		<MessageText>eyJ0YXNrSWQiOiAiYWJjIiwgInJ1bklkIjogMX0=</MessageText>
+	  </QueueMessage>
+	</QueueMessagesList>`,
+		// MessageText[0] {"taskId": "def", "runId": 0}
+		// MessageText[1] {"taskId": "ghi", "runId": 2}
+		`<?xml version="1.0" encoding="utf-8"?>
+	<QueueMessagesList>
+	  <QueueMessage>
+		<MessageId>5974b586-0df3-4e2d-ad0c-18e3892bfca3</MessageId>
+		<InsertionTime>Fri, 09 Oct 2009 21:04:30 GMT</InsertionTime>
+		<ExpirationTime>Fri, 16 Oct 2009 21:04:30 GMT</ExpirationTime>
+		<PopReceipt>YzQ4Yzg1MDItYTc0Ny00OWNjLTkxYTUtZGM0MDFiZDAwYzEw</PopReceipt>
+		<TimeNextVisible>Fri, 09 Oct 2009 23:29:20 GMT</TimeNextVisible>
+		<DequeueCount>1</DequeueCount>
+		<MessageText>eyJ0YXNrSWQiOiAiZGVmIiwgInJ1bklkIjogMH0NCg==</MessageText>
+	  </QueueMessage>
+	  <QueueMessage>
+		<MessageId>5974b586-0df3-4e2d-ad0c-18e3892bfca3</MessageId>
+		<InsertionTime>Fri, 09 Oct 2009 21:04:30 GMT</InsertionTime>
+		<ExpirationTime>Fri, 16 Oct 2009 21:04:30 GMT</ExpirationTime>
+		<PopReceipt>YzQ4Yzg1MDItYTc0Ny00OWNjLTkxYTUtZGM0MDFiZDAwYzEw</PopReceipt>
+		<TimeNextVisible>Fri, 09 Oct 2009 23:29:20 GMT</TimeNextVisible>
+		<DequeueCount>1</DequeueCount>
+		<MessageText>eyJ0YXNrSWQiOiAiZ2hpIiwgInJ1bklkIjogMH0NCg==</MessageText>
+	  </QueueMessage>
+	</QueueMessagesList>`,
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		var message string
+		if r.URL.Path == "/tasks/1234" {
+			message = messages[1]
+		} else {
+			message = messages[0]
+		}
+		w.Header().Set("Content-Type", "application/xml")
+		w.Write([]byte(message))
+	}
+
+	s := httptest.NewServer(http.HandlerFunc(handler))
+	defer s.Close()
+	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
+	service := queueService{
+		Log:              logger.WithField("component", "Queue Service"),
+		ExpirationOffset: 300,
+		Expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
+		queues: []taskQueue{
+			{
+				SignedDeleteUrl: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
+				SignedPollUrl:   fmt.Sprintf("%s/tasks/1234?messages=true", s.URL),
+			},
+			{
+				SignedDeleteUrl: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
+				SignedPollUrl:   fmt.Sprintf("%s/tasks/456?messages=true", s.URL),
+			},
+		},
+	}
+
+	tasks, err := service.retrieveTasksFromQueue(2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Only two tasks should have been retrieving leaving the third task in the lower
+	// priority queue not being retrieved
+	assert.Equal(t, 2, len(tasks))
+	taskIds := []string{"def", "ghi"}
+	for i, v := range taskIds {
+		assert.Equal(t, v, tasks[i].TaskId)
+	}
+}
+func TestRetrieveTasksFromQueueDequeueChecked(t *testing.T) {
+	// Dequeue count is above the threshold of 15
+	message := `<?xml version="1.0" encoding="utf-8"?>
+	<QueueMessagesList>
+	  <QueueMessage>
+		<MessageId>5974b586-0df3-4e2d-ad0c-18e3892bfca3</MessageId>
+		<InsertionTime>Fri, 09 Oct 2009 21:04:30 GMT</InsertionTime>
+		<ExpirationTime>Fri, 16 Oct 2009 21:04:30 GMT</ExpirationTime>
+		<PopReceipt>YzQ4Yzg1MDItYTc0Ny00OWNjLTkxYTUtZGM0MDFiZDAwYzEw</PopReceipt>
+		<TimeNextVisible>Fri, 09 Oct 2009 23:29:20 GMT</TimeNextVisible>
+		<DequeueCount>16</DequeueCount>
+		<MessageText>eyJ0YXNrSWQiOiAiYWJjIiwgInJ1bklkIjogMX0=</MessageText>
+	  </QueueMessage>
+	</QueueMessagesList>`
+
+	// Delete URL should be called when dequeue count above threshold (15)
+	deleteCalled := false
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/delete/5974b586-0df3-4e2d-ad0c-18e3892bfca3/YzQ4Yzg1MDItYTc0Ny00OWNjLTkxYTUtZGM0MDFiZDAwYzEw" {
+			deleteCalled = true
+			return
+		}
+		w.Header().Set("Content-Type", "application/xml")
+		w.Write([]byte(message))
+	}
+
+	s := httptest.NewServer(http.HandlerFunc(handler))
+	defer s.Close()
+	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
+	service := queueService{
+		Log:              logger.WithField("component", "Queue Service"),
+		ExpirationOffset: 300,
+		Expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
+		queues: []taskQueue{
+			{
+				SignedDeleteUrl: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
+				SignedPollUrl:   fmt.Sprintf("%s/tasks/1234?messages=true", s.URL),
+			},
+		},
+	}
+
+	tasks, err := service.retrieveTasksFromQueue(2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 1, len(tasks))
+	assert.True(t, deleteCalled, "Delete should have been called when dequeue count above threshold")
+
+}
+
+func TestClaimTask(t *testing.T) {
+	deleteCalled := false
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/delete" {
+			deleteCalled = true
+		}
+		return
+	}
+	s := httptest.NewServer(http.HandlerFunc(handler))
+	defer s.Close()
+
+	mockedQueue := &MockQueue{}
+	mockedQueue.On(
+		"ClaimTask",
+		"abc",
+		"0",
+		&queue.TaskClaimRequest{
+			WorkerGroup: WORKER_TYPE,
+			WorkerId:    WORKER_ID,
+		},
+	).Return(&queue.TaskClaimResponse{
+		Credentials: struct {
+			AccessToken string `json:"accessToken"`
+			Certificate string `json:"certificate"`
+			ClientId    string `json:"clientId"`
+		}{
+			AccessToken: "1040824383284384",
+			Certificate: "{}",
+			ClientId:    "ajafdsfkj23",
+		},
+		RunId:       0,
+		Status:      queue.TaskStatusStructure{},
+		TakenUntil:  tcclient.Time{},
+		Task:        queue.TaskDefinitionResponse{},
+		WorkerGroup: WORKER_TYPE,
+		WorkerId:    WORKER_ID,
+	}, &tcclient.CallSummary{}, nil)
+
+	task := &TaskRun{
+		TaskId:              "abc",
+		RunId:               0,
+		SignedDeleteUrl:     fmt.Sprintf("%s/delete", s.URL),
+		TaskClaimResponse:   queue.TaskClaimResponse{},
+		TaskReclaimResponse: queue.TaskReclaimResponse{},
+		Definition:          queue.TaskDefinitionResponse{},
+	}
+
+	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
+	service := queueService{
+		client:        mockedQueue,
+		Log:           logger.WithField("component", "Queue Service"),
+		WorkerId:      WORKER_ID,
+		WorkerGroup:   WORKER_TYPE,
+		ProvisionerId: PROVISIONER_ID,
+	}
+
+	success := service.claimTask(task)
+
+	assert.True(t, success)
+	assert.True(t, deleteCalled)
+	// Do a quick sanity check to make sure the response was correctly stored in
+	// the task run object
+	assert.Equal(t, "1040824383284384", task.TaskClaimResponse.Credentials.AccessToken)
+}
+
+func TestClaimTaskError(t *testing.T) {
+	// Delete should be called if the claim errored because of authorization or ISE
+	// issues
+	deleteCalled := false
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/delete" {
+			deleteCalled = true
+		}
+		return
+	}
+	s := httptest.NewServer(http.HandlerFunc(handler))
+	defer s.Close()
+
+	mockedQueue := &MockQueue{}
+	mockedQueue.On(
+		"ClaimTask",
+		"abc",
+		"0",
+		&queue.TaskClaimRequest{
+			WorkerGroup: WORKER_TYPE,
+			WorkerId:    WORKER_ID,
+		},
+	).Return(&queue.TaskClaimResponse{},
+		&tcclient.CallSummary{
+			HttpResponse: &http.Response{StatusCode: 401},
+		}, errors.New("Not good"))
+	task := &TaskRun{
+		TaskId:              "abc",
+		RunId:               0,
+		SignedDeleteUrl:     fmt.Sprintf("%s/delete", s.URL),
+		TaskClaimResponse:   queue.TaskClaimResponse{},
+		TaskReclaimResponse: queue.TaskReclaimResponse{},
+		Definition:          queue.TaskDefinitionResponse{},
+	}
+
+	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
+	service := queueService{
+		client:        mockedQueue,
+		Log:           logger.WithField("component", "Queue Service"),
+		WorkerId:      WORKER_ID,
+		WorkerGroup:   WORKER_TYPE,
+		ProvisionerId: PROVISIONER_ID,
+	}
+
+	success := service.claimTask(task)
+
+	assert.False(t, success)
+	assert.True(t, deleteCalled)
+}
+
+func TestClaimTasks(t *testing.T) {
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		return
+	}
+	s := httptest.NewServer(http.HandlerFunc(handler))
+	defer s.Close()
+
+	mockedQueue := &MockQueue{}
+	mockedQueue.On(
+		"ClaimTask",
+		"abc",
+		"0",
+		&queue.TaskClaimRequest{
+			WorkerGroup: WORKER_TYPE,
+			WorkerId:    WORKER_ID,
+		},
+	).Return(&queue.TaskClaimResponse{
+		Credentials: struct {
+			AccessToken string `json:"accessToken"`
+			Certificate string `json:"certificate"`
+			ClientId    string `json:"clientId"`
+		}{
+			AccessToken: "1040824383284384",
+			Certificate: "{}",
+			ClientId:    "ajafdsfkj23",
+		},
+		RunId:       0,
+		Status:      queue.TaskStatusStructure{},
+		TakenUntil:  tcclient.Time{},
+		Task:        queue.TaskDefinitionResponse{},
+		WorkerGroup: WORKER_TYPE,
+		WorkerId:    WORKER_ID,
+	}, &tcclient.CallSummary{}, nil)
+	mockedQueue.On(
+		"ClaimTask",
+		"def",
+		"1",
+		&queue.TaskClaimRequest{
+			WorkerGroup: WORKER_TYPE,
+			WorkerId:    WORKER_ID,
+		},
+	).Return(&queue.TaskClaimResponse{
+		Credentials: struct {
+			AccessToken string `json:"accessToken"`
+			Certificate string `json:"certificate"`
+			ClientId    string `json:"clientId"`
+		}{
+			AccessToken: "234aajsgfaj340",
+			Certificate: "{}",
+			ClientId:    "asfg089asgf08",
+		},
+		RunId:       1,
+		Status:      queue.TaskStatusStructure{},
+		TakenUntil:  tcclient.Time{},
+		Task:        queue.TaskDefinitionResponse{},
+		WorkerGroup: WORKER_TYPE,
+		WorkerId:    WORKER_ID,
+	}, &tcclient.CallSummary{}, nil)
+	tasks := []*TaskRun{{
+		TaskId:              "abc",
+		RunId:               0,
+		SignedDeleteUrl:     fmt.Sprintf("%s/delete", s.URL),
+		TaskClaimResponse:   queue.TaskClaimResponse{},
+		TaskReclaimResponse: queue.TaskReclaimResponse{},
+		Definition:          queue.TaskDefinitionResponse{},
+	}, {
+		TaskId:              "def",
+		RunId:               1,
+		SignedDeleteUrl:     fmt.Sprintf("%s/delete", s.URL),
+		TaskClaimResponse:   queue.TaskClaimResponse{},
+		TaskReclaimResponse: queue.TaskReclaimResponse{},
+		Definition:          queue.TaskDefinitionResponse{},
+	}}
+
+	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
+	service := queueService{
+		client:        mockedQueue,
+		Log:           logger.WithField("component", "Queue Service"),
+		WorkerId:      WORKER_ID,
+		WorkerGroup:   WORKER_TYPE,
+		ProvisionerId: PROVISIONER_ID,
+	}
+
+	taskClaims := service.claimTasks(tasks)
+	assert.Equal(t, 2, len(taskClaims))
 }

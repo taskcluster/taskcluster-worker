@@ -44,7 +44,6 @@ type (
 		TaskClaimResponse   tcqueue.TaskClaimResponse      `json:"-"`
 		TaskReclaimResponse tcqueue.TaskReclaimResponse    `json:"-"`
 		Definition          tcqueue.TaskDefinitionResponse `json:"-"`
-		reclaimTimer        *time.Timer
 	}
 
 	taskQueue struct {
@@ -101,7 +100,7 @@ func (q queueService) ClaimWork(ntasks int) []*TaskRun {
 func (q queueService) claimTasks(tasks []*TaskRun) []*TaskRun {
 	var wg sync.WaitGroup
 	claims := []*TaskRun{}
-	claimed := make(chan *TaskRun)
+	claimed := make(chan *TaskRun, len(tasks))
 	wg.Add(len(tasks))
 	for _, task := range tasks {
 		go func(task *TaskRun) {
@@ -113,6 +112,7 @@ func (q queueService) claimTasks(tasks []*TaskRun) []*TaskRun {
 		}(task)
 	}
 	wg.Wait()
+	close(claimed)
 
 	for claim := range claimed {
 		claims = append(claims, claim)
@@ -121,7 +121,6 @@ func (q queueService) claimTasks(tasks []*TaskRun) []*TaskRun {
 	return claims
 }
 
-// TODO (garndt): Move to some methods used by task manager as well.
 func (q queueService) claimTask(task *TaskRun) bool {
 	update := TaskStatusUpdate{
 		Task:          task,
