@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/docopt/docopt-go"
 	"github.com/taskcluster/jsonschema2go"
@@ -41,7 +42,7 @@ The following files will then be generated in the current directory:
     json property name that the schema relates to.
 
 Note, since plugins may not require config nor task payload data, it is not
-necessary for either config-schema.yml nor payload-schema.yml to exist.
+necessary for config-schema.yml nor payload-schema.yml to exist.
 
 Please also note, it is recommended to set environment variable GOPATH in order
 for plugin-gen to correctly determine the correct package name.
@@ -63,6 +64,11 @@ for plugin-gen to correctly determine the correct package name.
 `
 )
 
+type ymlToGoConvertion struct {
+	ymlFile string
+	goFile  string
+}
+
 func main() {
 	// Clear all logging fields, such as timestamps etc...
 	log.SetFlags(0)
@@ -74,15 +80,35 @@ func main() {
 		log.Fatalf("ERROR: Cannot parse arguments: %s\n", err)
 	}
 
+	typeGenerators := []ymlToGoConvertion{
+		ymlToGoConvertion{
+			ymlFile:    "config-schema.yml",
+			goFunction: "ConfigSchema",
+		},
+		ymlToGoConvertion{
+			ymlFile:    "payload-schema.yml",
+			goFunction: "PayloadSchema",
+		},
+	}
+
 	payloadProperty := ""
 	prop, ok := arguments["-p"]
 	if ok {
 		// ensure parameter is rendered as a string
-		// e.g. in case it gets resolved as bool true/false
-		payloadProperty := fmt.Sprintf("%s", prop)
+		// e.g. in case it bizarrely gets resolved as bool true/false
+		payloadProperty = fmt.Sprintf("%s", prop)
+
+		// only generate payloadtypes.go if payload property is set
+		if payloadProperty != "" {
+			typeGenerators = append(typeGenerators,
+				ymlToGoConvertion{
+					ymlFile: "payload-schema.yml",
+					goFile:  "payloadtypes.go",
+				},
+			)
+		}
 	}
 
-	log.Printf("Generating file %v", outputFile)
 	// Get working directory
 	currentFolder, err := os.Getwd()
 	if err != nil {
@@ -92,20 +118,23 @@ func main() {
 	// Read current package
 	pkg, err := build.ImportDir(currentFolder, build.AllowBinary)
 	if err != nil {
-		log.Fatalf("Failed to import current package: %s", err)
+		log.Fatalf("ERROR: Failed to determine go package inside directory '%s' - is your GOPATH set correctly ('%s')? Error: %s", currentFolder, os.Getenv("GOPATH"), err)
 	}
 
-	generatedCode, _, err := jsonschema2go.Generate(pkg.Name, "file://"+configSchema)
-	if err != nil {
-		log.Fatalf("ERROR: Could not interpret file %v as json schema in yaml/json syntax: %s", configSchema, err)
+	// Generate go types...
+	for _, conversion := range typeGenerators {
+		ymlFile := filepath.Join(currentFolder, conversion.ymlFile)
+		goFile := filepath.Join(currentFolder, conversion.goFile)
+		log.Printf("Generating file '%v' from '%v'...", goFile, ymlFile)
+		generatedCode, _, err := jsonschema2go.Generate(pkg.Name, "file://"+goFile)
+		if err != nil {
+			log.Fatalf("ERROR: Could not interpret file '%v' as json schema in yaml/json syntax: %s", ymlFile, err)
+		}
+		ioutil.WriteFile(goFile, generatedCode, 0644)
+		if err != nil {
+			log.Fatalf("ERROR: Could not write generated source code to file '%v': %s", goFile, err)
+		}
 	}
 
-	ioutil.WriteFile(outputFile, generatedCode, 0644)
-	if err != nil {
-		log.Fatalf("ERROR: Could not write generated source code to file %v: %s", outputFile, err)
-	}
-}
-
-func getAbsPath(arguments map[string]interface{}, parameter string, errs []error) (absPath string) {
-	return
+	// Generate configschema.go
 }
