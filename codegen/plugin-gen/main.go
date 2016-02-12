@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path/filepath"
 
 	"github.com/docopt/docopt-go"
 	"github.com/taskcluster/jsonschema2go"
@@ -18,24 +17,49 @@ var (
 	version = "plugin-gen 1.0.0"
 	usage   = `
 plugin-gen
-plugin-gen is a tool for generating source code for a plugin, based on two json schema files
-(stored as either json or yaml) for its config settings and its portion of the task payload.
-As well as creating go types that the payload and config can be unmarshalled into, it also
-generates the PayloadSchema() and ConfigSchema() method implementations for the plugin.
+plugin-gen is a tool for generating source code for a plugin. It is designed to
+be run from inside a plugin package of a taskcluster-worker source code
+directory (package). It then generates go source code files in the current
+directory, based on the files it discovers.
+
+If config-schema.yml exists, it is assumed to store the json schema (in
+yml/json format) of the config used by this plugin. The following files will
+then be generated in the current directory:
+
+  * configtypes.go:  Generated go type(s) for the plugin's config.
+  * configschema.go: Generated ConfigSchema() method that returns the
+    plugin's config schema in json format, as a []byte.
+
+If payload-schema.yml exists, and PAYLOAD-PROPERTY has been specified, the file
+is assumed to store the json schema (in yml/json format) of the property
+PAYLOAD-PROPERTY that appears in the payload section of the task definition.
+The following files will then be generated in the current directory:
+
+  * payloadtypes.go:  Generated go type(s) for the plugin's payload property.
+  * payloadschema.go: Generated PayloadSchema() method that returns the
+    plugin's payload schema in json format, as a []byte, together with payload
+    json property name that the schema relates to.
+
+Note, since plugins may not require config nor task payload data, it is not
+necessary for either config-schema.yml nor payload-schema.yml to exist.
+
+Please also note, it is recommended to set environment variable GOPATH in order
+for plugin-gen to correctly determine the correct package name.
+
 
   Usage:
-    plugin-gen -c CONFIG-SCHEMA-FILE -p PAYLOAD-SCHEMA-FILE -o GO-OUTPUT-FILE
+    plugin-gen [-p PAYLOAD-PROPERTY]
     plugin-gen -h|--help
     plugin-gen --version
 
   Options:
-    -h --help                Display this help text.
-    --version                Display the version (` + version + `).
-    -c CONFIG-SCHEMA-FILE    The yaml file that describes the structure of the plugin's
-                             config, in json schema format.
-    -p PAYLOAD-SCHEMA-FILE   The yaml file that describes the structure of the plugin's
-                             payload property, in json schema format.
-    -o GO-OUTPUT-FILE        The file location to write the generated go code to.
+    -h --help              Display this help text.
+    --version              Display the version (` + version + `).
+    -p PAYLOAD-PROPERTY    The payload property that relates to the plugin.
+
+  Examples:
+    plugin-gen -p livelog
+    plugin-gen --version
 `
 )
 
@@ -50,16 +74,12 @@ func main() {
 		log.Fatalf("ERROR: Cannot parse arguments: %s\n", err)
 	}
 
-	// Avoid multiple `if err != nil` statements by collecting errors into an array
-	// and processing at end
-	errs := []error{}
-	configSchema := getAbsPath(arguments, "-c", errs)
-	// payloadSchema := getAbsPath(arguments, "PAYLOAD-SCHEMA-FILE", errs)
-	outputFile := getAbsPath(arguments, "-o", errs)
-
-	// log the first error, and exit, if any
-	for _, err := range errs {
-		log.Fatalf("ERROR: %s", err)
+	payloadProperty := ""
+	prop, ok := arguments["-p"]
+	if ok {
+		// ensure parameter is rendered as a string
+		// e.g. in case it gets resolved as bool true/false
+		payloadProperty := fmt.Sprintf("%s", prop)
 	}
 
 	log.Printf("Generating file %v", outputFile)
@@ -87,22 +107,5 @@ func main() {
 }
 
 func getAbsPath(arguments map[string]interface{}, parameter string, errs []error) (absPath string) {
-	val, ok := arguments[parameter]
-	if !ok {
-		errs = append(errs, fmt.Errorf("Parameter %v not specified", parameter))
-		return ""
-	}
-	switch val.(type) {
-	case string:
-	default:
-		errs = append(errs, fmt.Errorf("Parameter %v has type %T but should be string", parameter, parameter))
-		return ""
-	}
-	var err error
-	absPath, err = filepath.Abs(val.(string))
-	if err != nil {
-		errs = append(errs, fmt.Errorf("Parameter %v could not be resolved to an absolute path: %s", parameter, err))
-		return ""
-	}
 	return
 }
