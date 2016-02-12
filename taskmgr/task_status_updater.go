@@ -36,7 +36,7 @@ const (
 )
 
 type updateError struct {
-	StatusCode int
+	statusCode int
 	err        string
 }
 
@@ -99,7 +99,10 @@ func UpdateTaskStatus(ts TaskStatusUpdate, queue TaskclusterQueue, log *logrus.E
 		tcrsp, callSummary, err := queue.ClaimTask(task.TaskId, strconv.FormatInt(int64(task.RunId), 10), &cr)
 		// check if an error occurred...
 		if err != nil {
-			e := &updateError{err: err.Error()}
+			e := &updateError{
+				err:        err.Error(),
+				statusCode: callSummary.HttpResponse.StatusCode,
+			}
 			var errorMessage string
 			switch {
 			case callSummary.HttpResponse.StatusCode == 401 || callSummary.HttpResponse.StatusCode == 403:
@@ -108,9 +111,6 @@ func UpdateTaskStatus(ts TaskStatusUpdate, queue TaskclusterQueue, log *logrus.E
 				errorMessage = "Server error when attempting to claim task."
 			default:
 				errorMessage = "Received an error with a status code other than 401/403/500."
-				// attempt to delete, but if it fails, log and continue
-				// nothing we can do, and better to return the first 4xx error
-				e.StatusCode = callSummary.HttpResponse.StatusCode
 			}
 			log.WithFields(logrus.Fields{
 				"error":      err,

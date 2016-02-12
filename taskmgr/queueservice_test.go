@@ -267,7 +267,7 @@ func TestPollTaskUrlInvalidMessageTextEncoding(t *testing.T) {
 		<PopReceipt>YzQ4Yzg1MDItYTc0Ny00OWNjLTkxYTUtZGM0MDFiZDAwYzEw</PopReceipt>
 		<TimeNextVisible>Fri, 09 Oct 2009 23:29:20 GMT</TimeNextVisible>
 		<DequeueCount>1</DequeueCount>
-		<MessageText>eyJhYmMiLDB9xxxxxxx</MessageText>
+		<MessageText>invalid MessageText, not base64 encoded!</MessageText>
 	  </QueueMessage>
 
 	</QueueMessagesList>`
