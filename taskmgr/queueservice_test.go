@@ -335,6 +335,8 @@ func TestErrorCaughtDeleteFromAzureQueueL(t *testing.T) {
 	assert.Contains(t, err.Error(), "(Permanent) HTTP response code 403")
 }
 func TestRetrieveTasksFromQueue(t *testing.T) {
+	// Tasks should be retrieved from multiple priority queues until either there are
+	// no more tasks to retrieve or the number of requested tasks are fulfilled.
 	messages := []string{
 		// MessageText is {"taskId": "abc", "runId": 1}
 		`<?xml version="1.0" encoding="utf-8"?>
@@ -417,6 +419,8 @@ func TestRetrieveTasksFromQueue(t *testing.T) {
 }
 
 func TestRetrieveTasksFromQueueDoesNotQueryLowPriority(t *testing.T) {
+	// When enough tasks have been retrieved from the higher (first) priority queue,
+	// the lower (second) priority queue should not be polled.
 	messages := []string{
 		// MessageText is {"taskId": "abc", "runId": 1}
 		`<?xml version="1.0" encoding="utf-8"?>
@@ -500,7 +504,8 @@ func TestRetrieveTasksFromQueueDoesNotQueryLowPriority(t *testing.T) {
 	}
 }
 func TestRetrieveTasksFromQueueDequeueChecked(t *testing.T) {
-	// Dequeue count is above the threshold of 15
+	// When the dequeue count is above the reshold of 15, the message should be deleted
+	// regardless if it's been claimed yet or not.
 	message := `<?xml version="1.0" encoding="utf-8"?>
 	<QueueMessagesList>
 	  <QueueMessage>
@@ -552,6 +557,9 @@ func TestRetrieveTasksFromQueueDequeueChecked(t *testing.T) {
 }
 
 func TestClaimTask(t *testing.T) {
+	// Verifies that when claimTask is called in the queue service for a
+	// particular task run object, that the task is claimed and deleted from
+	// the azure queue.
 	deleteCalled := false
 	var handler = func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/delete" {
@@ -617,6 +625,9 @@ func TestClaimTask(t *testing.T) {
 }
 
 func TestClaimTaskError(t *testing.T) {
+	// When a task cannot be claimed because of a 401 authorization error, the message
+	// should not be deleted from the queue.
+
 	// Delete should be called if the claim errored because of authorization or ISE
 	// issues
 	deleteCalled := false
@@ -662,11 +673,14 @@ func TestClaimTaskError(t *testing.T) {
 
 	success := service.claimTask(task)
 
-	assert.False(t, success)
-	assert.True(t, deleteCalled)
+	assert.False(t, success, "Task should not have been claimed")
+	// Delete should not have been called because it was an authorization issue
+	assert.False(t, deleteCalled, "Message should not have been deleted from the queue.")
 }
 
 func TestClaimTasks(t *testing.T) {
+	// Given a slice of task objects, claimTasks should claim each of them successfully
+	// and return a list of the claimed task runs.
 	var handler = func(w http.ResponseWriter, r *http.Request) {
 		return
 	}

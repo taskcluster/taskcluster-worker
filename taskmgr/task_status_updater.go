@@ -100,22 +100,17 @@ func UpdateTaskStatus(ts TaskStatusUpdate, queue TaskclusterQueue, log *logrus.E
 		// check if an error occurred...
 		if err != nil {
 			e := &updateError{err: err.Error()}
-			// If the queue.claimTask() operation fails with a 4xx error, the
-			// worker must delete the messages from the Azure queue (except 401).
 			var errorMessage string
 			switch {
 			case callSummary.HttpResponse.StatusCode == 401 || callSummary.HttpResponse.StatusCode == 403:
-				errorMessage = "Not authorized to claim task, *not* deleting it from Azure queue!"
+				errorMessage = "Not authorized to claim task."
 			case callSummary.HttpResponse.StatusCode >= 500:
 				errorMessage = "Server error when attempting to claim task."
 			default:
-				errorMessage = "Received an error with a status code other than 401/403/500.  Deleting message from the queue"
+				errorMessage = "Received an error with a status code other than 401/403/500."
 				// attempt to delete, but if it fails, log and continue
 				// nothing we can do, and better to return the first 4xx error
 				e.StatusCode = callSummary.HttpResponse.StatusCode
-				if err != nil {
-					errorMessage = "Not able to delete task from queue after receiving an unexpected status code."
-				}
 			}
 			log.WithFields(logrus.Fields{
 				"error":      err,

@@ -132,9 +132,13 @@ func (q queueService) claimTask(task *TaskRun) bool {
 
 	err := <-UpdateTaskStatus(update, q.client, q.Log)
 	if err != nil {
-		if err.StatusCode != 401 || err.StatusCode != 403 || err.StatusCode < 500 {
-			_ = q.deleteFromAzure(task.TaskId, task.SignedDeleteUrl)
+		if err.StatusCode == 401 || err.StatusCode == 403 || err.StatusCode >= 500 {
+			// Do not delete the message if task could not be claimed because of server
+			// or authorization failures
+			return false
 		}
+
+		_ = q.deleteFromAzure(task.TaskId, task.SignedDeleteUrl)
 		return false
 	}
 	_ = q.deleteFromAzure(task.TaskId, task.SignedDeleteUrl)
