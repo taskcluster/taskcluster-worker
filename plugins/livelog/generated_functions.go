@@ -2,8 +2,26 @@
 
 package livelog
 
-func ConfigSchema() string {
-	return "{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"additionalProperties\":false,\"description\":\"LiveLog config\\n\",\"properties\":{\"liveLogExe\":{\"description\":\"The executable (.exe file) to run the livelog service\\n\",\"title\":\"LiveLogExecutable\",\"type\":\"string\"}},\"required\":[\"liveLogExe\"],\"title\":\"Config\",\"type\":\"object\"}"
+func ConfigSchema() []byte {
+	return []byte(`
+		{
+		  "$schema": "http://json-schema.org/draft-04/schema#",
+		  "additionalProperties": false,
+		  "description": "LiveLog config\n",
+		  "properties": {
+		    "liveLogExe": {
+		      "description": "The executable (.exe file) to run the livelog service\n",
+		      "title": "LiveLogExecutable",
+		      "type": "string"
+		    }
+		  },
+		  "required": [
+		    "liveLogExe"
+		  ],
+		  "title": "Config",
+		  "type": "object"
+		}
+	`)
 }
 
 func NewConfig() *Config {

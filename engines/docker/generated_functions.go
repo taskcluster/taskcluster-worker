@@ -2,8 +2,26 @@
 
 package docker
 
-func ConfigSchema() string {
-	return "{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"additionalProperties\":false,\"description\":\"Config applicable to docker engine\\n\",\"properties\":{\"rootVolume\":{\"description\":\"Root Volume blah blah\\n\",\"title\":\"Root Volume\",\"type\":\"string\"}},\"required\":[\"rootVolume\"],\"title\":\"Config\",\"type\":\"object\"}"
+func ConfigSchema() []byte {
+	return []byte(`
+		{
+		  "$schema": "http://json-schema.org/draft-04/schema#",
+		  "additionalProperties": false,
+		  "description": "Config applicable to docker engine\n",
+		  "properties": {
+		    "rootVolume": {
+		      "description": "Root Volume blah blah\n",
+		      "title": "Root Volume",
+		      "type": "string"
+		    }
+		  },
+		  "required": [
+		    "rootVolume"
+		  ],
+		  "title": "Config",
+		  "type": "object"
+		}
+	`)
 }
 
 func NewConfig() *Config {

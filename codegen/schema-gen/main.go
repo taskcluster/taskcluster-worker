@@ -13,7 +13,9 @@ import (
 
 	"github.com/docopt/docopt-go"
 	"github.com/ghodss/yaml"
+	"github.com/kr/text"
 	"github.com/taskcluster/jsonschema2go"
+	"github.com/taskcluster/taskcluster-base-go/jsontest"
 )
 
 var (
@@ -146,8 +148,12 @@ func generateFunctions(ymlFile, schemaFunction, newFunction string) string {
 	if err != nil {
 		log.Fatalf("ERROR: Problem converting file '%v' to json format - %s", ymlFile, err)
 	}
-	return `func ` + schemaFunction + `() string {
-		return ` + fmt.Sprintf("%q", string(rawJson)) + `
+	rawJson, err = jsontest.FormatJson(rawJson)
+	if err != nil {
+		log.Fatalf("ERROR: Problem pretty printing json in '%v' - %s", ymlFile, err)
+	}
+	return "func " + schemaFunction + `() []byte {
+		return []byte(` + "`\n" + text.Indent(fmt.Sprintf("%v", string(rawJson)), "\t\t") + "\n\t`" + `)
 	}
 
 	func New` + newFunction + `() *` + newFunction + ` {

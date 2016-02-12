@@ -2,8 +2,26 @@
 
 package winnative
 
-func ConfigSchema() string {
-	return "{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"additionalProperties\":false,\"description\":\"Config applicable to windows native engine\\n\",\"properties\":{\"usePsExec\":{\"description\":\"Whether to use PSExec for executing processes\\n\",\"title\":\"Use PSExec\",\"type\":\"boolean\"}},\"required\":[\"usePsExec\"],\"title\":\"Config\",\"type\":\"object\"}"
+func ConfigSchema() []byte {
+	return []byte(`
+		{
+		  "$schema": "http://json-schema.org/draft-04/schema#",
+		  "additionalProperties": false,
+		  "description": "Config applicable to windows native engine\n",
+		  "properties": {
+		    "usePsExec": {
+		      "description": "Whether to use PSExec for executing processes\n",
+		      "title": "Use PSExec",
+		      "type": "boolean"
+		    }
+		  },
+		  "required": [
+		    "usePsExec"
+		  ],
+		  "title": "Config",
+		  "type": "object"
+		}
+	`)
 }
 
 func NewConfig() *Config {

@@ -2,8 +2,40 @@
 
 package mockengine
 
-func PayloadSchema() string {
-	return "{\"$schema\":\"http://json-schema.org/draft-04/schema#\",\"additionalProperties\":false,\"properties\":{\"argument\":{\"type\":\"string\"},\"delay\":{\"type\":\"integer\"},\"function\":{\"enum\":[\"true\",\"false\",\"set-volume\",\"get-volume\",\"ping-proxy\",\"write-log\",\"write-error-log\"],\"type\":\"string\"}},\"required\":[\"delay\",\"function\",\"argument\"],\"title\":\"Payload\",\"type\":\"object\"}"
+func PayloadSchema() []byte {
+	return []byte(`
+		{
+		  "$schema": "http://json-schema.org/draft-04/schema#",
+		  "additionalProperties": false,
+		  "properties": {
+		    "argument": {
+		      "type": "string"
+		    },
+		    "delay": {
+		      "type": "integer"
+		    },
+		    "function": {
+		      "enum": [
+		        "true",
+		        "false",
+		        "set-volume",
+		        "get-volume",
+		        "ping-proxy",
+		        "write-log",
+		        "write-error-log"
+		      ],
+		      "type": "string"
+		    }
+		  },
+		  "required": [
+		    "delay",
+		    "function",
+		    "argument"
+		  ],
+		  "title": "Payload",
+		  "type": "object"
+		}
+	`)
 }
 
 func NewPayload() *Payload {
