@@ -83,7 +83,7 @@ type (
 // Given a number of tasks needed, the Azure task queues will be polled in order
 // of priority until either there are no more tasks to claim, or the given number of
 // tasks has been fulfilled.
-func (q queueService) ClaimWork(ntasks int) []*TaskRun {
+func (q *queueService) ClaimWork(ntasks int) []*TaskRun {
 	q.Log.Debugf("Attempting to claim %d tasks.", ntasks)
 	tasks := []*TaskRun{}
 	taskRuns, err := q.retrieveTasksFromQueue(ntasks)
@@ -97,7 +97,7 @@ func (q queueService) ClaimWork(ntasks int) []*TaskRun {
 	return tasks
 }
 
-func (q queueService) claimTasks(tasks []*TaskRun) []*TaskRun {
+func (q *queueService) claimTasks(tasks []*TaskRun) []*TaskRun {
 	var wg sync.WaitGroup
 	claims := []*TaskRun{}
 	claimed := make(chan *TaskRun, len(tasks))
@@ -121,7 +121,7 @@ func (q queueService) claimTasks(tasks []*TaskRun) []*TaskRun {
 	return claims
 }
 
-func (q queueService) claimTask(task *TaskRun) bool {
+func (q *queueService) claimTask(task *TaskRun) bool {
 	update := TaskStatusUpdate{
 		Task:          task,
 		Status:        Claimed,
@@ -147,7 +147,7 @@ func (q queueService) claimTask(task *TaskRun) bool {
 
 // deleteFromAzure will attempt to delete a task from the Azure queue and
 // return an error in case of failure
-func (q queueService) deleteFromAzure(taskId string, deleteUrl string) error {
+func (q *queueService) deleteFromAzure(taskId string, deleteUrl string) error {
 	// Messages are deleted from the Azure queue with a DELETE request to the
 	// signedDeleteUrl from the Azure queue object returned from
 	// queue.pollTaskUrls.
@@ -356,7 +356,7 @@ func (q *queueService) refreshTaskQueueUrls() error {
 	return nil
 }
 
-func (q queueService) retrieveTasksFromQueue(ntasks int) ([]*TaskRun, error) {
+func (q *queueService) retrieveTasksFromQueue(ntasks int) ([]*TaskRun, error) {
 	err := q.refreshTaskQueueUrls()
 	if err != nil {
 		return nil, err
@@ -391,7 +391,7 @@ func (q queueService) retrieveTasksFromQueue(ntasks int) ([]*TaskRun, error) {
 
 // Evaluate if the current time is getting close to the url expiration as decided
 // by the ExpirationOffset.
-func (q queueService) shouldRefreshQueueUrls() bool {
+func (q *queueService) shouldRefreshQueueUrls() bool {
 	if len(q.queues) == 0 {
 		return true
 	}
