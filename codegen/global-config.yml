@@ -4,8 +4,6 @@ description: |-
   Schema to represent the global config object used for configuring taskcluster-worker
 type:               object
 properties:
-  engines: {$const: engines}
-  plugins: {$const: plugins}
   workerId:
     title:          WorkerID
     description: |-

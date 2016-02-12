@@ -26,7 +26,7 @@ before_install:
   - go get github.com/pierrre/gotestcover
 
 install:
-  - "make rebuild"
+  - "make rebuild check"
 
 script:
   - "if test $GIMME_OS.$GIMME_ARCH = linux.amd64; then make rebuild; ${GOPATH}/bin/gotestcover -v -coverprofile=coverage.report ./...; go tool cover -func=coverage.report; else go install ./...; fi"
