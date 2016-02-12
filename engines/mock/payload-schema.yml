@@ -1,0 +1,22 @@
+$schema:            http://json-schema.org/draft-04/schema#
+type:               "object"
+properties:
+  delay:
+    type:           "integer"
+  function:
+    type:           "string"
+    enum:
+      - "true"
+      - "false"
+      - "set-volume"
+      - "get-volume"
+      - "ping-proxy"
+      - "write-log"
+      - "write-error-log"
+  argument:
+    type:           "string"
+required:
+  - "delay"
+  - "function"
+  - "argument"
+additionalProperties: false
