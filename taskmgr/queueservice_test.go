@@ -380,8 +380,10 @@ func TestRetrieveTasksFromQueue(t *testing.T) {
 		var message string
 		if r.URL.Path == "/tasks/1234" {
 			message = messages[0]
+			messages[0] = ""
 		} else {
 			message = messages[1]
+			messages[1] = ""
 		}
 		w.Header().Set("Content-Type", "application/xml")
 		w.Write([]byte(message))
@@ -525,6 +527,7 @@ func TestRetrieveTasksFromQueueDequeueChecked(t *testing.T) {
 	var handler = func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/delete/5974b586-0df3-4e2d-ad0c-18e3892bfca3/YzQ4Yzg1MDItYTc0Ny00OWNjLTkxYTUtZGM0MDFiZDAwYzEw" {
 			deleteCalled = true
+			message = ""
 			return
 		}
 		w.Header().Set("Content-Type", "application/xml")

@@ -201,8 +201,9 @@ func (q *queueService) pollTaskUrl(taskQueue *taskQueue, ntasks int) ([]*TaskRun
 	// receive multiple messages at once the parameter `&numofmessages=N`
 	// may be appended to `signedPollUrl`. The parameter `N` is the
 	// maximum number of messages desired, `N` can be up to 32.
-	// Since we can only process one task at a time, grab only one.
-	resp, _, err := httpbackoff.Get(fmt.Sprintf("%s%s%d", taskQueue.SignedPollUrl, "&numofmessages=", int(math.Min(32, float64(ntasks)))))
+	n := int(math.Min(32, float64(ntasks)))
+	u := fmt.Sprintf("%s%s%d", taskQueue.SignedPollUrl, "&numofmessages=", n)
+	resp, _, err := httpbackoff.Get(u)
 	if err != nil {
 		return nil, err
 	}
@@ -363,17 +364,26 @@ func (q queueService) retrieveTasksFromQueue(ntasks int) ([]*TaskRun, error) {
 
 	tasks := []*TaskRun{}
 	for _, queue := range q.queues {
-		// It hopefully would never be greater, but just incase, we would want to return
-		// and run what tasks we do have.
-		if len(tasks) >= ntasks {
-			return tasks, nil
+		// Continue polling the Azure queue until either enough messages have been retrieved
+		// or the queue has no more messages.
+		for {
+			// It hopefully would never be greater, but just incase, we would want to return
+			// and run what tasks we do have.
+			if len(tasks) >= ntasks {
+				return tasks, nil
+			}
+			taskRuns, err := q.pollTaskUrl(&queue, ntasks-len(tasks))
+			if err != nil {
+				q.Log.Warnf("Could not retrieve tasks from the Azure queue. %s", err)
+				break
+			}
+
+			if len(taskRuns) == 0 {
+				break
+			}
+
+			tasks = append(tasks, taskRuns...)
 		}
-		taskRuns, err := q.pollTaskUrl(&queue, ntasks-len(tasks))
-		if err != nil {
-			q.Log.Warnf("Could not retrieve tasks from the Azure queue. %s", err)
-			continue
-		}
-		tasks = append(tasks, taskRuns...)
 
 	}
 	return tasks, nil
