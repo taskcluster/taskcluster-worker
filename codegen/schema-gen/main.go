@@ -24,8 +24,14 @@ var (
 schema-gen
 schema-gen is a tool for generating source code for a plugin or engine. It is
 designed to be run from inside a plugin or engine package of a
-taskcluster-worker source code directory (package). It then generates go source
-code files in the current directory, based on the files it discovers.
+taskcluster-worker source code directory. It then generates go source code
+files in the current directory, based on the files it discovers.
+
+Typically, this means you just need to include
+
+ //go:generate schema-gen
+
+in any of the go source files of a plugin or engine, for it to be activated.
 
 If it finds a file called config-schema.yml it will generate a function
 ConfigSchema() which returns the content of the given file as json (converted
