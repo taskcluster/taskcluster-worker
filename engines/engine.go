@@ -40,9 +40,9 @@ type Engine interface {
 	// from this method.
 	PayloadSchema() runtime.CompositeSchema
 
-	// ConfigSchema returns the json schema that defines the structure of the
-	// config used by the engine
-	ConfigSchema() []byte
+	// ConfigSchema returns the CompositeSchema that represents the engine
+	// configuration
+	ConfigSchema() runtime.CompositeSchema
 
 	// Capabilities returns a structure declaring which features are supported,
 	// this is used for up-front feature checking. Unsupport methods must also
@@ -128,8 +128,8 @@ func (EngineBase) PayloadSchema() runtime.CompositeSchema {
 
 // ConfigSchema returns an empty jsonschema indicating that no custom config is
 // required.
-func (EngineBase) ConfigSchema() []byte {
-	return []byte("{}")
+func (EngineBase) ConfigSchema() runtime.CompositeSchema {
+	return runtime.NewEmptyCompositeSchema()
 }
 
 // Capabilities returns an zero value Capabilities struct indicating that

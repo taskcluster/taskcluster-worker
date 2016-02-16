@@ -1,4 +1,4 @@
-//go:generate go-composite-schema --required p payload-schema.yml generatedcode.go
+//go:generate go-composite-schema --required start payload-schema.yml generated_payloadschema.go
 
 // Package mockengine implements a MockEngine that doesn't really do anything,
 // but allows us to test plugins without having to run a real engine.
@@ -29,46 +29,13 @@ func init() {
 	}, "mock")
 }
 
-// task.payload.start when engine is "mock"
-type payload struct {
-	Function string `json:"function"`
-	Argument string `json:"argument"`
-	Delay    int64  `json:"delay"`
-}
-
 // mock config contains no fields
-func (e engine) ConfigSchema() []byte {
-	return []byte("{}")
+func (e engine) ConfigSchema() runtime.CompositeSchema {
+	return runtime.NewEmptyCompositeSchema()
 }
 
 func (e engine) PayloadSchema() runtime.CompositeSchema {
-	// Declare the schema for the "task.payload.start" property
-	schema, err := runtime.NewCompositeSchema("start", `{
-    "type": "object",
-    "properties": {
-      "delay": {"type": "integer"},
-      "function": {
-        "type": "string",
-        "enum": [
-          "true",
-          "false",
-          "set-volume",
-          "get-volume",
-          "ping-proxy",
-          "write-log",
-					"write-error-log"
-        ]
-      },
-      "argument": {"type": "string"}
-    },
-    "required": ["delay", "function", "argument"],
-    "additionalProperties": false
-  }`, true, func() interface{} { return &payload{} })
-	if err != nil {
-		// Any errors here are supposed to be static
-		panic(err)
-	}
-	return schema
+	return PayloadSchema()
 }
 
 func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {
@@ -76,7 +43,7 @@ func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sandb
 	// schema returned by PayloadSchema(), so here we type assert that it is
 	// indeed a pointer to such a thing.
 	e.Log.Debug("Building Sandbox")
-	p, valid := options.Payload.(*payload)
+	p, valid := options.Payload.(*Payload)
 	if !valid {
 		// TODO: Write to some sort of log if the type assertion fails
 		return nil, engines.ErrContractViolation

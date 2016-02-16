@@ -1,12 +1,12 @@
 $schema:            http://json-schema.org/draft-04/schema#
 title:              Config
-description: |
+description: |-
   LiveLog config
 type:               object
 properties:
   liveLogExe:
     title:          LiveLogExecutable
-    description: |
+    description: |-
       The executable (.exe file) to run the livelog service
     type:           string
 additionalProperties: false

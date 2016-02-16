@@ -5,7 +5,6 @@ package main
 import (
 	"fmt"
 	"go/build"
-	"go/format"
 	"io/ioutil"
 	"log"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"github.com/kr/text"
 	"github.com/taskcluster/jsonschema2go"
 	"github.com/taskcluster/taskcluster-base-go/jsontest"
+	"golang.org/x/tools/imports"
 )
 
 var (
@@ -105,7 +105,7 @@ func main() {
 		log.Fatalf("ERROR: Problem assembling content for file '%v': %s", goFile, err)
 	}
 	generatedCode = append(generatedCode, []byte("\n"+generateFunctions(ymlFile, j.SubSchema(url).TypeName, schemaProperty, req))...)
-	sourceCode, err := format.Source([]byte(generatedCode))
+	sourceCode, err := imports.Process(goFile, []byte(generatedCode), &imports.Options{AllErrors: true})
 	if err != nil {
 		log.Fatalf("ERROR: Could not format generated source code for file '%v': %s\nCode:\n%v", goFile, err, string(generatedCode))
 	}
@@ -129,21 +129,19 @@ func generateFunctions(ymlFile, goType, schemaProperty string, req bool) string 
 	if err != nil {
 		log.Fatalf("ERROR: Problem pretty printing json in '%v' - %s", ymlFile, err)
 	}
-	result := "func " + goType + `Schema() runtime.CompositeSchema {
-		schema, err := runtime.NewCompositeSchema(
-			"` + schemaProperty + `", 
-			[]byte(` + "`\n" + text.Indent(fmt.Sprintf("%v", string(rawJson)), "\t\t") + "\n\t\t`" + `),
-			`
+	result := "func " + goType + "Schema() runtime.CompositeSchema {\n"
+	result += "schema, err := runtime.NewCompositeSchema(\n"
+	result += "\"" + schemaProperty + "\",\n"
+	result += "`\n" + text.Indent(fmt.Sprintf("%v", string(rawJson)), "\t\t") + "\n\t\t`" + ",\n"
 	if req {
-		result += `true,
-		`
+		result += "true,\n"
 	}
-	result += `func() interface{} { return &` + goType + `{} },
-		)
-		if err != nil {
-	    	panic(err)
-  		}
-    	return schema;
-	}`
+	result += "func() interface{} { return &" + goType + "{} },\n"
+	result += ")\n"
+	result += "if err != nil {\n"
+	result += "panic(err)\n"
+	result += "}\n"
+	result += "return schema\n"
+	result += "}"
 	return result
 }

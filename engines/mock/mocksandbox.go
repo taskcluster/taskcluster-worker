@@ -29,7 +29,7 @@ type sandbox struct {
 	engines.SandboxBuilderBase
 	engines.SandboxBase
 	engines.ResultSetBase
-	payload *payload
+	payload *Payload
 	context *runtime.TaskContext
 	mounts  map[string]*mount
 	proxies map[string]http.Handler

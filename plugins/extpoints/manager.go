@@ -82,8 +82,8 @@ func NewPluginManager(pluginsToLoad []string, options PluginOptions) (plugins.Pl
 }
 
 // Currently no config required for plugin manager
-func (m *pluginManager) ConfigSchema() []byte {
-	return []byte("{}")
+func (m *pluginManager) ConfigSchema() runtime.CompositeSchema {
+	return runtime.NewEmptyCompositeSchema()
 }
 
 func (m *pluginManager) PayloadSchema() (runtime.CompositeSchema, error) {
