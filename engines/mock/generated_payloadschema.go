@@ -49,7 +49,9 @@ func PayloadSchema() runtime.CompositeSchema {
 		}
 		`,
 		true,
-		func() interface{} { return &Payload{} },
+		func() interface{} {
+			return &Payload{}
+		},
 	)
 	if err != nil {
 		panic(err)

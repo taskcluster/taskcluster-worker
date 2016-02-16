@@ -31,7 +31,9 @@ func ConfigSchema() runtime.CompositeSchema {
 		}
 		`,
 		true,
-		func() interface{} { return &Config{} },
+		func() interface{} {
+			return &Config{}
+		},
 	)
 	if err != nil {
 		panic(err)

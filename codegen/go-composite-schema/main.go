@@ -136,7 +136,9 @@ func generateFunctions(ymlFile, goType, schemaProperty string, req bool) string 
 	if req {
 		result += "true,\n"
 	}
-	result += "func() interface{} { return &" + goType + "{} },\n"
+	result += "func() interface{} {\n"
+	result += "return &" + goType + "{}\n"
+	result += "},\n"
 	result += ")\n"
 	result += "if err != nil {\n"
 	result += "panic(err)\n"
