@@ -105,7 +105,17 @@ func main() {
 		log.Fatalf("ERROR: Problem assembling content for file '%v': %s", goFile, err)
 	}
 	generatedCode = append(generatedCode, []byte("\n"+generateFunctions(ymlFile, j.SubSchema(url).TypeName, schemaProperty, req))...)
-	sourceCode, err := imports.Process(goFile, []byte(generatedCode), &imports.Options{AllErrors: true})
+	sourceCode, err := imports.Process(
+		goFile,
+		[]byte(generatedCode),
+		&imports.Options{
+			AllErrors: true,
+			Comments:  true,
+			TabIndent: true,
+			TabWidth:  0,
+			Fragment:  false,
+		},
+	)
 	if err != nil {
 		log.Fatalf("ERROR: Could not format generated source code for file '%v': %s\nCode:\n%v", goFile, err, string(generatedCode))
 	}
