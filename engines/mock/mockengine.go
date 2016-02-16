@@ -1,4 +1,4 @@
-//go:generate schema-gen
+//go:generate go-composite-schema --required p payload-schema.yml generatedcode.go
 
 // Package mockengine implements a MockEngine that doesn't really do anything,
 // but allows us to test plugins without having to run a real engine.
