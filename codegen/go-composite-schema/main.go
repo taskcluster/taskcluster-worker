@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/docopt/docopt-go"
 	"github.com/ghodss/yaml"
@@ -140,20 +141,23 @@ func generateFunctions(ymlFile, goType, schemaProperty string, req bool) string 
 		log.Fatalf("ERROR: Problem pretty printing json in '%v' - %s", ymlFile, err)
 	}
 	result := "func " + goType + "Schema() runtime.CompositeSchema {\n"
-	result += "schema, err := runtime.NewCompositeSchema(\n"
-	result += "\"" + schemaProperty + "\",\n"
-	result += "`\n" + text.Indent(fmt.Sprintf("%v", string(rawJson)), "\t\t") + "\n\t\t`" + ",\n"
+	result += "\tschema, err := runtime.NewCompositeSchema(\n"
+	result += "\t\t\"" + schemaProperty + "\",\n"
+	result += "\t\t`\n"
+	// the following strings.Replace function call safely escapes backticks (`) in rawJson
+	result += strings.Replace(text.Indent(fmt.Sprintf("%v", string(rawJson)), "\t\t")+"\n", "`", "` + \"`\" + `", -1)
+	result += "\t\t`,\n"
 	if req {
-		result += "true,\n"
+		result += "\t\ttrue,\n"
 	}
-	result += "func() interface{} {\n"
-	result += "return &" + goType + "{}\n"
-	result += "},\n"
-	result += ")\n"
-	result += "if err != nil {\n"
-	result += "panic(err)\n"
+	result += "\t\tfunc() interface{} {\n"
+	result += "\t\t\treturn &" + goType + "{}\n"
+	result += "\t\t},\n"
+	result += "\t)\n"
+	result += "\tif err != nil {\n"
+	result += "\t\tpanic(err)\n"
+	result += "\t}\n"
+	result += "\treturn schema\n"
 	result += "}\n"
-	result += "return schema\n"
-	result += "}"
 	return result
 }
