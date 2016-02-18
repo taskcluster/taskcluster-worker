@@ -50,6 +50,7 @@ func (p *engineProvider) ensureEngine(engineName string) {
 	// Create Engine instance
 	engine, err := engineProvider(extpoints.EngineOptions{
 		Environment: p.environment,
+		Log:         p.environment.Log.WithField("engine", engineName),
 	})
 	nilOrpanic(err, "Failed to create Engine")
 	p.engine = engine
@@ -77,9 +78,17 @@ func newTestEnvironment() *runtime.Environment {
 	rt.SetFinalizer(folder, func(f runtime.TemporaryFolder) {
 		f.Remove()
 	})
+
+	logger, err := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating logger. %s", err)
+		os.Exit(1)
+	}
+
 	return &runtime.Environment{
 		GarbageCollector: &gc.GarbageCollector{},
 		TemporaryStorage: folder,
+		Log:              logger,
 	}
 }
 

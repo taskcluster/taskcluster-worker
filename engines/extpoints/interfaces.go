@@ -3,6 +3,7 @@
 package extpoints
 
 import (
+	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
@@ -20,6 +21,7 @@ type EngineOptions struct {
 	// Note: This is intended to be a simple argument wrapper, do not add methods
 	// to this struct.
 	Environment *runtime.Environment
+	Log         *logrus.Entry
 }
 
 // EngineProvider is the interface engine implementors must implement and

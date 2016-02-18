@@ -26,9 +26,7 @@ type schemaEntry struct {
 	validator  *gojsonschema.Schema
 }
 
-type composedSchema struct {
-	entries []CompositeSchema
-}
+type composedSchema []CompositeSchema
 
 // NewEmptyCompositeSchema returns a CompositeSchema schema that is empty.
 // The resulting value from Parse is nil, and the schema does no validation.
@@ -94,7 +92,7 @@ func MergeCompositeSchemas(schemas ...CompositeSchema) (CompositeSchema, error) 
 	if hasConflict {
 		return nil, ErrConflictingSchemas
 	}
-	return &composedSchema{entries: schemas}, nil
+	return composedSchema(schemas), nil
 }
 
 // Parse will validate and parse data.
@@ -138,9 +136,9 @@ func (s *schemaEntry) visit(visitor func(entry *schemaEntry)) {
 	visitor(s)
 }
 
-func (s *composedSchema) Parse(data map[string]json.RawMessage) (interface{}, error) {
+func (s composedSchema) Parse(data map[string]json.RawMessage) (interface{}, error) {
 	results := []interface{}{}
-	for _, entry := range s.entries {
+	for _, entry := range s {
 		result, err := entry.Parse(data)
 		if err != nil {
 			return nil, err
@@ -150,8 +148,8 @@ func (s *composedSchema) Parse(data map[string]json.RawMessage) (interface{}, er
 	return results, nil
 }
 
-func (s *composedSchema) visit(visitor func(*schemaEntry)) {
-	for _, entry := range s.entries {
+func (s composedSchema) visit(visitor func(*schemaEntry)) {
+	for _, entry := range s {
 		entry.visit(visitor)
 	}
 }
