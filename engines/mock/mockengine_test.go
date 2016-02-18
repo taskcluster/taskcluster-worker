@@ -96,3 +96,22 @@ func TestPing404IsUnsuccessful(t *t.T) { proxyTestCase.TestPing404IsUnsuccessful
 func TestLiveLogging(t *t.T)           { proxyTestCase.TestLiveLogging() }
 func TestParallelPings(t *t.T)         { proxyTestCase.TestParallelPings() }
 func TestProxyTestCase(t *t.T)         { proxyTestCase.Test(t) }
+
+var envVarTestCase = enginetest.EnvVarTestCase{
+	Engine:               "mock",
+	VariableName:         "HELLO_WORLD",
+	InvalidVariableNames: []string{"bad d", "also bad", "can't have space"},
+	Payload: `{
+    "start": {
+      "delay": 10,
+      "function": "print-env-var",
+      "argument": "HELLO_WORLD"
+    }
+  }`,
+}
+
+func TestPrintVariable(t *t.T) { envVarTestCase.TestPrintVariable() }
+
+func TestVariableNameConflict(t *t.T) { envVarTestCase.TestVariableNameConflict() }
+func TestInvalidVariableNames(t *t.T) { envVarTestCase.TestInvalidVariableNames() }
+func TestEnvVarTestCase(t *t.T)       { envVarTestCase.Test() }
