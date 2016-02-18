@@ -55,8 +55,8 @@ type ResultSet interface {
 	// through as return value from the ExtractFolder call.
 	//
 	// If an error occurs during iteration iteration is halted, and when all
-	// calls to handler(path, stream) has returned ExtractFolder may with return
-	// with the error.
+	// calls to handler(path, stream) has returned ExtractFolder should with
+	// return with ErrHandlerInterrupt.
 	//
 	// The only non-fatal error is ErrNonFatalInternalError, indicating that
 	// something went wrong while streaming out artfacts and all artifacts may not
@@ -67,7 +67,7 @@ type ResultSet interface {
 	// extract other paths might work out fine.
 	//
 	// Non-fatal erorrs: ErrFeatureNotSupported, ErrResourceNotFound,
-	// MalformedPayloadError, ErrNonFatalInternalError
+	// MalformedPayloadError, ErrNonFatalInternalError, ErrHandlerInterrupt
 	ExtractFolder(path string, handler FileHandler) error
 
 	// ArchiveSandbox streams out the entire sandbox (or as much as possible)

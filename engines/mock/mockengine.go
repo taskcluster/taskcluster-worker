@@ -50,6 +50,7 @@ func (e engine) PayloadSchema() runtime.CompositeSchema {
           "ping-proxy",
           "write-log",
 					"write-error-log",
+					"write-files",
 					"print-env-var"
         ]
       },
@@ -81,6 +82,7 @@ func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sandb
 		mounts:  make(map[string]*mount),
 		proxies: make(map[string]http.Handler),
 		env:     make(map[string]string),
+		files:   make(map[string][]byte),
 	}, nil
 }
 

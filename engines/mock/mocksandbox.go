@@ -190,6 +190,8 @@ func (s *sandbox) ExtractFolder(folder string, handler engines.FileHandler) erro
 		folder += "/"
 	}
 	wg := sync.WaitGroup{}
+	m := sync.Mutex{}
+	handlerError := false
 	foundFolder := false
 	for path, data := range s.files {
 		if strings.HasPrefix(path, folder) {
@@ -201,14 +203,22 @@ func (s *sandbox) ExtractFolder(folder string, handler engines.FileHandler) erro
 			}
 			wg.Add(1)
 			go func(path string, data []byte) {
-				handler(path, ioutil.NopCloser(bytes.NewBuffer(data)))
+				err := handler(path, ioutil.NopCloser(bytes.NewBuffer(data)))
+				if err != nil {
+					m.Lock()
+					handlerError = true
+					m.Unlock()
+				}
 				wg.Done()
 			}(path, data)
 		}
 	}
-	wg.Done()
+	wg.Wait()
 	if !foundFolder {
 		return engines.ErrResourceNotFound
+	}
+	if handlerError {
+		return engines.ErrHandlerInterrupt
 	}
 	return nil
 }

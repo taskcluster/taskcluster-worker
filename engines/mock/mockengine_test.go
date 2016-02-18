@@ -97,3 +97,27 @@ func TestPrintVariable(t *t.T)        { envVarTestCase.TestPrintVariable() }
 func TestVariableNameConflict(t *t.T) { envVarTestCase.TestVariableNameConflict() }
 func TestInvalidVariableNames(t *t.T) { envVarTestCase.TestInvalidVariableNames() }
 func TestEnvVarTestCase(t *t.T)       { envVarTestCase.Test() }
+
+var artifactTestCase = enginetest.ArtifactTestCase{
+	Engine:             "mock",
+	Text:               "Hello World",
+	TextFilePath:       "/folder/a.txt",
+	FileNotFoundPath:   "/not-found.txt",
+	FolderNotFoundPath: "/no-folder/",
+	NestedFolderFiles:  []string{"/folder/a.txt", "/folder/b.txt", "/folder/c/c.txt"},
+	NestedFolderPath:   "/folder/",
+	Payload: `{
+		"start":{
+			"delay": 10,
+			"function": "write-files",
+			"argument": "/folder/a.txt /folder/b.txt /folder/c/c.txt"
+		}
+	}`,
+}
+
+func TestExtractTextFile(t *t.T)               { artifactTestCase.TestExtractTextFile() }
+func TestExtractFileNotFound(t *t.T)           { artifactTestCase.TestExtractFileNotFound() }
+func TestExtractFolderNotFound(t *t.T)         { artifactTestCase.TestExtractFolderNotFound() }
+func TestExtractNestedFolderPath(t *t.T)       { artifactTestCase.TestExtractNestedFolderPath() }
+func TestExtractFolderHandlerInterrupt(t *t.T) { artifactTestCase.TestExtractFolderHandlerInterrupt() }
+func TestArtifactTestCase(t *t.T)              { artifactTestCase.Test() }

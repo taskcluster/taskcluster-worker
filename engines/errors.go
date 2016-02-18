@@ -26,6 +26,9 @@ var ErrImmutableMountNotSupported = errors.New("The engine doesn't support immut
 // doesn't exist.
 var ErrResourceNotFound = errors.New("The referenced resource wasn't found")
 
+// ErrHandlerInterrupt is returned when a handler that was given returns and error
+var ErrHandlerInterrupt = errors.New("Handler returned an error and interrupted iteration")
+
 // ErrSandboxTerminated is used to indicate that a SandBox has already
 // terminated and can't be aborted.
 var ErrSandboxTerminated = errors.New("The Sandbox has terminated")
