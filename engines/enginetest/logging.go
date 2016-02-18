@@ -1,13 +1,6 @@
 package enginetest
 
-import (
-	"io/ioutil"
-	"strings"
-	"sync"
-	"testing"
-
-	"github.com/taskcluster/taskcluster-worker/engines"
-)
+import "sync"
 
 // A LoggingTestCase holds information necessary to run tests that an engine
 // can write things to the log.
@@ -27,32 +20,17 @@ type LoggingTestCase struct {
 }
 
 func (c *LoggingTestCase) grepLogFromPayload(payload string, needle string, success bool) bool {
-	ctx, control := c.newTestTaskContext()
-	defer evalNilOrPanic(control.Dispose, "Dispose TaskContext")
-	sandboxBuilder, err := c.engine.NewSandboxBuilder(engines.SandboxOptions{
-		TaskContext: ctx,
-		Payload:     parseTestPayload(c.engine, payload),
-	})
-	nilOrpanic(err, "Error creating SandboxBuilder")
-	s := buildRunSandbox(sandboxBuilder)
+	r := c.NewRun(c.Engine)
+	r.NewSandboxBuilder(payload)
+	s := r.buildRunSandbox()
 	if s != success {
 		fmtPanic("Task with payload: ", payload, " had ResultSet.Success(): ", s)
 	}
-	err = control.CloseLog()
-	nilOrpanic(err, "Failed to close log file")
-
-	reader, err := ctx.NewLogReader()
-	nilOrpanic(err, "Failed to create log reader")
-	defer evalNilOrPanic(reader.Close, "Failed to close log reader")
-	data, err := ioutil.ReadAll(reader)
-	nilOrpanic(err, "Failed to read log")
-
-	return strings.Contains(string(data), needle)
+	return r.GrepLog(needle)
 }
 
 // TestLogTarget check that Target is logged by TargetPayload
 func (c *LoggingTestCase) TestLogTarget() {
-	c.ensureEngine(c.Engine)
 	if !c.grepLogFromPayload(c.TargetPayload, c.Target, true) {
 		fmtPanic("Couldn't find target: ", c.Target, " in logs from TargetPayload")
 	}
@@ -60,7 +38,6 @@ func (c *LoggingTestCase) TestLogTarget() {
 
 // TestLogTargetWhenFailing check that Target is logged by FailingPayload
 func (c *LoggingTestCase) TestLogTargetWhenFailing() {
-	c.ensureEngine(c.Engine)
 	if !c.grepLogFromPayload(c.FailingPayload, c.Target, false) {
 		fmtPanic("Couldn't find target: ", c.Target, " in logs from FailingPayload")
 	}
@@ -68,14 +45,13 @@ func (c *LoggingTestCase) TestLogTargetWhenFailing() {
 
 // TestSilentTask checks that Target isn't logged by SilentPayload
 func (c *LoggingTestCase) TestSilentTask() {
-	c.ensureEngine(c.Engine)
 	if c.grepLogFromPayload(c.SilentPayload, c.Target, true) {
 		fmtPanic("Found target: ", c.Target, " in logs from SilentPayload")
 	}
 }
 
 // Test will run all logging tests
-func (c *LoggingTestCase) Test(t *testing.T) {
+func (c *LoggingTestCase) Test() {
 	c.ensureEngine(c.Engine)
 	wg := sync.WaitGroup{}
 	wg.Add(3)

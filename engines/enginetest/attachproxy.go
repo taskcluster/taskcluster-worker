@@ -29,19 +29,14 @@ type ProxyTestCase struct {
 
 // TestPingProxyPayload checks that PingProxyPayload works as defined
 func (c *ProxyTestCase) TestPingProxyPayload() {
-	c.ensureEngine(c.Engine)
-	ctx, control := c.newTestTaskContext()
-
-	sandboxBuilder, err := c.engine.NewSandboxBuilder(engines.SandboxOptions{
-		TaskContext: ctx,
-		Payload:     parseTestPayload(c.engine, c.PingProxyPayload),
-	})
-	nilOrpanic(err, "Error creating SandboxBuilder")
+	r := c.NewRun(c.Engine)
+	defer r.Dispose()
+	r.NewSandboxBuilder(c.PingProxyPayload)
 
 	pinged := false
 	pingMethod := "-"
 	pingPath := ""
-	err = sandboxBuilder.AttachProxy(c.ProxyName, http.HandlerFunc(func(
+	err := r.sandboxBuilder.AttachProxy(c.ProxyName, http.HandlerFunc(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) {
@@ -53,32 +48,16 @@ func (c *ProxyTestCase) TestPingProxyPayload() {
 	}))
 	nilOrpanic(err, "Error failed to AttachProxy")
 
-	result := buildRunSandbox(sandboxBuilder)
-	nilOrpanic(control.CloseLog(), "Failed to close log")
-	reader, err := ctx.NewLogReader()
-	nilOrpanic(err, "Failed to open log reader")
-	data, err := ioutil.ReadAll(reader)
-	nilOrpanic(err, "Failed to read log")
-	nilOrpanic(reader.Close(), "Failed to close log reader")
-	nilOrpanic(control.Dispose(), "Failed to dispose TaskContext")
-	log := string(data)
+	result := r.buildRunSandbox()
+	log := r.ReadLog()
 
-	if !result {
-		fmtPanic("PingProxyPayload exited unsuccessfully, log: ", log)
-	}
-	if !pinged {
-		fmtPanic("PingProxyPayload didn't call the attachedProxy, log: ", log)
-	}
-	if pingMethod != "GET" && pingMethod != "" {
-		fmtPanic("PingProxyPayload pinged with method: ", pingMethod)
-	}
-	if pingPath != "/v1/ping" {
-		fmtPanic("PingProxyPayload pinged path: ", pingPath)
-	}
-
-	if !strings.Contains(log, "secret=42") {
-		fmtPanic("Didn't find secret=42 from ping response in log", log)
-	}
+	assert(result, "PingProxyPayload exited unsuccessfully, log: ", log)
+	assert(pinged, "PingProxyPayload didn't call the attachedProxy, log: ", log)
+	assert(pingMethod == "GET" || pingMethod == "",
+		"PingProxyPayload pinged with method: ", pingMethod)
+	assert(pingPath == "/v1/ping", "PingProxyPayload pinged path: ", pingPath)
+	assert(strings.Contains(log, "secret=42"),
+		"Didn't find secret=42 from ping response in log", log)
 }
 
 // TestPing404IsUnsuccessful checks that 404 returns unsuccessful
