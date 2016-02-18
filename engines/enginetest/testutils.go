@@ -179,8 +179,10 @@ func (r *run) OpenLogReader() {
 }
 
 func (r *run) ReadLog() string {
-	r.OpenLogReader()
-	data, err := ioutil.ReadAll(r.logReader)
+	reader, err := r.context.NewLogReader()
+	defer reader.Close()
+	nilOrpanic(err, "Failed to open log reader")
+	data, err := ioutil.ReadAll(reader)
 	nilOrpanic(err, "Failed to read log")
 	return string(data)
 }

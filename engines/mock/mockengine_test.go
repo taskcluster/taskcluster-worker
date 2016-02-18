@@ -78,7 +78,7 @@ func TestPingProxyPayload(t *t.T)      { proxyTestCase.TestPingProxyPayload() }
 func TestPing404IsUnsuccessful(t *t.T) { proxyTestCase.TestPing404IsUnsuccessful() }
 func TestLiveLogging(t *t.T)           { proxyTestCase.TestLiveLogging() }
 func TestParallelPings(t *t.T)         { proxyTestCase.TestParallelPings() }
-func TestProxyTestCase(t *t.T)         { proxyTestCase.Test(t) }
+func TestProxyTestCase(t *t.T)         { proxyTestCase.Test() }
 
 var envVarTestCase = enginetest.EnvVarTestCase{
 	Engine:               "mock",
