@@ -18,6 +18,13 @@ func TestBoolZeroValue(t *t.T) {
 	trueOrPanic(!b.Get(), "Expected zero-value to be false")
 }
 
+func TestNewBool(t *t.T) {
+	b := NewBool(false)
+	trueOrPanic(!b.Get(), "Expected false")
+	b = NewBool(true)
+	trueOrPanic(b.Get(), "Expected true")
+}
+
 func TestBoolSet(t *t.T) {
 	b := Bool{}
 	b.Set(false)
