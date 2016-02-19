@@ -161,9 +161,9 @@ func TestMergeComposedSchemas(t *testing.T) {
 		t.Fatalf("Error creating a merged composite scheme. %v", err)
 	}
 
-	m := merged.(*composedSchema)
-	if len(m.entries) != 2 {
-		t.Fatalf("Merged schema should have 2 entries but had %d", len(m.entries))
+	m := merged.(composedSchema)
+	if len(m) != 2 {
+		t.Fatalf("Merged schema should have 2 entries but had %d", len(m))
 	}
 }
 

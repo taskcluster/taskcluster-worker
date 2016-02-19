@@ -1,0 +1,16 @@
+$schema:            http://json-schema.org/draft-04/schema#
+title:              Worker Config
+description: |-
+  Schema to represent the global config object used for configuring taskcluster-worker
+type:               object
+properties:
+  workerId:
+    title:          WorkerID
+    description: |-
+      blah blah
+    type:           string
+additionalProperties: false
+required:
+  - engines
+  - plugins
+  - workerId

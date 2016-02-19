@@ -42,7 +42,7 @@ func (c *ProxyTestCase) TestPingProxyPayload() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("Yay, you managed to ping the end-point, secret=42!!!"))
 	}))
-	nilOrpanic(err, "Error failed to AttachProxy")
+	nilOrPanic(err, "Error failed to AttachProxy")
 
 	result := r.buildRunSandbox()
 	log := r.ReadLog()
@@ -73,7 +73,7 @@ func (c *ProxyTestCase) TestPing404IsUnsuccessful() {
 		w.WriteHeader(404)
 		w.Write([]byte("Yay, you managed to ping the end-point, secret=42!!!"))
 	}))
-	nilOrpanic(err, "Error failed to AttachProxy")
+	nilOrPanic(err, "Error failed to AttachProxy")
 
 	result := r.buildRunSandbox()
 	log := r.ReadLog()
@@ -100,7 +100,7 @@ func (c *ProxyTestCase) TestLiveLogging() {
 		for !strings.Contains(string(buf.Bytes()), "Pinging") {
 			b := []byte{0}
 			n, err := r.logReader.Read(b)
-			nilOrpanic(err, "Failed while reading from livelog...")
+			nilOrPanic(err, "Failed while reading from livelog...")
 			if n != 1 {
 				panic("Expected one byte to be read!")
 			}
@@ -122,7 +122,7 @@ func (c *ProxyTestCase) TestLiveLogging() {
 		w.WriteHeader(200)
 		w.Write([]byte("Yay, you managed to ping the end-point, secret=42!!!"))
 	}))
-	nilOrpanic(err, "Error failed to AttachProxy")
+	nilOrPanic(err, "Error failed to AttachProxy")
 
 	result := r.buildRunSandbox()
 	log := r.ReadLog()

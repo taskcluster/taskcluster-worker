@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/taskcluster/taskcluster-base-go/jsontest"
 	"github.com/xeipuuv/gojsonschema"
 )
 
@@ -81,9 +82,11 @@ func MergeCompositeSchemas(schemas ...CompositeSchema) (CompositeSchema, error) 
 		schema.visit(func(entry *schemaEntry) {
 			for _, s := range schemas[i:] {
 				s.visit(func(e *schemaEntry) {
-					if entry.property == e.property && entry.schema != e.schema {
-						// TODO: We probably should make an error with a custom message
-						hasConflict = true
+					if entry.property == e.property {
+						if schemasMatch, _, _, _ := jsontest.JsonEqual([]byte(entry.schema), []byte(e.schema)); !schemasMatch {
+							// TODO: We probably should make an error with a custom message
+							hasConflict = true
+						}
 					}
 				})
 			}

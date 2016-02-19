@@ -11,10 +11,6 @@ type SandboxOptions struct {
 	TaskContext *runtime.TaskContext
 	// Result from PayloadSchema().Parse(). Implementors are safe to assert
 	// this back to their target type.
-	// Note: This is passed by-value for efficiency (and to prohibit nil), if
-	// adding any large fields please consider adding them as pointers.
-	// Note: This is intended to be a simple argument wrapper, do not add methods
-	// to this struct.
 	Payload interface{}
 }
 
@@ -123,6 +119,12 @@ type EngineBase struct{}
 // PayloadSchema returns an empty CompositeSchema indicating that a nil
 // payload is sufficient.
 func (EngineBase) PayloadSchema() runtime.CompositeSchema {
+	return runtime.NewEmptyCompositeSchema()
+}
+
+// ConfigSchema returns an empty jsonschema indicating that no custom config is
+// required.
+func (EngineBase) ConfigSchema() runtime.CompositeSchema {
 	return runtime.NewEmptyCompositeSchema()
 }
 
