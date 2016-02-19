@@ -145,7 +145,7 @@ func generateFunctions(ymlFile, goType, schemaProperty string, req bool) string 
 	if err != nil {
 		log.Fatalf("ERROR: Problem pretty printing json in '%v' - %s", ymlFile, err)
 	}
-	result := "func " + goType + "Schema() runtime.CompositeSchema {\n"
+	result := "var " + goType + "Schema = func() runtime.CompositeSchema {\n"
 	result += "\tschema, err := runtime.NewCompositeSchema(\n"
 	result += "\t\t\"" + schemaProperty + "\",\n"
 	result += "\t\t`\n"
@@ -163,6 +163,6 @@ func generateFunctions(ymlFile, goType, schemaProperty string, req bool) string 
 	result += "\t\tpanic(err)\n"
 	result += "\t}\n"
 	result += "\treturn schema\n"
-	result += "}\n"
+	result += "}()\n"
 	return result
 }

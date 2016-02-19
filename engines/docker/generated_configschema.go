@@ -13,7 +13,7 @@ type (
 	}
 )
 
-func configSchema() runtime.CompositeSchema {
+var configSchema = func() runtime.CompositeSchema {
 	schema, err := runtime.NewCompositeSchema(
 		"config",
 		`
@@ -44,4 +44,4 @@ func configSchema() runtime.CompositeSchema {
 		panic(err)
 	}
 	return schema
-}
+}()

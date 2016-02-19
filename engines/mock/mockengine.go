@@ -35,7 +35,7 @@ func (e engine) ConfigSchema() runtime.CompositeSchema {
 }
 
 func (e engine) PayloadSchema() runtime.CompositeSchema {
-	return payloadSchema()
+	return payloadSchema
 }
 
 func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {

@@ -22,7 +22,7 @@ type (
 	}
 )
 
-func payloadSchema() runtime.CompositeSchema {
+var payloadSchema = func() runtime.CompositeSchema {
 	schema, err := runtime.NewCompositeSchema(
 		"start",
 		`
@@ -67,4 +67,4 @@ func payloadSchema() runtime.CompositeSchema {
 		panic(err)
 	}
 	return schema
-}
+}()
