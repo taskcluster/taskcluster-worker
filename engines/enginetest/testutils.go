@@ -151,64 +151,64 @@ func (r *run) NewSandboxBuilder(payload string) {
 		Payload:     parseTestPayload(r.provider.engine, payload),
 	})
 	r.sandboxBuilder = sandboxBuilder
-	nilOrpanic(err, "Error creating SandboxBuilder")
+	nilOrPanic(err, "Error creating SandboxBuilder")
 }
 
 func (r *run) StartSandbox() {
 	assert(r.sandbox == nil, "StartSandbox already called!")
 	sandbox, err := r.sandboxBuilder.StartSandbox()
-	nilOrpanic(err, "Failed to start sandbox")
+	nilOrPanic(err, "Failed to start sandbox")
 	r.sandbox = sandbox
 }
 
 func (r *run) WaitForResult() bool {
 	assert(r.resultSet == nil, "WaitForResult already called!")
 	resultSet, err := r.sandbox.WaitForResult()
-	nilOrpanic(err, "WaitForResult failed")
+	nilOrPanic(err, "WaitForResult failed")
 	r.resultSet = resultSet
 	r.closedLog = true
-	nilOrpanic(r.control.CloseLog(), "Failed to close log writer")
+	nilOrPanic(r.control.CloseLog(), "Failed to close log writer")
 	return r.resultSet.Success()
 }
 
 func (r *run) OpenLogReader() {
 	assert(r.logReader == nil, "OpenLogReader already called!")
 	logReader, err := r.context.NewLogReader()
-	nilOrpanic(err, "Failed to open log reader")
+	nilOrPanic(err, "Failed to open log reader")
 	r.logReader = logReader
 }
 
 func (r *run) ReadLog() string {
 	reader, err := r.context.NewLogReader()
 	defer reader.Close()
-	nilOrpanic(err, "Failed to open log reader")
+	nilOrPanic(err, "Failed to open log reader")
 	data, err := ioutil.ReadAll(reader)
-	nilOrpanic(err, "Failed to read log")
+	nilOrPanic(err, "Failed to read log")
 	return string(data)
 }
 
 func (r *run) Dispose() {
 	if r.sandboxBuilder != nil {
-		nilOrpanic(r.sandboxBuilder.Discard(), "")
+		nilOrPanic(r.sandboxBuilder.Discard(), "")
 		r.sandboxBuilder = nil
 	}
 	if r.sandbox != nil {
-		nilOrpanic(r.sandbox.Abort(), "")
+		nilOrPanic(r.sandbox.Abort(), "")
 		r.sandbox = nil
 	}
 	if r.resultSet != nil {
-		nilOrpanic(r.resultSet.Dispose(), "")
+		nilOrPanic(r.resultSet.Dispose(), "")
 		r.resultSet = nil
 	}
 	if r.logReader != nil {
-		nilOrpanic(r.logReader.Close(), "")
+		nilOrPanic(r.logReader.Close(), "")
 		r.logReader = nil
 	}
 	if !r.closedLog {
 		r.closedLog = true
-		nilOrpanic(r.control.CloseLog(), "Failed to close log writer")
+		nilOrPanic(r.control.CloseLog(), "Failed to close log writer")
 	}
-	nilOrpanic(r.control.Dispose(), "")
+	nilOrPanic(r.control.Dispose(), "")
 }
 
 // Auxiliary composite methods

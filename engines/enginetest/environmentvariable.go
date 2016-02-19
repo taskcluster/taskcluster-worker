@@ -26,7 +26,7 @@ func (c *EnvVarTestCase) TestPrintVariable() {
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
 	err := r.sandboxBuilder.SetEnvironmentVariable(c.VariableName, "Hello World")
-	nilOrpanic(err, "SetEnvironmentVariable failed")
+	nilOrPanic(err, "SetEnvironmentVariable failed")
 	assert(r.buildRunSandbox(), "Payload exited unsuccessfully")
 	assert(r.GrepLog("Hello World"), "Didn't find variable value in log")
 }
@@ -37,7 +37,7 @@ func (c *EnvVarTestCase) TestVariableNameConflict() {
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
 	err := r.sandboxBuilder.SetEnvironmentVariable(c.VariableName, "Hello World")
-	nilOrpanic(err, "SetEnvironmentVariable failed")
+	nilOrPanic(err, "SetEnvironmentVariable failed")
 	err = r.sandboxBuilder.SetEnvironmentVariable(c.VariableName, "Hello World2")
 	if err != engines.ErrNamingConflict {
 		fmtPanic("Expected ErrNamingConflict when declaring: ", c.VariableName, " twice")

@@ -41,9 +41,9 @@ func (c *ArtifactTestCase) TestExtractTextFile() {
 	assert(r.buildRunSandbox(), "Task failed to run, payload: ", c.Payload)
 
 	reader, err := r.resultSet.ExtractFile(c.TextFilePath)
-	nilOrpanic(err, "Failed to ExtractFile: ", c.TextFilePath)
+	nilOrPanic(err, "Failed to ExtractFile: ", c.TextFilePath)
 	data, err := ioutil.ReadAll(reader)
-	nilOrpanic(err, "Failed to read file: ", c.TextFilePath)
+	nilOrPanic(err, "Failed to read file: ", c.TextFilePath)
 	assert(strings.Contains(string(data), c.Text),
 		"Expected ", c.TextFilePath, " to contain '", c.Text, "', got ",
 		string(data))
@@ -104,7 +104,7 @@ func (c *ArtifactTestCase) TestExtractNestedFolderPath() {
 		}
 		return nil
 	})
-	nilOrpanic(err, "Error handling files from folder")
+	nilOrPanic(err, "Error handling files from folder")
 
 	// Check that NestedFolderFiles was found
 	for _, f := range c.NestedFolderFiles {
