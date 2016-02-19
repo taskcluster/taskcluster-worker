@@ -68,7 +68,7 @@ func NewPluginManager(pluginsToLoad []string, options PluginOptions) (plugins.Pl
 		if pluginProvider == nil {
 			return nil, errors.New("Missing plugin")
 		}
-		plugin, err := pluginProvider(PluginOptions{
+		plugin, err := pluginProvider.NewPlugin(PluginOptions{
 			environment: options.environment,
 			engine:      options.engine,
 			log:         options.log.WithField("plugin", p),

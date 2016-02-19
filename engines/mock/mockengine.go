@@ -19,22 +19,25 @@ type engine struct {
 	Log *logrus.Entry
 }
 
+type engineProvider struct {
+}
+
+func (e engineProvider) NewEngine(options extpoints.EngineOptions) (engines.Engine, error) {
+	fmt.Println(options.Log)
+	return engine{Log: options.Log}, nil
+}
+
 func init() {
 	// Register the mock engine as an import side-effect
-	extpoints.EngineProviders.Register(func(
-		options extpoints.EngineOptions,
-	) (engines.Engine, error) {
-		fmt.Println(options.Log)
-		return engine{Log: options.Log}, nil
-	}, "mock")
+	extpoints.EngineProviders.Register(new(engineProvider), "mock")
 }
 
 // mock config contains no fields
-func (e engine) ConfigSchema() runtime.CompositeSchema {
+func (e engineProvider) ConfigSchema() runtime.CompositeSchema {
 	return runtime.NewEmptyCompositeSchema()
 }
 
-func (e engine) PayloadSchema() runtime.CompositeSchema {
+func (e engineProvider) PayloadSchema() runtime.CompositeSchema {
 	return payloadSchema
 }
 

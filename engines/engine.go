@@ -40,10 +40,6 @@ type Engine interface {
 	// from this method.
 	PayloadSchema() runtime.CompositeSchema
 
-	// ConfigSchema returns the CompositeSchema that represents the engine
-	// configuration
-	ConfigSchema() runtime.CompositeSchema
-
 	// Capabilities returns a structure declaring which features are supported,
 	// this is used for up-front feature checking. Unsupport methods must also
 	// return ErrFeatureNotSupported when called.

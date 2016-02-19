@@ -34,10 +34,6 @@ type Plugin interface {
 	// from this method.
 	PayloadSchema() (runtime.CompositeSchema, error)
 
-	// ConfigSchema returns the CompositeSchema that represents the plugin
-	// config.
-	ConfigSchema() runtime.CompositeSchema
-
 	// NewTaskPlugin method will be called once for each task. The TaskPlugin
 	// instance returned will be called for each stage in the task execution.
 	//

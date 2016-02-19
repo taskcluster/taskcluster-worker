@@ -16,7 +16,19 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/plugins/extpoints"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
+
+type pluginProvider struct {
+}
+
+func (pluginProvider) NewPlugin(extpoints.PluginOptions) (plugins.Plugin, error) {
+	return plugin{}, nil
+}
+
+func (pluginProvider) ConfigSchema() runtime.CompositeSchema {
+	return runtime.NewEmptyCompositeSchema()
+}
 
 type plugin struct {
 	plugins.PluginBase
@@ -27,11 +39,7 @@ type taskPlugin struct {
 }
 
 func init() {
-	extpoints.PluginProviders.Register(func(
-		extpoints.PluginOptions,
-	) (plugins.Plugin, error) {
-		return plugin{}, nil
-	}, "success")
+	extpoints.PluginProviders.Register(new(pluginProvider), "success")
 }
 
 func (plugin) NewTaskPlugin(plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
