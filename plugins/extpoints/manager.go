@@ -68,7 +68,7 @@ func NewPluginManager(pluginsToLoad []string, options PluginOptions) (plugins.Pl
 		if pluginProvider == nil {
 			return nil, errors.New("Missing plugin")
 		}
-		plugin, err := pluginProvider(PluginOptions{
+		plugin, err := pluginProvider.NewPlugin(PluginOptions{
 			environment: options.environment,
 			engine:      options.engine,
 			log:         options.log.WithField("plugin", p),
@@ -79,6 +79,11 @@ func NewPluginManager(pluginsToLoad []string, options PluginOptions) (plugins.Pl
 		pluginObjects = append(pluginObjects, plugin)
 	}
 	return &pluginManager{plugins: pluginObjects}, nil
+}
+
+// Currently no config required for plugin manager
+func (m *pluginManager) ConfigSchema() runtime.CompositeSchema {
+	return runtime.NewEmptyCompositeSchema()
 }
 
 func (m *pluginManager) PayloadSchema() (runtime.CompositeSchema, error) {

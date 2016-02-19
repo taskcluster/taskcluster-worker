@@ -23,4 +23,10 @@ type PluginOptions struct {
 //
 // If an implementor can determine that a plugin isn't available at compile-time
 // it is preferred not to register the plugin.
-type PluginProvider func(options PluginOptions) (plugins.Plugin, error)
+type PluginProvider interface {
+	NewPlugin(options PluginOptions) (plugins.Plugin, error)
+
+	// ConfigSchema returns the CompositeSchema that represents the plugin
+	// config.
+	ConfigSchema() runtime.CompositeSchema
+}

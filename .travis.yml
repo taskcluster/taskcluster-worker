@@ -29,7 +29,7 @@ install:
   - "go get -d -t ./..."
 
 script:
-  - "if test $GIMME_OS.$GIMME_ARCH = linux.amd64; then make rebuild; ${GOPATH}/bin/gotestcover -v -coverprofile=coverage.report ./...; go tool cover -func=coverage.report; else go install ./...; fi"
+  - "if test $GIMME_OS.$GIMME_ARCH = linux.amd64; then make rebuild check; ${GOPATH}/bin/gotestcover -v -coverprofile=coverage.report ./...; go tool cover -func=coverage.report; else go install ./...; fi"
 
 after_script:
   - "if test $GIMME_OS.$GIMME_ARCH = linux.amd64; then $HOME/gopath/bin/goveralls -coverprofile=coverage.report -service=travis-ci; fi"

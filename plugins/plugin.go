@@ -160,6 +160,11 @@ func (PluginBase) PayloadSchema() (runtime.CompositeSchema, error) {
 	return runtime.NewEmptyCompositeSchema(), nil
 }
 
+// PluginBase requires no custom config
+func (PluginBase) ConfigSchema() runtime.CompositeSchema {
+	return runtime.NewEmptyCompositeSchema()
+}
+
 // NewTaskPlugin returns nil ignoring the request to create a TaskPlugin for
 // the given task.
 func (PluginBase) NewTaskPlugin(TaskPluginOptions) (TaskPlugin, error) {

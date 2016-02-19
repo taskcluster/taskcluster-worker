@@ -1,3 +1,5 @@
+//go:generate go-composite-schema --required start payload-schema.yml generated_payloadschema.go
+
 // Package mockengine implements a MockEngine that doesn't really do anything,
 // but allows us to test plugins without having to run a real engine.
 package mockengine
@@ -17,51 +19,26 @@ type engine struct {
 	Log *logrus.Entry
 }
 
+type engineProvider struct {
+}
+
+func (e engineProvider) NewEngine(options extpoints.EngineOptions) (engines.Engine, error) {
+	fmt.Println(options.Log)
+	return engine{Log: options.Log}, nil
+}
+
 func init() {
 	// Register the mock engine as an import side-effect
-	extpoints.EngineProviders.Register(func(
-		options extpoints.EngineOptions,
-	) (engines.Engine, error) {
-		fmt.Println(options.Log)
-		return engine{Log: options.Log}, nil
-	}, "mock")
+	extpoints.EngineProviders.Register(new(engineProvider), "mock")
 }
 
-// task.payload.start when engine is "mock"
-type payload struct {
-	Function string `json:"function"`
-	Argument string `json:"argument"`
-	Delay    int64  `json:"delay"`
+// mock config contains no fields
+func (e engineProvider) ConfigSchema() runtime.CompositeSchema {
+	return runtime.NewEmptyCompositeSchema()
 }
 
-func (e engine) PayloadSchema() runtime.CompositeSchema {
-	// Declare the schema for the "task.payload.start" property
-	schema, err := runtime.NewCompositeSchema("start", `{
-    "type": "object",
-    "properties": {
-      "delay": {"type": "integer"},
-      "function": {
-        "type": "string",
-        "enum": [
-          "true",
-          "false",
-          "set-volume",
-          "get-volume",
-          "ping-proxy",
-          "write-log",
-					"write-error-log"
-        ]
-      },
-      "argument": {"type": "string"}
-    },
-    "required": ["delay", "function", "argument"],
-    "additionalProperties": false
-  }`, true, func() interface{} { return &payload{} })
-	if err != nil {
-		// Any errors here are supposed to be static
-		panic(err)
-	}
-	return schema
+func (e engineProvider) PayloadSchema() runtime.CompositeSchema {
+	return payloadSchema
 }
 
 func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {

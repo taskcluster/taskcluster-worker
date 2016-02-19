@@ -63,7 +63,7 @@ func main() {
 
 	runtimeEnvironment := runtime.Environment{Log: logger}
 
-	engine, err := engineProvider(extpoints.EngineOptions{
+	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
 		Environment: &runtimeEnvironment,
 		Log:         logger.WithField("engine", engineName),
 	})
