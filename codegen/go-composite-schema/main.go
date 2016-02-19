@@ -101,11 +101,16 @@ func main() {
 	url := "file://" + ymlFile
 	goFile := filepath.Join(currentFolder, outputFile)
 	log.Printf("Generating '%v'...", goFile)
-	generatedCode, j, err := jsonschema2go.Generate(pkg.Name, url)
+	job := &jsonschema2go.Job{
+		Package:     pkg.Name,
+		URLs:        []string{url},
+		ExportTypes: false,
+	}
+	result, err := job.Execute()
 	if err != nil {
 		log.Fatalf("ERROR: Problem assembling content for file '%v': %s", goFile, err)
 	}
-	generatedCode = append(generatedCode, []byte("\n"+generateFunctions(ymlFile, j.SubSchema(url).TypeName, schemaProperty, req))...)
+	generatedCode := append(result.SourceCode, []byte("\n"+generateFunctions(ymlFile, result.SchemaSet.SubSchema(url).TypeName, schemaProperty, req))...)
 	sourceCode, err := imports.Process(
 		goFile,
 		[]byte(generatedCode),
