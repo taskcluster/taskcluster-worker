@@ -6,14 +6,14 @@ import "github.com/taskcluster/taskcluster-worker/runtime"
 
 type (
 	// Config applicable to windows native engine
-	Config struct {
+	config struct {
 
 		// Whether to use PSExec for executing processes
 		UsePsExec bool `json:"usePsExec"`
 	}
 )
 
-func ConfigSchema() runtime.CompositeSchema {
+func configSchema() runtime.CompositeSchema {
 	schema, err := runtime.NewCompositeSchema(
 		"config",
 		`
@@ -37,7 +37,7 @@ func ConfigSchema() runtime.CompositeSchema {
 		`,
 		true,
 		func() interface{} {
-			return &Config{}
+			return &config{}
 		},
 	)
 	if err != nil {

@@ -5,7 +5,7 @@ package mockengine
 import "github.com/taskcluster/taskcluster-worker/runtime"
 
 type (
-	Payload struct {
+	payload struct {
 		Argument string `json:"argument"`
 
 		Delay int `json:"delay"`
@@ -22,7 +22,7 @@ type (
 	}
 )
 
-func PayloadSchema() runtime.CompositeSchema {
+func payloadSchema() runtime.CompositeSchema {
 	schema, err := runtime.NewCompositeSchema(
 		"start",
 		`
@@ -60,7 +60,7 @@ func PayloadSchema() runtime.CompositeSchema {
 		`,
 		true,
 		func() interface{} {
-			return &Payload{}
+			return &payload{}
 		},
 	)
 	if err != nil {

@@ -35,7 +35,7 @@ func (e engine) ConfigSchema() runtime.CompositeSchema {
 }
 
 func (e engine) PayloadSchema() runtime.CompositeSchema {
-	return PayloadSchema()
+	return payloadSchema()
 }
 
 func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {
@@ -43,7 +43,7 @@ func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sandb
 	// schema returned by PayloadSchema(), so here we type assert that it is
 	// indeed a pointer to such a thing.
 	e.Log.Debug("Building Sandbox")
-	p, valid := options.Payload.(*Payload)
+	p, valid := options.Payload.(*payload)
 	if !valid {
 		// TODO: Write to some sort of log if the type assertion fails
 		return nil, engines.ErrContractViolation

@@ -6,14 +6,14 @@ import "github.com/taskcluster/taskcluster-worker/runtime"
 
 type (
 	// LiveLog config
-	Config struct {
+	config struct {
 
 		// The executable (.exe file) to run the livelog service
 		LiveLogExe string `json:"liveLogExe"`
 	}
 )
 
-func ConfigSchema() runtime.CompositeSchema {
+func configSchema() runtime.CompositeSchema {
 	schema, err := runtime.NewCompositeSchema(
 		"config",
 		`
@@ -37,7 +37,7 @@ func ConfigSchema() runtime.CompositeSchema {
 		`,
 		true,
 		func() interface{} {
-			return &Config{}
+			return &config{}
 		},
 	)
 	if err != nil {
