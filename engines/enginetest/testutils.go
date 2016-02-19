@@ -17,14 +17,14 @@ func fmtPanic(a ...interface{}) {
 	panic(fmt.Sprintln(a...))
 }
 
-func nilOrpanic(err error, a ...interface{}) {
+func nilOrPanic(err error, a ...interface{}) {
 	if err != nil {
 		fmtPanic(append(a, err)...)
 	}
 }
 
 func evalNilOrPanic(f func() error, a ...interface{}) {
-	nilOrpanic(f(), a...)
+	nilOrPanic(f(), a...)
 }
 
 // Type can embed so that we can reuse ensure engine
@@ -52,13 +52,13 @@ func (p *engineProvider) ensureEngine(engineName string) {
 		Environment: p.environment,
 		Log:         p.environment.Log.WithField("engine", engineName),
 	})
-	nilOrpanic(err, "Failed to create Engine")
+	nilOrPanic(err, "Failed to create Engine")
 	p.engine = engine
 }
 
 func (p *engineProvider) newTestTaskContext() (*runtime.TaskContext, *runtime.TaskContextController) {
 	ctx, control, err := runtime.NewTaskContext(p.environment.TemporaryStorage.NewFilePath())
-	nilOrpanic(err, "Failed to create new TaskContext")
+	nilOrPanic(err, "Failed to create new TaskContext")
 	return ctx, control
 }
 
@@ -67,10 +67,10 @@ func (p *engineProvider) newTestTaskContext() (*runtime.TaskContext, *runtime.Ta
 // This function should only be used in testing
 func newTestEnvironment() *runtime.Environment {
 	storage, err := runtime.NewTemporaryStorage(os.TempDir())
-	nilOrpanic(err, "Failed to create temporary storage at: ", os.TempDir())
+	nilOrPanic(err, "Failed to create temporary storage at: ", os.TempDir())
 
 	folder, err := storage.NewFolder()
-	nilOrpanic(err, "Failed to create temporary storage folder")
+	nilOrPanic(err, "Failed to create temporary storage folder")
 
 	// Set finalizer so that we always get the temporary folder removed.
 	// This is should really only be used in tests, otherwise it would better to
@@ -95,20 +95,20 @@ func newTestEnvironment() *runtime.Environment {
 func parseTestPayload(engine engines.Engine, payload string) interface{} {
 	jsonPayload := map[string]json.RawMessage{}
 	err := json.Unmarshal([]byte(payload), &jsonPayload)
-	nilOrpanic(err, "Payload parsing failed: ", payload)
+	nilOrPanic(err, "Payload parsing failed: ", payload)
 	p, err := engine.PayloadSchema().Parse(jsonPayload)
-	nilOrpanic(err, "Payload validation failed: ", payload)
+	nilOrPanic(err, "Payload validation failed: ", payload)
 	return p
 }
 
 func buildRunSandbox(b engines.SandboxBuilder) bool {
 	// Start sandbox and wait for result
 	sandbox, err := b.StartSandbox()
-	nilOrpanic(err, "Failed to start sandbox")
+	nilOrPanic(err, "Failed to start sandbox")
 
 	// Wait for result
 	resultSet, err := sandbox.WaitForResult()
-	nilOrpanic(err, "WaitForResult failed")
+	nilOrPanic(err, "WaitForResult failed")
 
 	// Get result and dispose ResultSet
 	defer evalNilOrPanic(resultSet.Dispose, "Failed to dispose of ResultSet")

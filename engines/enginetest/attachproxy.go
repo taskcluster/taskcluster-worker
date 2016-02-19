@@ -36,7 +36,7 @@ func (c *ProxyTestCase) TestPingProxyPayload() {
 		TaskContext: ctx,
 		Payload:     parseTestPayload(c.engine, c.PingProxyPayload),
 	})
-	nilOrpanic(err, "Error creating SandboxBuilder")
+	nilOrPanic(err, "Error creating SandboxBuilder")
 
 	pinged := false
 	pingMethod := "-"
@@ -51,16 +51,16 @@ func (c *ProxyTestCase) TestPingProxyPayload() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("Yay, you managed to ping the end-point, secret=42!!!"))
 	}))
-	nilOrpanic(err, "Error failed to AttachProxy")
+	nilOrPanic(err, "Error failed to AttachProxy")
 
 	result := buildRunSandbox(sandboxBuilder)
-	nilOrpanic(control.CloseLog(), "Failed to close log")
+	nilOrPanic(control.CloseLog(), "Failed to close log")
 	reader, err := ctx.NewLogReader()
-	nilOrpanic(err, "Failed to open log reader")
+	nilOrPanic(err, "Failed to open log reader")
 	data, err := ioutil.ReadAll(reader)
-	nilOrpanic(err, "Failed to read log")
-	nilOrpanic(reader.Close(), "Failed to close log reader")
-	nilOrpanic(control.Dispose(), "Failed to dispose TaskContext")
+	nilOrPanic(err, "Failed to read log")
+	nilOrPanic(reader.Close(), "Failed to close log reader")
+	nilOrPanic(control.Dispose(), "Failed to dispose TaskContext")
 	log := string(data)
 
 	if !result {
@@ -90,7 +90,7 @@ func (c *ProxyTestCase) TestPing404IsUnsuccessful() {
 		TaskContext: ctx,
 		Payload:     parseTestPayload(c.engine, c.PingProxyPayload),
 	})
-	nilOrpanic(err, "Error creating SandboxBuilder")
+	nilOrPanic(err, "Error creating SandboxBuilder")
 
 	pinged := false
 	pingPath := ""
@@ -103,16 +103,16 @@ func (c *ProxyTestCase) TestPing404IsUnsuccessful() {
 		w.WriteHeader(404)
 		w.Write([]byte("Yay, you managed to ping the end-point, secret=42!!!"))
 	}))
-	nilOrpanic(err, "Error failed to AttachProxy")
+	nilOrPanic(err, "Error failed to AttachProxy")
 
 	result := buildRunSandbox(sandboxBuilder)
-	nilOrpanic(control.CloseLog(), "Failed to close log")
+	nilOrPanic(control.CloseLog(), "Failed to close log")
 	reader, err := ctx.NewLogReader()
-	nilOrpanic(err, "Failed to open log reader")
+	nilOrPanic(err, "Failed to open log reader")
 	data, err := ioutil.ReadAll(reader)
-	nilOrpanic(err, "Failed to read log")
-	nilOrpanic(reader.Close(), "Failed to close log reader")
-	nilOrpanic(control.Dispose(), "Failed to dispose TaskContext")
+	nilOrPanic(err, "Failed to read log")
+	nilOrPanic(reader.Close(), "Failed to close log reader")
+	nilOrPanic(control.Dispose(), "Failed to dispose TaskContext")
 	log := string(data)
 
 	if result {
@@ -140,19 +140,19 @@ func (c *ProxyTestCase) TestLiveLogging() {
 		TaskContext: ctx,
 		Payload:     parseTestPayload(c.engine, c.PingProxyPayload),
 	})
-	nilOrpanic(err, "Error creating SandboxBuilder")
+	nilOrPanic(err, "Error creating SandboxBuilder")
 
 	// Read livelog until we see "Pinging"
 	readPinging := make(chan struct{})
 	go func() {
 		reader, err := ctx.NewLogReader()
 		defer evalNilOrPanic(reader.Close, "Failed to close livelog reader")
-		nilOrpanic(err, "Failed to open livelog reader")
+		nilOrPanic(err, "Failed to open livelog reader")
 		buf := bytes.Buffer{}
 		for !strings.Contains(string(buf.Bytes()), "Pinging") {
 			b := []byte{0}
 			n, err := reader.Read(b)
-			nilOrpanic(err, "Failed while reading from livelog...")
+			nilOrPanic(err, "Failed while reading from livelog...")
 			if n != 1 {
 				panic("Expected one byte to be read!")
 			}
@@ -174,16 +174,16 @@ func (c *ProxyTestCase) TestLiveLogging() {
 		w.WriteHeader(200)
 		w.Write([]byte("Yay, you managed to ping the end-point, secret=42!!!"))
 	}))
-	nilOrpanic(err, "Error failed to AttachProxy")
+	nilOrPanic(err, "Error failed to AttachProxy")
 
 	result := buildRunSandbox(sandboxBuilder)
-	nilOrpanic(control.CloseLog(), "Failed to close log")
+	nilOrPanic(control.CloseLog(), "Failed to close log")
 	reader, err := ctx.NewLogReader()
-	nilOrpanic(err, "Failed to open log reader")
+	nilOrPanic(err, "Failed to open log reader")
 	data, err := ioutil.ReadAll(reader)
-	nilOrpanic(err, "Failed to read log")
-	nilOrpanic(reader.Close(), "Failed to close log reader")
-	nilOrpanic(control.Dispose(), "Failed to dispose TaskContext")
+	nilOrPanic(err, "Failed to read log")
+	nilOrPanic(reader.Close(), "Failed to close log reader")
+	nilOrPanic(control.Dispose(), "Failed to dispose TaskContext")
 	log := string(data)
 
 	if !result {

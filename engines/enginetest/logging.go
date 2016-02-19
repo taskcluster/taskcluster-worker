@@ -33,19 +33,19 @@ func (c *LoggingTestCase) grepLogFromPayload(payload string, needle string, succ
 		TaskContext: ctx,
 		Payload:     parseTestPayload(c.engine, payload),
 	})
-	nilOrpanic(err, "Error creating SandboxBuilder")
+	nilOrPanic(err, "Error creating SandboxBuilder")
 	s := buildRunSandbox(sandboxBuilder)
 	if s != success {
 		fmtPanic("Task with payload: ", payload, " had ResultSet.Success(): ", s)
 	}
 	err = control.CloseLog()
-	nilOrpanic(err, "Failed to close log file")
+	nilOrPanic(err, "Failed to close log file")
 
 	reader, err := ctx.NewLogReader()
-	nilOrpanic(err, "Failed to create log reader")
+	nilOrPanic(err, "Failed to create log reader")
 	defer evalNilOrPanic(reader.Close, "Failed to close log reader")
 	data, err := ioutil.ReadAll(reader)
-	nilOrpanic(err, "Failed to read log")
+	nilOrPanic(err, "Failed to read log")
 
 	return strings.Contains(string(data), needle)
 }

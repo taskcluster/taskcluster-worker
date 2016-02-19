@@ -35,9 +35,9 @@ func (c *VolumeTestCase) writeVolume(volume engines.Volume, readOnly bool) bool 
 		TaskContext: ctx,
 		Payload:     parseTestPayload(c.engine, c.WriteVolumePayload),
 	})
-	nilOrpanic(err, "Error creating SandboxBuilder")
+	nilOrPanic(err, "Error creating SandboxBuilder")
 	err = sandboxBuilder.AttachVolume(c.Mountpoint, volume, readOnly)
-	nilOrpanic(err, "Failed to attach volume")
+	nilOrPanic(err, "Failed to attach volume")
 	return buildRunSandbox(sandboxBuilder)
 }
 
@@ -51,9 +51,9 @@ func (c *VolumeTestCase) readVolume(volume engines.Volume, readOnly bool) bool {
 		TaskContext: ctx,
 		Payload:     parseTestPayload(c.engine, c.CheckVolumePayload),
 	})
-	nilOrpanic(err, "Error creating SandboxBuilder")
+	nilOrPanic(err, "Error creating SandboxBuilder")
 	err = sandboxBuilder.AttachVolume(c.Mountpoint, volume, readOnly)
-	nilOrpanic(err, "Failed to attach volume")
+	nilOrPanic(err, "Failed to attach volume")
 	return buildRunSandbox(sandboxBuilder)
 }
 
@@ -61,7 +61,7 @@ func (c *VolumeTestCase) readVolume(volume engines.Volume, readOnly bool) bool {
 func (c *VolumeTestCase) TestWriteReadVolume() {
 	c.ensureEngine(c.Engine)
 	volume, err := c.engine.NewCacheFolder()
-	nilOrpanic(err, "Failed to create a new cache folder")
+	nilOrPanic(err, "Failed to create a new cache folder")
 	defer evalNilOrPanic(volume.Dispose, "Failed to dispose cache folder")
 	if !c.writeVolume(volume, false) {
 		fmtPanic("Running with writeVolumePayload didn't finish successfully")
@@ -76,7 +76,7 @@ func (c *VolumeTestCase) TestWriteReadVolume() {
 func (c *VolumeTestCase) TestReadEmptyVolume() {
 	c.ensureEngine(c.Engine)
 	volume, err := c.engine.NewCacheFolder()
-	nilOrpanic(err, "Failed to create a new cache folder")
+	nilOrPanic(err, "Failed to create a new cache folder")
 	defer evalNilOrPanic(volume.Dispose, "Failed to dispose cache folder")
 	if c.readVolume(volume, false) {
 		fmtPanic("Running with CheckVolumePayload with an empty volume was successful.",
@@ -88,7 +88,7 @@ func (c *VolumeTestCase) TestReadEmptyVolume() {
 func (c *VolumeTestCase) TestWriteToReadOnlyVolume() {
 	c.ensureEngine(c.Engine)
 	volume, err := c.engine.NewCacheFolder()
-	nilOrpanic(err, "Failed to create a new cache folder")
+	nilOrPanic(err, "Failed to create a new cache folder")
 	defer evalNilOrPanic(volume.Dispose, "Failed to dispose cache folder")
 	c.writeVolume(volume, true)
 	if c.readVolume(volume, false) {
@@ -100,7 +100,7 @@ func (c *VolumeTestCase) TestWriteToReadOnlyVolume() {
 func (c *VolumeTestCase) TestReadToReadOnlyVolume() {
 	c.ensureEngine(c.Engine)
 	volume, err := c.engine.NewCacheFolder()
-	nilOrpanic(err, "Failed to create a new cache folder")
+	nilOrPanic(err, "Failed to create a new cache folder")
 	defer evalNilOrPanic(volume.Dispose, "Failed to dispose cache folder")
 	if !c.writeVolume(volume, false) {
 		fmtPanic("Running with writeVolumePayload didn't finish successfully")
