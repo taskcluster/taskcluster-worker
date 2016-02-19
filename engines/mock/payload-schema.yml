@@ -14,6 +14,8 @@ properties:
       - "ping-proxy"
       - "write-log"
       - "write-error-log"
+      - "write-files"
+      - "print-env-var"
   argument:
     type:           "string"
 required:
