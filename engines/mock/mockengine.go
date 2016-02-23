@@ -37,7 +37,7 @@ func (e engineProvider) ConfigSchema() runtime.CompositeSchema {
 	return runtime.NewEmptyCompositeSchema()
 }
 
-func (e engineProvider) PayloadSchema() runtime.CompositeSchema {
+func (e engine) PayloadSchema() runtime.CompositeSchema {
 	return payloadSchema
 }
 
