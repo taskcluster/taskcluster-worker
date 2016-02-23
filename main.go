@@ -73,21 +73,21 @@ func main() {
 
 	// TODO (garndt): Need to load up a real config in the future
 	config := &config.Config{
-		Taskcluster: struct {
-			ClientId    string
-			AccessToken string
-			Certificate string
+		Credentials: struct {
+			AccessToken string `json:"accessToken"`
+			Certificate string `json:"certificate"`
+			ClientId    string `json:"clientId"`
 		}{
-			ClientId:    "abc",
 			AccessToken: "123",
 			Certificate: "",
+			ClientId:    "abc",
 		},
 		Capacity:      5,
 		ProvisionerId: "tasckluster-worker-provisioner",
 		WorkerGroup:   "taskcluster-worker-test-worker-group",
 		WorkerId:      "taskcluster-worker-test-worker",
 		QueueService: struct {
-			ExpirationOffset int
+			ExpirationOffset int `json:"expirationOffset"`
 		}{
 			ExpirationOffset: 300,
 		},

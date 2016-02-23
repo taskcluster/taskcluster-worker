@@ -26,7 +26,7 @@ go-composite-schema
 go-composite-schema is a tool for generating go source code for a function to
 return a CompositeSchema based on a static json schema definition stored in a
 yaml/json file in a package directory of a go project, together with some
-parameters included in a "go:generate" command. See
+command line arguments, typically included in a "go:generate" command. See
 https://godoc.org/github.com/taskcluster/taskcluster-worker/runtime#CompositeSchema
 for more information.
 
@@ -50,11 +50,13 @@ go-composite-schema to correctly determine the correct package name.
 
 
   Usage:
-    go-composite-schema [--required] PROPERTY INPUT-FILE OUTPUT-FILE
+    go-composite-schema [--required] [--unexported] PROPERTY INPUT-FILE OUTPUT-FILE
     go-composite-schema -h|--help
     go-composite-schema --version
 
   Options:
+    --required             Implies the given composite schema defines a required property.
+    --unexported           Generate an unexported type for the given composite schema.
     -h --help              Display this help text.
     --version              Display the version (` + version + `).
 `
@@ -73,6 +75,7 @@ func main() {
 
 	// assuming non-nil, and always type bool
 	req := args["--required"].(bool)
+	unexported := args["--unexported"].(bool)
 
 	// assuming non-nil, and always type string
 	schemaProperty := args["PROPERTY"].(string)
@@ -104,7 +107,7 @@ func main() {
 	job := &jsonschema2go.Job{
 		Package:     pkg.Name,
 		URLs:        []string{url},
-		ExportTypes: false,
+		ExportTypes: !unexported,
 	}
 	result, err := job.Execute()
 	if err != nil {
