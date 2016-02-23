@@ -2,13 +2,22 @@ package engines
 
 import "io"
 
-// The Shell interface is not fully specified yet, but the idea is that it pipes
-// data to a shell inside a Sandbox.
+// The Shell interface opens an interactive sh or bash shell inside the Sandbox.
 type Shell interface {
-	StdinPipe() (io.WriteCloser, error)
-	StdoutPipe() (io.ReadCloser, error)
-	StderrPipe() (io.ReadCloser, error)
-	Terminate() error
+	StdinPipe() io.WriteCloser
+	StdoutPipe() io.ReadCloser
+	StderrPipe() io.ReadCloser
+	// Aborts a shell, causing Wait() to return ErrShellAborted. If the shell has
+	// already terminated Abort() returns ErrShellTerminated.
+	//
+	// non-fatal errors: ErrShellTerminated
+	Abort() error
+	// Wait will return when the shell has terminated. It returns true/false
+	// depending on the exit code. Any error indicates that the shell didn't
+	// run in a controlled maner. If Abort() was called Wait() shall return
+	// ErrShellAborted.
+	//
+	// non-fatal errors: ErrShellAborted
 	Wait() (bool, error)
 }
 

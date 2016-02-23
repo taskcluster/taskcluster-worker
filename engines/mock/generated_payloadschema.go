@@ -18,6 +18,8 @@ type (
 		//   * "ping-proxy"
 		//   * "write-log"
 		//   * "write-error-log"
+		//   * "write-files"
+		//   * "print-env-var"
 		Function string `json:"function"`
 	}
 )
@@ -44,7 +46,9 @@ var payloadSchema = func() runtime.CompositeSchema {
 		        "get-volume",
 		        "ping-proxy",
 		        "write-log",
-		        "write-error-log"
+		        "write-error-log",
+		        "write-files",
+		        "print-env-var"
 		      ],
 		      "type": "string"
 		    }

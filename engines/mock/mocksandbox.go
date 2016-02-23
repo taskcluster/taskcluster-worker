@@ -223,6 +223,10 @@ func (s *sandbox) ExtractFolder(folder string, handler engines.FileHandler) erro
 	return nil
 }
 
+func (s *sandbox) NewShell() (engines.Shell, error) {
+	return newShell(), nil
+}
+
 ///////////////////////////// Implementation of ResultSet interface
 
 func (s *sandbox) Success() bool {

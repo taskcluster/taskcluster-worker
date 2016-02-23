@@ -36,6 +36,12 @@ var ErrSandboxTerminated = errors.New("The Sandbox has terminated")
 // ErrSandboxAborted is used to indicate that a Sandbox has been aborted.
 var ErrSandboxAborted = errors.New("Exection of sandbox was aborted")
 
+// ErrShellTerminated is used to indicate that a shell has already terminated
+var ErrShellTerminated = errors.New("The shell has already terminated")
+
+// ErrShellAborted is used to indicate that a Shell has been aborted.
+var ErrShellAborted = errors.New("The shell was aborted")
+
 // ErrNoSuchDisplay is used to indicate that a requested display doesn't exist.
 var ErrNoSuchDisplay = errors.New("No such display exists")
 

@@ -121,3 +121,24 @@ func TestExtractFolderNotFound(t *t.T)         { artifactTestCase.TestExtractFol
 func TestExtractNestedFolderPath(t *t.T)       { artifactTestCase.TestExtractNestedFolderPath() }
 func TestExtractFolderHandlerInterrupt(t *t.T) { artifactTestCase.TestExtractFolderHandlerInterrupt() }
 func TestArtifactTestCase(t *t.T)              { artifactTestCase.Test() }
+
+var shellTestCase = enginetest.ShellTestCase{
+	Engine:       "mock",
+	Command:      "print-hello",
+	Stdout:       "Hello World",
+	Stderr:       "No error!",
+	BadCommand:   "exit-false",
+	SleepCommand: "sleep",
+	Payload: `{
+		"start":{
+			"delay": 10,
+			"function": "true",
+			"argument": ""
+		}
+	}`,
+}
+
+func TestCommand(t *t.T)           { shellTestCase.TestCommand() }
+func TestBadCommand(t *t.T)        { shellTestCase.TestBadCommand() }
+func TestAbortSleepCommand(t *t.T) { shellTestCase.TestAbortSleepCommand() }
+func Test(t *t.T)                  { shellTestCase.Test() }
