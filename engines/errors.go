@@ -1,6 +1,9 @@
 package engines
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // ErrFeatureNotSupported is a common error that may be returned from optional
 // Engine methods to indicate the engine implementation doesn't support the
@@ -86,6 +89,6 @@ func (e MalformedPayloadError) Error() string {
 //
 // These will be printed in the logs and end-users will rely on them to debug
 // their tasks.
-func NewMalformedPayloadError(message string) MalformedPayloadError {
-	return MalformedPayloadError{message: message}
+func NewMalformedPayloadError(a ...interface{}) MalformedPayloadError {
+	return MalformedPayloadError{message: fmt.Sprint(a...)}
 }

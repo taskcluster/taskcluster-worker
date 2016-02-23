@@ -75,7 +75,10 @@ func (s *sandbox) AttachProxy(name string, handler http.Handler) error {
 	s.Lock()
 	defer s.Unlock()
 	if strings.ContainsAny(name, " ") {
-		return engines.NewMalformedPayloadError("MockEngine proxy names cannot contain space")
+		return engines.NewMalformedPayloadError(
+			"MockEngine proxy names cannot contain space.",
+			"Was given proxy name: '", name, "' which isn't allowed!",
+		)
 	}
 	if s.proxies[name] != nil {
 		return engines.ErrNamingConflict
@@ -88,7 +91,10 @@ func (s *sandbox) SetEnvironmentVariable(name string, value string) error {
 	s.Lock()
 	defer s.Unlock()
 	if strings.Contains(name, " ") {
-		return engines.NewMalformedPayloadError("MockEngine env var names cannot contain space")
+		return engines.NewMalformedPayloadError(
+			"MockEngine environment variable names cannot contain space.",
+			"Was given environment variable name: '", name, "' which isn't allowed!",
+		)
 	}
 	if _, ok := s.env[name]; ok {
 		return engines.ErrNamingConflict
