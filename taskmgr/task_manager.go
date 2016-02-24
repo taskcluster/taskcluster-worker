@@ -35,9 +35,9 @@ func (m *Manager) Start() {
 func New(config *config.Config, engine *engines.Engine, log *logrus.Entry) *Manager {
 	queue := tcqueue.New(
 		&tcclient.Credentials{
-			ClientId:    config.Taskcluster.ClientId,
-			AccessToken: config.Taskcluster.AccessToken,
-			Certificate: config.Taskcluster.Certificate,
+			ClientId:    config.Credentials.ClientId,
+			AccessToken: config.Credentials.AccessToken,
+			Certificate: config.Credentials.Certificate,
 		},
 	)
 	service := &queueService{
