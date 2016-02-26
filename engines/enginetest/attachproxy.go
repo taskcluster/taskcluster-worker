@@ -2,13 +2,9 @@ package enginetest
 
 import (
 	"bytes"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"sync"
-	"testing"
-
-	"github.com/taskcluster/taskcluster-worker/engines"
 )
 
 // A ProxyTestCase holds information necessary to run tests that an engine
@@ -29,19 +25,14 @@ type ProxyTestCase struct {
 
 // TestPingProxyPayload checks that PingProxyPayload works as defined
 func (c *ProxyTestCase) TestPingProxyPayload() {
-	c.ensureEngine(c.Engine)
-	ctx, control := c.newTestTaskContext()
-
-	sandboxBuilder, err := c.engine.NewSandboxBuilder(engines.SandboxOptions{
-		TaskContext: ctx,
-		Payload:     parseTestPayload(c.engine, c.PingProxyPayload),
-	})
-	nilOrPanic(err, "Error creating SandboxBuilder")
+	r := c.NewRun(c.Engine)
+	defer r.Dispose()
+	r.NewSandboxBuilder(c.PingProxyPayload)
 
 	pinged := false
 	pingMethod := "-"
 	pingPath := ""
-	err = sandboxBuilder.AttachProxy(c.ProxyName, http.HandlerFunc(func(
+	err := r.sandboxBuilder.AttachProxy(c.ProxyName, http.HandlerFunc(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) {
@@ -53,48 +44,27 @@ func (c *ProxyTestCase) TestPingProxyPayload() {
 	}))
 	nilOrPanic(err, "Error failed to AttachProxy")
 
-	result := buildRunSandbox(sandboxBuilder)
-	nilOrPanic(control.CloseLog(), "Failed to close log")
-	reader, err := ctx.NewLogReader()
-	nilOrPanic(err, "Failed to open log reader")
-	data, err := ioutil.ReadAll(reader)
-	nilOrPanic(err, "Failed to read log")
-	nilOrPanic(reader.Close(), "Failed to close log reader")
-	nilOrPanic(control.Dispose(), "Failed to dispose TaskContext")
-	log := string(data)
+	result := r.buildRunSandbox()
+	log := r.ReadLog()
 
-	if !result {
-		fmtPanic("PingProxyPayload exited unsuccessfully, log: ", log)
-	}
-	if !pinged {
-		fmtPanic("PingProxyPayload didn't call the attachedProxy, log: ", log)
-	}
-	if pingMethod != "GET" && pingMethod != "" {
-		fmtPanic("PingProxyPayload pinged with method: ", pingMethod)
-	}
-	if pingPath != "/v1/ping" {
-		fmtPanic("PingProxyPayload pinged path: ", pingPath)
-	}
-
-	if !strings.Contains(log, "secret=42") {
-		fmtPanic("Didn't find secret=42 from ping response in log", log)
-	}
+	assert(result, "PingProxyPayload exited unsuccessfully, log: ", log)
+	assert(pinged, "PingProxyPayload didn't call the attachedProxy, log: ", log)
+	assert(pingMethod == "GET" || pingMethod == "",
+		"PingProxyPayload pinged with method: ", pingMethod)
+	assert(pingPath == "/v1/ping", "PingProxyPayload pinged path: ", pingPath)
+	assert(strings.Contains(log, "secret=42"),
+		"Didn't find secret=42 from ping response in log", log)
 }
 
 // TestPing404IsUnsuccessful checks that 404 returns unsuccessful
 func (c *ProxyTestCase) TestPing404IsUnsuccessful() {
-	c.ensureEngine(c.Engine)
-	ctx, control := c.newTestTaskContext()
-
-	sandboxBuilder, err := c.engine.NewSandboxBuilder(engines.SandboxOptions{
-		TaskContext: ctx,
-		Payload:     parseTestPayload(c.engine, c.PingProxyPayload),
-	})
-	nilOrPanic(err, "Error creating SandboxBuilder")
+	r := c.NewRun(c.Engine)
+	defer r.Dispose()
+	r.NewSandboxBuilder(c.PingProxyPayload)
 
 	pinged := false
 	pingPath := ""
-	err = sandboxBuilder.AttachProxy(c.ProxyName, http.HandlerFunc(func(
+	err := r.sandboxBuilder.AttachProxy(c.ProxyName, http.HandlerFunc(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) {
@@ -105,53 +75,31 @@ func (c *ProxyTestCase) TestPing404IsUnsuccessful() {
 	}))
 	nilOrPanic(err, "Error failed to AttachProxy")
 
-	result := buildRunSandbox(sandboxBuilder)
-	nilOrPanic(control.CloseLog(), "Failed to close log")
-	reader, err := ctx.NewLogReader()
-	nilOrPanic(err, "Failed to open log reader")
-	data, err := ioutil.ReadAll(reader)
-	nilOrPanic(err, "Failed to read log")
-	nilOrPanic(reader.Close(), "Failed to close log reader")
-	nilOrPanic(control.Dispose(), "Failed to dispose TaskContext")
-	log := string(data)
+	result := r.buildRunSandbox()
+	log := r.ReadLog()
 
-	if result {
-		panic("PingProxyPayload exited successfully, when we returned 404")
-	}
-	if !pinged {
-		panic("PingProxyPayload didn't call the attachedProxy")
-	}
-	if pingPath != "/v1/ping" {
-		fmtPanic("PingProxyPayload pinged path: ", pingPath)
-	}
-
-	if !strings.Contains(log, "secret=42") {
-		fmtPanic("Didn't find secret=42 from ping response in log", log)
-	}
+	assert(!result, "PingProxyPayload exited successfully, when we returned 404")
+	assert(pinged, "PingProxyPayload didn't call the attachedProxy")
+	assert(pingPath == "/v1/ping", "PingProxyPayload pinged path: ", pingPath)
+	assert(strings.Contains(log, "secret=42"),
+		"Didn't find secret=42 from ping response in log", log)
 }
 
 // TestLiveLogging checks that "Pinging" is readable from log before the task
 // is finished.
 func (c *ProxyTestCase) TestLiveLogging() {
-	c.ensureEngine(c.Engine)
-	ctx, control := c.newTestTaskContext()
-
-	sandboxBuilder, err := c.engine.NewSandboxBuilder(engines.SandboxOptions{
-		TaskContext: ctx,
-		Payload:     parseTestPayload(c.engine, c.PingProxyPayload),
-	})
-	nilOrPanic(err, "Error creating SandboxBuilder")
+	r := c.NewRun(c.Engine)
+	defer r.Dispose()
+	r.NewSandboxBuilder(c.PingProxyPayload)
 
 	// Read livelog until we see "Pinging"
 	readPinging := make(chan struct{})
 	go func() {
-		reader, err := ctx.NewLogReader()
-		defer evalNilOrPanic(reader.Close, "Failed to close livelog reader")
-		nilOrPanic(err, "Failed to open livelog reader")
+		r.OpenLogReader()
 		buf := bytes.Buffer{}
 		for !strings.Contains(string(buf.Bytes()), "Pinging") {
 			b := []byte{0}
-			n, err := reader.Read(b)
+			n, err := r.logReader.Read(b)
 			nilOrPanic(err, "Failed while reading from livelog...")
 			if n != 1 {
 				panic("Expected one byte to be read!")
@@ -163,7 +111,7 @@ func (c *ProxyTestCase) TestLiveLogging() {
 
 	pinged := false
 	pingPath := ""
-	err = sandboxBuilder.AttachProxy(c.ProxyName, http.HandlerFunc(func(
+	err := r.sandboxBuilder.AttachProxy(c.ProxyName, http.HandlerFunc(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) {
@@ -176,32 +124,15 @@ func (c *ProxyTestCase) TestLiveLogging() {
 	}))
 	nilOrPanic(err, "Error failed to AttachProxy")
 
-	result := buildRunSandbox(sandboxBuilder)
-	nilOrPanic(control.CloseLog(), "Failed to close log")
-	reader, err := ctx.NewLogReader()
-	nilOrPanic(err, "Failed to open log reader")
-	data, err := ioutil.ReadAll(reader)
-	nilOrPanic(err, "Failed to read log")
-	nilOrPanic(reader.Close(), "Failed to close log reader")
-	nilOrPanic(control.Dispose(), "Failed to dispose TaskContext")
-	log := string(data)
+	result := r.buildRunSandbox()
+	log := r.ReadLog()
 
-	if !result {
-		panic("PingProxyPayload exited unsuccessfully")
-	}
-	if !pinged {
-		panic("PingProxyPayload didn't call the attachedProxy")
-	}
-	if pingPath != "/v1/ping" {
-		fmtPanic("PingProxyPayload pinged path: ", pingPath)
-	}
-
-	if !strings.Contains(log, "secret=42") {
-		fmtPanic("Didn't find 'secret=42' from ping response in log", log)
-	}
-	if !strings.Contains(log, "Pinging") {
-		fmtPanic("Didn't find 'Pinging' in log", string(data))
-	}
+	assert(result, "PingProxyPayload exited unsuccessfully")
+	assert(pinged, "PingProxyPayload didn't call the attachedProxy")
+	assert(pingPath == "/v1/ping", "PingProxyPayload pinged path: ", pingPath)
+	assert(strings.Contains(log, "secret=42"),
+		"Didn't find 'secret=42' from ping response in log", log)
+	assert(strings.Contains(log, "Pinging"), "Didn't find 'Pinging' in log", log)
 }
 
 // TestParallelPings checks that two parallel pings is possible when running
@@ -213,7 +144,7 @@ func (c *ProxyTestCase) TestParallelPings() {
 }
 
 // Test runs all tests for the ProxyTestCase is parallel
-func (c *ProxyTestCase) Test(t *testing.T) {
+func (c *ProxyTestCase) Test() {
 	c.ensureEngine(c.Engine)
 	wg := sync.WaitGroup{}
 	wg.Add(4)

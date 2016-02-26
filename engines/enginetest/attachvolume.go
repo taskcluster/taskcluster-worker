@@ -4,7 +4,6 @@ package enginetest
 
 import (
 	"sync"
-	"testing"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 )
@@ -43,18 +42,12 @@ func (c *VolumeTestCase) writeVolume(volume engines.Volume, readOnly bool) bool 
 
 // Construct SandboxBuilder, Attach volume to sandbox and run it
 func (c *VolumeTestCase) readVolume(volume engines.Volume, readOnly bool) bool {
-	ctx, control := c.newTestTaskContext()
-	defer evalNilOrPanic(control.Dispose, "Failed to dispose TaskContext")
-	defer evalNilOrPanic(control.CloseLog, "Failed to close log")
-
-	sandboxBuilder, err := c.engine.NewSandboxBuilder(engines.SandboxOptions{
-		TaskContext: ctx,
-		Payload:     parseTestPayload(c.engine, c.CheckVolumePayload),
-	})
-	nilOrPanic(err, "Error creating SandboxBuilder")
-	err = sandboxBuilder.AttachVolume(c.Mountpoint, volume, readOnly)
+	r := c.NewRun(c.Engine)
+	defer r.Dispose()
+	r.NewSandboxBuilder(c.CheckVolumePayload)
+	err := r.sandboxBuilder.AttachVolume(c.Mountpoint, volume, readOnly)
 	nilOrPanic(err, "Failed to attach volume")
-	return buildRunSandbox(sandboxBuilder)
+	return r.buildRunSandbox()
 }
 
 // TestWriteReadVolume tests that we can write and read from a volume
@@ -113,7 +106,7 @@ func (c *VolumeTestCase) TestReadToReadOnlyVolume() {
 }
 
 // Test runs all tests on the test case.
-func (c *VolumeTestCase) Test(t *testing.T) {
+func (c *VolumeTestCase) Test() {
 	c.ensureEngine(c.Engine)
 	wg := sync.WaitGroup{}
 	wg.Add(4)

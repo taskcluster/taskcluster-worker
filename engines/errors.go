@@ -1,6 +1,9 @@
 package engines
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // ErrFeatureNotSupported is a common error that may be returned from optional
 // Engine methods to indicate the engine implementation doesn't support the
@@ -26,12 +29,21 @@ var ErrImmutableMountNotSupported = errors.New("The engine doesn't support immut
 // doesn't exist.
 var ErrResourceNotFound = errors.New("The referenced resource wasn't found")
 
+// ErrHandlerInterrupt is returned when a handler that was given returns and error
+var ErrHandlerInterrupt = errors.New("Handler returned an error and interrupted iteration")
+
 // ErrSandboxTerminated is used to indicate that a SandBox has already
 // terminated and can't be aborted.
 var ErrSandboxTerminated = errors.New("The Sandbox has terminated")
 
 // ErrSandboxAborted is used to indicate that a Sandbox has been aborted.
 var ErrSandboxAborted = errors.New("Exection of sandbox was aborted")
+
+// ErrShellTerminated is used to indicate that a shell has already terminated
+var ErrShellTerminated = errors.New("The shell has already terminated")
+
+// ErrShellAborted is used to indicate that a Shell has been aborted.
+var ErrShellAborted = errors.New("The shell was aborted")
 
 // ErrNoSuchDisplay is used to indicate that a requested display doesn't exist.
 var ErrNoSuchDisplay = errors.New("No such display exists")
@@ -77,6 +89,6 @@ func (e MalformedPayloadError) Error() string {
 //
 // These will be printed in the logs and end-users will rely on them to debug
 // their tasks.
-func NewMalformedPayloadError(message string) MalformedPayloadError {
-	return MalformedPayloadError{message: message}
+func NewMalformedPayloadError(a ...interface{}) MalformedPayloadError {
+	return MalformedPayloadError{message: fmt.Sprint(a...)}
 }

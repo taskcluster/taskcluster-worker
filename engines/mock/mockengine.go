@@ -19,17 +19,16 @@ type engine struct {
 	Log *logrus.Entry
 }
 
-type engineProvider struct {
+type engineProvider struct{}
+
+func init() {
+	// Register the mock engine as an import side-effect
+	extpoints.EngineProviders.Register(engineProvider{}, "mock")
 }
 
 func (e engineProvider) NewEngine(options extpoints.EngineOptions) (engines.Engine, error) {
 	fmt.Println(options.Log)
 	return engine{Log: options.Log}, nil
-}
-
-func init() {
-	// Register the mock engine as an import side-effect
-	extpoints.EngineProviders.Register(new(engineProvider), "mock")
 }
 
 // mock config contains no fields
@@ -56,6 +55,8 @@ func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sandb
 		context: options.TaskContext,
 		mounts:  make(map[string]*mount),
 		proxies: make(map[string]http.Handler),
+		env:     make(map[string]string),
+		files:   make(map[string][]byte),
 	}, nil
 }
 

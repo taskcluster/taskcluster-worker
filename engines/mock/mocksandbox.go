@@ -31,6 +31,7 @@ type sandbox struct {
 	engines.ResultSetBase
 	payload *payload
 	context *runtime.TaskContext
+	env     map[string]string
 	mounts  map[string]*mount
 	proxies map[string]http.Handler
 	files   map[string][]byte
@@ -56,8 +57,11 @@ func (s *sandbox) AttachVolume(mountpoint string, v engines.Volume, readOnly boo
 	// Lock before we access mounts as this method may be called concurrently
 	s.Lock()
 	defer s.Unlock()
+	if strings.ContainsAny(mountpoint, " ") {
+		return engines.NewMalformedPayloadError("MockEngine mountpoints cannot contain space")
+	}
 	if s.mounts[mountpoint] != nil {
-		return engines.NewMalformedPayloadError("mountpoint is conflicting!")
+		return engines.ErrNamingConflict
 	}
 	s.mounts[mountpoint] = &mount{
 		volume:   vol,
@@ -70,10 +74,32 @@ func (s *sandbox) AttachProxy(name string, handler http.Handler) error {
 	// Lock before we access proxies as this method may be called concurrently
 	s.Lock()
 	defer s.Unlock()
+	if strings.ContainsAny(name, " ") {
+		return engines.NewMalformedPayloadError(
+			"MockEngine proxy names cannot contain space.",
+			"Was given proxy name: '", name, "' which isn't allowed!",
+		)
+	}
 	if s.proxies[name] != nil {
-		return engines.NewMalformedPayloadError("proxy name is conflicting!")
+		return engines.ErrNamingConflict
 	}
 	s.proxies[name] = handler
+	return nil
+}
+
+func (s *sandbox) SetEnvironmentVariable(name string, value string) error {
+	s.Lock()
+	defer s.Unlock()
+	if strings.Contains(name, " ") {
+		return engines.NewMalformedPayloadError(
+			"MockEngine environment variable names cannot contain space.",
+			"Was given environment variable name: '", name, "' which isn't allowed!",
+		)
+	}
+	if _, ok := s.env[name]; ok {
+		return engines.ErrNamingConflict
+	}
+	s.env[name] = value
 	return nil
 }
 
@@ -135,6 +161,11 @@ var functions = map[string]func(*sandbox, string) bool{
 		}
 		return true
 	},
+	"print-env-var": func(s *sandbox, arg string) bool {
+		val, ok := s.env[arg]
+		s.context.Log(val)
+		return ok
+	},
 }
 
 func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
@@ -165,6 +196,8 @@ func (s *sandbox) ExtractFolder(folder string, handler engines.FileHandler) erro
 		folder += "/"
 	}
 	wg := sync.WaitGroup{}
+	m := sync.Mutex{}
+	handlerError := false
 	foundFolder := false
 	for path, data := range s.files {
 		if strings.HasPrefix(path, folder) {
@@ -176,16 +209,28 @@ func (s *sandbox) ExtractFolder(folder string, handler engines.FileHandler) erro
 			}
 			wg.Add(1)
 			go func(path string, data []byte) {
-				handler(path, ioutil.NopCloser(bytes.NewBuffer(data)))
+				err := handler(path, ioutil.NopCloser(bytes.NewBuffer(data)))
+				if err != nil {
+					m.Lock()
+					handlerError = true
+					m.Unlock()
+				}
 				wg.Done()
 			}(path, data)
 		}
 	}
-	wg.Done()
+	wg.Wait()
 	if !foundFolder {
 		return engines.ErrResourceNotFound
 	}
+	if handlerError {
+		return engines.ErrHandlerInterrupt
+	}
 	return nil
+}
+
+func (s *sandbox) NewShell() (engines.Shell, error) {
+	return newShell(), nil
 }
 
 ///////////////////////////// Implementation of ResultSet interface
