@@ -4,10 +4,10 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/taskcluster/taskcluster-worker/atomics"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 )
 
 type pluginManager struct {
