@@ -3,6 +3,7 @@ package runtime
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/taskcluster/taskcluster-base-go/jsontest"
 	"github.com/xeipuuv/gojsonschema"
@@ -155,4 +156,69 @@ func (s composedSchema) visit(visitor func(*schemaEntry)) {
 	for _, entry := range s {
 		entry.visit(visitor)
 	}
+}
+
+// Schema returns the composed JSON schema from a CompositeSchema object
+func Schema(schema CompositeSchema, id, title, description string) string {
+	properties := make(map[string]*json.RawMessage)
+	required := []string{}
+
+	schema.visit(func(entry *schemaEntry) {
+		s := json.RawMessage(entry.schema)
+		properties[entry.property] = &s
+
+		// We panic if there is two entries for the same property with different
+		// schemas... This shouldn't be possible as MergeCompositeSchemas checks it.
+		if properties[entry.property] != nil {
+			schemasMatch, _, _, _ := jsontest.JsonEqual(s, []byte(*properties[entry.property]))
+			if !schemasMatch {
+				panic(fmt.Sprint(
+					"It shouldn't be possible to construct a CompositeSchema with two ",
+					"different schemas for the same property. This happend for ",
+					"property: ", entry.property, " where: ", entry.schema, " is ",
+					"different from: ", string(*properties[entry.property]),
+				))
+			}
+		}
+
+		// If property is required and not already in the list we append it
+		if entry.required {
+			contains := false
+			for _, property := range required {
+				contains = contains || property == entry.property
+			}
+			if !contains {
+				required = append(required, entry.property)
+			}
+		}
+	})
+
+	// Marshal to JSON, as this is generated for export we will intent it, just
+	// in case some human decides to read it.
+	json, err := json.MarshalIndent(struct {
+		ID                   string                      `json:"id"`
+		Schema               string                      `json:"$schema"`
+		Title                string                      `json:"title"`
+		Description          string                      `json:"description"`
+		Type                 string                      `json:"type"`
+		Properties           map[string]*json.RawMessage `json:"properties,omitempty"`
+		Required             []string                    `json:"required,omitempty"`
+		AdditionalProperties bool                        `json:"additionalProperties"`
+	}{
+		ID:                   id,
+		Schema:               "http://json-schema.org/draft-04/schema#",
+		Title:                title,
+		Description:          description,
+		Type:                 "object",
+		Properties:           properties,
+		Required:             required,
+		AdditionalProperties: false,
+	}, "", "  ")
+	// All properties should be JSON, this should always render to valid JSON.
+	// Errors can't happen here, they should happen in NewCompositeSchema
+	if err != nil {
+		panic(fmt.Sprint("Rendering composite schema to JSON failed: ", err))
+	}
+
+	return string(json)
 }

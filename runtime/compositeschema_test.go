@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/taskcluster/taskcluster-base-go/jsontest"
 )
 
 func TestSingleRequiredSchema(t *testing.T) {
@@ -303,5 +305,62 @@ func TestSchemaUnmarshalToInvalidType(t *testing.T) {
 
 	if _, err = c.Parse(data); err == nil {
 		t.Fatal("Error should have been reported when unmarshalling an int to a string.")
+	}
+}
+
+func TestSchemaFromCompositeSchemas(t *testing.T) {
+	t.Parallel()
+
+	c1, err := NewCompositeSchema("prop1", `{
+		"type": "object",
+    "properties": {
+			"count": {"type": "integer"}
+    },
+		"additionalProperties": false
+	}`, true, func() interface{} { return nil })
+	nilOrPanic(err, "Failed to create schema for prop1")
+
+	c2, err := NewCompositeSchema("prop2", `{
+		"type": "object",
+    "properties": {
+			"count": {"type": "integer"}
+    },
+		"additionalProperties": false
+	}`, false, func() interface{} { return nil })
+	nilOrPanic(err, "Failed to create schema for prop2")
+
+	c3, err := MergeCompositeSchemas(c1, c2)
+	nilOrPanic(err, "Failed to merge schemas")
+
+	s1 := Schema(c3, "http://localhost.local/test-schema.json", "test", "test desc")
+	s2 := `{
+		"id": "http://localhost.local/test-schema.json",
+		"$schema": "http://json-schema.org/draft-04/schema#",
+		"title": "test",
+		"description": "test desc",
+		"type": "object",
+		"properties": {
+			"prop1": {
+				"type": "object",
+		    "properties": {
+					"count": {"type": "integer"}
+		    },
+				"additionalProperties": false
+			},
+			"prop2": {
+				"type": "object",
+		    "properties": {
+					"count": {"type": "integer"}
+		    },
+				"additionalProperties": false
+			}
+		},
+		"required": ["prop1"],
+		"additionalProperties": false
+	}`
+
+	schemasMatch, _, _, _ := jsontest.JsonEqual([]byte(s1), []byte(s2))
+	if !schemasMatch {
+		t.Fatal("Schemas didn't match, expected: ", s1, "\n But received: ", s2)
 	}
 }
