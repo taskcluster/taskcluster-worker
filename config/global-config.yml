@@ -5,6 +5,10 @@ description: |-
   to any engine or plugin.
 type:               object
 properties:
+  pollingInterval:
+    title: "PollingInterval"
+    description: "The amount of time to wait between task polling iterations"
+    type: "integer"
   credentials:
     title:          Credentials
     description: |-
@@ -12,7 +16,7 @@ properties:
       authenticating against taskcluster endpoints.
     type:           object
     properties:
-      clientId:
+      clientID:
         title:          ClientId
         description: |-
           The Client ID for the client. Not very helpful, am I?
@@ -31,8 +35,8 @@ properties:
         type:           string
     required:
       - clientId, accessToken, certificate
-  provisionerId:
-    title:          ProvisionerId
+  provisionerID:
+    title:          ProvisionerID
     description: |-
       The provisioner (if any) that is responsible for spawning instances of this worker. Typically `aws-provisioner-v1`.
     type:           string
@@ -41,8 +45,13 @@ properties:
     description: |-
       A logical group for this worker to belong to, such as an AWS region.
     type:           string
-  workerId:
-    title:          WorkerId
+  workerType:
+    title:          WorkerType
+    description: |-
+      Type of worker pool the worker belongs to.
+    type:           string
+  workerID:
+    title:          WorkerID
     description: |-
       A unique name that can be used to identify which worker instance this is (such as AWS instance id).
     type:           string

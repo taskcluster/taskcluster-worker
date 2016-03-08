@@ -5,7 +5,6 @@
 package mockengine
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
@@ -27,7 +26,6 @@ func init() {
 }
 
 func (e engineProvider) NewEngine(options extpoints.EngineOptions) (engines.Engine, error) {
-	fmt.Println(options.Log)
 	return engine{Log: options.Log}, nil
 }
 
