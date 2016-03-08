@@ -6,6 +6,10 @@
 # Ensure go-extpoints and go-import-subtree are available for go generate
 export PATH := $(GOPATH)/bin:$(PATH)
 
+bootstrap:
+	go get github.com/stretchr/testify/assert
+	go get golang.org/x/tools/cmd/vet
+
 all: build
 build:
 	go fmt ./...

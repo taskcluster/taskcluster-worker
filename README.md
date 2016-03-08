@@ -10,6 +10,27 @@ TaskCluster Worker
 A generic worker for task cluster, written in go.
 
 
+Hacking
+=======
+
+How to get started
+------------------
+
+1. Install a version of golang > 1.4: [Download Go](https://golang.org/dl/) and set up your environment. 
+2. Get the taskcluster-worker source.  (Optionally: fork the code first, and then substitute your user name in for taskcluster below)
+
+```
+go get github.com/taskcluster/taskcluster-worker
+
+```
+
+cd into the taskcluster-worker directory.
+
+3. Run: `make bootstrap ; make test`
+
+4. Start hacking!
+
+
 ** Warning very EARLY notes**
 
 Place we outline interfaces and patterns for next generation worker.
@@ -17,14 +38,10 @@ Place we outline interfaces and patterns for next generation worker.
 ```
 Goal: have all interfaces and central classes defined and documented.
 
-
-
-
 Things we sort of need:
   - garbage collector...
   - state machines... (http://www.timschmelmer.com/2013/08/state-machines-with-state-functions-in.html)
     - basically a state is a function that takes an action and returns a new function (state)
-
 
 
 state machine:
