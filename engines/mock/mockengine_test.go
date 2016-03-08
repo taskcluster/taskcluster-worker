@@ -6,9 +6,14 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines/enginetest"
 )
 
+var provider = enginetest.EngineProvider{
+	Engine: "mock",
+	Config: "{}",
+}
+
 var volumeTestCase = enginetest.VolumeTestCase{
-	Engine:     "mock",
-	Mountpoint: "/mock/volume",
+	EngineProvider: provider,
+	Mountpoint:     "/mock/volume",
 	WriteVolumePayload: `{
     "start": {
       "delay": 10,
@@ -32,8 +37,8 @@ func TestReadToReadOnlyVolume(*t.T)  { volumeTestCase.TestReadToReadOnlyVolume()
 func TestVolumeTestCase(t *t.T)      { volumeTestCase.Test() }
 
 var loggingTestCase = enginetest.LoggingTestCase{
-	Engine: "mock",
-	Target: "Hello World",
+	EngineProvider: provider,
+	Target:         "Hello World",
 	TargetPayload: `{
     "start": {
       "delay": 10,
@@ -63,8 +68,8 @@ func TestSilentTask(t *t.T)           { loggingTestCase.TestSilentTask() }
 func TestLoggingTestCase(t *t.T)      { loggingTestCase.Test() }
 
 var proxyTestCase = enginetest.ProxyTestCase{
-	Engine:    "mock",
-	ProxyName: "proxy.com",
+	EngineProvider: provider,
+	ProxyName:      "proxy.com",
 	PingProxyPayload: `{
     "start": {
       "delay": 10,
@@ -81,7 +86,7 @@ func TestParallelPings(t *t.T)         { proxyTestCase.TestParallelPings() }
 func TestProxyTestCase(t *t.T)         { proxyTestCase.Test() }
 
 var envVarTestCase = enginetest.EnvVarTestCase{
-	Engine:               "mock",
+	EngineProvider:       provider,
 	VariableName:         "HELLO_WORLD",
 	InvalidVariableNames: []string{"bad d", "also bad", "can't have space"},
 	Payload: `{
@@ -99,7 +104,7 @@ func TestInvalidVariableNames(t *t.T) { envVarTestCase.TestInvalidVariableNames(
 func TestEnvVarTestCase(t *t.T)       { envVarTestCase.Test() }
 
 var artifactTestCase = enginetest.ArtifactTestCase{
-	Engine:             "mock",
+	EngineProvider:     provider,
 	Text:               "Hello World",
 	TextFilePath:       "/folder/a.txt",
 	FileNotFoundPath:   "/not-found.txt",
@@ -123,12 +128,12 @@ func TestExtractFolderHandlerInterrupt(t *t.T) { artifactTestCase.TestExtractFol
 func TestArtifactTestCase(t *t.T)              { artifactTestCase.Test() }
 
 var shellTestCase = enginetest.ShellTestCase{
-	Engine:       "mock",
-	Command:      "print-hello",
-	Stdout:       "Hello World",
-	Stderr:       "No error!",
-	BadCommand:   "exit-false",
-	SleepCommand: "sleep",
+	EngineProvider: provider,
+	Command:        "print-hello",
+	Stdout:         "Hello World",
+	Stderr:         "No error!",
+	BadCommand:     "exit-false",
+	SleepCommand:   "sleep",
 	Payload: `{
 		"start":{
 			"delay": 10,
