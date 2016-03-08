@@ -144,12 +144,12 @@ func TestPollTaskUrlInvalidXMLResponse(t *testing.T) {
 		}},
 	}
 
-	_, err := service.pollTaskUrl(&service.queues[0], 3)
+	_, err := service.pollTaskURL(&service.queues[0], 3)
 	assert.NotNil(t, err, "Error should have been returned when invalid xml was parsed")
 	assert.Contains(t, err.Error(), "Not able to xml decode the response from the Azure queue")
 }
 
-func TestPollTaskUrlEmptyMessageList(t *testing.T) {
+func TestPollTaskURLEmptyMessageList(t *testing.T) {
 	var handler = func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/xml")
 		io.WriteString(w, "<QueueMessagesList></QueueMessagesList>")
@@ -166,12 +166,12 @@ func TestPollTaskUrlEmptyMessageList(t *testing.T) {
 		}},
 	}
 
-	tasks, err := service.pollTaskUrl(&service.queues[0], 3)
+	tasks, err := service.pollTaskURL(&service.queues[0], 3)
 	assert.Nil(t, err, "Error should not have been returned when empty message list provided.")
 	assert.Equal(t, 0, len(tasks))
 }
 
-func TestPollTaskUrlNonEmptyMessageList(t *testing.T) {
+func TestPollTaskURLNonEmptyMessageList(t *testing.T) {
 	// Messages below are arbitrary messages to ensure that they can be
 	// decoded.
 	messages := `<?xml version="1.0" encoding="utf-8"?>
@@ -211,7 +211,7 @@ func TestPollTaskUrlNonEmptyMessageList(t *testing.T) {
 		}},
 	}
 
-	tasks, err := service.pollTaskUrl(&service.queues[0], 3)
+	tasks, err := service.pollTaskURL(&service.queues[0], 3)
 	assert.Nil(t, err, "Error should not have been returned when empty message list provided.")
 	assert.Equal(t, 2, len(tasks))
 	// quick sanity check to make sure the messages are different
@@ -219,7 +219,7 @@ func TestPollTaskUrlNonEmptyMessageList(t *testing.T) {
 	assert.NotEqual(t, tasks[0].SignedDeleteURL, tasks[1].SignedDeleteURL)
 }
 
-func TestPollTaskUrlInvalidMessageTextContents(t *testing.T) {
+func TestPollTaskURLInvalidMessageTextContents(t *testing.T) {
 	// MessageText is {"abc",0} which is an invalid format when
 	// unmarshalling.
 	messages := `<?xml version="1.0" encoding="utf-8"?>
@@ -251,12 +251,12 @@ func TestPollTaskUrlInvalidMessageTextContents(t *testing.T) {
 		}},
 	}
 
-	tasks, err := service.pollTaskUrl(&service.queues[0], 3)
+	tasks, err := service.pollTaskURL(&service.queues[0], 3)
 	assert.Nil(t, err, "Error should not have been raised when unmarshalling invalid MessageText")
 	assert.Equal(t, 0, len(tasks))
 }
 
-func TestPollTaskUrlInvalidMessageTextEncoding(t *testing.T) {
+func TestPollTaskURLInvalidMessageTextEncoding(t *testing.T) {
 	// MessageText is not a valid base64 encoded string
 	messages := `<?xml version="1.0" encoding="utf-8"?>
 	<QueueMessagesList>
@@ -296,7 +296,7 @@ func TestPollTaskUrlInvalidMessageTextEncoding(t *testing.T) {
 		}},
 	}
 
-	tasks, err := service.pollTaskUrl(&service.queues[0], 3)
+	tasks, err := service.pollTaskURL(&service.queues[0], 3)
 	assert.Nil(t, err, "Error should not have been raised when unmarshalling invalid MessageText")
 	assert.Equal(t, 0, len(tasks))
 	assert.True(t, deleteCalled, "Delete URL not called after attempting to decode messageText")

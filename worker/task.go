@@ -117,6 +117,8 @@ func (t *TaskRun) Run(pluginManager plugins.Plugin, engine engines.Engine, conte
 
 }
 
+// ParsePayload  will parse the task payload, which will validate it against the engine
+// and plugin schemas.
 func (t *TaskRun) ParsePayload(pluginManager plugins.Plugin, engine engines.Engine) error {
 	var err error
 	jsonPayload := map[string]json.RawMessage{}
@@ -140,6 +142,7 @@ func (t *TaskRun) ParsePayload(pluginManager plugins.Plugin, engine engines.Engi
 	return nil
 }
 
+// CreateTaskPlugins will create a new task plugin to be used during the task lifecycle.
 func (t *TaskRun) CreateTaskPlugins(pluginManager plugins.Plugin) error {
 	var err error
 	popts := plugins.TaskPluginOptions{TaskInfo: &runtime.TaskInfo{}, Payload: t.pluginPayload}
