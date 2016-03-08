@@ -76,16 +76,16 @@ func main() {
 		Credentials: struct {
 			AccessToken string `json:"accessToken"`
 			Certificate string `json:"certificate"`
-			ClientId    string `json:"clientId"`
+			ClientID    string `json:"clientId"`
 		}{
 			AccessToken: "123",
 			Certificate: "",
-			ClientId:    "abc",
+			ClientID:    "abc",
 		},
 		Capacity:      5,
-		ProvisionerId: "tasckluster-worker-provisioner",
+		ProvisionerID: "tasckluster-worker-provisioner",
 		WorkerGroup:   "taskcluster-worker-test-worker-group",
-		WorkerId:      "taskcluster-worker-test-worker",
+		WorkerID:      "taskcluster-worker-test-worker",
 		QueueService: struct {
 			ExpirationOffset int `json:"expirationOffset"`
 		}{

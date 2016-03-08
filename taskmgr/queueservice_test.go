@@ -39,17 +39,17 @@ func TestRetrievePollTaskUrls(t *testing.T) {
 	).Return(&queue.PollTaskUrlsResponse{
 		Expires: tcclient.Time(time.Now().Add(time.Minute * 10)),
 		Queues: []struct {
-			SignedDeleteUrl string `json:"signedDeleteUrl"`
-			SignedPollUrl   string `json:"signedPollUrl"`
+			SignedDeleteURL string `json:"signedDeleteUrl"`
+			SignedPollURL   string `json:"signedPollUrl"`
 		}{{
-			// Urls are arbitrary and unique so they can be checked later on.
+			// URLs are arbitrary and unique so they can be checked later on.
 			// Polling should return at least 2 queues in production because of
 			// high/low priority queues
-			SignedDeleteUrl: "abc",
-			SignedPollUrl:   "123",
+			SignedDeleteURL: "abc",
+			SignedPollURL:   "123",
 		}, {
-			SignedDeleteUrl: "def",
-			SignedPollUrl:   "456",
+			SignedDeleteURL: "def",
+			SignedPollURL:   "456",
 		}},
 	}, &tcclient.CallSummary{}, nil)
 	service.refreshTaskQueueUrls()
@@ -59,10 +59,10 @@ func TestRetrievePollTaskUrls(t *testing.T) {
 		fmt.Sprintf("Queue Service should contain two sets of url pairs but got %d", len(service.queues)),
 	)
 
-	assert.Equal(t, "abc", service.queues[0].SignedDeleteUrl)
-	assert.Equal(t, "123", service.queues[0].SignedPollUrl)
-	assert.Equal(t, "def", service.queues[1].SignedDeleteUrl)
-	assert.Equal(t, "456", service.queues[1].SignedPollUrl)
+	assert.Equal(t, "abc", service.queues[0].SignedDeleteURL)
+	assert.Equal(t, "123", service.queues[0].SignedPollURL)
+	assert.Equal(t, "def", service.queues[1].SignedDeleteURL)
+	assert.Equal(t, "456", service.queues[1].SignedPollURL)
 }
 
 func TestRetrievePollTaskUrlsErrorCaught(t *testing.T) {
@@ -91,7 +91,7 @@ func TestRetrievePollTaskUrlsErrorCaught(t *testing.T) {
 	assert.Equal(t, "Error retrieving task urls.", err.Error())
 }
 
-func TestShouldRefreshQueueUrls(t *testing.T) {
+func TestShouldRefreshQueueURLs(t *testing.T) {
 	service := queueService{
 		ExpirationOffset: 300,
 	}
@@ -110,7 +110,7 @@ func TestShouldRefreshQueueUrls(t *testing.T) {
 	assert.Equal(t, true, service.shouldRefreshQueueUrls())
 }
 
-func TestShouldNotRefreshTaskQueueUrls(t *testing.T) {
+func TestShouldNotRefreshTaskQueueURLs(t *testing.T) {
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		ExpirationOffset: 300,
@@ -139,8 +139,8 @@ func TestPollTaskUrlInvalidXMLResponse(t *testing.T) {
 	service := queueService{
 		Log: logger.WithField("component", "Queue Service"),
 		queues: []taskQueue{{
-			SignedDeleteUrl: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
-			SignedPollUrl:   fmt.Sprintf("%s/tasks", s.URL),
+			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
+			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
 		}},
 	}
 
@@ -161,8 +161,8 @@ func TestPollTaskUrlEmptyMessageList(t *testing.T) {
 	service := queueService{
 		Log: logger.WithField("component", "Queue Service"),
 		queues: []taskQueue{{
-			SignedDeleteUrl: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
-			SignedPollUrl:   fmt.Sprintf("%s/tasks", s.URL),
+			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
+			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
 		}},
 	}
 
@@ -206,8 +206,8 @@ func TestPollTaskUrlNonEmptyMessageList(t *testing.T) {
 	service := queueService{
 		Log: logger.WithField("component", "Queue Service"),
 		queues: []taskQueue{{
-			SignedDeleteUrl: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
-			SignedPollUrl:   fmt.Sprintf("%s/tasks", s.URL),
+			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
+			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
 		}},
 	}
 
@@ -246,8 +246,8 @@ func TestPollTaskUrlInvalidMessageTextContents(t *testing.T) {
 	service := queueService{
 		Log: logger.WithField("component", "Queue Service"),
 		queues: []taskQueue{{
-			SignedDeleteUrl: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
-			SignedPollUrl:   fmt.Sprintf("%s/tasks", s.URL),
+			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
+			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
 		}},
 	}
 
@@ -291,8 +291,8 @@ func TestPollTaskUrlInvalidMessageTextEncoding(t *testing.T) {
 	service := queueService{
 		Log: logger.WithField("component", "Queue Service"),
 		queues: []taskQueue{{
-			SignedDeleteUrl: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
-			SignedPollUrl:   fmt.Sprintf("%s/tasks", s.URL),
+			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
+			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
 		}},
 	}
 
@@ -398,12 +398,12 @@ func TestRetrieveTasksFromQueue(t *testing.T) {
 		Expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
 		queues: []taskQueue{
 			{
-				SignedDeleteUrl: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
-				SignedPollUrl:   fmt.Sprintf("%s/tasks/1234?messages=true", s.URL),
+				SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
+				SignedPollURL:   fmt.Sprintf("%s/tasks/1234?messages=true", s.URL),
 			},
 			{
-				SignedDeleteUrl: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
-				SignedPollUrl:   fmt.Sprintf("%s/tasks/456?messages=true", s.URL),
+				SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
+				SignedPollURL:   fmt.Sprintf("%s/tasks/456?messages=true", s.URL),
 			},
 		},
 	}
@@ -482,12 +482,12 @@ func TestRetrieveTasksFromQueueDoesNotQueryLowPriority(t *testing.T) {
 		Expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
 		queues: []taskQueue{
 			{
-				SignedDeleteUrl: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
-				SignedPollUrl:   fmt.Sprintf("%s/tasks/1234?messages=true", s.URL),
+				SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
+				SignedPollURL:   fmt.Sprintf("%s/tasks/1234?messages=true", s.URL),
 			},
 			{
-				SignedDeleteUrl: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
-				SignedPollUrl:   fmt.Sprintf("%s/tasks/456?messages=true", s.URL),
+				SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
+				SignedPollURL:   fmt.Sprintf("%s/tasks/456?messages=true", s.URL),
 			},
 		},
 	}
@@ -543,8 +543,8 @@ func TestRetrieveTasksFromQueueDequeueChecked(t *testing.T) {
 		Expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
 		queues: []taskQueue{
 			{
-				SignedDeleteUrl: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
-				SignedPollUrl:   fmt.Sprintf("%s/tasks/1234?messages=true", s.URL),
+				SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
+				SignedPollURL:   fmt.Sprintf("%s/tasks/1234?messages=true", s.URL),
 			},
 		},
 	}
@@ -580,24 +580,24 @@ func TestClaimTask(t *testing.T) {
 		"0",
 		&queue.TaskClaimRequest{
 			WorkerGroup: WORKER_TYPE,
-			WorkerId:    WORKER_ID,
+			WorkerID:    WORKER_ID,
 		},
 	).Return(&queue.TaskClaimResponse{
 		Credentials: struct {
 			AccessToken string `json:"accessToken"`
 			Certificate string `json:"certificate"`
-			ClientId    string `json:"clientId"`
+			ClientID    string `json:"clientId"`
 		}{
 			AccessToken: "1040824383284384",
 			Certificate: "{}",
-			ClientId:    "ajafdsfkj23",
+			ClientID:    "ajafdsfkj23",
 		},
-		RunId:       0,
+		RunID:       0,
 		Status:      queue.TaskStatusStructure{},
 		TakenUntil:  tcclient.Time{},
 		Task:        queue.TaskDefinitionResponse{},
 		WorkerGroup: WORKER_TYPE,
-		WorkerId:    WORKER_ID,
+		WorkerID:    WORKER_ID,
 	}, &tcclient.CallSummary{}, nil)
 
 	task := &TaskRun{
@@ -650,7 +650,7 @@ func TestClaimTaskError(t *testing.T) {
 		"0",
 		&queue.TaskClaimRequest{
 			WorkerGroup: WORKER_TYPE,
-			WorkerId:    WORKER_ID,
+			WorkerID:    WORKER_ID,
 		},
 	).Return(&queue.TaskClaimResponse{},
 		&tcclient.CallSummary{
@@ -697,24 +697,24 @@ func TestClaimTasks(t *testing.T) {
 		"0",
 		&queue.TaskClaimRequest{
 			WorkerGroup: WORKER_TYPE,
-			WorkerId:    WORKER_ID,
+			WorkerID:    WORKER_ID,
 		},
 	).Return(&queue.TaskClaimResponse{
 		Credentials: struct {
 			AccessToken string `json:"accessToken"`
 			Certificate string `json:"certificate"`
-			ClientId    string `json:"clientId"`
+			ClientID    string `json:"clientId"`
 		}{
 			AccessToken: "1040824383284384",
 			Certificate: "{}",
-			ClientId:    "ajafdsfkj23",
+			ClientID:    "ajafdsfkj23",
 		},
-		RunId:       0,
+		RunID:       0,
 		Status:      queue.TaskStatusStructure{},
 		TakenUntil:  tcclient.Time{},
 		Task:        queue.TaskDefinitionResponse{},
 		WorkerGroup: WORKER_TYPE,
-		WorkerId:    WORKER_ID,
+		WorkerID:    WORKER_ID,
 	}, &tcclient.CallSummary{}, nil)
 	mockedQueue.On(
 		"ClaimTask",
@@ -722,24 +722,24 @@ func TestClaimTasks(t *testing.T) {
 		"1",
 		&queue.TaskClaimRequest{
 			WorkerGroup: WORKER_TYPE,
-			WorkerId:    WORKER_ID,
+			WorkerID:    WORKER_ID,
 		},
 	).Return(&queue.TaskClaimResponse{
 		Credentials: struct {
 			AccessToken string `json:"accessToken"`
 			Certificate string `json:"certificate"`
-			ClientId    string `json:"clientId"`
+			ClientID    string `json:"clientId"`
 		}{
 			AccessToken: "234aajsgfaj340",
 			Certificate: "{}",
-			ClientId:    "asfg089asgf08",
+			ClientID:    "asfg089asgf08",
 		},
-		RunId:       1,
+		RunID:       1,
 		Status:      queue.TaskStatusStructure{},
 		TakenUntil:  tcclient.Time{},
 		Task:        queue.TaskDefinitionResponse{},
 		WorkerGroup: WORKER_TYPE,
-		WorkerId:    WORKER_ID,
+		WorkerID:    WORKER_ID,
 	}, &tcclient.CallSummary{}, nil)
 	tasks := []*TaskRun{{
 		TaskId:              "abc",

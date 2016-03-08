@@ -35,14 +35,14 @@ func (m *Manager) Start() {
 func New(config *config.Config, engine *engines.Engine, log *logrus.Entry) *Manager {
 	queue := tcqueue.New(
 		&tcclient.Credentials{
-			ClientId:    config.Credentials.ClientId,
+			ClientId:    config.Credentials.ClientID,
 			AccessToken: config.Credentials.AccessToken,
 			Certificate: config.Credentials.Certificate,
 		},
 	)
 	service := &queueService{
 		client:           queue,
-		ProvisionerId:    config.ProvisionerId,
+		ProvisionerId:    config.ProvisionerID,
 		WorkerGroup:      config.WorkerGroup,
 		Log:              log.WithField("component", "Queue Service"),
 		ExpirationOffset: config.QueueService.ExpirationOffset,
@@ -53,8 +53,8 @@ func New(config *config.Config, engine *engines.Engine, log *logrus.Entry) *Mana
 		Log:           log,
 		MaxCapacity:   config.Capacity,
 		Queue:         service,
-		ProvisionerId: config.ProvisionerId,
+		ProvisionerId: config.ProvisionerID,
 		WorkerGroup:   config.WorkerGroup,
-		WorkerId:      config.WorkerId,
+		WorkerId:      config.WorkerID,
 	}
 }

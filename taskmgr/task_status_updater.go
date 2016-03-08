@@ -92,7 +92,7 @@ func UpdateTaskStatus(ts TaskStatusUpdate, queue queueClient, log *logrus.Entry)
 		log.Info("Claiming task")
 		cr := tcclient.TaskClaimRequest{
 			WorkerGroup: ts.WorkerGroup,
-			WorkerId:    ts.WorkerId,
+			WorkerID:    ts.WorkerId,
 		}
 		// Using the taskId and runId from the <MessageText> tag, the worker
 		// must call queue.claimTask().

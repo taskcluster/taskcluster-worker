@@ -47,8 +47,8 @@ type (
 	}
 
 	taskQueue struct {
-		SignedDeleteUrl string `json:"signedDeleteUrl"`
-		SignedPollUrl   string `json:"signedPollUrl"`
+		SignedDeleteURL string `json:"signedDeleteUrl"`
+		SignedPollURL   string `json:"signedPollUrl"`
 	}
 
 	taskRuns []*TaskRun
@@ -202,7 +202,7 @@ func (q *queueService) pollTaskUrl(taskQueue *taskQueue, ntasks int) ([]*TaskRun
 	// may be appended to `signedPollUrl`. The parameter `N` is the
 	// maximum number of messages desired, `N` can be up to 32.
 	n := int(math.Min(32, float64(ntasks)))
-	u := fmt.Sprintf("%s%s%d", taskQueue.SignedPollUrl, "&numofmessages=", n)
+	u := fmt.Sprintf("%s%s%d", taskQueue.SignedPollURL, "&numofmessages=", n)
 	resp, _, err := httpbackoff.Get(u)
 	if err != nil {
 		return nil, err
@@ -261,7 +261,7 @@ func (q *queueService) pollTaskUrl(taskQueue *taskQueue, ntasks int) ([]*TaskRun
 
 		signedDeleteUrl := detokeniseUri(
 			detokeniseUri(
-				taskQueue.SignedDeleteUrl,
+				taskQueue.SignedDeleteURL,
 				"{{messageId}}",
 				qm.MessageId,
 			),

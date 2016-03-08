@@ -27,11 +27,11 @@ type (
 			// The Client ID for the client. Not very helpful, am I?
 			//
 			// Syntax:     ^[A-Za-z0-9@/:._-]+$
-			ClientId string `json:"clientId"`
+			ClientID string `json:"clientId"`
 		} `json:"credentials"`
 
 		// The provisioner (if any) that is responsible for spawning instances of this worker. Typically `aws-provisioner-v1`.
-		ProvisionerId string `json:"provisionerId"`
+		ProvisionerID string `json:"provisionerId"`
 
 		// Configuration relating to the polling of the TaskCluster Queue.
 		QueueService struct {
@@ -44,7 +44,7 @@ type (
 		WorkerGroup string `json:"workerGroup"`
 
 		// A unique name that can be used to identify which worker instance this is (such as AWS instance id).
-		WorkerId string `json:"workerId"`
+		WorkerID string `json:"workerId"`
 	}
 )
 
