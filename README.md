@@ -1,6 +1,5 @@
 TaskCluster Worker
 ==================
-
 <img src="https://tools.taskcluster.net/lib/assets/taskcluster-120.png" />
 [![Build Status](https://travis-ci.org/taskcluster/taskcluster-worker.svg?branch=master)](http://travis-ci.org/taskcluster/taskcluster-worker)
 [![GoDoc](https://godoc.org/github.com/taskcluster/taskcluster-worker?status.svg)](https://godoc.org/github.com/taskcluster/taskcluster-worker)
