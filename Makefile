@@ -6,8 +6,13 @@
 # Ensure go-extpoints and go-import-subtree are available for go generate
 export PATH := $(GOPATH)/bin:$(PATH)
 
-bootstrap:
+dev:
+	go get github.com/axw/gocov/gocov
+	go get github.com/golang/lint/golint
+	go get github.com/mattn/goveralls
+	go get github.com/pierrre/gotestcover
 	go get github.com/stretchr/testify/assert
+	go get golang.org/x/tools/cmd/cover
 	go get golang.org/x/tools/cmd/vet
 
 all: build
@@ -30,7 +35,6 @@ check: test
 	/bin/bash -c 'test $$(git status --porcelain | wc -l) == 0'
 test:
 	go get -t ./...
-	go get github.com/golang/lint/golint
 	go test -race ./...
 	go vet ./...
 	golint ./...
