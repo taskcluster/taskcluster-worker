@@ -123,7 +123,7 @@ func (c *TaskContext) Log(a ...interface{}) {
 	c.log("[taskcluster] ", a...)
 }
 
-// Log writes a log error message from the worker
+// LogError writes a log error message from the worker
 //
 // These log messages will be prefixed "[taskcluster:error]" so it's easy to see to
 // that they are worker logs.  These errors are also easy to grep from the logs in

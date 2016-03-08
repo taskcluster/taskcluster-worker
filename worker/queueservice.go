@@ -29,7 +29,7 @@ type (
 
 	// Used for modelling the xml we get back from Azure
 	queueMessage struct {
-		MessageId    string `xml:"MessageId"`
+		MessageID    string `xml:"MessageId"`
 		PopReceipt   string `xml:"PopReceipt"`
 		DequeueCount int    `xml:"DequeueCount"`
 		MessageText  string `xml:"MessageText"`
@@ -137,7 +137,7 @@ func (q *queueService) claimTask(task *TaskRun) bool {
 func (q *queueService) deleteFromAzure(deleteURL string) error {
 	// Messages are deleted from the Azure queue with a DELETE request to the
 	// SignedDeleteURL from the Azure queue object returned from
-	// queue.pollTaskUrls.
+	// queue.pollTaskURLs.
 
 	// Also remark that the worker must delete messages if the queue.claimTask
 	// operations fails with a 4xx error. A 400 hundred range error implies
@@ -180,7 +180,7 @@ func (q *queueService) deleteFromAzure(deleteURL string) error {
 }
 
 // Retrieves the number of tasks requested from the Azure queues.
-func (q *queueService) pollTaskUrl(taskQueue *taskQueue, ntasks int) ([]*TaskRun, error) {
+func (q *queueService) pollTaskURL(taskQueue *taskQueue, ntasks int) ([]*TaskRun, error) {
 	taskRuns := []*TaskRun{}
 	var r queueMessagesList
 	// To poll an Azure Queue the worker must do a `GET` request to the
@@ -230,8 +230,8 @@ func (q *queueService) pollTaskUrl(taskQueue *taskQueue, ntasks int) ([]*TaskRun
 
 	// Utility method for replacing a placeholder within a uri with
 	// a string value which first must be uri encoded...
-	detokeniseUri := func(uri, placeholder, rawValue string) string {
-		return strings.Replace(uri, placeholder, strings.Replace(url.QueryEscape(rawValue), "+", "%20", -1), -1)
+	detokeniseURI := func(URI, placeholder, rawValue string) string {
+		return strings.Replace(URI, placeholder, strings.Replace(url.QueryEscape(rawValue), "+", "%20", -1), -1)
 	}
 
 	for _, qm := range r.QueueMessages {
@@ -244,11 +244,11 @@ func (q *queueService) pollTaskUrl(taskQueue *taskQueue, ntasks int) ([]*TaskRun
 		// SignedDeleteURL. Otherwise, the worker will experience intermittent
 		// failures.
 
-		SignedDeleteURL := detokeniseUri(
-			detokeniseUri(
+		SignedDeleteURL := detokeniseURI(
+			detokeniseURI(
 				taskQueue.SignedDeleteURL,
 				"{{messageId}}",
-				qm.MessageId,
+				qm.MessageID,
 			),
 			"{{popReceipt}}",
 			qm.PopReceipt,
@@ -258,7 +258,7 @@ func (q *queueService) pollTaskUrl(taskQueue *taskQueue, ntasks int) ([]*TaskRun
 		// that alert the operator if a message has been dequeued a significant
 		// number of times, for example 15 or more.
 		if qm.DequeueCount >= 15 {
-			q.Log.Warnf("Queue Message with message id %v has been dequeued %v times!", qm.MessageId, qm.DequeueCount)
+			q.Log.Warnf("Queue Message with message id %v has been dequeued %v times!", qm.MessageID, qm.DequeueCount)
 			err := q.deleteFromAzure(SignedDeleteURL)
 			if err != nil {
 				q.Log.Warnf("Not able to call Azure delete URL %v. %v", SignedDeleteURL, err)
@@ -273,11 +273,11 @@ func (q *queueService) pollTaskUrl(taskQueue *taskQueue, ntasks int) ([]*TaskRun
 			// try to delete from Azure, if it fails, nothing we can do about it
 			// not very serious - another worker will try to delete it
 			q.Log.WithField("messageText", qm.MessageText).Errorf("Not able to base64 decode the Message Text in Azure message response.")
-			q.Log.WithField("messageId", qm.MessageId).Info("Deleting from Azure queue as other workers will have the same problem.")
+			q.Log.WithField("messageID", qm.MessageID).Info("Deleting from Azure queue as other workers will have the same problem.")
 			err := q.deleteFromAzure(SignedDeleteURL)
 			if err != nil {
 				q.Log.WithFields(logrus.Fields{
-					"messageId": qm.MessageId,
+					"messageID": qm.MessageID,
 					"url":       SignedDeleteURL,
 					"error":     err,
 				}).Warn("Not able to call Azure delete URL")
@@ -358,7 +358,7 @@ func (q *queueService) retrieveTasksFromQueue(ntasks int) ([]*TaskRun, error) {
 			if len(tasks) >= ntasks {
 				return tasks, nil
 			}
-			taskRuns, err := q.pollTaskUrl(&queue, ntasks-len(tasks))
+			taskRuns, err := q.pollTaskURL(&queue, ntasks-len(tasks))
 			if err != nil {
 				q.Log.Warnf("Could not retrieve tasks from the Azure queue. %s", err)
 				break
