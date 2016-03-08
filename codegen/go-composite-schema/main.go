@@ -155,9 +155,7 @@ func generateFunctions(ymlFile, goType, schemaProperty string, req bool) string 
 	// the following strings.Replace function call safely escapes backticks (`) in rawJson
 	result += strings.Replace(text.Indent(fmt.Sprintf("%v", string(rawJson)), "\t\t")+"\n", "`", "` + \"`\" + `", -1)
 	result += "\t\t`,\n"
-	if req {
-		result += "\t\ttrue,\n"
-	}
+	result += fmt.Sprintf("\t\t%t,\n", req)
 	result += "\t\tfunc() interface{} {\n"
 	result += "\t\t\treturn &" + goType + "{}\n"
 	result += "\t\t},\n"
