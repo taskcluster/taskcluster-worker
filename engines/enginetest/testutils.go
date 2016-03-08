@@ -36,36 +36,48 @@ func assert(condition bool, a ...interface{}) {
 	}
 }
 
-// Type can embed so that we can reuse ensure engine
-type engineProvider struct {
-	sync.Mutex
+// EngineProvider is a base object used by test case to get an engine.
+type EngineProvider struct {
+	m           sync.Mutex
 	engine      engines.Engine
 	environment *runtime.Environment
+	// Name of engine
+	Engine string
+	// Engine configuration as JSON
+	Config string
 }
 
-func (p *engineProvider) ensureEngine(engineName string) {
-	p.Lock()
-	defer p.Unlock()
+func (p *EngineProvider) ensureEngine() {
+	p.m.Lock()
+	defer p.m.Unlock()
 	if p.engine != nil {
 		return
 	}
 	// Create a runtime environment
 	p.environment = newTestEnvironment()
 	// Find EngineProvider
-	engineProvider := extpoints.EngineProviders.Lookup(engineName)
+	engineProvider := extpoints.EngineProviders.Lookup(p.Engine)
 	if engineProvider == nil {
-		fmtPanic("Couldn't find EngineProvider: ", engineName)
+		fmtPanic("Couldn't find EngineProvider: ", p.Engine)
 	}
+
+	jsonConfig := map[string]json.RawMessage{}
+	err := json.Unmarshal([]byte(p.Config), &jsonConfig)
+	nilOrPanic(err, "Config parsing failed: ", p.Config)
+	config, err := engineProvider.ConfigSchema().Parse(jsonConfig)
+	nilOrPanic(err, "Config validation failed: ", p.Config)
+
 	// Create Engine instance
 	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
 		Environment: p.environment,
-		Log:         p.environment.Log.WithField("engine", engineName),
+		Log:         p.environment.Log.WithField("engine", p.Engine),
+		Config:      config,
 	})
 	nilOrPanic(err, "Failed to create Engine")
 	p.engine = engine
 }
 
-func (p *engineProvider) newTestTaskContext() (*runtime.TaskContext, *runtime.TaskContextController) {
+func (p *EngineProvider) newTestTaskContext() (*runtime.TaskContext, *runtime.TaskContextController) {
 	ctx, control, err := runtime.NewTaskContext(p.environment.TemporaryStorage.NewFilePath())
 	nilOrPanic(err, "Failed to create new TaskContext")
 	return ctx, control
@@ -126,7 +138,7 @@ func buildRunSandbox(b engines.SandboxBuilder) bool {
 
 // run helper
 type run struct {
-	provider       *engineProvider
+	provider       *EngineProvider
 	context        *runtime.TaskContext
 	control        *runtime.TaskContextController
 	sandboxBuilder engines.SandboxBuilder
@@ -136,8 +148,8 @@ type run struct {
 	closedLog      bool
 }
 
-func (p *engineProvider) NewRun(engine string) *run {
-	p.ensureEngine(engine)
+func (p *EngineProvider) newRun() *run {
+	p.ensureEngine()
 	r := run{}
 	r.provider = p
 	r.context, r.control = p.newTestTaskContext()

@@ -10,9 +10,7 @@ import (
 // A ProxyTestCase holds information necessary to run tests that an engine
 // can attach proxies, call them and forward calls correctly
 type ProxyTestCase struct {
-	engineProvider
-	// Name of engine
-	Engine string
+	EngineProvider
 	// A valid name for a proxy attachment
 	ProxyName string
 	// A task.payload as accepted by the engine, which will write "Pinging"
@@ -25,7 +23,7 @@ type ProxyTestCase struct {
 
 // TestPingProxyPayload checks that PingProxyPayload works as defined
 func (c *ProxyTestCase) TestPingProxyPayload() {
-	r := c.NewRun(c.Engine)
+	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.PingProxyPayload)
 
@@ -58,7 +56,7 @@ func (c *ProxyTestCase) TestPingProxyPayload() {
 
 // TestPing404IsUnsuccessful checks that 404 returns unsuccessful
 func (c *ProxyTestCase) TestPing404IsUnsuccessful() {
-	r := c.NewRun(c.Engine)
+	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.PingProxyPayload)
 
@@ -88,7 +86,7 @@ func (c *ProxyTestCase) TestPing404IsUnsuccessful() {
 // TestLiveLogging checks that "Pinging" is readable from log before the task
 // is finished.
 func (c *ProxyTestCase) TestLiveLogging() {
-	r := c.NewRun(c.Engine)
+	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.PingProxyPayload)
 
@@ -145,7 +143,7 @@ func (c *ProxyTestCase) TestParallelPings() {
 
 // Test runs all tests for the ProxyTestCase is parallel
 func (c *ProxyTestCase) Test() {
-	c.ensureEngine(c.Engine)
+	c.ensureEngine()
 	wg := sync.WaitGroup{}
 	wg.Add(4)
 	go func() { c.TestPingProxyPayload(); wg.Done() }()

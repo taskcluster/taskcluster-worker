@@ -9,9 +9,7 @@ import (
 // The EnvVarTestCase contains information sufficient to setting an environment
 // variable.
 type EnvVarTestCase struct {
-	engineProvider
-	// Name of engine
-	Engine string
+	EngineProvider
 	// Valid name for an environment variable.
 	VariableName string
 	// Invalid environment variable names.
@@ -22,7 +20,7 @@ type EnvVarTestCase struct {
 
 // TestPrintVariable checks that variable value can be printed
 func (c *EnvVarTestCase) TestPrintVariable() {
-	r := c.NewRun(c.Engine)
+	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
 	err := r.sandboxBuilder.SetEnvironmentVariable(c.VariableName, "Hello World")
@@ -33,7 +31,7 @@ func (c *EnvVarTestCase) TestPrintVariable() {
 
 // TestVariableNameConflict checks that variable name can't conflict
 func (c *EnvVarTestCase) TestVariableNameConflict() {
-	r := c.NewRun(c.Engine)
+	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
 	err := r.sandboxBuilder.SetEnvironmentVariable(c.VariableName, "Hello World")
@@ -46,7 +44,7 @@ func (c *EnvVarTestCase) TestVariableNameConflict() {
 
 // TestInvalidVariableNames checks that invalid variables returns correct error
 func (c *EnvVarTestCase) TestInvalidVariableNames() {
-	r := c.NewRun(c.Engine)
+	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
 	for _, name := range c.InvalidVariableNames {
@@ -59,7 +57,7 @@ func (c *EnvVarTestCase) TestInvalidVariableNames() {
 
 // Test runs all tests in parallel
 func (c *EnvVarTestCase) Test() {
-	c.ensureEngine(c.Engine)
+	c.ensureEngine()
 	wg := sync.WaitGroup{}
 	wg.Add(3)
 	go func() { c.TestPrintVariable(); wg.Done() }()

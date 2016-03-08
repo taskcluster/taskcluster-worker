@@ -14,14 +14,13 @@ import (
 // We pass all options as a single argument, so that we can add additional
 // properties without breaking source compatibility.
 type EngineOptions struct {
-	//TODO: Add some json.RawMessage or other free-form configuration section
-	//			that is read from the config file...
+	Environment *runtime.Environment
+	Log         *logrus.Entry
+	Config      interface{}
 	// Note: This is passed by-value for efficiency (and to prohibit nil), if
 	// adding any large fields please consider adding them as pointers.
 	// Note: This is intended to be a simple argument wrapper, do not add methods
 	// to this struct.
-	Environment *runtime.Environment
-	Log         *logrus.Entry
 }
 
 // EngineProvider is the interface engine implementors must implement and
