@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"path"
 	"sync"
 	"time"
 
@@ -54,7 +53,7 @@ func NewLocalServer(
 		}
 	}
 
-	// Construct hostname
+	// Construct hostname (using stateless-dns-go)
 	host := hostname.New(
 		publicAddress.IP,
 		subdomain,
@@ -89,10 +88,9 @@ func (s *LocalServer) ListenAndServe() error {
 }
 
 func (s *LocalServer) handle(w http.ResponseWriter, r *http.Request) {
-	if len(r.URL.Path) < 24 || r.URL.Path[24] != '/' {
+	if len(r.URL.Path) < 24 || r.URL.Path[23] != '/' {
 		http.NotFound(w, r)
 		return
-
 	}
 
 	// Find the hook
@@ -106,7 +104,7 @@ func (s *LocalServer) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	r.URL.Path = r.URL.Path[24:]
+	r.URL.Path = r.URL.Path[23:]
 	r.URL.RawPath = "" // TODO: Implement this if we need it someday
 
 	hook.ServeHTTP(w, r)
@@ -123,7 +121,7 @@ func (s *LocalServer) AttachHook(handler http.Handler) (url string, detach func(
 	s.hooks[id] = handler
 
 	// Create url and detach function
-	url = path.Join(s.url, id)
+	url = s.url + id + "/"
 	detach = func() {
 		s.m.Lock()
 		defer s.m.Unlock()
