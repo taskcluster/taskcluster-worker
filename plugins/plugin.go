@@ -53,17 +53,6 @@ type Plugin interface {
 	NewTaskPlugin(options TaskPluginOptions) (TaskPlugin, error)
 }
 
-// An ExceptionReason specifies the reason a task reached an exception state.
-type ExceptionReason int
-
-// Reasons why a task can reach an exception state. Implementors should be
-// warned that additional entries may be added in the future.
-const (
-	Cancelled ExceptionReason = iota
-	MalformedPayload
-	WorkerShutdown
-)
-
 // TaskPlugin holds the task-specific state for a plugin
 //
 // Each method on this interface represents stage in the task execution and will
@@ -105,11 +94,14 @@ type TaskPlugin interface {
 	// Non-fatal errors: MalformedPayloadError
 	Started(sandbox engines.Sandbox) error
 
-	// Stopped is called once the sandbox has terminated. Returns true, if the
-	// task execution was successful.
+	// Stopped is called once the sandbox has terminated.
 	//
 	// This is a good place to upload artifacts, logs, check exit code, and start
 	// to clean-up resources if such clean-up is expected to take a while.
+	//
+	// This will return false if the operation could not be completed successfully.
+	// Such as artifact upload failure or files not existing.  If this returns false
+	// it shall be assumed that the task has failed and should be reported as a failure.
 	//
 	// Non-fatal errors: MalformedPayloadError
 	Stopped(result engines.ResultSet) (bool, error)
@@ -134,14 +126,14 @@ type TaskPlugin interface {
 	// wish to persist. Naturally, log messages written at this stage will be
 	// dropped and all error messages will be fatal.
 	//
-	// Implementors should be ware that additional reasons may be added in the
+	// Implementors should be aware that additional reasons may be added in the
 	// future. Therefore they must handle the default case, if switching on the
 	// reason parameter.
-	Exception(reason ExceptionReason) error
+	Exception(reason runtime.ExceptionReason) error
 
 	// Dispose is called once everything is done and it's time for clean-up.
 	//
-	// This method will invoked following Stopped() or Exception(). It is then
+	// This method will be invoked following Stopped() or Exception(). It is then
 	// the responsibility of the implementor to abort or wait for any long-running
 	// processes and clean-up any resources held.
 	Dispose() error
@@ -205,7 +197,7 @@ func (TaskPluginBase) Finished(success bool) error {
 }
 
 // Exception ignores the stage where a task is resolved exception
-func (TaskPluginBase) Exception(reason ExceptionReason) error {
+func (TaskPluginBase) Exception(reason runtime.ExceptionReason) error {
 	return nil
 }
 

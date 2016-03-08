@@ -13,9 +13,9 @@ import (
 // We wrap all arguments so that we can add additional properties without
 // breaking source compatibility with older plugins.
 type PluginOptions struct {
-	environment *runtime.Environment
-	engine      *engines.Engine
-	log         *logrus.Entry
+	Environment *runtime.Environment
+	Engine      *engines.Engine
+	Log         *logrus.Entry
 }
 
 // The PluginProvider interface must be implemented and registered by anyone

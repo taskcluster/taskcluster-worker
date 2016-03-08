@@ -1,4 +1,4 @@
-package taskmgr
+package worker
 
 import (
 	"github.com/stretchr/testify/mock"
