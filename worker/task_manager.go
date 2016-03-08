@@ -31,9 +31,9 @@ type Manager struct {
 	pluginOptions *extpoints.PluginOptions
 	log           *logrus.Entry
 	queue         QueueService
-	provisionerId string
+	provisionerID string
 	workerGroup   string
-	workerId      string
+	workerID      string
 	tasks         map[string]*TaskRun
 }
 
@@ -65,9 +65,9 @@ func newTaskManager(config *config.Config, engine engines.Engine, environment *r
 		log:           log,
 		maxCapacity:   config.Capacity,
 		queue:         service,
-		provisionerId: config.ProvisionerID,
+		provisionerID: config.ProvisionerID,
 		workerGroup:   config.WorkerGroup,
-		workerId:      config.WorkerID,
+		workerID:      config.WorkerID,
 	}
 
 	m.pluginOptions = &extpoints.PluginOptions{
@@ -136,8 +136,8 @@ func (m *Manager) RunningTasks() []string {
 // CancelTask will cancel a running task.  Typically this will be called when a Pulse
 // message is received to cancel a task.  Calling this method will not resolve the task
 // as it's assumed that this task was already resolved as cancelled by another system/client.
-func (m *Manager) CancelTask(taskId string, runId int) {
-	name := fmt.Sprintf("%s/%d", taskId, runId)
+func (m *Manager) CancelTask(taskID string, runID int) {
+	name := fmt.Sprintf("%s/%d", taskID, runID)
 
 	m.RLock()
 	defer m.RUnlock()
@@ -165,8 +165,8 @@ func (m *Manager) claimWork(ntasks int) {
 
 func (m *Manager) run(task *TaskRun) {
 	log := m.log.WithFields(logrus.Fields{
-		"taskId": task.TaskID,
-		"runId":  task.RunID,
+		"taskID": task.TaskID,
+		"runID":  task.RunID,
 	})
 	task.log = log
 

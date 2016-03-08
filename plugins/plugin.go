@@ -152,7 +152,7 @@ func (PluginBase) PayloadSchema() (runtime.CompositeSchema, error) {
 	return runtime.NewEmptyCompositeSchema(), nil
 }
 
-// PluginBase requires no custom config
+// ConfigSchema will return a new empty composite schema.  PluginBase requires no custom config
 func (PluginBase) ConfigSchema() runtime.CompositeSchema {
 	return runtime.NewEmptyCompositeSchema()
 }
