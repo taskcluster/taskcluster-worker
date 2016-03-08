@@ -67,7 +67,7 @@ const (
 // TaskPlugin holds the task-specific state for a plugin
 //
 // Each method on this interface represents stage in the task execution and will
-// be called when this stage is reached. The some methods are allowed to
+// be called when this stage is reached. The methods are allowed to
 // take significant amounts of time, as they will run asynchronously.
 //
 // These methods does not have to be thread-safe, we will never call the next
