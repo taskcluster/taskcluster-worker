@@ -93,7 +93,7 @@ func (c *TaskContext) NewLogReader() (io.ReadCloser, error) {
 // that requests to any sub-resource of url returned will be forwarded to the
 // handler.
 //
-// Addtionally, we promise that the URL contains a cryptographically random
+// Additionally, we promise that the URL contains a cryptographically random
 // sequence of characters rendering it unpredictable. This can be used as a
 // cheap form of access-control, and it is safe as task-specific web hooks
 // are short-lived by nature.
