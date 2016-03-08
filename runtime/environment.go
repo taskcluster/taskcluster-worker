@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"github.com/Sirupsen/logrus"
+	"github.com/getsentry/raven-go"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
 
@@ -13,4 +14,5 @@ type Environment struct {
 	//TODO: Add some interface to attach a http.Handler to public facing server
 	TemporaryStorage TemporaryStorage
 	Log              *logrus.Logger
+	Sentry           *raven.Client
 }
