@@ -105,7 +105,7 @@ func (c *TaskContext) NewLogReader() (io.ReadCloser, error) {
 //  ...
 //
 // Implementors attaching a hook should take care to ensure that the handler
-// is able to respond with an error code, if the data it is accessing isn't
+// is able to respond with a non-2xx response, if the data it is accessing isn't
 // available anymore. All webhooks will be detached at the end of the
 // task-cycle, but not until the very end.
 func (c *TaskContext) AttachWebHook(handler http.Handler) string {
