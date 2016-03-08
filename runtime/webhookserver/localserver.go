@@ -16,7 +16,7 @@ import (
 // LocalServer is a WebHookServer implemenation that exposes webhooks on a
 // local port directly exposed to the internet.
 type LocalServer struct {
-	m      sync.Mutex
+	m      sync.RWMutex
 	server http.Server
 	hooks  map[string]http.Handler
 	url    string
@@ -89,20 +89,25 @@ func (s *LocalServer) ListenAndServe() error {
 }
 
 func (s *LocalServer) handle(w http.ResponseWriter, r *http.Request) {
-	if len(r.URL.Path) < 24 && r.URL.Path[24] != '/' {
+	if len(r.URL.Path) < 24 || r.URL.Path[24] != '/' {
 		http.NotFound(w, r)
 		return
+
 	}
 
+	// Find the hook
 	id := r.URL.Path[1:23]
+	s.m.RLock()
 	hook := s.hooks[id]
+	s.m.RUnlock()
+
 	if hook == nil {
 		http.NotFound(w, r)
 		return
 	}
 
 	r.URL.Path = r.URL.Path[24:]
-	r.URL.RawPath = r.URL.Path[24:]
+	r.URL.RawPath = "" // TODO: Implement this if we need it someday
 
 	hook.ServeHTTP(w, r)
 }
