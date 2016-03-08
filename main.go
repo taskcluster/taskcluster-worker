@@ -7,12 +7,15 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docopt/docopt-go"
+	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-worker/config"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	"github.com/taskcluster/taskcluster-worker/runtime"
-	"github.com/taskcluster/taskcluster-worker/taskmgr"
+	"github.com/taskcluster/taskcluster-worker/worker"
 )
 
 const version = "taskcluster-worker 0.0.1"
@@ -61,10 +64,15 @@ func main() {
 		logger.Fatalf("Must supply a valid engine.  Supported Engines %v", engineNames)
 	}
 
-	runtimeEnvironment := runtime.Environment{Log: logger}
+	tempPath := filepath.Join(os.TempDir(), slugid.V4())
+	tempStorage, err := runtime.NewTemporaryStorage(tempPath)
+	runtimeEnvironment := &runtime.Environment{
+		Log:              logger,
+		TemporaryStorage: tempStorage,
+	}
 
 	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
-		Environment: &runtimeEnvironment,
+		Environment: runtimeEnvironment,
 		Log:         logger.WithField("engine", engineName),
 	})
 	if err != nil {
@@ -76,25 +84,40 @@ func main() {
 		Credentials: struct {
 			AccessToken string `json:"accessToken"`
 			Certificate string `json:"certificate"`
-			ClientID    string `json:"clientId"`
+			ClientID    string `json:"clientID"`
 		}{
-			AccessToken: "123",
-			Certificate: "",
-			ClientID:    "abc",
+			AccessToken: os.Getenv("TASKCLUSTER_ACCESS_TOKEN"),
+			Certificate: os.Getenv("TASKCLUSTER_CERTIFICATE"),
+			ClientID:    os.Getenv("TASKCLUSTER_CLIENT_ID"),
 		},
 		Capacity:      5,
-		ProvisionerID: "tasckluster-worker-provisioner",
-		WorkerGroup:   "taskcluster-worker-test-worker-group",
-		WorkerID:      "taskcluster-worker-test-worker",
+		ProvisionerID: "dummy-test-provisioner",
+		WorkerGroup:   "dummy-test-group",
+		WorkerType:    "dummy-test-type",
+		WorkerID:      "dummy-test-worker",
 		QueueService: struct {
 			ExpirationOffset int `json:"expirationOffset"`
 		}{
 			ExpirationOffset: 300,
 		},
+		PollingInterval: 10,
 	}
 
-	taskManager := taskmgr.New(config, &engine, logger.WithField("component", "Task Manager"))
+	l := logger.WithFields(logrus.Fields{
+		"workerID":      config.WorkerID,
+		"workerType":    config.WorkerType,
+		"workerGroup":   config.WorkerGroup,
+		"provisionerID": config.ProvisionerID,
+	})
 
-	runtimeEnvironment.Log.Debugf("Created taskManager %+v", taskManager)
-	runtimeEnvironment.Log.Info("Worker started up")
+	w, err := worker.New(config, engine, runtimeEnvironment, l)
+	if err != nil {
+		logger.Fatalf("Could not create worker. %s", err)
+	}
+
+	err = w.Start()
+	if err != nil {
+		os.Stderr.WriteString(err.Error())
+		os.Exit(1)
+	}
 }

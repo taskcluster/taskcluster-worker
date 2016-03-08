@@ -1,4 +1,4 @@
-package taskmgr
+package worker
 
 import (
 	"errors"
@@ -17,32 +17,32 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
-const PROVISIONER_ID = "dummy-provisioner"
+const ProvisionerID = "dummy-provisioner"
 
-var WORKER_TYPE = (fmt.Sprintf("dummy-type-%s", slugid.Nice()))[0:22]
-var WORKER_ID = fmt.Sprintf("dummy-worker-%s", slugid.Nice())
+var WorkerType = (fmt.Sprintf("dummy-type-%s", slugid.Nice()))[0:22]
+var WorkerID = fmt.Sprintf("dummy-worker-%s", slugid.Nice())
 
 func TestRetrievePollTaskUrls(t *testing.T) {
 	logger, _ := runtime.CreateLogger("")
 	mockedQueue := &MockQueue{}
 	service := queueService{
 		client:           mockedQueue,
-		ProvisionerId:    PROVISIONER_ID,
-		WorkerType:       WORKER_TYPE,
+		ProvisionerID:    ProvisionerID,
+		WorkerType:       WorkerType,
 		Log:              logger.WithField("component", "Queue Service"),
 		ExpirationOffset: 300,
 	}
 	mockedQueue.On(
 		"PollTaskUrls",
-		PROVISIONER_ID,
-		WORKER_TYPE,
+		ProvisionerID,
+		WorkerType,
 	).Return(&queue.PollTaskUrlsResponse{
 		Expires: tcclient.Time(time.Now().Add(time.Minute * 10)),
 		Queues: []struct {
 			SignedDeleteURL string `json:"signedDeleteUrl"`
 			SignedPollURL   string `json:"signedPollUrl"`
 		}{{
-			// URLs are arbitrary and unique so they can be checked later on.
+			// Urls are arbitrary and unique so they can be checked later on.
 			// Polling should return at least 2 queues in production because of
 			// high/low priority queues
 			SignedDeleteURL: "abc",
@@ -70,16 +70,16 @@ func TestRetrievePollTaskUrlsErrorCaught(t *testing.T) {
 	mockedQueue := &MockQueue{}
 	service := queueService{
 		client:           mockedQueue,
-		ProvisionerId:    PROVISIONER_ID,
-		WorkerType:       WORKER_TYPE,
+		ProvisionerID:    ProvisionerID,
+		WorkerType:       WorkerType,
 		Log:              logger.WithField("component", "Queue Service"),
 		ExpirationOffset: 300,
 	}
 
 	mockedQueue.On(
 		"PollTaskUrls",
-		PROVISIONER_ID,
-		WORKER_TYPE,
+		ProvisionerID,
+		WorkerType,
 	// Error value does not matter, just as long as we create an error to return
 	).Return(&queue.PollTaskUrlsResponse{}, &tcclient.CallSummary{}, errors.New("bad error"))
 
@@ -91,7 +91,7 @@ func TestRetrievePollTaskUrlsErrorCaught(t *testing.T) {
 	assert.Equal(t, "Error retrieving task urls.", err.Error())
 }
 
-func TestShouldRefreshQueueURLs(t *testing.T) {
+func TestShouldRefreshQueueUrls(t *testing.T) {
 	service := queueService{
 		ExpirationOffset: 300,
 	}
@@ -110,7 +110,7 @@ func TestShouldRefreshQueueURLs(t *testing.T) {
 	assert.Equal(t, true, service.shouldRefreshQueueUrls())
 }
 
-func TestShouldNotRefreshTaskQueueURLs(t *testing.T) {
+func TestShouldNotRefreshTaskQueueUrls(t *testing.T) {
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		ExpirationOffset: 300,
@@ -215,8 +215,8 @@ func TestPollTaskUrlNonEmptyMessageList(t *testing.T) {
 	assert.Nil(t, err, "Error should not have been returned when empty message list provided.")
 	assert.Equal(t, 2, len(tasks))
 	// quick sanity check to make sure the messages are different
-	assert.NotEqual(t, tasks[0].TaskId, tasks[1].TaskId)
-	assert.NotEqual(t, tasks[0].SignedDeleteUrl, tasks[1].SignedDeleteUrl)
+	assert.NotEqual(t, tasks[0].TaskID, tasks[1].TaskID)
+	assert.NotEqual(t, tasks[0].SignedDeleteURL, tasks[1].SignedDeleteURL)
 }
 
 func TestPollTaskUrlInvalidMessageTextContents(t *testing.T) {
@@ -315,7 +315,7 @@ func TestSuccessfullyDeleteFromAzureQueue(t *testing.T) {
 	service := queueService{
 		Log: logger.WithField("component", "Queue Service"),
 	}
-	err := service.deleteFromAzure("1234", fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL))
+	err := service.deleteFromAzure(fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL))
 	assert.Nil(t, err)
 }
 
@@ -330,7 +330,7 @@ func TestErrorCaughtDeleteFromAzureQueueL(t *testing.T) {
 	service := queueService{
 		Log: logger.WithField("component", "Queue Service"),
 	}
-	err := service.deleteFromAzure("1234", fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL))
+	err := service.deleteFromAzure(fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL))
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "(Permanent) HTTP response code 403")
 }
@@ -338,7 +338,7 @@ func TestRetrieveTasksFromQueue(t *testing.T) {
 	// Tasks should be retrieved from multiple priority queues until either there are
 	// no more tasks to retrieve or the number of requested tasks are fulfilled.
 	messages := []string{
-		// MessageText is {"taskId": "abc", "runId": 1}
+		// MessageText is {"taskId": "abc", "RunID": 1}
 		`<?xml version="1.0" encoding="utf-8"?>
 	<QueueMessagesList>
 	  <QueueMessage>
@@ -351,8 +351,8 @@ func TestRetrieveTasksFromQueue(t *testing.T) {
 		<MessageText>eyJ0YXNrSWQiOiAiYWJjIiwgInJ1bklkIjogMX0=</MessageText>
 	  </QueueMessage>
 	</QueueMessagesList>`,
-		// MessageText[0] {"taskId": "def", "runId": 0}
-		// MessageText[1] {"taskId": "ghi", "runId": 2}
+		// MessageText[0] {"taskId": "def", "RunID": 0}
+		// MessageText[1] {"taskId": "ghi", "RunID": 2}
 		`<?xml version="1.0" encoding="utf-8"?>
 	<QueueMessagesList>
 	  <QueueMessage>
@@ -416,7 +416,7 @@ func TestRetrieveTasksFromQueue(t *testing.T) {
 	assert.Equal(t, 3, len(tasks))
 	taskIds := []string{"abc", "def", "ghi"}
 	for i, v := range taskIds {
-		assert.Equal(t, v, tasks[i].TaskId)
+		assert.Equal(t, v, tasks[i].TaskID)
 	}
 }
 
@@ -424,7 +424,7 @@ func TestRetrieveTasksFromQueueDoesNotQueryLowPriority(t *testing.T) {
 	// When enough tasks have been retrieved from the higher (first) priority queue,
 	// the lower (second) priority queue should not be polled.
 	messages := []string{
-		// MessageText is {"taskId": "abc", "runId": 1}
+		// MessageText is {"taskId": "abc", "RunID": 1}
 		`<?xml version="1.0" encoding="utf-8"?>
 	<QueueMessagesList>
 	  <QueueMessage>
@@ -437,8 +437,8 @@ func TestRetrieveTasksFromQueueDoesNotQueryLowPriority(t *testing.T) {
 		<MessageText>eyJ0YXNrSWQiOiAiYWJjIiwgInJ1bklkIjogMX0=</MessageText>
 	  </QueueMessage>
 	</QueueMessagesList>`,
-		// MessageText[0] {"taskId": "def", "runId": 0}
-		// MessageText[1] {"taskId": "ghi", "runId": 2}
+		// MessageText[0] {"taskId": "def", "RunID": 0}
+		// MessageText[1] {"taskId": "ghi", "RunID": 2}
 		`<?xml version="1.0" encoding="utf-8"?>
 	<QueueMessagesList>
 	  <QueueMessage>
@@ -502,7 +502,7 @@ func TestRetrieveTasksFromQueueDoesNotQueryLowPriority(t *testing.T) {
 	assert.Equal(t, 2, len(tasks))
 	taskIds := []string{"def", "ghi"}
 	for i, v := range taskIds {
-		assert.Equal(t, v, tasks[i].TaskId)
+		assert.Equal(t, v, tasks[i].TaskID)
 	}
 }
 func TestRetrieveTasksFromQueueDequeueChecked(t *testing.T) {
@@ -579,8 +579,8 @@ func TestClaimTask(t *testing.T) {
 		"abc",
 		"0",
 		&queue.TaskClaimRequest{
-			WorkerGroup: WORKER_TYPE,
-			WorkerID:    WORKER_ID,
+			WorkerGroup: WorkerType,
+			WorkerID:    WorkerID,
 		},
 	).Return(&queue.TaskClaimResponse{
 		Credentials: struct {
@@ -596,26 +596,25 @@ func TestClaimTask(t *testing.T) {
 		Status:      queue.TaskStatusStructure{},
 		TakenUntil:  tcclient.Time{},
 		Task:        queue.TaskDefinitionResponse{},
-		WorkerGroup: WORKER_TYPE,
-		WorkerID:    WORKER_ID,
+		WorkerGroup: WorkerType,
+		WorkerID:    WorkerID,
 	}, &tcclient.CallSummary{}, nil)
 
 	task := &TaskRun{
-		TaskId:              "abc",
-		RunId:               0,
-		SignedDeleteUrl:     fmt.Sprintf("%s/delete", s.URL),
-		TaskClaimResponse:   queue.TaskClaimResponse{},
-		TaskReclaimResponse: queue.TaskReclaimResponse{},
-		Definition:          queue.TaskDefinitionResponse{},
+		TaskID:          "abc",
+		RunID:           0,
+		SignedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
+		TaskClaim:       queue.TaskClaimResponse{},
+		Definition:      queue.TaskDefinitionResponse{},
 	}
 
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		client:        mockedQueue,
 		Log:           logger.WithField("component", "Queue Service"),
-		WorkerId:      WORKER_ID,
-		WorkerGroup:   WORKER_TYPE,
-		ProvisionerId: PROVISIONER_ID,
+		WorkerID:      WorkerID,
+		WorkerGroup:   WorkerType,
+		ProvisionerID: ProvisionerID,
 	}
 
 	success := service.claimTask(task)
@@ -624,7 +623,7 @@ func TestClaimTask(t *testing.T) {
 	assert.True(t, deleteCalled)
 	// Do a quick sanity check to make sure the response was correctly stored in
 	// the task run object
-	assert.Equal(t, "1040824383284384", task.TaskClaimResponse.Credentials.AccessToken)
+	assert.Equal(t, "1040824383284384", task.TaskClaim.Credentials.AccessToken)
 }
 
 func TestClaimTaskError(t *testing.T) {
@@ -649,29 +648,28 @@ func TestClaimTaskError(t *testing.T) {
 		"abc",
 		"0",
 		&queue.TaskClaimRequest{
-			WorkerGroup: WORKER_TYPE,
-			WorkerID:    WORKER_ID,
+			WorkerGroup: WorkerType,
+			WorkerID:    WorkerID,
 		},
 	).Return(&queue.TaskClaimResponse{},
 		&tcclient.CallSummary{
 			HttpResponse: &http.Response{StatusCode: 401},
 		}, errors.New("Not good"))
 	task := &TaskRun{
-		TaskId:              "abc",
-		RunId:               0,
-		SignedDeleteUrl:     fmt.Sprintf("%s/delete", s.URL),
-		TaskClaimResponse:   queue.TaskClaimResponse{},
-		TaskReclaimResponse: queue.TaskReclaimResponse{},
-		Definition:          queue.TaskDefinitionResponse{},
+		TaskID:          "abc",
+		RunID:           0,
+		SignedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
+		TaskClaim:       queue.TaskClaimResponse{},
+		Definition:      queue.TaskDefinitionResponse{},
 	}
 
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		client:        mockedQueue,
 		Log:           logger.WithField("component", "Queue Service"),
-		WorkerId:      WORKER_ID,
-		WorkerGroup:   WORKER_TYPE,
-		ProvisionerId: PROVISIONER_ID,
+		WorkerID:      WorkerID,
+		WorkerGroup:   WorkerType,
+		ProvisionerID: ProvisionerID,
 	}
 
 	success := service.claimTask(task)
@@ -696,8 +694,8 @@ func TestClaimTasks(t *testing.T) {
 		"abc",
 		"0",
 		&queue.TaskClaimRequest{
-			WorkerGroup: WORKER_TYPE,
-			WorkerID:    WORKER_ID,
+			WorkerGroup: WorkerType,
+			WorkerID:    WorkerID,
 		},
 	).Return(&queue.TaskClaimResponse{
 		Credentials: struct {
@@ -713,16 +711,16 @@ func TestClaimTasks(t *testing.T) {
 		Status:      queue.TaskStatusStructure{},
 		TakenUntil:  tcclient.Time{},
 		Task:        queue.TaskDefinitionResponse{},
-		WorkerGroup: WORKER_TYPE,
-		WorkerID:    WORKER_ID,
+		WorkerGroup: WorkerType,
+		WorkerID:    WorkerID,
 	}, &tcclient.CallSummary{}, nil)
 	mockedQueue.On(
 		"ClaimTask",
 		"def",
 		"1",
 		&queue.TaskClaimRequest{
-			WorkerGroup: WORKER_TYPE,
-			WorkerID:    WORKER_ID,
+			WorkerGroup: WorkerType,
+			WorkerID:    WorkerID,
 		},
 	).Return(&queue.TaskClaimResponse{
 		Credentials: struct {
@@ -738,32 +736,30 @@ func TestClaimTasks(t *testing.T) {
 		Status:      queue.TaskStatusStructure{},
 		TakenUntil:  tcclient.Time{},
 		Task:        queue.TaskDefinitionResponse{},
-		WorkerGroup: WORKER_TYPE,
-		WorkerID:    WORKER_ID,
+		WorkerGroup: WorkerType,
+		WorkerID:    WorkerID,
 	}, &tcclient.CallSummary{}, nil)
 	tasks := []*TaskRun{{
-		TaskId:              "abc",
-		RunId:               0,
-		SignedDeleteUrl:     fmt.Sprintf("%s/delete", s.URL),
-		TaskClaimResponse:   queue.TaskClaimResponse{},
-		TaskReclaimResponse: queue.TaskReclaimResponse{},
-		Definition:          queue.TaskDefinitionResponse{},
+		TaskID:          "abc",
+		RunID:           0,
+		SignedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
+		TaskClaim:       queue.TaskClaimResponse{},
+		Definition:      queue.TaskDefinitionResponse{},
 	}, {
-		TaskId:              "def",
-		RunId:               1,
-		SignedDeleteUrl:     fmt.Sprintf("%s/delete", s.URL),
-		TaskClaimResponse:   queue.TaskClaimResponse{},
-		TaskReclaimResponse: queue.TaskReclaimResponse{},
-		Definition:          queue.TaskDefinitionResponse{},
+		TaskID:          "def",
+		RunID:           1,
+		SignedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
+		TaskClaim:       queue.TaskClaimResponse{},
+		Definition:      queue.TaskDefinitionResponse{},
 	}}
 
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		client:        mockedQueue,
 		Log:           logger.WithField("component", "Queue Service"),
-		WorkerId:      WORKER_ID,
-		WorkerGroup:   WORKER_TYPE,
-		ProvisionerId: PROVISIONER_ID,
+		WorkerID:      WorkerID,
+		WorkerGroup:   WorkerType,
+		ProvisionerID: ProvisionerID,
 	}
 
 	taskClaims := service.claimTasks(tasks)

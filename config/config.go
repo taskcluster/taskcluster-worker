@@ -27,11 +27,14 @@ type (
 			// The Client ID for the client. Not very helpful, am I?
 			//
 			// Syntax:     ^[A-Za-z0-9@/:._-]+$
-			ClientID string `json:"clientId"`
+			ClientID string `json:"clientID"`
 		} `json:"credentials"`
 
+		// The amount of time to wait between task polling iterations
+		PollingInterval int `json:"pollingInterval"`
+
 		// The provisioner (if any) that is responsible for spawning instances of this worker. Typically `aws-provisioner-v1`.
-		ProvisionerID string `json:"provisionerId"`
+		ProvisionerID string `json:"provisionerID"`
 
 		// Configuration relating to the polling of the TaskCluster Queue.
 		QueueService struct {
@@ -44,7 +47,10 @@ type (
 		WorkerGroup string `json:"workerGroup"`
 
 		// A unique name that can be used to identify which worker instance this is (such as AWS instance id).
-		WorkerID string `json:"workerId"`
+		WorkerID string `json:"workerID"`
+
+		// Type of worker pool the worker belongs to.
+		WorkerType string `json:"workerType"`
 	}
 )
 
@@ -76,7 +82,7 @@ var ConfigSchema = func() runtime.CompositeSchema {
 		          "title": "Certificate",
 		          "type": "string"
 		        },
-		        "clientId": {
+		        "clientID": {
 		          "description": "The Client ID for the client. Not very helpful, am I?",
 		          "pattern": "^[A-Za-z0-9@/:._-]+$",
 		          "title": "ClientId",
@@ -89,9 +95,14 @@ var ConfigSchema = func() runtime.CompositeSchema {
 		      "title": "Credentials",
 		      "type": "object"
 		    },
-		    "provisionerId": {
+		    "pollingInterval": {
+		      "description": "The amount of time to wait between task polling iterations",
+		      "title": "PollingInterval",
+		      "type": "integer"
+		    },
+		    "provisionerID": {
 		      "description": "The provisioner (if any) that is responsible for spawning instances of this worker. Typically `+"`"+`aws-provisioner-v1`+"`"+`.",
-		      "title": "ProvisionerId",
+		      "title": "ProvisionerID",
 		      "type": "string"
 		    },
 		    "queueService": {
@@ -114,9 +125,14 @@ var ConfigSchema = func() runtime.CompositeSchema {
 		      "title": "WorkerGroup",
 		      "type": "string"
 		    },
-		    "workerId": {
+		    "workerID": {
 		      "description": "A unique name that can be used to identify which worker instance this is (such as AWS instance id).",
-		      "title": "WorkerId",
+		      "title": "WorkerID",
+		      "type": "string"
+		    },
+		    "workerType": {
+		      "description": "Type of worker pool the worker belongs to.",
+		      "title": "WorkerType",
 		      "type": "string"
 		    }
 		  },

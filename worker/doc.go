@@ -1,4 +1,4 @@
-// Package taskmgr is responsible for managing the claiming, executing, and resolution
+// Package worker is responsible for managing the claiming, executing, and resolution
 // of tasks.
 // This package consists of two key components:
 
@@ -11,4 +11,4 @@
 // priority queues first, followed by lower priority queues until as many tasks can be claimed
 // up to the limit set.
 
-package taskmgr
+package worker
