@@ -3,6 +3,9 @@ package runtime
 import (
 	"fmt"
 	"io"
+	"net/http"
+
+	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 
 	"gopkg.in/djherbis/stream.v1"
 )
@@ -21,7 +24,8 @@ type TaskInfo struct {
 // properties, and abortion notifications.
 type TaskContext struct {
 	TaskInfo
-	logStream *stream.Stream
+	webHookSet *webhookserver.WebHookSet
+	logStream  *stream.Stream
 }
 
 // TaskContextController exposes logic for controlling the TaskContext.
@@ -83,4 +87,27 @@ func (c *TaskContext) LogDrain() io.Writer {
 // Consumers should ensure the ReadCloser is closed before discarding it.
 func (c *TaskContext) NewLogReader() (io.ReadCloser, error) {
 	return c.logStream.NextReader()
+}
+
+// AttachWebHook will take an http.Handler and expose it to the internet such
+// that requests to any sub-resource of url returned will be forwarded to the
+// handler.
+//
+// Addtionally, we promise that the URL contains a cryptographically random
+// sequence of characters rendering it unpredictable. This can be used as a
+// cheap form of access-control, and it is safe as task-specific web hooks
+// are short-lived by nature.
+//
+// Example use-cases:
+//  - livelog plugin
+//  - plugins for interactive shell/display/debugger, etc.
+//  - engines that send an email and await user confirmation
+//  ...
+//
+// Implementors attaching a hook should take care to ensure that the handler
+// is able to respond with an error code, if the data it is accessing isn't
+// available anymore. All webhooks will be detached at the end of the
+// task-cycle, but not until the very end.
+func (c *TaskContext) AttachWebHook(handler http.Handler) string {
+	return c.webHookSet.AttachHook(handler)
 }
