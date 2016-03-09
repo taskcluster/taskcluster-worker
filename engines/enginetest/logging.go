@@ -5,9 +5,7 @@ import "sync"
 // A LoggingTestCase holds information necessary to run tests that an engine
 // can write things to the log.
 type LoggingTestCase struct {
-	engineProvider
-	// Name of engine
-	Engine string
+	EngineProvider
 	// String that we will look for in the log
 	Target string
 	// A task.payload as accepted by the engine, which will Target to the log and
@@ -20,7 +18,7 @@ type LoggingTestCase struct {
 }
 
 func (c *LoggingTestCase) grepLogFromPayload(payload string, needle string, success bool) bool {
-	r := c.NewRun(c.Engine)
+	r := c.newRun()
 	r.NewSandboxBuilder(payload)
 	s := r.buildRunSandbox()
 	if s != success {
@@ -52,7 +50,7 @@ func (c *LoggingTestCase) TestSilentTask() {
 
 // Test will run all logging tests
 func (c *LoggingTestCase) Test() {
-	c.ensureEngine(c.Engine)
+	c.ensureEngine()
 	wg := sync.WaitGroup{}
 	wg.Add(3)
 	go func() { c.TestLogTarget(); wg.Done() }()

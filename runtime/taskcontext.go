@@ -3,8 +3,39 @@ package runtime
 import (
 	"fmt"
 	"io"
+	"net/http"
+
+	"sync"
+
+	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 
 	"gopkg.in/djherbis/stream.v1"
+)
+
+// An ExceptionReason specifies the reason a task reached an exception state.
+type ExceptionReason string
+
+// Reasons why a task can reach an exception state. Implementors should be
+// warned that additional entries may be added in the future.
+const (
+	MalformedPayload ExceptionReason = "malformed-payload"
+	WorkerShutdown   ExceptionReason = "worker-shutdown"
+	InternalError    ExceptionReason = "internal-error"
+)
+
+// TaskStatus represents the current status of the task.
+type TaskStatus string
+
+// Enumerate task status to aid life-cycle decision making
+// Use strings for benefit of simple logging/reporting
+const (
+	Aborted   TaskStatus = "Aborted"
+	Cancelled TaskStatus = "Cancelled"
+	Succeeded TaskStatus = "Succeeded"
+	Failed    TaskStatus = "Failed"
+	Errored   TaskStatus = "Errored"
+	Claimed   TaskStatus = "Claimed"
+	Reclaimed TaskStatus = "Reclaimed"
 )
 
 // The TaskInfo struct exposes generic properties from a task definition.
@@ -21,7 +52,11 @@ type TaskInfo struct {
 // properties, and abortion notifications.
 type TaskContext struct {
 	TaskInfo
-	logStream *stream.Stream
+	webHookSet *webhookserver.WebHookSet
+	logStream  *stream.Stream
+	mu         sync.RWMutex
+	status     TaskStatus
+	cancelled  bool
 }
 
 // TaskContextController exposes logic for controlling the TaskContext.
@@ -54,12 +89,56 @@ func (c *TaskContextController) Dispose() error {
 	return c.logStream.Remove()
 }
 
+// Abort sets the status to aborted
+func (c *TaskContext) Abort() {
+	// TODO (garndt): add abort/cancel channels for plugins to listen on
+	c.mu.Lock()
+	c.status = Aborted
+	c.mu.Unlock()
+	return
+}
+
+// IsAborted returns true if the current status is Aborted
+func (c *TaskContext) IsAborted() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.status == Aborted
+}
+
+// Cancel sets the status to cancelled
+func (c *TaskContext) Cancel() {
+	c.mu.Lock()
+	c.status = Cancelled
+	c.mu.Unlock()
+	return
+}
+
+// IsCancelled returns true if the current status is Cancelled
+func (c *TaskContext) IsCancelled() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.status == Cancelled
+}
+
 // Log writes a log message from the worker
 //
 // These log messages will be prefixed "[taskcluster]" so it's easy to see to
 // that they are worker logs.
 func (c *TaskContext) Log(a ...interface{}) {
-	a = append([]interface{}{"[taskcluster] "}, a...)
+	c.log("[taskcluster] ", a...)
+}
+
+// LogError writes a log error message from the worker
+//
+// These log messages will be prefixed "[taskcluster:error]" so it's easy to see to
+// that they are worker logs.  These errors are also easy to grep from the logs in
+// case of failure.
+func (c *TaskContext) LogError(a ...interface{}) {
+	c.log("[taskcluster:error] ", a...)
+}
+
+func (c *TaskContext) log(prefix string, a ...interface{}) {
+	a = append([]interface{}{prefix}, a...)
 	_, err := fmt.Fprintln(c.logStream, a...)
 	if err != nil {
 		//TODO: Forward this to the system log, it's not a critical error
@@ -83,4 +162,27 @@ func (c *TaskContext) LogDrain() io.Writer {
 // Consumers should ensure the ReadCloser is closed before discarding it.
 func (c *TaskContext) NewLogReader() (io.ReadCloser, error) {
 	return c.logStream.NextReader()
+}
+
+// AttachWebHook will take an http.Handler and expose it to the internet such
+// that requests to any sub-resource of url returned will be forwarded to the
+// handler.
+//
+// Additionally, we promise that the URL contains a cryptographically random
+// sequence of characters rendering it unpredictable. This can be used as a
+// cheap form of access-control, and it is safe as task-specific web hooks
+// are short-lived by nature.
+//
+// Example use-cases:
+//  - livelog plugin
+//  - plugins for interactive shell/display/debugger, etc.
+//  - engines that send an email and await user confirmation
+//  ...
+//
+// Implementors attaching a hook should take care to ensure that the handler
+// is able to respond with a non-2xx response, if the data it is accessing isn't
+// available anymore. All webhooks will be detached at the end of the
+// task-cycle, but not until the very end.
+func (c *TaskContext) AttachWebHook(handler http.Handler) string {
+	return c.webHookSet.AttachHook(handler)
 }

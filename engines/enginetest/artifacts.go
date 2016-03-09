@@ -14,8 +14,7 @@ import (
 // The ArtifactTestCase contains information sufficient to test artifact
 // extration from an engine.
 type ArtifactTestCase struct {
-	engineProvider
-	Engine string
+	EngineProvider
 	// Text to search for in files
 	Text string
 	// Path of a file containing the Text string above
@@ -35,7 +34,7 @@ type ArtifactTestCase struct {
 
 // TestExtractTextFile checks that TextFilePath contains Text
 func (c *ArtifactTestCase) TestExtractTextFile() {
-	r := c.NewRun(c.Engine)
+	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
 	assert(r.buildRunSandbox(), "Task failed to run, payload: ", c.Payload)
@@ -52,7 +51,7 @@ func (c *ArtifactTestCase) TestExtractTextFile() {
 // TestExtractFileNotFound checks that FileNotFoundPath returns
 // ErrResourceNotFound
 func (c *ArtifactTestCase) TestExtractFileNotFound() {
-	r := c.NewRun(c.Engine)
+	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
 	assert(r.buildRunSandbox(), "Task failed to run, payload: ", c.Payload)
@@ -65,7 +64,7 @@ func (c *ArtifactTestCase) TestExtractFileNotFound() {
 // TestExtractFolderNotFound checks that FolderNotFoundPath returns
 // ErrResourceNotFound
 func (c *ArtifactTestCase) TestExtractFolderNotFound() {
-	r := c.NewRun(c.Engine)
+	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
 	assert(r.buildRunSandbox(), "Task failed to run, payload: ", c.Payload)
@@ -82,7 +81,7 @@ func (c *ArtifactTestCase) TestExtractFolderNotFound() {
 // TestExtractNestedFolderPath checks FolderNotFoundPath contains files
 // NestedFolderFiles
 func (c *ArtifactTestCase) TestExtractNestedFolderPath() {
-	r := c.NewRun(c.Engine)
+	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
 	assert(r.buildRunSandbox(), "Task failed to run, payload: ", c.Payload)
@@ -132,7 +131,7 @@ func (c *ArtifactTestCase) TestExtractNestedFolderPath() {
 // TestExtractFolderHandlerInterrupt checks that errors in handler given to
 // ExtractFolder causes ErrHandlerInterrupt
 func (c *ArtifactTestCase) TestExtractFolderHandlerInterrupt() {
-	r := c.NewRun(c.Engine)
+	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
 	assert(r.buildRunSandbox(), "Task failed to run, payload: ", c.Payload)
@@ -148,7 +147,7 @@ func (c *ArtifactTestCase) TestExtractFolderHandlerInterrupt() {
 
 // Test runs all test cases in parallel
 func (c *ArtifactTestCase) Test() {
-	c.ensureEngine(c.Engine)
+	c.ensureEngine()
 	wg := sync.WaitGroup{}
 	wg.Add(5)
 	go func() { c.TestExtractTextFile(); wg.Done() }()

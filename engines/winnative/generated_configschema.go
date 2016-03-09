@@ -18,7 +18,7 @@ type (
 
 		// Taskcluster client id used by taskcluster worker to
 		// talk to taskcluster queue.
-		ClientId string `json:"clientId"`
+		ClientID string `json:"clientId"`
 
 		// SSL certificate to be used by livelog for hosting
 		// logs over https. If not set, http will be used.
@@ -36,7 +36,7 @@ type (
 		// The taskcluster provisioner which is taking care
 		// of provisioning environments with taskcluster worker
 		// running on them. [default: aws-provisioner-v1]
-		ProvisionerId string `json:"provisionerId"`
+		ProvisionerID string `json:"provisionerId"`
 
 		// The IP address for clients to be directed to
 		// for serving live logs; see
@@ -61,7 +61,7 @@ type (
 		WorkerGroup string `json:"workerGroup"`
 
 		// A name to uniquely identify your worker.
-		WorkerId string `json:"workerId"`
+		WorkerID string `json:"workerId"`
 
 		// This should match a worker_type managed by the
 		// provisioner you have specified.

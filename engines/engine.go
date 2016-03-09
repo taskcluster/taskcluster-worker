@@ -44,8 +44,8 @@ type Engine interface {
 	// this is used for up-front feature checking. Unsupport methods must also
 	// return ErrFeatureNotSupported when called.
 	//
-	// This property is strictly for plugins that needs to do up-front feature
-	// checking. Consumers are encouraged to just try then and handle errors
+	// This property is strictly for plugins that need to do up-front feature
+	// checking. Consumers are encouraged to just try them and handle errors
 	// rather than testing for supported features up-front. Granted this is not
 	// always possible, hence, the presence of this property.
 	//
@@ -62,7 +62,7 @@ type Engine interface {
 	// the docker image in before returning from NewSandboxBuilder(). The
 	// SandboxBuilder instance returned will then reference the docker image
 	// downloading process, and be ready to start a new docker container once
-	// StartSandbox() is called, Obviously blocking that call until docker image
+	// StartSandbox() is called. Obviously blocking that call until docker image
 	// download is completed.
 	//
 	// This operation should parse the engine-specific payload parts given in

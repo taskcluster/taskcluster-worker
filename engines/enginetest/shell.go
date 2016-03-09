@@ -11,8 +11,7 @@ import (
 // The ShellTestCase contains information sufficient to test the interactive
 // shell provided by a Sandbox
 type ShellTestCase struct {
-	engineProvider
-	Engine string
+	EngineProvider
 	// Command to pipe to the Shell over stdin
 	Command string
 	// Result to expect from the Shell on stdout when running Command
@@ -30,7 +29,7 @@ type ShellTestCase struct {
 
 // TestCommand checks we can run Command in the shell
 func (c *ShellTestCase) TestCommand() {
-	r := c.NewRun(c.Engine)
+	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
 	r.StartSandbox()
@@ -72,7 +71,7 @@ func (c *ShellTestCase) TestCommand() {
 
 // TestBadCommand checks we can run BadCommand in the shell
 func (c *ShellTestCase) TestBadCommand() {
-	r := c.NewRun(c.Engine)
+	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
 	r.StartSandbox()
@@ -107,7 +106,7 @@ func (c *ShellTestCase) TestBadCommand() {
 
 // TestAbortSleepCommand checks we can Abort the sleep command
 func (c *ShellTestCase) TestAbortSleepCommand() {
-	r := c.NewRun(c.Engine)
+	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
 	r.StartSandbox()
@@ -146,7 +145,7 @@ func (c *ShellTestCase) TestAbortSleepCommand() {
 
 // Test runs all tests in parallel
 func (c *ShellTestCase) Test() {
-	c.ensureEngine(c.Engine)
+	c.ensureEngine()
 	wg := sync.WaitGroup{}
 	wg.Add(3)
 	go func() { c.TestCommand(); wg.Done() }()

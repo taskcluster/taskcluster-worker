@@ -5,7 +5,6 @@
 package mockengine
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
@@ -19,7 +18,9 @@ type engine struct {
 	Log *logrus.Entry
 }
 
-type engineProvider struct{}
+type engineProvider struct {
+	extpoints.EngineProviderBase
+}
 
 func init() {
 	// Register the mock engine as an import side-effect
@@ -27,7 +28,6 @@ func init() {
 }
 
 func (e engineProvider) NewEngine(options extpoints.EngineOptions) (engines.Engine, error) {
-	fmt.Println(options.Log)
 	return engine{Log: options.Log}, nil
 }
 

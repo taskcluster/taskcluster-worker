@@ -13,9 +13,9 @@ import (
 // We wrap all arguments so that we can add additional properties without
 // breaking source compatibility with older plugins.
 type PluginOptions struct {
-	environment *runtime.Environment
-	engine      *engines.Engine
-	log         *logrus.Entry
+	Environment *runtime.Environment
+	Engine      *engines.Engine
+	Log         *logrus.Entry
 }
 
 // The PluginProvider interface must be implemented and registered by anyone
@@ -29,4 +29,16 @@ type PluginProvider interface {
 	// ConfigSchema returns the CompositeSchema that represents the plugin
 	// config.
 	ConfigSchema() runtime.CompositeSchema
+}
+
+// PluginProviderBase is a base struct that provides empty implementations of
+// some methods for PluginProvider
+//
+// Implementors of PluginProvider should embed this struct to ensure forward
+// compatibility when we add new optional method to PluginProvider.
+type PluginProviderBase struct{}
+
+// ConfigSchema returns an empty composite schema.
+func (PluginProviderBase) ConfigSchema() runtime.CompositeSchema {
+	return runtime.NewEmptyCompositeSchema()
 }

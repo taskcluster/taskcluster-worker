@@ -37,13 +37,13 @@ type Sandbox interface {
 	// Wait for task execution and termination of all associated shells, and
 	// return immediately if sandbox execution has finished.
 	//
-	// When this method returns all resources held by the Sandbox instance must
+	// When this method returns, all resources held by the Sandbox instance must
 	// have been released or transferred to the ResultSet instance returned. If an
-	// internal error occured resources may be freed and WaitForResult() may
+	// internal error occured, resources may be freed and WaitForResult() may
 	// return ErrNonFatalInternalError if the error didn't leak resources and we
 	// don't expect the error to be persistent.
 	//
-	// When this method has returned any calls to Abort() or NewShell() should
+	// When this method has returned, any calls to Abort() or NewShell() should
 	// return ErrSandboxTerminated. If Abort() is called before WaitForResult()
 	// returns, WaitForResult() should return ErrSandboxAborted and release all
 	// resources held.
@@ -87,12 +87,12 @@ type Sandbox interface {
 	// ErrSandboxTerminated.
 	OpenDisplay(name string) (io.ReadWriteCloser, error)
 
-	// Abort the sandbox, this means killing the task execution as well as all
+	// Abort the sandbox. This means killing the task execution as well as all
 	// associated shells and releasing all resources held.
 	//
 	// If called before the sandbox execution finished, then WaitForResult() must
 	// return ErrSandboxAborted. If sandbox execution has finished when Abort() is
-	// called Abort() should return ErrSandboxTerminated and not release any
+	// called, Abort() should return ErrSandboxTerminated and not release any
 	// resources as they should have been released by WaitForResult() or
 	// transferred to the ResultSet instance returned.
 	//

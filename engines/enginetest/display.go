@@ -5,7 +5,7 @@ import "github.com/taskcluster/taskcluster-worker/engines"
 // The DisplayTestCase contains information sufficient to test the interactive
 // display provided by a Sandbox
 type DisplayTestCase struct {
-	Engine string
+	EngineProvider
 	// List of display that should be returned from Sandbox.ListDisplays(),
 	// They will all be opened to ensure that they are in fact VNC connections.
 	Displays []engines.Display

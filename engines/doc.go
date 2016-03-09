@@ -1,4 +1,4 @@
-// Package engine specfies the interfaces that each engine must implement.
+// Package engines specifies the interfaces that each engine must implement.
 //
 // This is all rooted at the EngineProvider interface specified in the extpoints
 // package, where implementors should register their engine.

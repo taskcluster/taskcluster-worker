@@ -140,11 +140,11 @@ func generateFunctions(ymlFile, goType, schemaProperty string, req bool) string 
 		log.Fatalf("ERROR: Problem reading from file '%v' - %s", ymlFile, err)
 	}
 	// json is valid YAML, so we can safely convert, even if it is already json
-	rawJson, err := yaml.YAMLToJSON(data)
+	rawJSON, err := yaml.YAMLToJSON(data)
 	if err != nil {
 		log.Fatalf("ERROR: Problem converting file '%v' to json format - %s", ymlFile, err)
 	}
-	rawJson, err = jsontest.FormatJson(rawJson)
+	rawJSON, err = jsontest.FormatJson(rawJSON)
 	if err != nil {
 		log.Fatalf("ERROR: Problem pretty printing json in '%v' - %s", ymlFile, err)
 	}
@@ -152,12 +152,10 @@ func generateFunctions(ymlFile, goType, schemaProperty string, req bool) string 
 	result += "\tschema, err := runtime.NewCompositeSchema(\n"
 	result += "\t\t\"" + schemaProperty + "\",\n"
 	result += "\t\t`\n"
-	// the following strings.Replace function call safely escapes backticks (`) in rawJson
-	result += strings.Replace(text.Indent(fmt.Sprintf("%v", string(rawJson)), "\t\t")+"\n", "`", "` + \"`\" + `", -1)
+	// the following strings.Replace function call safely escapes backticks (`) in rawJSON
+	result += strings.Replace(text.Indent(fmt.Sprintf("%v", string(rawJSON)), "\t\t")+"\n", "`", "` + \"`\" + `", -1)
 	result += "\t\t`,\n"
-	if req {
-		result += "\t\ttrue,\n"
-	}
+	result += fmt.Sprintf("\t\t%t,\n", req)
 	result += "\t\tfunc() interface{} {\n"
 	result += "\t\t\treturn &" + goType + "{}\n"
 	result += "\t\t},\n"
