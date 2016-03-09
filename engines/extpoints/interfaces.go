@@ -40,3 +40,15 @@ type EngineProvider interface {
 	// configuration
 	ConfigSchema() runtime.CompositeSchema
 }
+
+// EngineProviderBase is a base struct that provides empty implementations of
+// some methods for EngineProvider
+//
+// Implementors of EngineProvider should embed this struct to ensure forward
+// compatibility when we add new optional method to EngineProvider.
+type EngineProviderBase struct{}
+
+// ConfigSchema returns an empty composite schema.
+func (EngineProviderBase) ConfigSchema() runtime.CompositeSchema {
+	return runtime.NewEmptyCompositeSchema()
+}

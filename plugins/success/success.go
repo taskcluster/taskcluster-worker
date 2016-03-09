@@ -16,18 +16,14 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/plugins/extpoints"
-	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 type pluginProvider struct {
+	extpoints.PluginProviderBase
 }
 
 func (pluginProvider) NewPlugin(extpoints.PluginOptions) (plugins.Plugin, error) {
 	return plugin{}, nil
-}
-
-func (pluginProvider) ConfigSchema() runtime.CompositeSchema {
-	return runtime.NewEmptyCompositeSchema()
 }
 
 type plugin struct {
