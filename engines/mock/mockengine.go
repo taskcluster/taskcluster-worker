@@ -18,7 +18,9 @@ type engine struct {
 	Log *logrus.Entry
 }
 
-type engineProvider struct{}
+type engineProvider struct {
+	extpoints.EngineProviderBase
+}
 
 func init() {
 	// Register the mock engine as an import side-effect
