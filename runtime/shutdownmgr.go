@@ -15,32 +15,38 @@ func NewShutdownManager(host string) ShutdownManager {
 	var manager ShutdownManager
 	switch host {
 	case "AWS":
-		manager = &AWSShutdownManager{}
+		manager = &awsShutdownManager{
+			sc: make(chan struct{}),
+		}
 	case "local":
-		manager = &LocalShutdownManager{}
+		manager = &localShutdownManager{
+			sc: make(chan struct{}),
+		}
 	}
 
 	return manager
 }
 
-// AWSShutdownManager is a ShutdownManager that will listen for shutdowns on the notification
+// awsShutdownManager is a ShutdownManager that will listen for shutdowns on the notification
 // api provided by AWS.
-type AWSShutdownManager struct{}
+type awsShutdownManager struct {
+	sc chan struct{}
+}
 
 // WaitForShutdown will listen for notification events from the AWS shutdown endpoint
 // and close the channel when a shutdown notification is received.
 // When a shutdown event is received, shutdown ch
-func (AWSShutdownManager) WaitForShutdown() <-chan struct{} {
-	c := make(chan struct{})
-	return c
+func (a *awsShutdownManager) WaitForShutdown() <-chan struct{} {
+	return a.sc
 }
 
-// LocalShutdownManager simple ShutdownManager that could listen for shutdown events
+// localShutdownManager simple ShutdownManager that could listen for shutdown events
 // suitable for a local non-cloud environment (such as SIGTERM).
-type LocalShutdownManager struct{}
+type localShutdownManager struct {
+	sc chan struct{}
+}
 
 // WaitForShutdown will listen for local events to signify a worker shutdown
-func (LocalShutdownManager) WaitForShutdown() <-chan struct{} {
-	c := make(chan struct{})
-	return c
+func (l *localShutdownManager) WaitForShutdown() <-chan struct{} {
+	return l.sc
 }
