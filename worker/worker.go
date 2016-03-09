@@ -39,15 +39,9 @@ func (w *Worker) Start() error {
 
 	go w.tm.Start()
 
-	sc := w.sm.WaitForShutdown()
-shutdownloop:
-	for {
-		select {
-		case <-sc:
-			break shutdownloop
-		case <-w.done:
-			break shutdownloop
-		}
+	select {
+	case <-w.sm.WaitForShutdown():
+	case <-w.done:
 	}
 
 	w.tm.Stop()
