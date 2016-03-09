@@ -19,7 +19,7 @@ type FileHandler func(path string, stream io.ReadCloser) error
 //
 // All methods on this interface must be thread-safe.
 type ResultSet interface {
-	// Success, returns true if the execution was successful, typically implying
+	// Success returns true if the execution was successful, typically implying
 	// that the process exited zero.
 	Success() bool
 
