@@ -2,9 +2,7 @@ package worker
 
 import (
 	"fmt"
-	"math"
 	"sync"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	tcqueue "github.com/taskcluster/taskcluster-client-go/queue"
@@ -23,8 +21,7 @@ import (
 type Manager struct {
 	sync.RWMutex
 	wg            sync.WaitGroup
-	interval      int
-	maxCapacity   int
+	done          chan struct{}
 	engine        engines.Engine
 	environment   *runtime.Environment
 	pluginManager plugins.Plugin
@@ -48,22 +45,23 @@ func newTaskManager(config *config.Config, engine engines.Engine, environment *r
 		},
 	)
 	service := &queueService{
+		capacity:         config.Capacity,
+		interval:         config.PollingInterval,
 		client:           queue,
-		ProvisionerID:    config.ProvisionerID,
-		WorkerGroup:      config.WorkerGroup,
-		WorkerID:         config.WorkerID,
-		WorkerType:       config.WorkerType,
-		Log:              log.WithField("component", "Queue Service"),
-		ExpirationOffset: config.QueueService.ExpirationOffset,
+		provisionerID:    config.ProvisionerID,
+		workerGroup:      config.WorkerGroup,
+		workerID:         config.WorkerID,
+		workerType:       config.WorkerType,
+		log:              log.WithField("component", "Queue Service"),
+		expirationOffset: config.QueueService.ExpirationOffset,
 	}
 
 	m := &Manager{
 		tasks:         make(map[string]*TaskRun),
+		done:          make(chan struct{}),
 		engine:        engine,
 		environment:   environment,
-		interval:      config.PollingInterval,
 		log:           log,
-		maxCapacity:   config.Capacity,
 		queue:         service,
 		provisionerID: config.ProvisionerID,
 		workerGroup:   config.WorkerGroup,
@@ -86,30 +84,26 @@ func newTaskManager(config *config.Config, engine engines.Engine, environment *r
 	return m, nil
 }
 
-// Start will initiliaze a polling cycle for tasks and spawn goroutines to
-// execute units of work that has been claimed.
+// Start will instruct the queue service to begin claiming work and will run task
+// claims that are returned by the queue service.
 func (m *Manager) Start() {
-	m.log.Infof("Polling for tasks every %d seconds\n", m.interval)
-	doWork := time.NewTicker(time.Duration(m.interval) * time.Second)
-	for {
-		select {
-		case <-doWork.C:
-			m.Lock()
-			n := math.Max(float64(m.maxCapacity-len(m.tasks)), 0)
-			m.Unlock()
-			m.claimWork(int(n))
+	tc := m.queue.Start()
+	go func() {
+		for t := range tc {
+			go m.run(t)
 		}
-	}
+		close(m.done)
+	}()
+	return
 }
 
 // Stop should be called when the worker should gracefully end the execution of
 // all running tasks before completely shutting down.
 func (m *Manager) Stop() {
+	m.queue.Stop()
+	<-m.done
+
 	m.Lock()
-
-	// Set max capacity to 0 so that no more tasks will be claimed
-	m.maxCapacity = 0
-
 	for _, task := range m.tasks {
 		task.Abort()
 	}
@@ -149,18 +143,6 @@ func (m *Manager) CancelTask(taskID string, runID int) {
 
 	t.Cancel()
 	return
-}
-
-func (m *Manager) claimWork(ntasks int) {
-	if ntasks == 0 {
-
-		return
-	}
-
-	tasks := m.queue.ClaimWork(ntasks)
-	for _, t := range tasks {
-		go m.run(t)
-	}
 }
 
 func (m *Manager) run(task *TaskRun) {
@@ -220,6 +202,7 @@ func (m *Manager) deregisterTask(task *TaskRun) error {
 	}
 
 	delete(m.tasks, name)
+	m.queue.Done()
 	m.wg.Done()
 	return nil
 }

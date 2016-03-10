@@ -18,6 +18,7 @@ import (
 	"github.com/taskcluster/httpbackoff"
 	tcqueue "github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-client-go/tcclient"
+	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 )
 
 type (
@@ -58,78 +59,102 @@ type (
 	// QueueService is an interface describing the methods responsible for claiming
 	// work from Azure queues.
 	QueueService interface {
-		ClaimWork(int) []*TaskRun
+		Done()
+		Start() <-chan *TaskRun
+		Stop()
 	}
 
 	queueService struct {
-		mu               sync.Mutex
+		mu               sync.RWMutex
+		capacity         int
+		interval         int
+		tc               chan *TaskRun
 		queues           []taskQueue
-		Expires          tcclient.Time
-		ExpirationOffset int
+		expires          tcclient.Time
+		expirationOffset int
 		client           queueClient
-		ProvisionerID    string
-		WorkerType       string
-		WorkerID         string
-		WorkerGroup      string
-		Log              *logrus.Entry
+		provisionerID    string
+		workerType       string
+		workerID         string
+		workerGroup      string
+		log              *logrus.Entry
+		halt             atomics.Bool
 	}
 )
 
-// Given a number of tasks needed, the Azure task queues will be polled in order
-// of priority until either there are no more tasks to claim, or the given number of
-// tasks has been fulfilled.
-func (q *queueService) ClaimWork(ntasks int) []*TaskRun {
-	q.Log.Debugf("Attempting to claim %d tasks.", ntasks)
-	tasks := []*TaskRun{}
-	taskRuns, err := q.retrieveTasksFromQueue(ntasks)
-	if err != nil {
-		// Log the error but just return an empty set of Task Runs.
-		q.Log.WithField("error", err).Error("Error retrieving tasks to execute.")
-		return []*TaskRun{}
-	}
+// Start will begin the task claiming loop and claim as many tasks as the worker
+// capacity allows.  Claimed tasks will be returned on a channel for consumers
+// to run.
+func (q *queueService) Start() <-chan *TaskRun {
+	q.tc = make(chan *TaskRun)
 
-	tasks = q.claimTasks(taskRuns)
-	return tasks
+	go func() {
+		for !q.halt.Get() {
+			q.mu.RLock()
+			capacity := q.capacity
+			q.mu.RUnlock()
+			tasks := q.retrieveTasksFromQueue(capacity)
+			q.claimTasks(tasks)
+			time.Sleep(time.Duration(q.interval) * time.Second)
+		}
+		close(q.tc)
+	}()
+	return q.tc
 }
 
-func (q *queueService) claimTasks(tasks []*TaskRun) []*TaskRun {
+// Stop will set the current capacity to 0 so no tasks are claimed.
+func (q *queueService) Stop() {
+	q.halt.Set(true)
+	return
+}
+
+// Done is called each time a task is completed.  Current capacity will be incremented
+// each time Done is called.
+func (q *queueService) Done() {
+	q.mu.Lock()
+	q.capacity++
+	q.mu.Unlock()
+}
+
+func (q *queueService) claimTasks(tasks []*TaskRun) {
 	var wg sync.WaitGroup
-	claims := []*TaskRun{}
-	claimed := make(chan *TaskRun, len(tasks))
 	wg.Add(len(tasks))
 	for _, task := range tasks {
 		go func(task *TaskRun) {
 			defer wg.Done()
-			success := q.claimTask(task)
-			if success {
-				claimed <- task
+			err := q.claimTask(task)
+			if err != nil {
+				q.log.WithFields(logrus.Fields{
+					"taskID": task.TaskID,
+					"runID":  task.RunID,
+					"error":  err.Error(),
+				}).Warn("Could not claim task")
+				return
 			}
+			q.mu.Lock()
+			q.capacity--
+			q.mu.Unlock()
+			q.tc <- task
 		}(task)
 	}
 	wg.Wait()
-	close(claimed)
-
-	for claim := range claimed {
-		claims = append(claims, claim)
-	}
-
-	return claims
+	return
 }
 
-func (q *queueService) claimTask(task *TaskRun) bool {
-	err := claimTask(q.client, task, q.WorkerID, q.WorkerGroup, q.Log)
+func (q *queueService) claimTask(task *TaskRun) error {
+	err := claimTask(q.client, task, q.workerID, q.workerGroup, q.log)
 	if err != nil {
 		if err.statusCode == 401 || err.statusCode == 403 || err.statusCode >= 500 {
 			// Do not delete the message if task could not be claimed because of server
 			// or authorization failures
-			return false
+			return errors.New("Error when attempting to claim task.  Task was *not* deleted from Azure.")
 		}
 
 		_ = q.deleteFromAzure(task.SignedDeleteURL)
-		return false
+		return errors.New("Error when attempting to claim task.  Error is non-recoverable so task was deleted from Azure.")
 	}
 	_ = q.deleteFromAzure(task.SignedDeleteURL)
-	return true
+	return nil
 }
 
 // deleteFromAzure will attempt to delete a task from the Azure queue and
@@ -145,7 +170,7 @@ func (q *queueService) deleteFromAzure(deleteURL string) error {
 	// either case the worker should delete the message as we don't want
 	// another worker to receive message later.
 
-	q.Log.Info("Deleting task from Azure queue")
+	q.log.Info("Deleting task from Azure queue")
 	httpCall := func() (*http.Response, error, error) {
 		req, err := http.NewRequest("DELETE", deleteURL, nil)
 		if err != nil {
@@ -168,14 +193,14 @@ func (q *queueService) deleteFromAzure(deleteURL string) error {
 	// reasons outlined above it's strongly advised that workers logs failures
 	// to delete messages from Azure queues.
 	if err != nil {
-		q.Log.WithFields(logrus.Fields{
+		q.log.WithFields(logrus.Fields{
 			"error": err,
 			"url":   deleteURL,
 		}).Warn("Not able to delete task from azure queue")
 		return err
 	}
 
-	q.Log.Info("Successfully deleted task from azure queue")
+	q.log.Info("Successfully deleted task from azure queue")
 	return nil
 }
 
@@ -216,7 +241,7 @@ func (q *queueService) pollTaskURL(taskQueue *taskQueue, ntasks int) ([]*TaskRun
 	data, err := ioutil.ReadAll(resp.Body)
 	if err := xml.Unmarshal(data, &r); err != nil {
 		//if err := xml.NewDecoder(resp.Body).Decode(&queueMessagesList); err != nil {
-		q.Log.WithFields(logrus.Fields{
+		q.log.WithFields(logrus.Fields{
 			"body":  resp.Body,
 			"error": err.Error(),
 		}).Debugf("Not able to xml decode the response from the Azure queue")
@@ -224,7 +249,7 @@ func (q *queueService) pollTaskURL(taskQueue *taskQueue, ntasks int) ([]*TaskRun
 	}
 
 	if len(r.QueueMessages) == 0 {
-		q.Log.Debug("Zero tasks returned in Azure XML queueMessagesList")
+		q.log.Debug("Zero tasks returned in Azure XML queueMessagesList")
 		return []*TaskRun{}, nil
 	}
 
@@ -258,10 +283,10 @@ func (q *queueService) pollTaskURL(taskQueue *taskQueue, ntasks int) ([]*TaskRun
 		// that alert the operator if a message has been dequeued a significant
 		// number of times, for example 15 or more.
 		if qm.DequeueCount >= 15 {
-			q.Log.Warnf("Queue Message with message id %v has been dequeued %v times!", qm.MessageID, qm.DequeueCount)
+			q.log.Warnf("Queue Message with message id %v has been dequeued %v times!", qm.MessageID, qm.DequeueCount)
 			err := q.deleteFromAzure(SignedDeleteURL)
 			if err != nil {
-				q.Log.Warnf("Not able to call Azure delete URL %v. %v", SignedDeleteURL, err)
+				q.log.Warnf("Not able to call Azure delete URL %v. %v", SignedDeleteURL, err)
 			}
 		}
 
@@ -272,11 +297,11 @@ func (q *queueService) pollTaskURL(taskQueue *taskQueue, ntasks int) ([]*TaskRun
 		if err != nil {
 			// try to delete from Azure, if it fails, nothing we can do about it
 			// not very serious - another worker will try to delete it
-			q.Log.WithField("messageText", qm.MessageText).Errorf("Not able to base64 decode the Message Text in Azure message response.")
-			q.Log.WithField("messageID", qm.MessageID).Info("Deleting from Azure queue as other workers will have the same problem.")
+			q.log.WithField("messageText", qm.MessageText).Errorf("Not able to base64 decode the Message Text in Azure message response.")
+			q.log.WithField("messageID", qm.MessageID).Info("Deleting from Azure queue as other workers will have the same problem.")
 			err := q.deleteFromAzure(SignedDeleteURL)
 			if err != nil {
-				q.Log.WithFields(logrus.Fields{
+				q.log.WithFields(logrus.Fields{
 					"messageID": qm.MessageID,
 					"url":       SignedDeleteURL,
 					"error":     err,
@@ -293,13 +318,13 @@ func (q *queueService) pollTaskURL(taskQueue *taskQueue, ntasks int) ([]*TaskRun
 		// now populate remaining json fields of TaskRun from json string m
 		err = json.Unmarshal(m, &taskRun)
 		if err != nil {
-			q.Log.WithFields(logrus.Fields{
+			q.log.WithFields(logrus.Fields{
 				"error":   err,
 				"message": m,
 			}).Warn("Not able to unmarshal json from base64 decoded MessageText")
 			err := q.deleteFromAzure(SignedDeleteURL)
 			if err != nil {
-				q.Log.WithFields(logrus.Fields{
+				q.log.WithFields(logrus.Fields{
 					"url":   SignedDeleteURL,
 					"error": err,
 				}).Warn("Not able to call Azure delete URL")
@@ -321,11 +346,11 @@ func (q *queueService) refreshTaskQueueUrls() error {
 		return nil
 	}
 
-	q.Log.Debug("Refreshing Azure queue task urls")
+	q.log.Debug("Refreshing Azure queue task urls")
 
-	signedURLs, _, err := q.client.PollTaskUrls(q.ProvisionerID, q.WorkerType)
+	signedURLs, _, err := q.client.PollTaskUrls(q.provisionerID, q.workerType)
 	if err != nil {
-		q.Log.WithField("error", err).Warn("Error retrieving task urls.")
+		q.log.WithField("error", err).Warn("Error retrieving task urls.")
 		return errors.New("Error retrieving task urls.")
 	}
 
@@ -336,19 +361,16 @@ func (q *queueService) refreshTaskQueueUrls() error {
 
 	q.mu.Lock()
 	q.queues = taskQueues
-	q.Expires = signedURLs.Expires
+	q.expires = signedURLs.Expires
 	q.mu.Unlock()
-	q.Log.Debugf("Refreshed %d Azure queue task urls", len(taskQueues))
+	q.log.Debugf("Refreshed %d Azure queue task urls", len(taskQueues))
 	return nil
 }
 
-func (q *queueService) retrieveTasksFromQueue(ntasks int) ([]*TaskRun, error) {
-	err := q.refreshTaskQueueUrls()
-	if err != nil {
-		return nil, err
-	}
-
+func (q *queueService) retrieveTasksFromQueue(ntasks int) []*TaskRun {
+	_ = q.refreshTaskQueueUrls()
 	tasks := []*TaskRun{}
+
 	for _, queue := range q.queues {
 		// Continue polling the Azure queue until either enough messages have been retrieved
 		// or the queue has no more messages.
@@ -356,11 +378,11 @@ func (q *queueService) retrieveTasksFromQueue(ntasks int) ([]*TaskRun, error) {
 			// It hopefully would never be greater, but just incase, we would want to return
 			// and run what tasks we do have.
 			if len(tasks) >= ntasks {
-				return tasks, nil
+				return tasks
 			}
 			taskRuns, err := q.pollTaskURL(&queue, ntasks-len(tasks))
 			if err != nil {
-				q.Log.Warnf("Could not retrieve tasks from the Azure queue. %s", err)
+				q.log.Warnf("Could not retrieve tasks from the Azure queue. %s", err)
 				break
 			}
 
@@ -372,7 +394,7 @@ func (q *queueService) retrieveTasksFromQueue(ntasks int) ([]*TaskRun, error) {
 		}
 
 	}
-	return tasks, nil
+	return tasks
 }
 
 // Evaluate if the current time is getting close to the url expiration as decided
@@ -383,7 +405,7 @@ func (q *queueService) shouldRefreshQueueUrls() bool {
 	}
 	// If the duration between Expiration and current time is less than the expiration
 	// off set then it's time to refresh the urls
-	if int(time.Time(q.Expires).Sub(time.Now()).Seconds()) < q.ExpirationOffset {
+	if int(time.Time(q.expires).Sub(time.Now()).Seconds()) < q.expirationOffset {
 		return true
 	}
 	return false

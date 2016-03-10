@@ -34,7 +34,7 @@ func New(config *config.Config, engine engines.Engine, environment *runtime.Envi
 // Start will begin the worker cycle of claiming and executing tasks.  The worker
 // will also being to respond to host level events such as shutdown notifications and
 // resource depletion events.
-func (w *Worker) Start() error {
+func (w *Worker) Start() {
 	w.logger.Info("worker starting up")
 
 	go w.tm.Start()
@@ -45,7 +45,7 @@ func (w *Worker) Start() error {
 	}
 
 	w.tm.Stop()
-	return nil
+	return
 }
 
 // stop is a convenience method for stopping the worker loop.  Usually the worker will not be

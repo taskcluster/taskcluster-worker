@@ -3,7 +3,6 @@ package worker
 import (
 	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/taskcluster/taskcluster-worker/config"
@@ -12,6 +11,28 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
+
+type mockedQueueService struct {
+	started bool
+	stopped bool
+	worker  *Worker
+}
+
+func (m *mockedQueueService) Start() <-chan *TaskRun {
+	defer m.worker.stop()
+	defer close(m.worker.tm.done)
+	m.started = true
+	return make(chan *TaskRun)
+}
+
+func (m *mockedQueueService) Stop() {
+	m.stopped = true
+	return
+}
+
+func (mockedQueueService) Done() {
+	return
+}
 
 func newWorker(t *testing.T, c *config.Config) (*Worker, error) {
 	logger, err := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
@@ -43,15 +64,15 @@ func TestStart(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	start := time.Now()
-	time.AfterFunc(2*time.Second, w.stop)
-
-	err = w.Start()
-	if err != nil {
-		t.Fatal(err.Error())
+	mockedQueue := &mockedQueueService{
+		worker: w,
 	}
+	w.tm.queue = mockedQueue
 
-	d := time.Since(start).Seconds()
-	// Worker should not have been running for longer than 2 seconds +- a few ms
-	assert.True(t, d >= 2 && d <= 2.5)
+	w.Start()
+
+	// Assure that the queue service was started/stopped
+	//as a sign the worker successfully started
+	assert.True(t, mockedQueue.started, "Queue Service should have been started")
+	assert.True(t, mockedQueue.stopped, "Queue Service should have been stopped")
 }
