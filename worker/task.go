@@ -35,6 +35,7 @@ type TaskRun struct {
 	resultSet      engines.ResultSet
 	engine         engines.Engine
 	success        bool
+	shutdown       bool
 }
 
 // Abort will set the status of the task to aborted and abort the task execution
@@ -42,6 +43,7 @@ type TaskRun struct {
 func (t *TaskRun) Abort() {
 	t.Lock()
 	defer t.Unlock()
+	t.shutdown = true
 	if t.context != nil {
 		t.context.Abort()
 	}
@@ -83,14 +85,14 @@ func (t *TaskRun) Run(pluginManager plugins.Plugin, engine engines.Engine, conte
 	err := t.ParsePayload(pluginManager, engine)
 	if err != nil || t.context.IsAborted() || t.context.IsCancelled() {
 		t.context.LogError(fmt.Sprintf("Invalid task payload. %s", err))
-		t.ExceptionStage(runtime.Errored, err)
+		t.ExceptionStage(err)
 		return
 	}
 
 	err = t.CreateTaskPlugins(pluginManager)
 	if err != nil || t.context.IsAborted() || t.context.IsCancelled() {
 		t.context.LogError(fmt.Sprintf("Invalid task payload. %s", err))
-		t.ExceptionStage(runtime.Errored, err)
+		t.ExceptionStage(err)
 		return
 	}
 
@@ -104,7 +106,7 @@ func (t *TaskRun) Run(pluginManager plugins.Plugin, engine engines.Engine, conte
 	for _, stage := range stages {
 		err = stage()
 		if err != nil || t.context.IsAborted() || t.context.IsCancelled() {
-			t.ExceptionStage(runtime.Errored, err)
+			t.ExceptionStage(err)
 			return
 		}
 	}
@@ -258,16 +260,18 @@ func (t *TaskRun) FinishStage() error {
 // ExceptionStage will report a task run as an exception with an appropriate reason.
 // Tasks that have been cancelled will not be reported as an exception as the run
 // has already been resolved.
-func (t *TaskRun) ExceptionStage(status runtime.TaskStatus, taskError error) {
+func (t *TaskRun) ExceptionStage(taskError error) {
 	fmt.Println(taskError)
 	var reason runtime.ExceptionReason
-	switch taskError.(type) {
-	case engines.MalformedPayloadError:
-		reason = runtime.MalformedPayload
-	case engines.InternalError:
-		reason = runtime.InternalError
-	default:
+	if t.shutdown {
 		reason = runtime.WorkerShutdown
+	} else {
+		switch taskError.(type) {
+		case engines.MalformedPayloadError:
+			reason = runtime.MalformedPayload
+		default:
+			reason = runtime.InternalError
+		}
 	}
 
 	err := t.controller.CloseLog()
