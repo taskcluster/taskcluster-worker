@@ -101,7 +101,8 @@ type Engine interface {
 // To encourage the try and handle errors pattern, the Capabilities shall only
 // list features for which we critically need up-front feature testing.
 type Capabilities struct {
-	IsSingletonEngine bool
+	// Maximum number of parallel sandboxes, leave 0 if unbounded.
+	MaxConcurrency int
 	// Note: the zero value of Capabilities should always indicate the sane
 	// defaults, typically that a feature isn't supported.
 	// (IsSingletonEngine is an excellent example of a valid exception)
