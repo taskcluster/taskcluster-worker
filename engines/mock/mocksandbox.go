@@ -3,7 +3,6 @@ package mockengine
 import (
 	"bytes"
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,23 +12,12 @@ import (
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
 type mount struct {
 	volume   *volume
 	readOnly bool
-}
-
-func nopCloser(r io.Reader) readSeekNopCloser {
-	return readSeekNopCloser{r.(io.ReadSeeker)}
-}
-
-type readSeekNopCloser struct {
-	io.ReadSeeker
-}
-
-func (readSeekNopCloser) Close() error {
-	return nil
 }
 
 // In this example it is easier to just implement with one object.
@@ -207,12 +195,12 @@ func (s *sandbox) Abort() error {
 	return nil
 }
 
-func (s *sandbox) ExtractFile(path string) (engines.ReadSeekCloser, error) {
+func (s *sandbox) ExtractFile(path string) (ioext.ReadSeekCloser, error) {
 	data := s.files[path]
 	if data == nil {
 		return nil, engines.ErrResourceNotFound
 	}
-	return nopCloser(bytes.NewReader(data)), nil
+	return ioext.NopCloser(bytes.NewReader(data)), nil
 }
 
 func (s *sandbox) ExtractFolder(folder string, handler engines.FileHandler) error {
@@ -233,7 +221,7 @@ func (s *sandbox) ExtractFolder(folder string, handler engines.FileHandler) erro
 			}
 			wg.Add(1)
 			go func(path string, data []byte) {
-				err := handler(path, nopCloser(bytes.NewReader(data)))
+				err := handler(path, ioext.NopCloser(bytes.NewReader(data)))
 				if err != nil {
 					m.Lock()
 					handlerError = true

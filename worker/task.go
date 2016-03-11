@@ -173,7 +173,10 @@ func (t *TaskRun) parsePayload() error {
 // createTaskPlugins will create a new task plugin to be used during the task lifecycle.
 func (t *TaskRun) createTaskPlugins() error {
 	var err error
-	popts := plugins.TaskPluginOptions{TaskInfo: &runtime.TaskInfo{}, Payload: t.pluginPayload}
+	popts := plugins.TaskPluginOptions{TaskInfo: &runtime.TaskInfo{
+		TaskID: t.TaskID,
+		RunID:  t.RunID,
+	}, Payload: t.pluginPayload}
 	t.plugin, err = t.pluginManager.NewTaskPlugin(popts)
 	if err != nil {
 		return err
