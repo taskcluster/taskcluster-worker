@@ -30,7 +30,7 @@ var envPayloadSchema = func() runtime.CompositeSchema {
 		`,
 		false,
 		func() interface{} {
-			return &envPayload{}
+			return envPayload{}
 		},
 	)
 	if err != nil {
