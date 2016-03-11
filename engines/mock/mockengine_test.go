@@ -16,14 +16,14 @@ var volumeTestCase = enginetest.VolumeTestCase{
 	Mountpoint:     "/mock/volume",
 	WriteVolumePayload: `{
     "start": {
-      "delay": 10,
+      "delay": 0,
       "function": "set-volume",
       "argument": "/mock/volume"
     }
   }`,
 	CheckVolumePayload: `{
     "start": {
-      "delay": 10,
+      "delay": 0,
       "function": "get-volume",
       "argument": "/mock/volume"
     }
@@ -41,21 +41,21 @@ var loggingTestCase = enginetest.LoggingTestCase{
 	Target:         "Hello World",
 	TargetPayload: `{
     "start": {
-      "delay": 10,
+      "delay": 0,
       "function": "write-log",
       "argument": "Hello World"
     }
   }`,
 	FailingPayload: `{
     "start": {
-      "delay": 10,
+      "delay": 0,
       "function": "write-error-log",
       "argument": "Hello World"
     }
   }`,
 	SilentPayload: `{
     "start": {
-      "delay": 10,
+      "delay": 0,
       "function": "write-log",
       "argument": "Okay, let's try on Danish then: 'Hej Verden'"
     }
@@ -72,7 +72,7 @@ var proxyTestCase = enginetest.ProxyTestCase{
 	ProxyName:      "proxy.com",
 	PingProxyPayload: `{
     "start": {
-      "delay": 10,
+      "delay": 0,
       "function": "ping-proxy",
       "argument": "http://proxy.com/v1/ping"
     }
@@ -91,7 +91,7 @@ var envVarTestCase = enginetest.EnvVarTestCase{
 	InvalidVariableNames: []string{"bad d", "also bad", "can't have space"},
 	Payload: `{
     "start": {
-      "delay": 10,
+      "delay": 0,
       "function": "print-env-var",
       "argument": "HELLO_WORLD"
     }
@@ -113,7 +113,7 @@ var artifactTestCase = enginetest.ArtifactTestCase{
 	NestedFolderPath:   "/folder/",
 	Payload: `{
 		"start":{
-			"delay": 10,
+			"delay": 0,
 			"function": "write-files",
 			"argument": "/folder/a.txt /folder/b.txt /folder/c/c.txt"
 		}
@@ -136,7 +136,7 @@ var shellTestCase = enginetest.ShellTestCase{
 	SleepCommand:   "sleep",
 	Payload: `{
 		"start":{
-			"delay": 10,
+			"delay": 0,
 			"function": "true",
 			"argument": ""
 		}
