@@ -23,7 +23,7 @@ func (plugin) PayloadSchema() (runtime.CompositeSchema, error) {
 func (plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
 	return taskPlugin{
 		TaskPluginBase: plugins.TaskPluginBase{},
-		payload:        options.Payload.(envPayload),
+		payload:        *(options.Payload.(*envPayload)),
 	}, nil
 }
 
