@@ -108,7 +108,7 @@ func reclaimTask(client queueClient, task *TaskRun, log *logrus.Entry) *updateEr
 		return &updateError{err: err.Error()}
 	}
 
-	task.TaskReclaim = *tcrsp
+	task.taskReclaim = *tcrsp
 	log.Info("Reclaimed task successfully")
 	return nil
 }
