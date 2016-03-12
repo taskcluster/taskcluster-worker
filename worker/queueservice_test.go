@@ -591,12 +591,10 @@ func TestClaimTask(t *testing.T) {
 		WorkerID:    WorkerID,
 	}, &tcclient.CallSummary{}, nil)
 
-	task := &TaskRun{
+	task := &taskMessage{
 		TaskID:          "abc",
 		RunID:           0,
 		SignedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
-		TaskClaim:       queue.TaskClaimResponse{},
-		Definition:      queue.TaskDefinitionResponse{},
 	}
 
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
@@ -608,13 +606,13 @@ func TestClaimTask(t *testing.T) {
 		provisionerID: ProvisionerID,
 	}
 
-	err := service.claimTask(task)
+	claim, err := service.claimTask(task)
 
 	assert.Nil(t, err)
 	assert.True(t, deleteCalled)
 	// Do a quick sanity check to make sure the response was correctly stored in
 	// the task run object
-	assert.Equal(t, "1040824383284384", task.TaskClaim.Credentials.AccessToken)
+	assert.Equal(t, "1040824383284384", claim.TaskClaim.Credentials.AccessToken)
 }
 
 func TestClaimTaskError(t *testing.T) {
@@ -646,12 +644,10 @@ func TestClaimTaskError(t *testing.T) {
 		&tcclient.CallSummary{
 			HttpResponse: &http.Response{StatusCode: 401},
 		}, errors.New("Not good"))
-	task := &TaskRun{
+	task := &taskMessage{
 		TaskID:          "abc",
 		RunID:           0,
 		SignedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
-		TaskClaim:       queue.TaskClaimResponse{},
-		Definition:      queue.TaskDefinitionResponse{},
 	}
 
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
@@ -663,7 +659,7 @@ func TestClaimTaskError(t *testing.T) {
 		provisionerID: ProvisionerID,
 	}
 
-	err := service.claimTask(task)
+	_, err := service.claimTask(task)
 
 	assert.NotNil(t, err, "Task should not have been claimed")
 	// Delete should not have been called because it was an authorization issue
@@ -730,32 +726,28 @@ func TestClaimTasks(t *testing.T) {
 		WorkerGroup: WorkerType,
 		WorkerID:    WorkerID,
 	}, &tcclient.CallSummary{}, nil)
-	tasks := []*TaskRun{{
+	tasks := []*taskMessage{{
 		TaskID:          "abc",
 		RunID:           0,
 		SignedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
-		TaskClaim:       queue.TaskClaimResponse{},
-		Definition:      queue.TaskDefinitionResponse{},
 	}, {
 		TaskID:          "def",
 		RunID:           1,
 		SignedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
-		TaskClaim:       queue.TaskClaimResponse{},
-		Definition:      queue.TaskDefinitionResponse{},
 	}}
 
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		client:        mockedQueue,
 		capacity:      2,
-		tc:            make(chan *TaskRun, 2),
+		tc:            make(chan *taskClaim, 2),
 		log:           logger.WithField("component", "Queue Service"),
 		workerID:      WorkerID,
 		workerGroup:   WorkerType,
 		provisionerID: ProvisionerID,
 	}
 
-	claims := []*TaskRun{}
+	claims := []*taskClaim{}
 	service.claimTasks(tasks)
 loop:
 	for len(claims) != 2 {

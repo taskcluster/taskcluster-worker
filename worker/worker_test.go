@@ -18,11 +18,11 @@ type mockedQueueService struct {
 	worker  *Worker
 }
 
-func (m *mockedQueueService) Start() <-chan *TaskRun {
+func (m *mockedQueueService) Start() <-chan *taskClaim {
 	defer m.worker.stop()
 	defer close(m.worker.tm.done)
 	m.started = true
-	return make(chan *TaskRun)
+	return make(chan *taskClaim)
 }
 
 func (m *mockedQueueService) Stop() {

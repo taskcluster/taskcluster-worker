@@ -18,6 +18,14 @@ func (e updateError) Error() string {
 	return e.err
 }
 
+type taskClaim struct {
+	TaskID      string
+	RunID       uint
+	TaskClaim   tcqueue.TaskClaimResponse
+	Definition  tcqueue.TaskDefinitionResponse
+	QueueClient queueClient
+}
+
 func reportException(client queueClient, task *TaskRun, reason runtime.ExceptionReason, log *logrus.Entry) *updateError {
 	payload := tcqueue.TaskExceptionRequest{Reason: string(reason)}
 	_, _, err := client.ReportException(task.TaskID, strconv.FormatInt(int64(task.RunID), 10), &payload)
@@ -46,14 +54,14 @@ func reportCompleted(client queueClient, task *TaskRun, log *logrus.Entry) *upda
 	return nil
 }
 
-func claimTask(client queueClient, task *TaskRun, workerID string, workerGroup string, log *logrus.Entry) *updateError {
+func claimTask(client queueClient, taskID string, runID uint, workerID string, workerGroup string, log *logrus.Entry) (*taskClaim, *updateError) {
 	log.Info("Claiming task")
 	payload := tcqueue.TaskClaimRequest{
 		WorkerGroup: workerGroup,
 		WorkerID:    workerID,
 	}
 
-	tcrsp, callSummary, err := client.ClaimTask(task.TaskID, strconv.FormatInt(int64(task.RunID), 10), &payload)
+	tcrsp, callSummary, err := client.ClaimTask(taskID, strconv.FormatInt(int64(runID), 10), &payload)
 	// check if an error occurred...
 	if err != nil {
 		e := &updateError{
@@ -73,22 +81,22 @@ func claimTask(client queueClient, task *TaskRun, workerID string, workerGroup s
 			"error":      err,
 			"statusCode": callSummary.HttpResponse.StatusCode,
 		}).Error(errorMessage)
-		return e
+		return nil, e
 	}
 
-	queue := tcqueue.New(
-		&tcclient.Credentials{
-			ClientId:    tcrsp.Credentials.ClientID,
-			AccessToken: tcrsp.Credentials.AccessToken,
-			Certificate: tcrsp.Credentials.Certificate,
-		},
-	)
-
-	task.TaskClaim = *tcrsp
-	task.QueueClient = queue
-	task.Definition = tcrsp.Task
-
-	return nil
+	return &taskClaim{
+		TaskID: taskID,
+		RunID:  runID,
+		QueueClient: tcqueue.New(
+			&tcclient.Credentials{
+				ClientId:    tcrsp.Credentials.ClientID,
+				AccessToken: tcrsp.Credentials.AccessToken,
+				Certificate: tcrsp.Credentials.Certificate,
+			},
+		),
+		TaskClaim:  *tcrsp,
+		Definition: tcrsp.Task,
+	}, nil
 }
 
 func reclaimTask(client queueClient, task *TaskRun, log *logrus.Entry) *updateError {

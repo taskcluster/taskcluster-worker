@@ -36,12 +36,20 @@ type (
 		MessageText  string `xml:"MessageText"`
 	}
 
+	// taskQueue represents a priority queue containing a pair of signed
+	// delete and polling urls.  A given worker type will have 1 or more taskQueues
+	// which should be polled in order for tasks.
+	// TODO (garndt): change to priorityQueue
 	taskQueue struct {
 		SignedDeleteURL string `json:"signedDeleteUrl"`
 		SignedPollURL   string `json:"signedPollUrl"`
 	}
 
-	taskRuns []*TaskRun
+	taskMessage struct {
+		TaskID          string `json:"taskId"`
+		RunID           uint   `json:"runId"`
+		SignedDeleteURL string
+	}
 
 	// TaskclusterQueue is an interface to the Queue client provided by the
 	// taskcluster-client-go package.  Passing around an interface allows the
@@ -60,7 +68,7 @@ type (
 	// work from Azure queues.
 	QueueService interface {
 		Done()
-		Start() <-chan *TaskRun
+		Start() <-chan *taskClaim
 		Stop()
 	}
 
@@ -68,7 +76,7 @@ type (
 		mu               sync.RWMutex
 		capacity         int
 		interval         int
-		tc               chan *TaskRun
+		tc               chan *taskClaim
 		queues           []taskQueue
 		expires          tcclient.Time
 		expirationOffset int
@@ -85,8 +93,8 @@ type (
 // Start will begin the task claiming loop and claim as many tasks as the worker
 // capacity allows.  Claimed tasks will be returned on a channel for consumers
 // to run.
-func (q *queueService) Start() <-chan *TaskRun {
-	q.tc = make(chan *TaskRun)
+func (q *queueService) Start() <-chan *taskClaim {
+	q.tc = make(chan *taskClaim)
 
 	go func() {
 		for !q.halt.Get() {
@@ -116,13 +124,13 @@ func (q *queueService) Done() {
 	q.mu.Unlock()
 }
 
-func (q *queueService) claimTasks(tasks []*TaskRun) {
+func (q *queueService) claimTasks(tasks []*taskMessage) {
 	var wg sync.WaitGroup
 	wg.Add(len(tasks))
 	for _, task := range tasks {
-		go func(task *TaskRun) {
+		go func(task *taskMessage) {
 			defer wg.Done()
-			err := q.claimTask(task)
+			claim, err := q.claimTask(task)
 			if err != nil {
 				q.log.WithFields(logrus.Fields{
 					"taskID": task.TaskID,
@@ -134,27 +142,27 @@ func (q *queueService) claimTasks(tasks []*TaskRun) {
 			q.mu.Lock()
 			q.capacity--
 			q.mu.Unlock()
-			q.tc <- task
+			q.tc <- claim
 		}(task)
 	}
 	wg.Wait()
 	return
 }
 
-func (q *queueService) claimTask(task *TaskRun) error {
-	err := claimTask(q.client, task, q.workerID, q.workerGroup, q.log)
+func (q *queueService) claimTask(task *taskMessage) (*taskClaim, error) {
+	claim, err := claimTask(q.client, task.TaskID, task.RunID, q.workerID, q.workerGroup, q.log)
 	if err != nil {
 		if err.statusCode == 401 || err.statusCode == 403 || err.statusCode >= 500 {
 			// Do not delete the message if task could not be claimed because of server
 			// or authorization failures
-			return errors.New("Error when attempting to claim task.  Task was *not* deleted from Azure.")
+			return nil, errors.New("Error when attempting to claim task.  Task was *not* deleted from Azure.")
 		}
 
 		_ = q.deleteFromAzure(task.SignedDeleteURL)
-		return errors.New("Error when attempting to claim task.  Error is non-recoverable so task was deleted from Azure.")
+		return nil, errors.New("Error when attempting to claim task.  Error is non-recoverable so task was deleted from Azure.")
 	}
 	_ = q.deleteFromAzure(task.SignedDeleteURL)
-	return nil
+	return claim, nil
 }
 
 // deleteFromAzure will attempt to delete a task from the Azure queue and
@@ -205,8 +213,8 @@ func (q *queueService) deleteFromAzure(deleteURL string) error {
 }
 
 // Retrieves the number of tasks requested from the Azure queues.
-func (q *queueService) pollTaskURL(taskQueue *taskQueue, ntasks int) ([]*TaskRun, error) {
-	taskRuns := []*TaskRun{}
+func (q *queueService) pollTaskURL(taskQueue *taskQueue, ntasks int) ([]*taskMessage, error) {
+	taskMessages := []*taskMessage{}
 	var r queueMessagesList
 	// To poll an Azure Queue the worker must do a `GET` request to the
 	// `SignedPollURL` from the object, representing the Azure queue. To
@@ -250,7 +258,7 @@ func (q *queueService) pollTaskURL(taskQueue *taskQueue, ntasks int) ([]*TaskRun
 
 	if len(r.QueueMessages) == 0 {
 		q.log.Debug("Zero tasks returned in Azure XML queueMessagesList")
-		return []*TaskRun{}, nil
+		return []*taskMessage{}, nil
 	}
 
 	// Utility method for replacing a placeholder within a uri with
@@ -269,7 +277,7 @@ func (q *queueService) pollTaskURL(taskQueue *taskQueue, ntasks int) ([]*TaskRun
 		// SignedDeleteURL. Otherwise, the worker will experience intermittent
 		// failures.
 
-		SignedDeleteURL := detokeniseURI(
+		signedDeleteURL := detokeniseURI(
 			detokeniseURI(
 				taskQueue.SignedDeleteURL,
 				"{{messageId}}",
@@ -284,9 +292,9 @@ func (q *queueService) pollTaskURL(taskQueue *taskQueue, ntasks int) ([]*TaskRun
 		// number of times, for example 15 or more.
 		if qm.DequeueCount >= 15 {
 			q.log.Warnf("Queue Message with message id %v has been dequeued %v times!", qm.MessageID, qm.DequeueCount)
-			err := q.deleteFromAzure(SignedDeleteURL)
+			err := q.deleteFromAzure(signedDeleteURL)
 			if err != nil {
-				q.log.Warnf("Not able to call Azure delete URL %v. %v", SignedDeleteURL, err)
+				q.log.Warnf("Not able to call Azure delete URL %v. %v", signedDeleteURL, err)
 			}
 		}
 
@@ -299,11 +307,11 @@ func (q *queueService) pollTaskURL(taskQueue *taskQueue, ntasks int) ([]*TaskRun
 			// not very serious - another worker will try to delete it
 			q.log.WithField("messageText", qm.MessageText).Errorf("Not able to base64 decode the Message Text in Azure message response.")
 			q.log.WithField("messageID", qm.MessageID).Info("Deleting from Azure queue as other workers will have the same problem.")
-			err := q.deleteFromAzure(SignedDeleteURL)
+			err := q.deleteFromAzure(signedDeleteURL)
 			if err != nil {
 				q.log.WithFields(logrus.Fields{
 					"messageID": qm.MessageID,
-					"url":       SignedDeleteURL,
+					"url":       signedDeleteURL,
 					"error":     err,
 				}).Warn("Not able to call Azure delete URL")
 			}
@@ -311,30 +319,30 @@ func (q *queueService) pollTaskURL(taskQueue *taskQueue, ntasks int) ([]*TaskRun
 		}
 
 		// initialise fields of TaskRun not contained in json string m
-		taskRun := &TaskRun{
-			SignedDeleteURL: SignedDeleteURL,
+		tm := &taskMessage{
+			SignedDeleteURL: signedDeleteURL,
 		}
 
-		// now populate remaining json fields of TaskRun from json string m
-		err = json.Unmarshal(m, &taskRun)
+		// now populate remaining json fields of TaskMessage from json string m
+		err = json.Unmarshal(m, &tm)
 		if err != nil {
 			q.log.WithFields(logrus.Fields{
 				"error":   err,
 				"message": m,
 			}).Warn("Not able to unmarshal json from base64 decoded MessageText")
-			err := q.deleteFromAzure(SignedDeleteURL)
+			err := q.deleteFromAzure(signedDeleteURL)
 			if err != nil {
 				q.log.WithFields(logrus.Fields{
-					"url":   SignedDeleteURL,
+					"url":   signedDeleteURL,
 					"error": err,
 				}).Warn("Not able to call Azure delete URL")
 			}
 			continue
 		}
-		taskRuns = append(taskRuns, taskRun)
+		taskMessages = append(taskMessages, tm)
 	}
 
-	return taskRuns, nil
+	return taskMessages, nil
 }
 
 // Refreshes a list of task queue urls.  Each task queue contains a pair of signed urls
@@ -367,9 +375,9 @@ func (q *queueService) refreshTaskQueueUrls() error {
 	return nil
 }
 
-func (q *queueService) retrieveTasksFromQueue(ntasks int) []*TaskRun {
+func (q *queueService) retrieveTasksFromQueue(ntasks int) []*taskMessage {
 	_ = q.refreshTaskQueueUrls()
-	tasks := []*TaskRun{}
+	tasks := []*taskMessage{}
 
 	for _, queue := range q.queues {
 		// Continue polling the Azure queue until either enough messages have been retrieved
@@ -380,17 +388,17 @@ func (q *queueService) retrieveTasksFromQueue(ntasks int) []*TaskRun {
 			if len(tasks) >= ntasks {
 				return tasks
 			}
-			taskRuns, err := q.pollTaskURL(&queue, ntasks-len(tasks))
+			messages, err := q.pollTaskURL(&queue, ntasks-len(tasks))
 			if err != nil {
 				q.log.Warnf("Could not retrieve tasks from the Azure queue. %s", err)
 				break
 			}
 
-			if len(taskRuns) == 0 {
+			if len(messages) == 0 {
 				break
 			}
 
-			tasks = append(tasks, taskRuns...)
+			tasks = append(tasks, messages...)
 		}
 
 	}

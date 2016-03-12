@@ -145,12 +145,13 @@ func (m *Manager) CancelTask(taskID string, runID int) {
 	return
 }
 
-func (m *Manager) run(task *TaskRun) {
+func (m *Manager) run(claim *taskClaim) {
 	log := m.log.WithFields(logrus.Fields{
-		"taskID": task.TaskID,
-		"runID":  task.RunID,
+		"taskID": claim.TaskID,
+		"runID":  claim.RunID,
 	})
-	task.log = log
+
+	task := NewTaskRun(claim, log)
 
 	err := m.registerTask(task)
 

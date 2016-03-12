@@ -16,17 +16,16 @@ import (
 // TaskRun represents the task lifecycle once claimed.  TaskRun contains information
 // about the task as well as controllers for executing and resolving the task.
 type TaskRun struct {
-	TaskID          string                       `json:"taskId"`
-	RunID           uint                         `json:"runId"`
-	SignedDeleteURL string                       `json:"-"`
-	TaskClaim       queue.TaskClaimResponse      `json:"-"`
-	TaskReclaim     queue.TaskReclaimResponse    `json:"-"`
-	Definition      queue.TaskDefinitionResponse `json:"-"`
-	QueueClient     queueClient
-	plugin          plugins.TaskPlugin
-	log             *logrus.Entry
-	payload         interface{}
-	pluginPayload   interface{}
+	TaskID        string
+	RunID         uint
+	TaskClaim     queue.TaskClaimResponse
+	TaskReclaim   queue.TaskReclaimResponse
+	Definition    queue.TaskDefinitionResponse
+	QueueClient   queueClient
+	plugin        plugins.TaskPlugin
+	log           *logrus.Entry
+	payload       interface{}
+	pluginPayload interface{}
 	sync.RWMutex
 	context        *runtime.TaskContext
 	controller     *runtime.TaskContextController
@@ -36,6 +35,17 @@ type TaskRun struct {
 	engine         engines.Engine
 	success        bool
 	shutdown       bool
+}
+
+func NewTaskRun(claim *taskClaim, log *logrus.Entry) *TaskRun {
+	return &TaskRun{
+		TaskID:      claim.TaskID,
+		RunID:       claim.RunID,
+		TaskClaim:   claim.TaskClaim,
+		Definition:  claim.Definition,
+		QueueClient: claim.QueueClient,
+		log:         log,
+	}
 }
 
 // Abort will set the status of the task to aborted and abort the task execution
