@@ -37,15 +37,41 @@ type TaskRun struct {
 	shutdown       bool
 }
 
-func NewTaskRun(claim *taskClaim, log *logrus.Entry) *TaskRun {
-	return &TaskRun{
+func NewTaskRun(claim *taskClaim, path string, engine engines.Engine, pluginManager plugins.Plugin, log *logrus.Entry) (*TaskRun, error) {
+	ctxt, ctxtctl, err := runtime.NewTaskContext(path)
+	if err != nil {
+		return nil, err
+	}
+
+	tr := &TaskRun{
 		TaskID:      claim.TaskID,
 		RunID:       claim.RunID,
 		taskClaim:   claim.TaskClaim,
 		definition:  claim.Definition,
 		queueClient: claim.QueueClient,
 		log:         log,
+		context:     ctxt,
+		controller:  ctxtctl,
+		engine:      engine,
 	}
+
+	err = tr.parsePayload(pluginManager, engine)
+	if err != nil {
+		tr.context.LogError(fmt.Sprintf("Invalid task payload. %s", err))
+		tr.exceptionStage(err)
+		return nil, err
+	}
+
+	err = tr.createTaskPlugins(pluginManager)
+	if err != nil {
+		e := fmt.Errorf("Invalid task payload. %s", err)
+		tr.context.LogError(e.Error())
+		tr.exceptionStage(err)
+		return nil, e
+	}
+
+	return tr, nil
+
 }
 
 // Abort will set the status of the task to aborted and abort the task execution
@@ -82,29 +108,8 @@ func (t *TaskRun) Cancel() {
 //
 // Tasks that do not complete successfully will be reported as an exception during
 // the exceptionStage.
-func (t *TaskRun) Run(pluginManager plugins.Plugin, engine engines.Engine, context *runtime.TaskContext, contextController *runtime.TaskContextController) {
-	// TODO (garndt): change to NewRun, return &TaskRun{}, introduce task claim concept into queue service
-	t.mu.Lock()
-	t.context = context
-	t.controller = contextController
-	t.engine = engine
-	t.mu.Unlock()
-
+func (t *TaskRun) Run() {
 	defer t.disposeStage()
-
-	err := t.parsePayload(pluginManager, engine)
-	if err != nil || t.context.IsAborted() || t.context.IsCancelled() {
-		t.context.LogError(fmt.Sprintf("Invalid task payload. %s", err))
-		t.exceptionStage(err)
-		return
-	}
-
-	err = t.createTaskPlugins(pluginManager)
-	if err != nil || t.context.IsAborted() || t.context.IsCancelled() {
-		t.context.LogError(fmt.Sprintf("Invalid task payload. %s", err))
-		t.exceptionStage(err)
-		return
-	}
 
 	stages := []func() error{
 		t.prepareStage,
@@ -113,15 +118,16 @@ func (t *TaskRun) Run(pluginManager plugins.Plugin, engine engines.Engine, conte
 		t.stopStage,
 		t.finishStage,
 	}
+
 	for _, stage := range stages {
-		err = stage()
+		err := stage()
 		if err != nil || t.context.IsAborted() || t.context.IsCancelled() {
 			t.exceptionStage(err)
 			return
 		}
 	}
 
-	err = t.resolveTask()
+	err := t.resolveTask()
 	if err != nil || t.context.IsAborted() || t.context.IsCancelled() {
 		t.log.WithField("error", err.Error()).Warn("Could not resolve task properly")
 		return

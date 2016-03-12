@@ -151,10 +151,13 @@ func (m *Manager) run(claim *taskClaim) {
 		"runID":  claim.RunID,
 	})
 
-	task := NewTaskRun(claim, log)
+	task, err := NewTaskRun(claim, m.environment.TemporaryStorage.NewFilePath(), m.engine, m.pluginManager, log)
+	if err != nil {
+		// This is a fatal call because creating a task run should never fail.
+		log.WithField("error", err.Error()).Fatal("Could not successfully run the task")
+	}
 
-	err := m.registerTask(task)
-
+	err = m.registerTask(task)
 	if err != nil {
 		log.WithField("error", err.Error()).Warn("Could not register task")
 		panic(err)
@@ -162,14 +165,7 @@ func (m *Manager) run(claim *taskClaim) {
 
 	defer m.deregisterTask(task)
 
-	tp := m.environment.TemporaryStorage.NewFilePath()
-	ctxt, ctxtctl, err := runtime.NewTaskContext(tp)
-	if err != nil {
-		log.WithField("error", err.Error()).Warn("Could not create task context")
-		panic(err)
-	}
-
-	task.Run(m.pluginManager, m.engine, ctxt, ctxtctl)
+	task.Run()
 	return
 }
 
