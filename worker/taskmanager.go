@@ -147,8 +147,8 @@ func (m *Manager) CancelTask(taskID string, runID int) {
 
 func (m *Manager) run(claim *taskClaim) {
 	log := m.log.WithFields(logrus.Fields{
-		"taskID": claim.TaskID,
-		"runID":  claim.RunID,
+		"taskID": claim.taskID,
+		"runID":  claim.runID,
 	})
 
 	task, err := NewTaskRun(claim, m.environment.TemporaryStorage.NewFilePath(), m.engine, m.pluginManager, log)

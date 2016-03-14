@@ -612,7 +612,7 @@ func TestClaimTask(t *testing.T) {
 	assert.True(t, deleteCalled)
 	// Do a quick sanity check to make sure the response was correctly stored in
 	// the task run object
-	assert.Equal(t, "1040824383284384", claim.TaskClaim.Credentials.AccessToken)
+	assert.Equal(t, "1040824383284384", claim.taskClaim.Credentials.AccessToken)
 }
 
 func TestClaimTaskError(t *testing.T) {

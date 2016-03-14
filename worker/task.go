@@ -44,11 +44,11 @@ func NewTaskRun(claim *taskClaim, path string, engine engines.Engine, pluginMana
 	}
 
 	tr := &TaskRun{
-		TaskID:      claim.TaskID,
-		RunID:       claim.RunID,
-		taskClaim:   claim.TaskClaim,
-		definition:  claim.Definition,
-		queueClient: claim.QueueClient,
+		TaskID:      claim.taskID,
+		RunID:       claim.runID,
+		taskClaim:   claim.taskClaim,
+		definition:  claim.definition,
+		queueClient: claim.queueClient,
 		log:         log,
 		context:     ctxt,
 		controller:  ctxtctl,

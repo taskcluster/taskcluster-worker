@@ -19,11 +19,11 @@ func (e updateError) Error() string {
 }
 
 type taskClaim struct {
-	TaskID      string
-	RunID       uint
-	TaskClaim   tcqueue.TaskClaimResponse
-	Definition  tcqueue.TaskDefinitionResponse
-	QueueClient queueClient
+	taskID      string
+	runID       uint
+	taskClaim   tcqueue.TaskClaimResponse
+	definition  tcqueue.TaskDefinitionResponse
+	queueClient queueClient
 }
 
 func reportException(client queueClient, task *TaskRun, reason runtime.ExceptionReason, log *logrus.Entry) *updateError {
@@ -85,17 +85,18 @@ func claimTask(client queueClient, taskID string, runID uint, workerID string, w
 	}
 
 	return &taskClaim{
-		TaskID: taskID,
-		RunID:  runID,
-		QueueClient: tcqueue.New(
+		taskID: taskID,
+		runID:  runID,
+		// TODO (garndt): replace with client retrieved from the task context.
+		queueClient: tcqueue.New(
 			&tcclient.Credentials{
 				ClientId:    tcrsp.Credentials.ClientID,
 				AccessToken: tcrsp.Credentials.AccessToken,
 				Certificate: tcrsp.Credentials.Certificate,
 			},
 		),
-		TaskClaim:  *tcrsp,
-		Definition: tcrsp.Task,
+		taskClaim:  *tcrsp,
+		definition: tcrsp.Task,
 	}, nil
 }
 
