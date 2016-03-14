@@ -50,6 +50,6 @@ func (w *Worker) Start() {
 
 // stop is a convenience method for stopping the worker loop.  Usually the worker will not be
 // stopped this way, but rather will listen for a shutdown event.
-func (w *Worker) stop() {
+func (w *Worker) Stop() {
 	close(w.done)
 }

@@ -22,13 +22,14 @@ import (
 )
 
 type (
-	// Used for modelling the xml we get back from Azure
+	// queueMessagesList is the unmarshalled response from an Azure message queue request.
 	queueMessagesList struct {
 		XMLName       xml.Name       `xml:"QueueMessagesList"`
 		QueueMessages []queueMessage `xml:"QueueMessage"`
 	}
 
-	// Used for modelling the xml we get back from Azure
+	// queueMessage represents part of the message response from an
+	// Azure message queue request
 	queueMessage struct {
 		MessageID    string `xml:"MessageId"`
 		PopReceipt   string `xml:"PopReceipt"`
@@ -36,11 +37,10 @@ type (
 		MessageText  string `xml:"MessageText"`
 	}
 
-	// taskQueue represents a priority queue containing a pair of signed
-	// delete and polling urls.  A given worker type will have 1 or more taskQueues
+	// messageQueue represents a queue containing a pair of signed
+	// delete and polling urls.  A given worker type will have 1 or more messageQueues
 	// which should be polled in order for tasks.
-	// TODO (garndt): change to priorityQueue
-	taskQueue struct {
+	messageQueue struct {
 		SignedDeleteURL string `json:"signedDeleteUrl"`
 		SignedPollURL   string `json:"signedPollUrl"`
 	}
@@ -48,12 +48,14 @@ type (
 	taskMessage struct {
 		TaskID          string `json:"taskId"`
 		RunID           uint   `json:"runId"`
-		SignedDeleteURL string
+		signedDeleteURL string
 	}
 
 	// TaskclusterQueue is an interface to the Queue client provided by the
 	// taskcluster-client-go package.  Passing around an interface allows the
 	// queue client to be mocked
+	// TODO (garndt): move out of the worker package to something more
+	// appropriate like the task context or runtime.
 	queueClient interface {
 		ReportCompleted(string, string) (*tcqueue.TaskStatusResponse, *tcclient.CallSummary, error)
 		ReportException(string, string, *tcqueue.TaskExceptionRequest) (*tcqueue.TaskStatusResponse, *tcclient.CallSummary, error)
@@ -77,7 +79,7 @@ type (
 		capacity         int
 		interval         int
 		tc               chan *taskClaim
-		queues           []taskQueue
+		queues           []messageQueue
 		expires          tcclient.Time
 		expirationOffset int
 		client           queueClient
@@ -158,10 +160,10 @@ func (q *queueService) claimTask(task *taskMessage) (*taskClaim, error) {
 			return nil, errors.New("Error when attempting to claim task.  Task was *not* deleted from Azure.")
 		}
 
-		_ = q.deleteFromAzure(task.SignedDeleteURL)
+		_ = q.deleteFromAzure(task.signedDeleteURL)
 		return nil, errors.New("Error when attempting to claim task.  Error is non-recoverable so task was deleted from Azure.")
 	}
-	_ = q.deleteFromAzure(task.SignedDeleteURL)
+	_ = q.deleteFromAzure(task.signedDeleteURL)
 	return claim, nil
 }
 
@@ -213,7 +215,7 @@ func (q *queueService) deleteFromAzure(deleteURL string) error {
 }
 
 // Retrieves the number of tasks requested from the Azure queues.
-func (q *queueService) pollTaskURL(taskQueue *taskQueue, ntasks int) ([]*taskMessage, error) {
+func (q *queueService) pollTaskURL(messageQueue *messageQueue, ntasks int) ([]*taskMessage, error) {
 	taskMessages := []*taskMessage{}
 	var r queueMessagesList
 	// To poll an Azure Queue the worker must do a `GET` request to the
@@ -222,7 +224,7 @@ func (q *queueService) pollTaskURL(taskQueue *taskQueue, ntasks int) ([]*taskMes
 	// may be appended to `SignedPollURL`. The parameter `N` is the
 	// maximum number of messages desired, `N` can be up to 32.
 	n := int(math.Min(32, float64(ntasks)))
-	u := fmt.Sprintf("%s%s%d", taskQueue.SignedPollURL, "&numofmessages=", n)
+	u := fmt.Sprintf("%s%s%d", messageQueue.SignedPollURL, "&numofmessages=", n)
 	resp, _, err := httpbackoff.Get(u)
 	if err != nil {
 		return nil, err
@@ -279,7 +281,7 @@ func (q *queueService) pollTaskURL(taskQueue *taskQueue, ntasks int) ([]*taskMes
 
 		signedDeleteURL := detokeniseURI(
 			detokeniseURI(
-				taskQueue.SignedDeleteURL,
+				messageQueue.SignedDeleteURL,
 				"{{messageId}}",
 				qm.MessageID,
 			),
@@ -320,7 +322,7 @@ func (q *queueService) pollTaskURL(taskQueue *taskQueue, ntasks int) ([]*taskMes
 
 		// initialise fields of TaskRun not contained in json string m
 		tm := &taskMessage{
-			SignedDeleteURL: signedDeleteURL,
+			signedDeleteURL: signedDeleteURL,
 		}
 
 		// now populate remaining json fields of TaskMessage from json string m
@@ -347,36 +349,36 @@ func (q *queueService) pollTaskURL(taskQueue *taskQueue, ntasks int) ([]*taskMes
 
 // Refreshes a list of task queue urls.  Each task queue contains a pair of signed urls
 // used for polling and deleting messages.
-func (q *queueService) refreshTaskQueueUrls() error {
+func (q *queueService) refreshMessageQueueURLs() error {
 	// Attempt to wait until expiration gets closer before refreshing.  No
 	// need to do it more frequently.
 	if !q.shouldRefreshQueueUrls() {
 		return nil
 	}
 
-	q.log.Debug("Refreshing Azure queue task urls")
+	q.log.Debug("Refreshing Azure message queue urls")
 
 	signedURLs, _, err := q.client.PollTaskUrls(q.provisionerID, q.workerType)
 	if err != nil {
-		q.log.WithField("error", err).Warn("Error retrieving task urls.")
-		return errors.New("Error retrieving task urls.")
+		q.log.WithField("error", err).Warn("Error retrieving message queue urls.")
+		return errors.New("Error retrieving message queue urls.")
 	}
 
-	taskQueues := []taskQueue{}
+	messageQueues := []messageQueue{}
 	for _, pair := range signedURLs.Queues {
-		taskQueues = append(taskQueues, taskQueue(pair))
+		messageQueues = append(messageQueues, messageQueue(pair))
 	}
 
 	q.mu.Lock()
-	q.queues = taskQueues
+	q.queues = messageQueues
 	q.expires = signedURLs.Expires
 	q.mu.Unlock()
-	q.log.Debugf("Refreshed %d Azure queue task urls", len(taskQueues))
+	q.log.Debugf("Refreshed %d Azure queue task urls", len(messageQueues))
 	return nil
 }
 
 func (q *queueService) retrieveTasksFromQueue(ntasks int) []*taskMessage {
-	_ = q.refreshTaskQueueUrls()
+	_ = q.refreshMessageQueueURLs()
 	tasks := []*taskMessage{}
 
 	for _, queue := range q.queues {

@@ -52,7 +52,7 @@ func TestRetrievePollTaskUrls(t *testing.T) {
 			SignedPollURL:   "456",
 		}},
 	}, &tcclient.CallSummary{}, nil)
-	service.refreshTaskQueueUrls()
+	service.refreshMessageQueueURLs()
 	assert.Equal(t,
 		len(service.queues),
 		2,
@@ -83,12 +83,12 @@ func TestRetrievePollTaskUrlsErrorCaught(t *testing.T) {
 	// Error value does not matter, just as long as we create an error to return
 	).Return(&queue.PollTaskUrlsResponse{}, &tcclient.CallSummary{}, errors.New("bad error"))
 
-	err := service.refreshTaskQueueUrls()
+	err := service.refreshMessageQueueURLs()
 	if err == nil {
 		t.Fatal("Error should have been returned when polling failed")
 	}
 
-	assert.Equal(t, "Error retrieving task urls.", err.Error())
+	assert.Equal(t, "Error retrieving message queue urls.", err.Error())
 }
 
 func TestShouldRefreshQueueUrls(t *testing.T) {
@@ -102,7 +102,7 @@ func TestShouldRefreshQueueUrls(t *testing.T) {
 	// When expiration is still within limits, and the queue slice has already been
 	// populated, the queue service should not need to refresh
 	service.expires = tcclient.Time(time.Now().Add(time.Minute * 6))
-	service.queues = []taskQueue{taskQueue{}, taskQueue{}}
+	service.queues = []messageQueue{messageQueue{}, messageQueue{}}
 	assert.Equal(t, false, service.shouldRefreshQueueUrls())
 
 	// Expiration is coming close, need to refresh
@@ -110,12 +110,12 @@ func TestShouldRefreshQueueUrls(t *testing.T) {
 	assert.Equal(t, true, service.shouldRefreshQueueUrls())
 }
 
-func TestShouldNotRefreshTaskQueueUrls(t *testing.T) {
+func TestShouldNotRefreshMessageQueueURLs(t *testing.T) {
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		expirationOffset: 300,
 		expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
-		queues:           []taskQueue{taskQueue{}, taskQueue{}},
+		queues:           []messageQueue{messageQueue{}, messageQueue{}},
 		log:              logger.WithField("component", "Queue Service"),
 	}
 
@@ -123,7 +123,7 @@ func TestShouldNotRefreshTaskQueueUrls(t *testing.T) {
 	// there should be no reason to refresh.  Because the service was not created
 	// with a taskcluster queue client, if it attempts to refresh, there will be
 	// a panic
-	err := service.refreshTaskQueueUrls()
+	err := service.refreshMessageQueueURLs()
 	assert.Nil(t, err, "No error should be returned because the urls should not have been refreshed")
 }
 
@@ -138,7 +138,7 @@ func TestPollTaskUrlInvalidXMLResponse(t *testing.T) {
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		log: logger.WithField("component", "Queue Service"),
-		queues: []taskQueue{{
+		queues: []messageQueue{{
 			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
 		}},
@@ -160,7 +160,7 @@ func TestPollTaskURLEmptyMessageList(t *testing.T) {
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		log: logger.WithField("component", "Queue Service"),
-		queues: []taskQueue{{
+		queues: []messageQueue{{
 			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
 		}},
@@ -205,7 +205,7 @@ func TestPollTaskURLNonEmptyMessageList(t *testing.T) {
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		log: logger.WithField("component", "Queue Service"),
-		queues: []taskQueue{{
+		queues: []messageQueue{{
 			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
 		}},
@@ -216,7 +216,7 @@ func TestPollTaskURLNonEmptyMessageList(t *testing.T) {
 	assert.Equal(t, 2, len(tasks))
 	// quick sanity check to make sure the messages are different
 	assert.NotEqual(t, tasks[0].TaskID, tasks[1].TaskID)
-	assert.NotEqual(t, tasks[0].SignedDeleteURL, tasks[1].SignedDeleteURL)
+	assert.NotEqual(t, tasks[0].signedDeleteURL, tasks[1].signedDeleteURL)
 }
 
 func TestPollTaskURLInvalidMessageTextContents(t *testing.T) {
@@ -245,7 +245,7 @@ func TestPollTaskURLInvalidMessageTextContents(t *testing.T) {
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		log: logger.WithField("component", "Queue Service"),
-		queues: []taskQueue{{
+		queues: []messageQueue{{
 			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
 		}},
@@ -290,7 +290,7 @@ func TestPollTaskURLInvalidMessageTextEncoding(t *testing.T) {
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		log: logger.WithField("component", "Queue Service"),
-		queues: []taskQueue{{
+		queues: []messageQueue{{
 			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
 		}},
@@ -396,7 +396,7 @@ func TestRetrieveTasksFromQueue(t *testing.T) {
 		log:              logger.WithField("component", "Queue Service"),
 		expirationOffset: 300,
 		expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
-		queues: []taskQueue{
+		queues: []messageQueue{
 			{
 				SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 				SignedPollURL:   fmt.Sprintf("%s/tasks/1234?messages=true", s.URL),
@@ -477,7 +477,7 @@ func TestRetrieveTasksFromQueueDoesNotQueryLowPriority(t *testing.T) {
 		log:              logger.WithField("component", "Queue Service"),
 		expirationOffset: 300,
 		expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
-		queues: []taskQueue{
+		queues: []messageQueue{
 			{
 				SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 				SignedPollURL:   fmt.Sprintf("%s/tasks/1234?messages=true", s.URL),
@@ -535,7 +535,7 @@ func TestRetrieveTasksFromQueueDequeueChecked(t *testing.T) {
 		log:              logger.WithField("component", "Queue Service"),
 		expirationOffset: 300,
 		expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
-		queues: []taskQueue{
+		queues: []messageQueue{
 			{
 				SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 				SignedPollURL:   fmt.Sprintf("%s/tasks/1234?messages=true", s.URL),
@@ -594,7 +594,7 @@ func TestClaimTask(t *testing.T) {
 	task := &taskMessage{
 		TaskID:          "abc",
 		RunID:           0,
-		SignedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
+		signedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
 	}
 
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
@@ -647,7 +647,7 @@ func TestClaimTaskError(t *testing.T) {
 	task := &taskMessage{
 		TaskID:          "abc",
 		RunID:           0,
-		SignedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
+		signedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
 	}
 
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
@@ -729,11 +729,11 @@ func TestClaimTasks(t *testing.T) {
 	tasks := []*taskMessage{{
 		TaskID:          "abc",
 		RunID:           0,
-		SignedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
+		signedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
 	}, {
 		TaskID:          "def",
 		RunID:           1,
-		SignedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
+		signedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
 	}}
 
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
