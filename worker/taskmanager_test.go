@@ -57,17 +57,15 @@ func TestRunTask(t *testing.T) {
 		"1",
 	).Return(&queue.TaskStatusResponse{}, &tcclient.CallSummary{}, nil)
 
-	tr := &TaskRun{
-		QueueClient: mockedQueue,
-		TaskID:      "abc",
-		RunID:       1,
-		Definition: queue.TaskDefinitionResponse{
+	claim := &taskClaim{
+		queueClient: mockedQueue,
+		taskID:      "abc",
+		runID:       1,
+		definition: queue.TaskDefinitionResponse{
 			Payload: []byte(`{"start": {"delay": 10,"function": "write-log","argument": "Hello World"}}`),
 		},
 	}
-	tm.run(tr)
-	assert.NotNil(t, tr.resultSet, "Task does not appear to have been completed successfully")
-	assert.True(t, tr.resultSet.Success(), "Task should have been successfully completed")
+	tm.run(claim)
 	mockedQueue.AssertCalled(t, "ReportCompleted", "abc", "1")
 }
 
@@ -110,17 +108,17 @@ func TestCancelTask(t *testing.T) {
 		Status: queue.TaskStatusStructure{},
 	}, &tcclient.CallSummary{}, nil)
 
-	tr := &TaskRun{
-		TaskID: "abc",
-		RunID:  1,
-		Definition: queue.TaskDefinitionResponse{
+	claim := &taskClaim{
+		taskID: "abc",
+		runID:  1,
+		definition: queue.TaskDefinitionResponse{
 			Payload: []byte(`{"start": {"delay": 5000,"function": "write-log","argument": "Hello World"}}`),
 		},
-		QueueClient: mockedQueue,
+		queueClient: mockedQueue,
 	}
 	done := make(chan struct{})
 	go func() {
-		tm.run(tr)
+		tm.run(claim)
 		close(done)
 	}()
 
@@ -181,37 +179,37 @@ func TestWorkerShutdown(t *testing.T) {
 		Status: queue.TaskStatusStructure{},
 	}, &tcclient.CallSummary{}, nil)
 
-	taskRuns := []*TaskRun{&TaskRun{
-		TaskID: "abc",
-		RunID:  1,
-		Definition: queue.TaskDefinitionResponse{
+	claims := []*taskClaim{&taskClaim{
+		taskID: "abc",
+		runID:  1,
+		definition: queue.TaskDefinitionResponse{
 			Payload: []byte(`{"start": {"delay": 5000,"function": "write-log","argument": "Hello World"}}`),
 		},
-		QueueClient: mockedQueue,
+		queueClient: mockedQueue,
 	},
-		&TaskRun{
-			TaskID: "def",
-			RunID:  0,
-			Definition: queue.TaskDefinitionResponse{
+		&taskClaim{
+			taskID: "def",
+			runID:  0,
+			definition: queue.TaskDefinitionResponse{
 				Payload: []byte(`{"start": {"delay": 5000,"function": "write-log","argument": "Hello World"}}`),
 			},
-			QueueClient: mockedQueue,
+			queueClient: mockedQueue,
 		}}
 
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		for _, run := range taskRuns {
-			r := run
-			go func() {
-				tm.run(r)
+		for _, c := range claims {
+			go func(claim *taskClaim) {
+				tm.run(claim)
 				wg.Done()
-			}()
+			}(c)
 		}
 	}()
 
 	time.Sleep(500 * time.Millisecond)
 	assert.Equal(t, len(tm.RunningTasks()), 2)
+	close(tm.done)
 	tm.Stop()
 
 	wg.Wait()

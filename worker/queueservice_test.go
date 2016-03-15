@@ -27,10 +27,10 @@ func TestRetrievePollTaskUrls(t *testing.T) {
 	mockedQueue := &MockQueue{}
 	service := queueService{
 		client:           mockedQueue,
-		ProvisionerID:    ProvisionerID,
-		WorkerType:       WorkerType,
-		Log:              logger.WithField("component", "Queue Service"),
-		ExpirationOffset: 300,
+		provisionerID:    ProvisionerID,
+		workerType:       WorkerType,
+		log:              logger.WithField("component", "Queue Service"),
+		expirationOffset: 300,
 	}
 	mockedQueue.On(
 		"PollTaskUrls",
@@ -52,7 +52,7 @@ func TestRetrievePollTaskUrls(t *testing.T) {
 			SignedPollURL:   "456",
 		}},
 	}, &tcclient.CallSummary{}, nil)
-	service.refreshTaskQueueUrls()
+	service.refreshMessageQueueURLs()
 	assert.Equal(t,
 		len(service.queues),
 		2,
@@ -70,10 +70,10 @@ func TestRetrievePollTaskUrlsErrorCaught(t *testing.T) {
 	mockedQueue := &MockQueue{}
 	service := queueService{
 		client:           mockedQueue,
-		ProvisionerID:    ProvisionerID,
-		WorkerType:       WorkerType,
-		Log:              logger.WithField("component", "Queue Service"),
-		ExpirationOffset: 300,
+		provisionerID:    ProvisionerID,
+		workerType:       WorkerType,
+		log:              logger.WithField("component", "Queue Service"),
+		expirationOffset: 300,
 	}
 
 	mockedQueue.On(
@@ -83,17 +83,17 @@ func TestRetrievePollTaskUrlsErrorCaught(t *testing.T) {
 	// Error value does not matter, just as long as we create an error to return
 	).Return(&queue.PollTaskUrlsResponse{}, &tcclient.CallSummary{}, errors.New("bad error"))
 
-	err := service.refreshTaskQueueUrls()
+	err := service.refreshMessageQueueURLs()
 	if err == nil {
 		t.Fatal("Error should have been returned when polling failed")
 	}
 
-	assert.Equal(t, "Error retrieving task urls.", err.Error())
+	assert.Equal(t, "Error retrieving message queue urls.", err.Error())
 }
 
 func TestShouldRefreshQueueUrls(t *testing.T) {
 	service := queueService{
-		ExpirationOffset: 300,
+		expirationOffset: 300,
 	}
 
 	// Should refresh since there are no queues currently stored
@@ -101,29 +101,29 @@ func TestShouldRefreshQueueUrls(t *testing.T) {
 
 	// When expiration is still within limits, and the queue slice has already been
 	// populated, the queue service should not need to refresh
-	service.Expires = tcclient.Time(time.Now().Add(time.Minute * 6))
-	service.queues = []taskQueue{taskQueue{}, taskQueue{}}
+	service.expires = tcclient.Time(time.Now().Add(time.Minute * 6))
+	service.queues = []messageQueue{messageQueue{}, messageQueue{}}
 	assert.Equal(t, false, service.shouldRefreshQueueUrls())
 
 	// Expiration is coming close, need to refresh
-	service.Expires = tcclient.Time(time.Now().Add(time.Minute * 2))
+	service.expires = tcclient.Time(time.Now().Add(time.Minute * 2))
 	assert.Equal(t, true, service.shouldRefreshQueueUrls())
 }
 
-func TestShouldNotRefreshTaskQueueUrls(t *testing.T) {
+func TestShouldNotRefreshMessageQueueURLs(t *testing.T) {
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		ExpirationOffset: 300,
-		Expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
-		queues:           []taskQueue{taskQueue{}, taskQueue{}},
-		Log:              logger.WithField("component", "Queue Service"),
+		expirationOffset: 300,
+		expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
+		queues:           []messageQueue{messageQueue{}, messageQueue{}},
+		log:              logger.WithField("component", "Queue Service"),
 	}
 
 	// Because the expiration is not close, adn the service already has queues,
 	// there should be no reason to refresh.  Because the service was not created
 	// with a taskcluster queue client, if it attempts to refresh, there will be
 	// a panic
-	err := service.refreshTaskQueueUrls()
+	err := service.refreshMessageQueueURLs()
 	assert.Nil(t, err, "No error should be returned because the urls should not have been refreshed")
 }
 
@@ -137,8 +137,8 @@ func TestPollTaskUrlInvalidXMLResponse(t *testing.T) {
 	defer s.Close()
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		Log: logger.WithField("component", "Queue Service"),
-		queues: []taskQueue{{
+		log: logger.WithField("component", "Queue Service"),
+		queues: []messageQueue{{
 			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
 		}},
@@ -159,8 +159,8 @@ func TestPollTaskURLEmptyMessageList(t *testing.T) {
 	defer s.Close()
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		Log: logger.WithField("component", "Queue Service"),
-		queues: []taskQueue{{
+		log: logger.WithField("component", "Queue Service"),
+		queues: []messageQueue{{
 			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
 		}},
@@ -204,8 +204,8 @@ func TestPollTaskURLNonEmptyMessageList(t *testing.T) {
 	defer s.Close()
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		Log: logger.WithField("component", "Queue Service"),
-		queues: []taskQueue{{
+		log: logger.WithField("component", "Queue Service"),
+		queues: []messageQueue{{
 			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
 		}},
@@ -216,7 +216,7 @@ func TestPollTaskURLNonEmptyMessageList(t *testing.T) {
 	assert.Equal(t, 2, len(tasks))
 	// quick sanity check to make sure the messages are different
 	assert.NotEqual(t, tasks[0].TaskID, tasks[1].TaskID)
-	assert.NotEqual(t, tasks[0].SignedDeleteURL, tasks[1].SignedDeleteURL)
+	assert.NotEqual(t, tasks[0].signedDeleteURL, tasks[1].signedDeleteURL)
 }
 
 func TestPollTaskURLInvalidMessageTextContents(t *testing.T) {
@@ -244,8 +244,8 @@ func TestPollTaskURLInvalidMessageTextContents(t *testing.T) {
 	defer s.Close()
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		Log: logger.WithField("component", "Queue Service"),
-		queues: []taskQueue{{
+		log: logger.WithField("component", "Queue Service"),
+		queues: []messageQueue{{
 			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
 		}},
@@ -289,8 +289,8 @@ func TestPollTaskURLInvalidMessageTextEncoding(t *testing.T) {
 	defer s.Close()
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		Log: logger.WithField("component", "Queue Service"),
-		queues: []taskQueue{{
+		log: logger.WithField("component", "Queue Service"),
+		queues: []messageQueue{{
 			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
 		}},
@@ -313,7 +313,7 @@ func TestSuccessfullyDeleteFromAzureQueue(t *testing.T) {
 	defer s.Close()
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		Log: logger.WithField("component", "Queue Service"),
+		log: logger.WithField("component", "Queue Service"),
 	}
 	err := service.deleteFromAzure(fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL))
 	assert.Nil(t, err)
@@ -328,7 +328,7 @@ func TestErrorCaughtDeleteFromAzureQueueL(t *testing.T) {
 	defer s.Close()
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		Log: logger.WithField("component", "Queue Service"),
+		log: logger.WithField("component", "Queue Service"),
 	}
 	err := service.deleteFromAzure(fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL))
 	assert.NotNil(t, err)
@@ -393,10 +393,10 @@ func TestRetrieveTasksFromQueue(t *testing.T) {
 	defer s.Close()
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		Log:              logger.WithField("component", "Queue Service"),
-		ExpirationOffset: 300,
-		Expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
-		queues: []taskQueue{
+		log:              logger.WithField("component", "Queue Service"),
+		expirationOffset: 300,
+		expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
+		queues: []messageQueue{
 			{
 				SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 				SignedPollURL:   fmt.Sprintf("%s/tasks/1234?messages=true", s.URL),
@@ -408,10 +408,7 @@ func TestRetrieveTasksFromQueue(t *testing.T) {
 		},
 	}
 
-	tasks, err := service.retrieveTasksFromQueue(3)
-	if err != nil {
-		t.Fatal(err)
-	}
+	tasks := service.retrieveTasksFromQueue(3)
 
 	assert.Equal(t, 3, len(tasks))
 	taskIds := []string{"abc", "def", "ghi"}
@@ -477,10 +474,10 @@ func TestRetrieveTasksFromQueueDoesNotQueryLowPriority(t *testing.T) {
 	defer s.Close()
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		Log:              logger.WithField("component", "Queue Service"),
-		ExpirationOffset: 300,
-		Expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
-		queues: []taskQueue{
+		log:              logger.WithField("component", "Queue Service"),
+		expirationOffset: 300,
+		expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
+		queues: []messageQueue{
 			{
 				SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 				SignedPollURL:   fmt.Sprintf("%s/tasks/1234?messages=true", s.URL),
@@ -492,10 +489,7 @@ func TestRetrieveTasksFromQueueDoesNotQueryLowPriority(t *testing.T) {
 		},
 	}
 
-	tasks, err := service.retrieveTasksFromQueue(2)
-	if err != nil {
-		t.Fatal(err)
-	}
+	tasks := service.retrieveTasksFromQueue(2)
 
 	// Only two tasks should have been retrieving leaving the third task in the lower
 	// priority queue not being retrieved
@@ -538,10 +532,10 @@ func TestRetrieveTasksFromQueueDequeueChecked(t *testing.T) {
 	defer s.Close()
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		Log:              logger.WithField("component", "Queue Service"),
-		ExpirationOffset: 300,
-		Expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
-		queues: []taskQueue{
+		log:              logger.WithField("component", "Queue Service"),
+		expirationOffset: 300,
+		expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
+		queues: []messageQueue{
 			{
 				SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 				SignedPollURL:   fmt.Sprintf("%s/tasks/1234?messages=true", s.URL),
@@ -549,10 +543,7 @@ func TestRetrieveTasksFromQueueDequeueChecked(t *testing.T) {
 		},
 	}
 
-	tasks, err := service.retrieveTasksFromQueue(2)
-	if err != nil {
-		t.Fatal(err)
-	}
+	tasks := service.retrieveTasksFromQueue(2)
 
 	assert.Equal(t, 1, len(tasks))
 	assert.True(t, deleteCalled, "Delete should have been called when dequeue count above threshold")
@@ -600,30 +591,28 @@ func TestClaimTask(t *testing.T) {
 		WorkerID:    WorkerID,
 	}, &tcclient.CallSummary{}, nil)
 
-	task := &TaskRun{
+	task := &taskMessage{
 		TaskID:          "abc",
 		RunID:           0,
-		SignedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
-		TaskClaim:       queue.TaskClaimResponse{},
-		Definition:      queue.TaskDefinitionResponse{},
+		signedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
 	}
 
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		client:        mockedQueue,
-		Log:           logger.WithField("component", "Queue Service"),
-		WorkerID:      WorkerID,
-		WorkerGroup:   WorkerType,
-		ProvisionerID: ProvisionerID,
+		log:           logger.WithField("component", "Queue Service"),
+		workerID:      WorkerID,
+		workerGroup:   WorkerType,
+		provisionerID: ProvisionerID,
 	}
 
-	success := service.claimTask(task)
+	claim, err := service.claimTask(task)
 
-	assert.True(t, success)
+	assert.Nil(t, err)
 	assert.True(t, deleteCalled)
 	// Do a quick sanity check to make sure the response was correctly stored in
 	// the task run object
-	assert.Equal(t, "1040824383284384", task.TaskClaim.Credentials.AccessToken)
+	assert.Equal(t, "1040824383284384", claim.taskClaim.Credentials.AccessToken)
 }
 
 func TestClaimTaskError(t *testing.T) {
@@ -655,26 +644,24 @@ func TestClaimTaskError(t *testing.T) {
 		&tcclient.CallSummary{
 			HttpResponse: &http.Response{StatusCode: 401},
 		}, errors.New("Not good"))
-	task := &TaskRun{
+	task := &taskMessage{
 		TaskID:          "abc",
 		RunID:           0,
-		SignedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
-		TaskClaim:       queue.TaskClaimResponse{},
-		Definition:      queue.TaskDefinitionResponse{},
+		signedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
 	}
 
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		client:        mockedQueue,
-		Log:           logger.WithField("component", "Queue Service"),
-		WorkerID:      WorkerID,
-		WorkerGroup:   WorkerType,
-		ProvisionerID: ProvisionerID,
+		log:           logger.WithField("component", "Queue Service"),
+		workerID:      WorkerID,
+		workerGroup:   WorkerType,
+		provisionerID: ProvisionerID,
 	}
 
-	success := service.claimTask(task)
+	_, err := service.claimTask(task)
 
-	assert.False(t, success, "Task should not have been claimed")
+	assert.NotNil(t, err, "Task should not have been claimed")
 	// Delete should not have been called because it was an authorization issue
 	assert.False(t, deleteCalled, "Message should not have been deleted from the queue.")
 }
@@ -739,29 +726,40 @@ func TestClaimTasks(t *testing.T) {
 		WorkerGroup: WorkerType,
 		WorkerID:    WorkerID,
 	}, &tcclient.CallSummary{}, nil)
-	tasks := []*TaskRun{{
+	tasks := []*taskMessage{{
 		TaskID:          "abc",
 		RunID:           0,
-		SignedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
-		TaskClaim:       queue.TaskClaimResponse{},
-		Definition:      queue.TaskDefinitionResponse{},
+		signedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
 	}, {
 		TaskID:          "def",
 		RunID:           1,
-		SignedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
-		TaskClaim:       queue.TaskClaimResponse{},
-		Definition:      queue.TaskDefinitionResponse{},
+		signedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
 	}}
 
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		client:        mockedQueue,
-		Log:           logger.WithField("component", "Queue Service"),
-		WorkerID:      WorkerID,
-		WorkerGroup:   WorkerType,
-		ProvisionerID: ProvisionerID,
+		capacity:      2,
+		tc:            make(chan *taskClaim, 2),
+		log:           logger.WithField("component", "Queue Service"),
+		workerID:      WorkerID,
+		workerGroup:   WorkerType,
+		provisionerID: ProvisionerID,
 	}
 
-	taskClaims := service.claimTasks(tasks)
-	assert.Equal(t, 2, len(taskClaims))
+	claims := []*taskClaim{}
+	service.claimTasks(tasks)
+loop:
+	for len(claims) != 2 {
+		select {
+		case t := <-service.tc:
+			claims = append(claims, t)
+		// Tasks should be claimed in less than 1 second, but set up a timer to timeout
+		// so tests don't run forever waiting.
+		case <-time.NewTimer(1 * time.Second).C:
+			break loop
+		}
+	}
+
+	assert.Equal(t, 2, len(claims), "Not enough task claims received after calling claimTasks")
 }

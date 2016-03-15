@@ -106,10 +106,10 @@ func TestParsePayload(t *testing.T) {
 	}()
 
 	for _, tc := range testCases {
-		tr.Definition = queue.TaskDefinitionResponse{
+		tr.definition = queue.TaskDefinitionResponse{
 			Payload: []byte(tc.definition),
 		}
-		err = tr.ParsePayload(pluginManager, engine)
+		err = tr.parsePayload(pluginManager, engine)
 		assert.Equal(t, tc.shouldFail, err != nil, "Parsing invalid task payload should have returned an error")
 	}
 }
@@ -121,7 +121,7 @@ func TestCreateTaskPlugins(t *testing.T) {
 	tr := &TaskRun{
 		TaskID: "abc",
 		RunID:  1,
-		Definition: queue.TaskDefinitionResponse{
+		definition: queue.TaskDefinitionResponse{
 			Payload: []byte(`{"start": {"delay": 10,"function": "write-log","argument": "Hello World"}}`),
 		},
 		log: logger.WithField("taskId", "abc"),
@@ -130,7 +130,7 @@ func TestCreateTaskPlugins(t *testing.T) {
 	tp := environment.TemporaryStorage.NewFilePath()
 	tr.context, tr.controller, err = runtime.NewTaskContext(tp)
 
-	err = tr.ParsePayload(pluginManager, engine)
+	err = tr.parsePayload(pluginManager, engine)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func TestCreateTaskPlugins(t *testing.T) {
 		taskPlugin: &taskPlugin{},
 	}
 
-	err = tr.CreateTaskPlugins(pm)
+	err = tr.createTaskPlugins(pm)
 	assert.Nil(t, err, "Error should not have been returned when creating task plugins")
 
 	pm = mockedPluginManager{
@@ -147,7 +147,7 @@ func TestCreateTaskPlugins(t *testing.T) {
 		taskPluginError: engines.NewMalformedPayloadError("bad payload"),
 	}
 
-	err = tr.CreateTaskPlugins(pm)
+	err = tr.createTaskPlugins(pm)
 	assert.NotNil(t, err, "Error should have been returned when creating task plugins")
 	assert.Equal(t, "engines.MalformedPayloadError", reflect.TypeOf(err).String())
 }
@@ -159,7 +159,7 @@ func TestPrepare(t *testing.T) {
 	tr := &TaskRun{
 		TaskID: "abc",
 		RunID:  1,
-		Definition: queue.TaskDefinitionResponse{
+		definition: queue.TaskDefinitionResponse{
 			Payload: []byte(`{"start": {"delay": 10,"function": "write-log","argument": "Hello World"}}`),
 		},
 		log:    logger.WithField("taskId", "abc"),
@@ -170,12 +170,12 @@ func TestPrepare(t *testing.T) {
 	tp := environment.TemporaryStorage.NewFilePath()
 	tr.context, tr.controller, err = runtime.NewTaskContext(tp)
 
-	err = tr.ParsePayload(pluginManager, engine)
+	err = tr.parsePayload(pluginManager, engine)
 	assert.Nil(t, err)
 
-	err = tr.CreateTaskPlugins(pluginManager)
+	err = tr.createTaskPlugins(pluginManager)
 	assert.Nil(t, err)
 
-	err = tr.PrepareStage()
+	err = tr.prepareStage()
 	assert.Nil(t, err)
 }

@@ -115,9 +115,5 @@ func main() {
 		logger.Fatalf("Could not create worker. %s", err)
 	}
 
-	err = w.Start()
-	if err != nil {
-		os.Stderr.WriteString(err.Error())
-		os.Exit(1)
-	}
+	w.Start()
 }

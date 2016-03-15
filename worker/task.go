@@ -16,18 +16,17 @@ import (
 // TaskRun represents the task lifecycle once claimed.  TaskRun contains information
 // about the task as well as controllers for executing and resolving the task.
 type TaskRun struct {
-	TaskID          string                       `json:"taskId"`
-	RunID           uint                         `json:"runId"`
-	SignedDeleteURL string                       `json:"-"`
-	TaskClaim       queue.TaskClaimResponse      `json:"-"`
-	TaskReclaim     queue.TaskReclaimResponse    `json:"-"`
-	Definition      queue.TaskDefinitionResponse `json:"-"`
-	QueueClient     queueClient
-	plugin          plugins.TaskPlugin
-	log             *logrus.Entry
-	payload         interface{}
-	pluginPayload   interface{}
-	sync.RWMutex
+	TaskID         string
+	RunID          uint
+	taskClaim      queue.TaskClaimResponse
+	taskReclaim    queue.TaskReclaimResponse
+	definition     queue.TaskDefinitionResponse
+	queueClient    queueClient
+	plugin         plugins.TaskPlugin
+	log            *logrus.Entry
+	payload        interface{}
+	pluginPayload  interface{}
+	mu             sync.RWMutex
 	context        *runtime.TaskContext
 	controller     *runtime.TaskContextController
 	sandboxBuilder engines.SandboxBuilder
@@ -35,13 +34,52 @@ type TaskRun struct {
 	resultSet      engines.ResultSet
 	engine         engines.Engine
 	success        bool
+	shutdown       bool
+}
+
+func NewTaskRun(claim *taskClaim, path string, engine engines.Engine, pluginManager plugins.Plugin, log *logrus.Entry) (*TaskRun, error) {
+	ctxt, ctxtctl, err := runtime.NewTaskContext(path)
+	if err != nil {
+		return nil, err
+	}
+
+	tr := &TaskRun{
+		TaskID:      claim.taskID,
+		RunID:       claim.runID,
+		taskClaim:   claim.taskClaim,
+		definition:  claim.definition,
+		queueClient: claim.queueClient,
+		log:         log,
+		context:     ctxt,
+		controller:  ctxtctl,
+		engine:      engine,
+	}
+
+	err = tr.parsePayload(pluginManager, engine)
+	if err != nil {
+		tr.context.LogError(fmt.Sprintf("Invalid task payload. %s", err))
+		tr.exceptionStage(err)
+		return nil, err
+	}
+
+	err = tr.createTaskPlugins(pluginManager)
+	if err != nil {
+		e := fmt.Errorf("Invalid task payload. %s", err)
+		tr.context.LogError(e.Error())
+		tr.exceptionStage(err)
+		return nil, e
+	}
+
+	return tr, nil
+
 }
 
 // Abort will set the status of the task to aborted and abort the task execution
 // environment if one has been created.
 func (t *TaskRun) Abort() {
-	t.Lock()
-	defer t.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.shutdown = true
 	if t.context != nil {
 		t.context.Abort()
 	}
@@ -54,8 +92,8 @@ func (t *TaskRun) Abort() {
 // environment if one has been created.
 func (t *TaskRun) Cancel() {
 	t.log.Info("Cancelling task")
-	t.Lock()
-	defer t.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	if t.context != nil {
 		t.context.Cancel()
 	}
@@ -69,47 +107,27 @@ func (t *TaskRun) Cancel() {
 // life cycle.
 //
 // Tasks that do not complete successfully will be reported as an exception during
-// the ExceptionStage.
-func (t *TaskRun) Run(pluginManager plugins.Plugin, engine engines.Engine, context *runtime.TaskContext, contextController *runtime.TaskContextController) {
-	// TODO (garndt): change to NewRun, return &TaskRun{}, introduce task claim concept into queue service
-	t.Lock()
-	t.context = context
-	t.controller = contextController
-	t.engine = engine
-	t.Unlock()
-
-	defer t.DisposeStage()
-
-	err := t.ParsePayload(pluginManager, engine)
-	if err != nil || t.context.IsAborted() || t.context.IsCancelled() {
-		t.context.LogError(fmt.Sprintf("Invalid task payload. %s", err))
-		t.ExceptionStage(runtime.Errored, err)
-		return
-	}
-
-	err = t.CreateTaskPlugins(pluginManager)
-	if err != nil || t.context.IsAborted() || t.context.IsCancelled() {
-		t.context.LogError(fmt.Sprintf("Invalid task payload. %s", err))
-		t.ExceptionStage(runtime.Errored, err)
-		return
-	}
+// the exceptionStage.
+func (t *TaskRun) Run() {
+	defer t.disposeStage()
 
 	stages := []func() error{
-		t.PrepareStage,
-		t.BuildStage,
-		t.StartStage,
-		t.StopStage,
-		t.FinishStage,
+		t.prepareStage,
+		t.buildStage,
+		t.startStage,
+		t.stopStage,
+		t.finishStage,
 	}
+
 	for _, stage := range stages {
-		err = stage()
+		err := stage()
 		if err != nil || t.context.IsAborted() || t.context.IsCancelled() {
-			t.ExceptionStage(runtime.Errored, err)
+			t.exceptionStage(err)
 			return
 		}
 	}
 
-	err = t.ResolveTask()
+	err := t.resolveTask()
 	if err != nil || t.context.IsAborted() || t.context.IsCancelled() {
 		t.log.WithField("error", err.Error()).Warn("Could not resolve task properly")
 		return
@@ -117,12 +135,12 @@ func (t *TaskRun) Run(pluginManager plugins.Plugin, engine engines.Engine, conte
 
 }
 
-// ParsePayload  will parse the task payload, which will validate it against the engine
+// parsePayload  will parse the task payload, which will validate it against the engine
 // and plugin schemas.
-func (t *TaskRun) ParsePayload(pluginManager plugins.Plugin, engine engines.Engine) error {
+func (t *TaskRun) parsePayload(pluginManager plugins.Plugin, engine engines.Engine) error {
 	var err error
 	jsonPayload := map[string]json.RawMessage{}
-	if err = json.Unmarshal([]byte(t.Definition.Payload), &jsonPayload); err != nil {
+	if err = json.Unmarshal([]byte(t.definition.Payload), &jsonPayload); err != nil {
 		return err
 	}
 
@@ -142,8 +160,8 @@ func (t *TaskRun) ParsePayload(pluginManager plugins.Plugin, engine engines.Engi
 	return nil
 }
 
-// CreateTaskPlugins will create a new task plugin to be used during the task lifecycle.
-func (t *TaskRun) CreateTaskPlugins(pluginManager plugins.Plugin) error {
+// createTaskPlugins will create a new task plugin to be used during the task lifecycle.
+func (t *TaskRun) createTaskPlugins(pluginManager plugins.Plugin) error {
 	var err error
 	popts := plugins.TaskPluginOptions{TaskInfo: &runtime.TaskInfo{}, Payload: t.pluginPayload}
 	t.plugin, err = pluginManager.NewTaskPlugin(popts)
@@ -154,8 +172,8 @@ func (t *TaskRun) CreateTaskPlugins(pluginManager plugins.Plugin) error {
 	return nil
 }
 
-// PrepareStage is where task plugins are prepared and a sandboxbuilder is created.
-func (t *TaskRun) PrepareStage() error {
+// prepareStage is where task plugins are prepared and a sandboxbuilder is created.
+func (t *TaskRun) prepareStage() error {
 	t.log.Debug("Preparing task run")
 
 	err := t.plugin.Prepare(t.context)
@@ -164,12 +182,12 @@ func (t *TaskRun) PrepareStage() error {
 		return err
 	}
 
-	t.Lock()
+	t.mu.Lock()
 	t.sandboxBuilder, err = t.engine.NewSandboxBuilder(engines.SandboxOptions{
 		TaskContext: t.context,
 		Payload:     t.payload,
 	})
-	t.Unlock()
+	t.mu.Unlock()
 	if err != nil {
 		t.context.LogError(fmt.Sprintf("Could not create task execution environment. %s", err))
 		return err
@@ -178,8 +196,8 @@ func (t *TaskRun) PrepareStage() error {
 	return nil
 }
 
-// BuildStage is responsible for configuring the environment for building a sandbox (task execution environment).
-func (t *TaskRun) BuildStage() error {
+// buildStage is responsible for configuring the environment for building a sandbox (task execution environment).
+func (t *TaskRun) buildStage() error {
 	t.log.Debug("Building task run")
 
 	err := t.plugin.BuildSandbox(t.sandboxBuilder)
@@ -191,8 +209,8 @@ func (t *TaskRun) BuildStage() error {
 	return nil
 }
 
-// StartStage is responsible for starting the execution environment and waiting for a result.
-func (t *TaskRun) StartStage() error {
+// startStage is responsible for starting the execution environment and waiting for a result.
+func (t *TaskRun) startStage() error {
 	t.log.Debug("Running task")
 
 	sandbox, err := t.sandboxBuilder.StartSandbox()
@@ -200,9 +218,9 @@ func (t *TaskRun) StartStage() error {
 		t.context.LogError(fmt.Sprintf("Could not start task execution environment. %s", err))
 		return err
 	}
-	t.Lock()
+	t.mu.Lock()
 	t.sandbox = sandbox
-	t.Unlock()
+	t.mu.Unlock()
 
 	err = t.plugin.Started(t.sandbox)
 	if err != nil {
@@ -221,9 +239,9 @@ func (t *TaskRun) StartStage() error {
 	return nil
 }
 
-// StopStage will run once the sandbox has terminated.  This stage will be responsible
+// stopStage will run once the sandbox has terminated.  This stage will be responsible
 // for uploading artifacts, cleaning up of resources, etc.
-func (t *TaskRun) StopStage() error {
+func (t *TaskRun) stopStage() error {
 	t.log.Debug("Stopping task execution")
 	var err error
 	t.success, err = t.plugin.Stopped(t.resultSet)
@@ -236,9 +254,9 @@ func (t *TaskRun) StopStage() error {
 	return nil
 }
 
-// FinishStage is responsible for finalizing the execution of a task, close and
+// finishStage is responsible for finalizing the execution of a task, close and
 // upload tasks logs, etc.
-func (t *TaskRun) FinishStage() error {
+func (t *TaskRun) finishStage() error {
 	t.log.Debug("Finishing task run")
 
 	err := t.controller.CloseLog()
@@ -255,19 +273,21 @@ func (t *TaskRun) FinishStage() error {
 	return nil
 }
 
-// ExceptionStage will report a task run as an exception with an appropriate reason.
+// exceptionStage will report a task run as an exception with an appropriate reason.
 // Tasks that have been cancelled will not be reported as an exception as the run
 // has already been resolved.
-func (t *TaskRun) ExceptionStage(status runtime.TaskStatus, taskError error) {
+func (t *TaskRun) exceptionStage(taskError error) {
 	fmt.Println(taskError)
 	var reason runtime.ExceptionReason
-	switch taskError.(type) {
-	case engines.MalformedPayloadError:
-		reason = runtime.MalformedPayload
-	case engines.InternalError:
-		reason = runtime.InternalError
-	default:
+	if t.shutdown {
 		reason = runtime.WorkerShutdown
+	} else {
+		switch taskError.(type) {
+		case engines.MalformedPayloadError:
+			reason = runtime.MalformedPayload
+		default:
+			reason = runtime.InternalError
+		}
 	}
 
 	err := t.controller.CloseLog()
@@ -285,7 +305,7 @@ func (t *TaskRun) ExceptionStage(status runtime.TaskStatus, taskError error) {
 		return
 	}
 
-	e := reportException(t.QueueClient, t, reason, t.log)
+	e := reportException(t.queueClient, t, reason, t.log)
 	if e != nil {
 		t.log.WithField("error", e.Error()).Warn("Could not resolve task as exception.")
 	}
@@ -293,24 +313,24 @@ func (t *TaskRun) ExceptionStage(status runtime.TaskStatus, taskError error) {
 	return
 }
 
-// ResolveTask will resolve the task as completed/failed depending on the outcome
+// resolveTask will resolve the task as completed/failed depending on the outcome
 // of executing the task and finalizing the task plugins.
-func (t *TaskRun) ResolveTask() error {
+func (t *TaskRun) resolveTask() error {
 	resolve := reportCompleted
 	if !t.success {
 		resolve = reportFailed
 	}
 
-	err := resolve(t.QueueClient, t, t.log)
+	err := resolve(t.queueClient, t, t.log)
 	if err != nil {
 		return errors.New(err.Error())
 	}
 	return nil
 }
 
-// DisposeStage is responsible for cleaning up resources allocated for the task execution.
+// disposeStage is responsible for cleaning up resources allocated for the task execution.
 // This will involve closing all necessary files and disposing of contexts, plugins, and sandboxes.
-func (t *TaskRun) DisposeStage() {
+func (t *TaskRun) disposeStage() {
 	err := t.controller.Dispose()
 	if err != nil {
 		t.log.WithField("error", err.Error()).Warn("Could not dispose of task context")
