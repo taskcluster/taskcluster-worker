@@ -3,7 +3,6 @@ package enginetest
 import (
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"strings"
 	"sync"
@@ -70,7 +69,7 @@ func (c *ArtifactTestCase) TestExtractFolderNotFound() {
 	assert(r.buildRunSandbox(), "Task failed to run, payload: ", c.Payload)
 
 	err := r.resultSet.ExtractFolder(c.FolderNotFoundPath, func(
-		path string, reader io.ReadCloser,
+		path string, reader engines.ReadSeekCloser,
 	) error {
 		return errors.New("File was found, didn't expect that!!!")
 	})
@@ -89,7 +88,7 @@ func (c *ArtifactTestCase) TestExtractNestedFolderPath() {
 	m := sync.Mutex{}
 	files := []string{}
 	err := r.resultSet.ExtractFolder(c.NestedFolderPath, func(
-		path string, reader io.ReadCloser,
+		path string, reader engines.ReadSeekCloser,
 	) error {
 		m.Lock()
 		files = append(files, path)
@@ -137,7 +136,7 @@ func (c *ArtifactTestCase) TestExtractFolderHandlerInterrupt() {
 	assert(r.buildRunSandbox(), "Task failed to run, payload: ", c.Payload)
 
 	err := r.resultSet.ExtractFolder(c.NestedFolderPath, func(
-		path string, reader io.ReadCloser,
+		path string, reader engines.ReadSeekCloser,
 	) error {
 		return errors.New("Error that should interrupt ExtractFolder")
 	})

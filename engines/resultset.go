@@ -1,6 +1,16 @@
 package engines
 
-import "io"
+import (
+	"io"
+)
+
+// A ReadSeekCloser wraps some basic io operations such that we can do
+// retries in artifact upload logic
+type ReadSeekCloser interface {
+	io.Reader
+	io.Seeker
+	io.Closer
+}
 
 // FileHandler is given as callback when iterating through a list of files.
 //
@@ -8,7 +18,7 @@ import "io"
 // parameter. This function maybe called sequentially or concurrently, but if
 // it returns an the ResultSet should stop calling it and pass the error through
 // as return value from ResultSet.ExtractFolder.
-type FileHandler func(path string, stream io.ReadCloser) error
+type FileHandler func(path string, stream ReadSeekCloser) error
 
 // The ResultSet interface represents the results of a sandbox that has finished
 // execution, but is hanging around while results are being extracted.
@@ -36,7 +46,7 @@ type ResultSet interface {
 	//
 	// Non-fatal erorrs: ErrFeatureNotSupported, ErrResourceNotFound,
 	// MalformedPayloadError
-	ExtractFile(path string) (io.ReadCloser, error)
+	ExtractFile(path string) (ReadSeekCloser, error)
 
 	// Extract a folder from the sandbox.
 	//
@@ -72,7 +82,7 @@ type ResultSet interface {
 
 	// ArchiveSandbox streams out the entire sandbox (or as much as possible)
 	// as a tar-stream. Ideally this also includes cache folders.
-	ArchiveSandbox() (io.ReadCloser, error)
+	ArchiveSandbox() (ReadSeekCloser, error)
 
 	// Dispose shall release all resources.
 	//
@@ -95,7 +105,7 @@ type ResultSetBase struct{}
 
 // ExtractFile returns ErrFeatureNotSupported indicating that the feature isn't
 // supported.
-func (ResultSetBase) ExtractFile(string) (io.ReadCloser, error) {
+func (ResultSetBase) ExtractFile(string) (ReadSeekCloser, error) {
 	return nil, ErrFeatureNotSupported
 }
 
@@ -107,7 +117,7 @@ func (ResultSetBase) ExtractFolder(string, FileHandler) error {
 
 // ArchiveSandbox returns ErrFeatureNotSupported indicating that the feature
 // isn't supported.
-func (ResultSetBase) ArchiveSandbox() (io.ReadCloser, error) {
+func (ResultSetBase) ArchiveSandbox() (ReadSeekCloser, error) {
 	return nil, ErrFeatureNotSupported
 }
 
