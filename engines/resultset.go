@@ -4,8 +4,8 @@ import (
 	"io"
 )
 
-// A ReadSeekCloser wraps some basic io operations such that we can do
-// retries in artifact upload logic
+// ReadSeekCloser implements io.Reader, io.Seeker, and io.Closer. It is trivially implemented by os.File.
+// The interface is used to expose file objects from ResultSet while abstracting with file-system specifics.
 type ReadSeekCloser interface {
 	io.Reader
 	io.Seeker
