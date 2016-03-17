@@ -1,3 +1,5 @@
+//go:generate go-extpoints ./
+
 // Package extpoints provides methods that engine plugins can register their
 // implements with as an import side-effect.
 package extpoints

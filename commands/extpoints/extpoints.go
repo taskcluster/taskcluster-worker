@@ -55,7 +55,6 @@ func UnregisterExtension(name string) []string {
 	return ifaces
 }
 
-
 // Base extension point
 
 type extensionPoint struct {
@@ -127,54 +126,52 @@ func (ep *extensionPoint) unregister(name string) bool {
 	return true
 }
 
-// EngineProvider
+// CommandProvider
 
-var EngineProviders = &engineProviderExt{
-	newExtensionPoint(new(EngineProvider)),
+var CommandProviders = &commandProviderExt{
+	newExtensionPoint(new(CommandProvider)),
 }
 
-type engineProviderExt struct {
+type commandProviderExt struct {
 	*extensionPoint
 }
 
-func (ep *engineProviderExt) Unregister(name string) bool {
+func (ep *commandProviderExt) Unregister(name string) bool {
 	return ep.unregister(name)
 }
 
-func (ep *engineProviderExt) Register(extension EngineProvider, name string) bool {
+func (ep *commandProviderExt) Register(extension CommandProvider, name string) bool {
 	return ep.register(extension, name)
 }
 
-func (ep *engineProviderExt) Lookup(name string) EngineProvider {
+func (ep *commandProviderExt) Lookup(name string) CommandProvider {
 	ext := ep.lookup(name)
 	if ext == nil {
 		return nil
 	}
-	return ext.(EngineProvider)
+	return ext.(CommandProvider)
 }
 
-func (ep *engineProviderExt) Select(names []string) []EngineProvider {
-	var selected []EngineProvider
+func (ep *commandProviderExt) Select(names []string) []CommandProvider {
+	var selected []CommandProvider
 	for _, name := range names {
 		selected = append(selected, ep.Lookup(name))
 	}
 	return selected
 }
 
-func (ep *engineProviderExt) All() map[string]EngineProvider {
-	all := make(map[string]EngineProvider)
+func (ep *commandProviderExt) All() map[string]CommandProvider {
+	all := make(map[string]CommandProvider)
 	for k, v := range ep.all() {
-		all[k] = v.(EngineProvider)
+		all[k] = v.(CommandProvider)
 	}
 	return all
 }
 
-func (ep *engineProviderExt) Names() []string {
+func (ep *commandProviderExt) Names() []string {
 	var names []string
 	for k := range ep.all() {
 		names = append(names, k)
 	}
 	return names
 }
-
-
