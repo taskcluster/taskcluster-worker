@@ -16,8 +16,8 @@ import (
 
 	logrus "github.com/Sirupsen/logrus"
 	"github.com/taskcluster/httpbackoff"
-	tcqueue "github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-client-go/tcclient"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 )
 
@@ -51,21 +51,6 @@ type (
 		signedDeleteURL string
 	}
 
-	// TaskclusterQueue is an interface to the Queue client provided by the
-	// taskcluster-client-go package.  Passing around an interface allows the
-	// queue client to be mocked
-	// TODO (garndt): move out of the worker package to something more
-	// appropriate like the task context or runtime.
-	queueClient interface {
-		ReportCompleted(string, string) (*tcqueue.TaskStatusResponse, *tcclient.CallSummary, error)
-		ReportException(string, string, *tcqueue.TaskExceptionRequest) (*tcqueue.TaskStatusResponse, *tcclient.CallSummary, error)
-		ReportFailed(string, string) (*tcqueue.TaskStatusResponse, *tcclient.CallSummary, error)
-		ClaimTask(string, string, *tcqueue.TaskClaimRequest) (*tcqueue.TaskClaimResponse, *tcclient.CallSummary, error)
-		ReclaimTask(string, string) (*tcqueue.TaskReclaimResponse, *tcclient.CallSummary, error)
-		PollTaskUrls(string, string) (*tcqueue.PollTaskUrlsResponse, *tcclient.CallSummary, error)
-		CancelTask(string) (*tcqueue.TaskStatusResponse, *tcclient.CallSummary, error)
-	}
-
 	// QueueService is an interface describing the methods responsible for claiming
 	// work from Azure queues.
 	QueueService interface {
@@ -82,7 +67,7 @@ type (
 		queues           []messageQueue
 		expires          tcclient.Time
 		expirationOffset int
-		client           queueClient
+		client           runtime.QueueClient
 		provisionerID    string
 		workerType       string
 		workerID         string

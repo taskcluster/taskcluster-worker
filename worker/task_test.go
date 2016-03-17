@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -9,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/taskcluster-client-go/tcclient"
+	"github.com/taskcluster/taskcluster-worker/config"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	"github.com/taskcluster/taskcluster-worker/plugins"
@@ -17,6 +20,43 @@ import (
 )
 
 var logger, _ = runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
+
+var taskDefinitions = map[string]struct {
+	definition string
+	success    bool
+}{
+	"invalidJSON": {
+		definition: "",
+		success:    false,
+	},
+	"invalidEnginePayload": {
+		definition: `{"start": {"delay1": 10,"function": "write-log","argument": "Hello World"}}`,
+		success:    false,
+	},
+	"validEnginePayload": {
+		definition: `{"start": {"delay": 10,"function": "write-log","argument": "Hello World"}}`,
+		success:    true,
+	},
+}
+
+var claim = &taskClaim{
+	taskID: "abc",
+	runID:  1,
+	taskClaim: &queue.TaskClaimResponse{
+		Credentials: struct {
+			AccessToken string `json:"accessToken"`
+			Certificate string `json:"certificate"`
+			ClientID    string `json:"clientId"`
+		}{
+			AccessToken: "123",
+			ClientID:    "abc",
+			Certificate: "",
+		},
+	},
+	definition: &queue.TaskDefinitionResponse{
+		Payload: []byte(taskDefinitions["validEnginePayload"].definition),
+	},
+}
 
 type mockedPluginManager struct {
 	payloadSchema      runtime.CompositeSchema
@@ -76,106 +116,101 @@ func ensureEnvironment(t *testing.T) (*runtime.Environment, engines.Engine, plug
 
 func TestParsePayload(t *testing.T) {
 	var err error
-	testCases := []struct {
-		definition string
-		shouldFail bool
-	}{
-		// Invalid JSON
-		{definition: "", shouldFail: true},
-		// Invalid Engine Payload
-		{definition: `{"start": {"delay1": 10,"function": "write-log","argument": "Hello World"}}`, shouldFail: true},
-		// Invalid Engine Payload
-		{definition: `{"start": {"delay1": 10,"function": "write-log","argument": "Hello World"}}`, shouldFail: true},
-		// Valid Engine Payload
-		{definition: `{"start": {"delay": 10,"function": "write-log","argument": "Hello World"}}`, shouldFail: false},
-	}
-
 	environment, engine, pluginManager := ensureEnvironment(t)
 
 	tr := &TaskRun{
-		TaskID: "abc",
-		RunID:  1,
-		log:    logger.WithField("taskId", "abc"),
+		TaskID:        "abc",
+		RunID:         1,
+		log:           logger.WithField("taskId", "abc"),
+		pluginManager: pluginManager,
+		engine:        engine,
 	}
 
 	tp := environment.TemporaryStorage.NewFilePath()
-	tr.context, tr.controller, err = runtime.NewTaskContext(tp)
+	tr.context, tr.controller, err = runtime.NewTaskContext(tp, claim.taskClaim)
 	defer func() {
 		tr.controller.CloseLog()
 		tr.controller.Dispose()
 	}()
 
-	for _, tc := range testCases {
-		tr.definition = queue.TaskDefinitionResponse{
+	for name, tc := range taskDefinitions {
+		tr.definition = &queue.TaskDefinitionResponse{
 			Payload: []byte(tc.definition),
 		}
-		err = tr.parsePayload(pluginManager, engine)
-		assert.Equal(t, tc.shouldFail, err != nil, "Parsing invalid task payload should have returned an error")
+		err = tr.parsePayload()
+		assert.Equal(
+			t,
+			tc.success, err == nil,
+			fmt.Sprintf("Parsing task payload '%s' did not result in expected outcome.", name),
+		)
 	}
 }
 
 func TestCreateTaskPlugins(t *testing.T) {
 	var err error
 	environment, engine, pluginManager := ensureEnvironment(t)
+	tr, err := NewTaskRun(&config.Config{}, claim, environment, engine, pluginManager, logger.WithField("test", "TestRunTask"))
+	assert.Nil(t, err)
 
-	tr := &TaskRun{
-		TaskID: "abc",
-		RunID:  1,
-		definition: queue.TaskDefinitionResponse{
-			Payload: []byte(`{"start": {"delay": 10,"function": "write-log","argument": "Hello World"}}`),
-		},
-		log: logger.WithField("taskId", "abc"),
-	}
-
-	tp := environment.TemporaryStorage.NewFilePath()
-	tr.context, tr.controller, err = runtime.NewTaskContext(tp)
-
-	err = tr.parsePayload(pluginManager, engine)
+	err = tr.parsePayload()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pm := mockedPluginManager{
+	tr.pluginManager = mockedPluginManager{
 		taskPlugin: &taskPlugin{},
 	}
 
-	err = tr.createTaskPlugins(pm)
+	err = tr.createTaskPlugins()
 	assert.Nil(t, err, "Error should not have been returned when creating task plugins")
 
-	pm = mockedPluginManager{
+	tr.pluginManager = mockedPluginManager{
 		taskPlugin:      nil,
 		taskPluginError: engines.NewMalformedPayloadError("bad payload"),
 	}
 
-	err = tr.createTaskPlugins(pm)
+	err = tr.createTaskPlugins()
 	assert.NotNil(t, err, "Error should have been returned when creating task plugins")
 	assert.Equal(t, "engines.MalformedPayloadError", reflect.TypeOf(err).String())
 }
 
-func TestPrepare(t *testing.T) {
-	var err error
+func TestRunTask(t *testing.T) {
 	environment, engine, pluginManager := ensureEnvironment(t)
+	tr, err := NewTaskRun(&config.Config{}, claim, environment, engine, pluginManager, logger.WithField("test", "TestRunTask"))
+	assert.Nil(t, err)
 
-	tr := &TaskRun{
-		TaskID: "abc",
-		RunID:  1,
-		definition: queue.TaskDefinitionResponse{
-			Payload: []byte(`{"start": {"delay": 10,"function": "write-log","argument": "Hello World"}}`),
-		},
-		log:    logger.WithField("taskId", "abc"),
-		plugin: &taskPlugin{},
-		engine: engine,
+	mockedQueue := &runtime.MockQueue{}
+	mockedQueue.On(
+		"ReportCompleted",
+		"abc",
+		"1",
+	).Return(&queue.TaskStatusResponse{}, &tcclient.CallSummary{}, nil)
+
+	tr.context.SetQueueClient(mockedQueue)
+
+	tr.Run()
+	mockedQueue.AssertCalled(t, "ReportCompleted", "abc", "1")
+}
+
+func TestRunMalformedEnginePayloadTask(t *testing.T) {
+	claim.definition = &queue.TaskDefinitionResponse{
+		Payload: []byte(taskDefinitions["invalidEnginePayload"].definition),
 	}
 
-	tp := environment.TemporaryStorage.NewFilePath()
-	tr.context, tr.controller, err = runtime.NewTaskContext(tp)
-
-	err = tr.parsePayload(pluginManager, engine)
+	environment, engine, pluginManager := ensureEnvironment(t)
+	tr, err := NewTaskRun(&config.Config{}, claim, environment, engine, pluginManager, logger.WithField("test", "TestRunTask"))
 	assert.Nil(t, err)
 
-	err = tr.createTaskPlugins(pluginManager)
-	assert.Nil(t, err)
+	mockedQueue := &runtime.MockQueue{}
+	mockedQueue.On(
+		"ReportException",
+		"abc",
+		"1",
+		&queue.TaskExceptionRequest{Reason: "malformed-payload"},
+	).Return(&queue.TaskStatusResponse{}, &tcclient.CallSummary{}, nil)
 
-	err = tr.prepareStage()
-	assert.Nil(t, err)
+	tr.context.SetQueueClient(mockedQueue)
+
+	tr.Run()
+	mockedQueue.AssertCalled(t, "ReportException", "abc", "1", &queue.TaskExceptionRequest{Reason: "malformed-payload"})
 }

@@ -8,6 +8,7 @@ import (
 	"regexp"
 	rt "runtime"
 
+	"github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	// Ensure we load the mock engine
@@ -69,7 +70,7 @@ func (c Case) Test() {
 		Log:         runtimeEnvironment.Log.WithField("engine", "mock"),
 		// TODO: Add engine config
 	})
-	context, controller, err := runtime.NewTaskContext(runtimeEnvironment.TemporaryStorage.NewFilePath())
+	context, controller, err := runtime.NewTaskContext(runtimeEnvironment.TemporaryStorage.NewFilePath(), &queue.TaskClaimResponse{})
 	sandboxBuilder, err := engine.NewSandboxBuilder(engines.SandboxOptions{
 		TaskContext: context,
 		Payload:     parseEnginePayload(engine, c.Payload),

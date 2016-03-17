@@ -22,6 +22,7 @@ type Manager struct {
 	sync.RWMutex
 	wg            sync.WaitGroup
 	done          chan struct{}
+	config        *config.Config
 	engine        engines.Engine
 	environment   *runtime.Environment
 	pluginManager plugins.Plugin
@@ -44,6 +45,9 @@ func newTaskManager(config *config.Config, engine engines.Engine, environment *r
 			Certificate: config.Credentials.Certificate,
 		},
 	)
+
+	queue.BaseURL = config.Taskcluster.Queue.URL
+
 	service := &queueService{
 		capacity:         config.Capacity,
 		interval:         config.PollingInterval,
@@ -59,6 +63,7 @@ func newTaskManager(config *config.Config, engine engines.Engine, environment *r
 	m := &Manager{
 		tasks:         make(map[string]*TaskRun),
 		done:          make(chan struct{}),
+		config:        config,
 		engine:        engine,
 		environment:   environment,
 		log:           log,
@@ -151,7 +156,7 @@ func (m *Manager) run(claim *taskClaim) {
 		"runID":  claim.runID,
 	})
 
-	task, err := NewTaskRun(claim, m.environment.TemporaryStorage.NewFilePath(), m.engine, m.pluginManager, log)
+	task, err := NewTaskRun(m.config, claim, m.environment, m.engine, m.pluginManager, log)
 	if err != nil {
 		// This is a fatal call because creating a task run should never fail.
 		log.WithField("error", err.Error()).Fatal("Could not successfully run the task")

@@ -24,7 +24,7 @@ var WorkerID = fmt.Sprintf("dummy-worker-%s", slugid.Nice())
 
 func TestRetrievePollTaskUrls(t *testing.T) {
 	logger, _ := runtime.CreateLogger("")
-	mockedQueue := &MockQueue{}
+	mockedQueue := &runtime.MockQueue{}
 	service := queueService{
 		client:           mockedQueue,
 		provisionerID:    ProvisionerID,
@@ -67,7 +67,7 @@ func TestRetrievePollTaskUrls(t *testing.T) {
 
 func TestRetrievePollTaskUrlsErrorCaught(t *testing.T) {
 	logger, _ := runtime.CreateLogger("")
-	mockedQueue := &MockQueue{}
+	mockedQueue := &runtime.MockQueue{}
 	service := queueService{
 		client:           mockedQueue,
 		provisionerID:    ProvisionerID,
@@ -564,7 +564,7 @@ func TestClaimTask(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
 
-	mockedQueue := &MockQueue{}
+	mockedQueue := &runtime.MockQueue{}
 	mockedQueue.On(
 		"ClaimTask",
 		"abc",
@@ -631,7 +631,7 @@ func TestClaimTaskError(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
 
-	mockedQueue := &MockQueue{}
+	mockedQueue := &runtime.MockQueue{}
 	mockedQueue.On(
 		"ClaimTask",
 		"abc",
@@ -675,7 +675,7 @@ func TestClaimTasks(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
 
-	mockedQueue := &MockQueue{}
+	mockedQueue := &runtime.MockQueue{}
 	mockedQueue.On(
 		"ClaimTask",
 		"abc",

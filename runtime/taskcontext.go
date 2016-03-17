@@ -7,6 +7,7 @@ import (
 
 	"sync"
 
+	"github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 
 	"gopkg.in/djherbis/stream.v1"
@@ -39,8 +40,14 @@ const (
 )
 
 // The TaskInfo struct exposes generic properties from a task definition.
+//
+// Note, do not be tempted to add task definition or status here in its entirety
+// as it can encourage undesired behaviors.  Instead only the data necessary
+// should be exposed and nothing more.  One such anti-pattern could be for a
+// plugin to look at task.extra instead of adding data to task.payload.
 type TaskInfo struct {
-	// TODO: Add fields and getters to get them
+	TaskID string
+	RunID  int
 }
 
 // The TaskContext exposes generic properties and functionality related to a
@@ -55,6 +62,7 @@ type TaskContext struct {
 	webHookSet *webhookserver.WebHookSet
 	logStream  *stream.Stream
 	mu         sync.RWMutex
+	queue      QueueClient
 	status     TaskStatus
 	cancelled  bool
 }
@@ -68,13 +76,17 @@ type TaskContextController struct {
 }
 
 // NewTaskContext creates a TaskContext and associated TaskContextController
-func NewTaskContext(tempLogFile string) (*TaskContext, *TaskContextController, error) {
+func NewTaskContext(tempLogFile string, claim *queue.TaskClaimResponse) (*TaskContext, *TaskContextController, error) {
 	logStream, err := stream.New(tempLogFile)
 	if err != nil {
 		return nil, nil, err
 	}
 	ctx := &TaskContext{
 		logStream: logStream,
+		TaskInfo: TaskInfo{
+			TaskID: claim.Status.TaskID,
+			RunID:  claim.RunID,
+		},
 	}
 	return ctx, &TaskContextController{ctx}, nil
 }
@@ -87,6 +99,24 @@ func (c *TaskContextController) CloseLog() error {
 // Dispose will clean-up all resources held by the TaskContext
 func (c *TaskContextController) Dispose() error {
 	return c.logStream.Remove()
+}
+
+// GetQueueClient will return a client for the TaskCluster Queue.  This client
+// is useful for plugins that require interactions with the queue, such as creating
+// artifacts.
+func (c *TaskContext) GetQueueClient() QueueClient {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.queue
+}
+
+// CreateQueueClient will create a client for the TaskCluster Queue.  This client
+// can then be used by others that have access to the task context and require
+// interaction with the queue.
+func (c *TaskContext) SetQueueClient(client QueueClient) {
+	c.mu.Lock()
+	c.queue = client
+	c.mu.Unlock()
 }
 
 // Abort sets the status to aborted

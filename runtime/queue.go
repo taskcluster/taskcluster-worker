@@ -1,4 +1,4 @@
-package worker
+package runtime
 
 import (
 	"github.com/stretchr/testify/mock"
@@ -6,6 +6,25 @@ import (
 	"github.com/taskcluster/taskcluster-client-go/tcclient"
 )
 
+// QueueClient is an interface to the Queue client provided by the
+// taskcluster-client-go package.  Passing around an interface allows the
+// queue client to be mocked
+type QueueClient interface {
+	ReportCompleted(string, string) (*queue.TaskStatusResponse, *tcclient.CallSummary, error)
+	ReportException(string, string, *queue.TaskExceptionRequest) (*queue.TaskStatusResponse, *tcclient.CallSummary, error)
+	ReportFailed(string, string) (*queue.TaskStatusResponse, *tcclient.CallSummary, error)
+	ClaimTask(string, string, *queue.TaskClaimRequest) (*queue.TaskClaimResponse, *tcclient.CallSummary, error)
+	ReclaimTask(string, string) (*queue.TaskReclaimResponse, *tcclient.CallSummary, error)
+	PollTaskUrls(string, string) (*queue.PollTaskUrlsResponse, *tcclient.CallSummary, error)
+	CancelTask(string) (*queue.TaskStatusResponse, *tcclient.CallSummary, error)
+}
+
+// MockQueue is a mocked TaskCluster queue client.  Calls to methods exposed by the queue
+// client will be recorded for assertion later and will respond with the data
+// that was specified during creation of the mocked object.
+//
+// For more information about each of these client methods, consult the
+// taskcluster-clieng-go/queue package
 type MockQueue struct {
 	mock.Mock
 }

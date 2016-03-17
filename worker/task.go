@@ -8,6 +8,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/taskcluster-client-go/tcclient"
+	"github.com/taskcluster/taskcluster-worker/config"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -18,11 +20,9 @@ import (
 type TaskRun struct {
 	TaskID         string
 	RunID          uint
-	taskClaim      queue.TaskClaimResponse
-	taskReclaim    queue.TaskReclaimResponse
-	definition     queue.TaskDefinitionResponse
-	queueClient    queueClient
+	definition     *queue.TaskDefinitionResponse
 	plugin         plugins.TaskPlugin
+	pluginManager  plugins.Plugin
 	log            *logrus.Entry
 	payload        interface{}
 	pluginPayload  interface{}
@@ -37,37 +37,41 @@ type TaskRun struct {
 	shutdown       bool
 }
 
-func NewTaskRun(claim *taskClaim, path string, engine engines.Engine, pluginManager plugins.Plugin, log *logrus.Entry) (*TaskRun, error) {
-	ctxt, ctxtctl, err := runtime.NewTaskContext(path)
+func NewTaskRun(
+	config *config.Config,
+	claim *taskClaim,
+	environment *runtime.Environment,
+	engine engines.Engine,
+	pluginManager plugins.Plugin,
+	log *logrus.Entry,
+) (*TaskRun, error) {
+
+	tp := environment.TemporaryStorage.NewFilePath()
+	ctxt, ctxtctl, err := runtime.NewTaskContext(tp, claim.taskClaim)
+
+	queueClient := queue.New(&tcclient.Credentials{
+		ClientId:    claim.taskClaim.Credentials.ClientID,
+		AccessToken: claim.taskClaim.Credentials.AccessToken,
+		Certificate: claim.taskClaim.Credentials.Certificate,
+	})
+
+	queueClient.BaseURL = config.Taskcluster.Queue.URL
+
+	ctxt.SetQueueClient(queueClient)
+
 	if err != nil {
 		return nil, err
 	}
 
 	tr := &TaskRun{
-		TaskID:      claim.taskID,
-		RunID:       claim.runID,
-		taskClaim:   claim.taskClaim,
-		definition:  claim.definition,
-		queueClient: claim.queueClient,
-		log:         log,
-		context:     ctxt,
-		controller:  ctxtctl,
-		engine:      engine,
-	}
-
-	err = tr.parsePayload(pluginManager, engine)
-	if err != nil {
-		tr.context.LogError(fmt.Sprintf("Invalid task payload. %s", err))
-		tr.exceptionStage(err)
-		return nil, err
-	}
-
-	err = tr.createTaskPlugins(pluginManager)
-	if err != nil {
-		e := fmt.Errorf("Invalid task payload. %s", err)
-		tr.context.LogError(e.Error())
-		tr.exceptionStage(err)
-		return nil, e
+		TaskID:        claim.taskID,
+		RunID:         claim.runID,
+		definition:    claim.definition,
+		log:           log,
+		context:       ctxt,
+		controller:    ctxtctl,
+		engine:        engine,
+		pluginManager: pluginManager,
 	}
 
 	return tr, nil
@@ -137,34 +141,36 @@ func (t *TaskRun) Run() {
 
 // parsePayload  will parse the task payload, which will validate it against the engine
 // and plugin schemas.
-func (t *TaskRun) parsePayload(pluginManager plugins.Plugin, engine engines.Engine) error {
+func (t *TaskRun) parsePayload() error {
 	var err error
 	jsonPayload := map[string]json.RawMessage{}
 	if err = json.Unmarshal([]byte(t.definition.Payload), &jsonPayload); err != nil {
-		return err
+		return engines.NewMalformedPayloadError(fmt.Sprintf("Invalid task payload. %s", err))
 	}
 
-	t.payload, err = engine.PayloadSchema().Parse(jsonPayload)
+	t.payload, err = t.engine.PayloadSchema().Parse(jsonPayload)
 	if err != nil {
-		return err
+		return engines.NewMalformedPayloadError(fmt.Sprintf("Invalid task payload. %s", err))
 	}
 
-	ps, err := pluginManager.PayloadSchema()
+	ps, err := t.pluginManager.PayloadSchema()
 	if err != nil {
+		return engines.NewMalformedPayloadError(fmt.Sprintf("Invalid task payload. %s", err))
 	}
 
 	t.pluginPayload, err = ps.Parse(jsonPayload)
 	if err != nil {
-		return err
+		return engines.NewMalformedPayloadError(fmt.Sprintf("Invalid task payload. %s", err))
 	}
+
 	return nil
 }
 
 // createTaskPlugins will create a new task plugin to be used during the task lifecycle.
-func (t *TaskRun) createTaskPlugins(pluginManager plugins.Plugin) error {
+func (t *TaskRun) createTaskPlugins() error {
 	var err error
 	popts := plugins.TaskPluginOptions{TaskInfo: &runtime.TaskInfo{}, Payload: t.pluginPayload}
-	t.plugin, err = pluginManager.NewTaskPlugin(popts)
+	t.plugin, err = t.pluginManager.NewTaskPlugin(popts)
 	if err != nil {
 		return err
 	}
@@ -176,7 +182,19 @@ func (t *TaskRun) createTaskPlugins(pluginManager plugins.Plugin) error {
 func (t *TaskRun) prepareStage() error {
 	t.log.Debug("Preparing task run")
 
-	err := t.plugin.Prepare(t.context)
+	err := t.parsePayload()
+	if err != nil {
+		t.context.LogError(err.Error())
+		return err
+	}
+
+	err = t.createTaskPlugins()
+	if err != nil {
+		t.context.LogError(err.Error())
+		return err
+	}
+
+	err = t.plugin.Prepare(t.context)
 	if err != nil {
 		t.context.LogError(fmt.Sprintf("Could not prepare task plugins. %s", err))
 		return err
@@ -277,7 +295,6 @@ func (t *TaskRun) finishStage() error {
 // Tasks that have been cancelled will not be reported as an exception as the run
 // has already been resolved.
 func (t *TaskRun) exceptionStage(taskError error) {
-	fmt.Println(taskError)
 	var reason runtime.ExceptionReason
 	if t.shutdown {
 		reason = runtime.WorkerShutdown
@@ -295,17 +312,18 @@ func (t *TaskRun) exceptionStage(taskError error) {
 		t.log.WithField("error", err.Error()).Warn("Could not properly close task log")
 	}
 
-	// TODO (garndt): handle when task plugins haven't been created yet
-	err = t.plugin.Exception(reason)
-	if err != nil {
-		t.log.WithField("error", err.Error()).Warn("Could not finalize task plugins as exception.")
+	if t.plugin != nil {
+		err = t.plugin.Exception(reason)
+		if err != nil {
+			t.log.WithField("error", err.Error()).Warn("Could not finalize task plugins as exception.")
+		}
 	}
 
 	if t.context.IsCancelled() {
 		return
 	}
 
-	e := reportException(t.queueClient, t, reason, t.log)
+	e := reportException(t.context.GetQueueClient(), t, reason, t.log)
 	if e != nil {
 		t.log.WithField("error", e.Error()).Warn("Could not resolve task as exception.")
 	}
@@ -321,7 +339,7 @@ func (t *TaskRun) resolveTask() error {
 		resolve = reportFailed
 	}
 
-	err := resolve(t.queueClient, t, t.log)
+	err := resolve(t.context.GetQueueClient(), t, t.log)
 	if err != nil {
 		return errors.New(err.Error())
 	}

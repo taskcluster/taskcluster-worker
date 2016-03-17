@@ -43,6 +43,17 @@ type (
 			ExpirationOffset int `json:"expirationOffset"`
 		} `json:"queueService"`
 
+		// Properties related to the TaskCluster Platform
+		Taskcluster struct {
+
+			// Properties defining interaction with the TaskCluster queue
+			Queue struct {
+
+				// Base URL for TaskCluster queue
+				URL string `json:"url"`
+			} `json:"queue"`
+		} `json:"taskcluster"`
+
 		// A logical group for this worker to belong to, such as an AWS region.
 		WorkerGroup string `json:"workerGroup"`
 
@@ -118,6 +129,25 @@ var ConfigSchema = func() runtime.CompositeSchema {
 		        "expirationOffset"
 		      ],
 		      "title": "QueueService",
+		      "type": "object"
+		    },
+		    "taskcluster": {
+		      "description": "Properties related to the TaskCluster Platform",
+		      "properties": {
+		        "queue": {
+		          "description": "Properties defining interaction with the TaskCluster queue",
+		          "properties": {
+		            "url": {
+		              "description": "Base URL for TaskCluster queue",
+		              "title": "BaseUrl",
+		              "type": "string"
+		            }
+		          },
+		          "title": "TaskclusterQueueProperties",
+		          "type": "object"
+		        }
+		      },
+		      "title": "TaskclusterProperties",
 		      "type": "object"
 		    },
 		    "workerGroup": {
