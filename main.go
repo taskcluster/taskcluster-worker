@@ -1,5 +1,3 @@
-//go:generate go-extpoints ./engines/extpoints/
-//go:generate go-extpoints ./plugins/extpoints/
 //go:generate go-import-subtree engines/ plugins/
 
 package main
