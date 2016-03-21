@@ -186,7 +186,7 @@ func TestRunTask(t *testing.T) {
 		"1",
 	).Return(&queue.TaskStatusResponse{}, &tcclient.CallSummary{}, nil)
 
-	tr.context.SetQueueClient(mockedQueue)
+	tr.controller.SetQueueClient(mockedQueue)
 
 	tr.Run()
 	mockedQueue.AssertCalled(t, "ReportCompleted", "abc", "1")
@@ -209,7 +209,7 @@ func TestRunMalformedEnginePayloadTask(t *testing.T) {
 		&queue.TaskExceptionRequest{Reason: "malformed-payload"},
 	).Return(&queue.TaskStatusResponse{}, &tcclient.CallSummary{}, nil)
 
-	tr.context.SetQueueClient(mockedQueue)
+	tr.controller.SetQueueClient(mockedQueue)
 
 	tr.Run()
 	mockedQueue.AssertCalled(t, "ReportException", "abc", "1", &queue.TaskExceptionRequest{Reason: "malformed-payload"})

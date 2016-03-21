@@ -57,7 +57,7 @@ func NewTaskRun(
 
 	queueClient.BaseURL = config.Taskcluster.Queue.URL
 
-	ctxt.SetQueueClient(queueClient)
+	ctxtctl.SetQueueClient(queueClient)
 
 	if err != nil {
 		return nil, err
@@ -323,7 +323,7 @@ func (t *TaskRun) exceptionStage(taskError error) {
 		return
 	}
 
-	e := reportException(t.context.GetQueueClient(), t, reason, t.log)
+	e := reportException(t.context.Queue(), t, reason, t.log)
 	if e != nil {
 		t.log.WithField("error", e.Error()).Warn("Could not resolve task as exception.")
 	}
@@ -339,7 +339,7 @@ func (t *TaskRun) resolveTask() error {
 		resolve = reportFailed
 	}
 
-	err := resolve(t.context.GetQueueClient(), t, t.log)
+	err := resolve(t.context.Queue(), t, t.log)
 	if err != nil {
 		return errors.New(err.Error())
 	}

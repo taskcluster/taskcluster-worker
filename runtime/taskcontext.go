@@ -101,22 +101,22 @@ func (c *TaskContextController) Dispose() error {
 	return c.logStream.Remove()
 }
 
-// GetQueueClient will return a client for the TaskCluster Queue.  This client
-// is useful for plugins that require interactions with the queue, such as creating
-// artifacts.
-func (c *TaskContext) GetQueueClient() QueueClient {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.queue
-}
-
-// CreateQueueClient will create a client for the TaskCluster Queue.  This client
+// SetQueueClient will set a client for the TaskCluster Queue.  This client
 // can then be used by others that have access to the task context and require
 // interaction with the queue.
-func (c *TaskContext) SetQueueClient(client QueueClient) {
+func (c *TaskContextController) SetQueueClient(client QueueClient) {
 	c.mu.Lock()
 	c.queue = client
 	c.mu.Unlock()
+}
+
+// Queue will return a client for the TaskCluster Queue.  This client
+// is useful for plugins that require interactions with the queue, such as creating
+// artifacts.
+func (c *TaskContext) Queue() QueueClient {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.queue
 }
 
 // Abort sets the status to aborted
