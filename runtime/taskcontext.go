@@ -7,7 +7,6 @@ import (
 
 	"sync"
 
-	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 
 	"gopkg.in/djherbis/stream.v1"
@@ -58,7 +57,6 @@ type TaskContext struct {
 	mu         sync.RWMutex
 	status     TaskStatus
 	cancelled  bool
-	queue      client.Queue
 }
 
 // TaskContextController exposes logic for controlling the TaskContext.
@@ -187,11 +185,4 @@ func (c *TaskContext) NewLogReader() (io.ReadCloser, error) {
 // task-cycle, but not until the very end.
 func (c *TaskContext) AttachWebHook(handler http.Handler) string {
 	return c.webHookSet.AttachHook(handler)
-}
-
-// Queue returns a Queue object with the latest credentials.
-func (c *TaskContext) Queue() client.Queue {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.queue
 }
