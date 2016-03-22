@@ -47,7 +47,7 @@ type (
 
 	taskMessage struct {
 		TaskID          string `json:"taskId"`
-		RunID           uint   `json:"runId"`
+		RunID           int    `json:"runId"`
 		signedDeleteURL string
 	}
 

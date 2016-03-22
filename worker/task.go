@@ -19,7 +19,7 @@ import (
 // about the task as well as controllers for executing and resolving the task.
 type TaskRun struct {
 	TaskID         string
-	RunID          uint
+	RunID          int
 	definition     *queue.TaskDefinitionResponse
 	plugin         plugins.TaskPlugin
 	pluginManager  plugins.Plugin

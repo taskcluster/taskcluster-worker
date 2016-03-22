@@ -20,7 +20,7 @@ func (e updateError) Error() string {
 
 type taskClaim struct {
 	taskID     string
-	runID      uint
+	runID      int
 	taskClaim  *queue.TaskClaimResponse
 	definition *queue.TaskDefinitionResponse
 }
@@ -53,7 +53,7 @@ func reportCompleted(client client.Queue, task *TaskRun, log *logrus.Entry) *upd
 	return nil
 }
 
-func claimTask(client client.Queue, taskID string, runID uint, workerID string, workerGroup string, log *logrus.Entry) (*taskClaim, *updateError) {
+func claimTask(client client.Queue, taskID string, runID int, workerID string, workerGroup string, log *logrus.Entry) (*taskClaim, *updateError) {
 	log.Info("Claiming task")
 	payload := queue.TaskClaimRequest{
 		WorkerGroup: workerGroup,
