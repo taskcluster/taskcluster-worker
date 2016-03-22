@@ -9,6 +9,20 @@ properties:
     title: "PollingInterval"
     description: "The amount of time to wait between task polling iterations"
     type: "integer"
+  taskcluster:
+    title: TaskclusterProperties
+    description: Properties related to the TaskCluster Platform
+    type: object
+    properties:
+      queue:
+        title: TaskclusterQueueProperties
+        description: Properties defining interaction with the TaskCluster queue
+        type: object
+        properties:
+          url:
+            title: BaseUrl
+            description: Base URL for TaskCluster queue
+            type: string
   credentials:
     title:          Credentials
     description: |-

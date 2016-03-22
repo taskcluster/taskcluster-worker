@@ -1,16 +1,19 @@
 package worker
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-client-go/queue"
-	"github.com/taskcluster/taskcluster-client-go/tcclient"
 	"github.com/taskcluster/taskcluster-worker/config"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/success"
@@ -25,7 +28,17 @@ func (q *MockQueueService) ClaimWork(ntasks int) []*TaskRun {
 	return q.tasks
 }
 
-func TestRunTask(t *testing.T) {
+func TestTaskManagerRunTask(t *testing.T) {
+	resolved := false
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		resolved = true
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		json.NewEncoder(w).Encode(&queue.TaskStatusResponse{})
+	}
+
+	s := httptest.NewServer(http.HandlerFunc(handler))
+	defer s.Close()
+
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	tempPath := filepath.Join(os.TempDir(), slugid.V4())
 	tempStorage, err := runtime.NewTemporaryStorage(tempPath)
@@ -45,76 +58,111 @@ func TestRunTask(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	tm, err := newTaskManager(&config.Config{}, engine, environment, logger.WithField("test", "TestRunTask"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	mockedQueue := &MockQueue{}
-	mockedQueue.On(
-		"ReportCompleted",
-		"abc",
-		"1",
-	).Return(&queue.TaskStatusResponse{}, &tcclient.CallSummary{}, nil)
-
-	claim := &taskClaim{
-		queueClient: mockedQueue,
-		taskID:      "abc",
-		runID:       1,
-		definition: queue.TaskDefinitionResponse{
-			Payload: []byte(`{"start": {"delay": 10,"function": "write-log","argument": "Hello World"}}`),
+	cfg := &config.Config{
+		Taskcluster: struct {
+			Queue struct {
+				URL string `json:"url"`
+			} `json:"queue"`
+		}{
+			Queue: struct {
+				URL string `json:"url"`
+			}{
+				URL: s.URL,
+			},
 		},
 	}
-	tm.run(claim)
-	mockedQueue.AssertCalled(t, "ReportCompleted", "abc", "1")
-}
 
-func TestCancelTask(t *testing.T) {
-	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
-	tempPath := filepath.Join(os.TempDir(), slugid.V4())
-	tempStorage, err := runtime.NewTemporaryStorage(tempPath)
+	tm, err := newTaskManager(cfg, engine, environment, logger.WithField("test", "TestRunTask"))
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	environment := &runtime.Environment{
-		TemporaryStorage: tempStorage,
-	}
-	engineProvider := extpoints.EngineProviders.Lookup("mock")
-	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
-		Environment: environment,
-		Log:         logger.WithField("engine", "mock"),
-	})
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	tm, err := newTaskManager(&config.Config{}, engine, environment, logger.WithField("test", "TestRunTask"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	reason := &queue.TaskExceptionRequest{
-		Reason: "worker-shutdown",
-	}
-
-	mockedQueue := &MockQueue{}
-	mockedQueue.On(
-		"ReportException",
-		"abc",
-		"1",
-		reason,
-	).Return(&queue.TaskStatusResponse{
-		Status: queue.TaskStatusStructure{},
-	}, &tcclient.CallSummary{}, nil)
 
 	claim := &taskClaim{
 		taskID: "abc",
 		runID:  1,
-		definition: queue.TaskDefinitionResponse{
+		taskClaim: &queue.TaskClaimResponse{
+			Credentials: struct {
+				AccessToken string `json:"accessToken"`
+				Certificate string `json:"certificate"`
+				ClientID    string `json:"clientId"`
+			}{
+				AccessToken: "123",
+				ClientID:    "abc",
+				Certificate: "",
+			},
+		},
+		definition: &queue.TaskDefinitionResponse{
+			Payload: []byte(`{"start": {"delay": 10,"function": "write-log","argument": "Hello World"}}`),
+		},
+	}
+	tm.run(claim)
+	assert.True(t, resolved, "Task was not resolved")
+}
+
+func TestCancelTask(t *testing.T) {
+	resolved := false
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		resolved = true
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		json.NewEncoder(w).Encode(&queue.TaskStatusResponse{})
+	}
+
+	s := httptest.NewServer(http.HandlerFunc(handler))
+	defer s.Close()
+
+	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
+	tempPath := filepath.Join(os.TempDir(), slugid.V4())
+	tempStorage, err := runtime.NewTemporaryStorage(tempPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	environment := &runtime.Environment{
+		TemporaryStorage: tempStorage,
+	}
+	engineProvider := extpoints.EngineProviders.Lookup("mock")
+	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
+		Environment: environment,
+		Log:         logger.WithField("engine", "mock"),
+	})
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	cfg := &config.Config{
+		Taskcluster: struct {
+			Queue struct {
+				URL string `json:"url"`
+			} `json:"queue"`
+		}{
+			Queue: struct {
+				URL string `json:"url"`
+			}{
+				URL: s.URL,
+			},
+		},
+	}
+
+	tm, err := newTaskManager(cfg, engine, environment, logger.WithField("test", "TestRunTask"))
+	assert.Nil(t, err)
+
+	claim := &taskClaim{
+		taskID: "abc",
+		runID:  1,
+		taskClaim: &queue.TaskClaimResponse{
+			Credentials: struct {
+				AccessToken string `json:"accessToken"`
+				Certificate string `json:"certificate"`
+				ClientID    string `json:"clientId"`
+			}{
+				AccessToken: "123",
+				ClientID:    "abc",
+				Certificate: "",
+			},
+		},
+		definition: &queue.TaskDefinitionResponse{
 			Payload: []byte(`{"start": {"delay": 5000,"function": "write-log","argument": "Hello World"}}`),
 		},
-		queueClient: mockedQueue,
 	}
 	done := make(chan struct{})
 	go func() {
@@ -128,11 +176,30 @@ func TestCancelTask(t *testing.T) {
 
 	<-done
 	assert.Equal(t, len(tm.RunningTasks()), 0)
-
-	mockedQueue.AssertNotCalled(t, "ReportException", "abc", "1", reason)
+	assert.False(t, resolved, "Worker should not have resolved a cancelled task")
 }
 
 func TestWorkerShutdown(t *testing.T) {
+	var resCount int32
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		var exception queue.TaskExceptionRequest
+		err := json.NewDecoder(r.Body).Decode(&exception)
+		// Ignore errors for now
+		if err != nil {
+			return
+		}
+
+		assert.Equal(t, "worker-shutdown", exception.Reason)
+		atomic.AddInt32(&resCount, 1)
+
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		json.NewEncoder(w).Encode(&queue.TaskStatusResponse{})
+	}
+
+	s := httptest.NewServer(http.HandlerFunc(handler))
+	defer s.Close()
+
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	tempPath := filepath.Join(os.TempDir(), slugid.V4())
 	tempStorage, err := runtime.NewTemporaryStorage(tempPath)
@@ -152,49 +219,62 @@ func TestWorkerShutdown(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	tm, err := newTaskManager(&config.Config{}, engine, environment, logger.WithField("test", "TestRunTask"))
+	cfg := &config.Config{
+		Taskcluster: struct {
+			Queue struct {
+				URL string `json:"url"`
+			} `json:"queue"`
+		}{
+			Queue: struct {
+				URL string `json:"url"`
+			}{
+				URL: s.URL,
+			},
+		},
+	}
+	tm, err := newTaskManager(cfg, engine, environment, logger.WithField("test", "TestRunTask"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	reason := &queue.TaskExceptionRequest{
-		Reason: "worker-shutdown",
-	}
-
-	mockedQueue := &MockQueue{}
-	mockedQueue.On(
-		"ReportException",
-		"abc",
-		"1",
-		reason,
-	).Return(&queue.TaskStatusResponse{
-		Status: queue.TaskStatusStructure{},
-	}, &tcclient.CallSummary{}, nil)
-	mockedQueue.On(
-		"ReportException",
-		"def",
-		"0",
-		reason,
-	).Return(&queue.TaskStatusResponse{
-		Status: queue.TaskStatusStructure{},
-	}, &tcclient.CallSummary{}, nil)
-
-	claims := []*taskClaim{&taskClaim{
-		taskID: "abc",
-		runID:  1,
-		definition: queue.TaskDefinitionResponse{
-			Payload: []byte(`{"start": {"delay": 5000,"function": "write-log","argument": "Hello World"}}`),
+	claims := []*taskClaim{
+		&taskClaim{
+			taskID: "abc",
+			runID:  1,
+			definition: &queue.TaskDefinitionResponse{
+				Payload: []byte(`{"start": {"delay": 5000,"function": "write-log","argument": "Hello World"}}`),
+			},
+			taskClaim: &queue.TaskClaimResponse{
+				Credentials: struct {
+					AccessToken string `json:"accessToken"`
+					Certificate string `json:"certificate"`
+					ClientID    string `json:"clientId"`
+				}{
+					AccessToken: "123",
+					ClientID:    "abc",
+					Certificate: "",
+				},
+			},
 		},
-		queueClient: mockedQueue,
-	},
 		&taskClaim{
 			taskID: "def",
 			runID:  0,
-			definition: queue.TaskDefinitionResponse{
+			definition: &queue.TaskDefinitionResponse{
 				Payload: []byte(`{"start": {"delay": 5000,"function": "write-log","argument": "Hello World"}}`),
 			},
-			queueClient: mockedQueue,
-		}}
+			taskClaim: &queue.TaskClaimResponse{
+				Credentials: struct {
+					AccessToken string `json:"accessToken"`
+					Certificate string `json:"certificate"`
+					ClientID    string `json:"clientId"`
+				}{
+					AccessToken: "123",
+					ClientID:    "abc",
+					Certificate: "",
+				},
+			},
+		},
+	}
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -213,8 +293,6 @@ func TestWorkerShutdown(t *testing.T) {
 	tm.Stop()
 
 	wg.Wait()
-	assert.Equal(t, len(tm.RunningTasks()), 0)
-
-	mockedQueue.AssertCalled(t, "ReportException", "abc", "1", reason)
-	mockedQueue.AssertCalled(t, "ReportException", "def", "0", reason)
+	assert.Equal(t, 0, len(tm.RunningTasks()))
+	assert.Equal(t, int32(2), atomic.LoadInt32(&resCount))
 }

@@ -69,7 +69,7 @@ func (c Case) Test() {
 		Log:         runtimeEnvironment.Log.WithField("engine", "mock"),
 		// TODO: Add engine config
 	})
-	context, controller, err := runtime.NewTaskContext(runtimeEnvironment.TemporaryStorage.NewFilePath())
+	context, controller, err := runtime.NewTaskContext(runtimeEnvironment.TemporaryStorage.NewFilePath(), runtime.TaskInfo{})
 	sandboxBuilder, err := engine.NewSandboxBuilder(engines.SandboxOptions{
 		TaskContext: context,
 		Payload:     parseEnginePayload(engine, c.Payload),

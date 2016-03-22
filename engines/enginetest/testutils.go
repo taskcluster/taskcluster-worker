@@ -78,7 +78,7 @@ func (p *EngineProvider) ensureEngine() {
 }
 
 func (p *EngineProvider) newTestTaskContext() (*runtime.TaskContext, *runtime.TaskContextController) {
-	ctx, control, err := runtime.NewTaskContext(p.environment.TemporaryStorage.NewFilePath())
+	ctx, control, err := runtime.NewTaskContext(p.environment.TemporaryStorage.NewFilePath(), runtime.TaskInfo{})
 	nilOrPanic(err, "Failed to create new TaskContext")
 	return ctx, control
 }
