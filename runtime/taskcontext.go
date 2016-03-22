@@ -7,7 +7,7 @@ import (
 
 	"sync"
 
-	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 
 	"gopkg.in/djherbis/stream.v1"
@@ -62,7 +62,7 @@ type TaskContext struct {
 	webHookSet *webhookserver.WebHookSet
 	logStream  *stream.Stream
 	mu         sync.RWMutex
-	queue      QueueClient
+	queue      client.Queue
 	status     TaskStatus
 	cancelled  bool
 }
@@ -76,17 +76,14 @@ type TaskContextController struct {
 }
 
 // NewTaskContext creates a TaskContext and associated TaskContextController
-func NewTaskContext(tempLogFile string, claim *queue.TaskClaimResponse) (*TaskContext, *TaskContextController, error) {
+func NewTaskContext(tempLogFile string, task TaskInfo) (*TaskContext, *TaskContextController, error) {
 	logStream, err := stream.New(tempLogFile)
 	if err != nil {
 		return nil, nil, err
 	}
 	ctx := &TaskContext{
 		logStream: logStream,
-		TaskInfo: TaskInfo{
-			TaskID: claim.Status.TaskID,
-			RunID:  claim.RunID,
-		},
+		TaskInfo:  task,
 	}
 	return ctx, &TaskContextController{ctx}, nil
 }
@@ -104,7 +101,7 @@ func (c *TaskContextController) Dispose() error {
 // SetQueueClient will set a client for the TaskCluster Queue.  This client
 // can then be used by others that have access to the task context and require
 // interaction with the queue.
-func (c *TaskContextController) SetQueueClient(client QueueClient) {
+func (c *TaskContextController) SetQueueClient(client client.Queue) {
 	c.mu.Lock()
 	c.queue = client
 	c.mu.Unlock()
@@ -113,7 +110,7 @@ func (c *TaskContextController) SetQueueClient(client QueueClient) {
 // Queue will return a client for the TaskCluster Queue.  This client
 // is useful for plugins that require interactions with the queue, such as creating
 // artifacts.
-func (c *TaskContext) Queue() QueueClient {
+func (c *TaskContext) Queue() client.Queue {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.queue

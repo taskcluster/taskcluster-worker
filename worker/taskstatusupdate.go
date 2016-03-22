@@ -6,6 +6,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/client"
 )
 
 type updateError struct {
@@ -24,7 +25,7 @@ type taskClaim struct {
 	definition *queue.TaskDefinitionResponse
 }
 
-func reportException(client runtime.QueueClient, task *TaskRun, reason runtime.ExceptionReason, log *logrus.Entry) *updateError {
+func reportException(client client.Queue, task *TaskRun, reason runtime.ExceptionReason, log *logrus.Entry) *updateError {
 	payload := queue.TaskExceptionRequest{Reason: string(reason)}
 	_, _, err := client.ReportException(task.TaskID, strconv.FormatInt(int64(task.RunID), 10), &payload)
 	if err != nil {
@@ -34,7 +35,7 @@ func reportException(client runtime.QueueClient, task *TaskRun, reason runtime.E
 	return nil
 }
 
-func reportFailed(client runtime.QueueClient, task *TaskRun, log *logrus.Entry) *updateError {
+func reportFailed(client client.Queue, task *TaskRun, log *logrus.Entry) *updateError {
 	_, _, err := client.ReportFailed(task.TaskID, strconv.FormatInt(int64(task.RunID), 10))
 	if err != nil {
 		log.WithField("error", err).Warn("Not able to report failed completion for task.")
@@ -43,7 +44,7 @@ func reportFailed(client runtime.QueueClient, task *TaskRun, log *logrus.Entry) 
 	return nil
 }
 
-func reportCompleted(client runtime.QueueClient, task *TaskRun, log *logrus.Entry) *updateError {
+func reportCompleted(client client.Queue, task *TaskRun, log *logrus.Entry) *updateError {
 	_, _, err := client.ReportCompleted(task.TaskID, strconv.FormatInt(int64(task.RunID), 10))
 	if err != nil {
 		log.WithField("error", err).Warn("Not able to report successful completion for task.")
@@ -52,7 +53,7 @@ func reportCompleted(client runtime.QueueClient, task *TaskRun, log *logrus.Entr
 	return nil
 }
 
-func claimTask(client runtime.QueueClient, taskID string, runID uint, workerID string, workerGroup string, log *logrus.Entry) (*taskClaim, *updateError) {
+func claimTask(client client.Queue, taskID string, runID uint, workerID string, workerGroup string, log *logrus.Entry) (*taskClaim, *updateError) {
 	log.Info("Claiming task")
 	payload := queue.TaskClaimRequest{
 		WorkerGroup: workerGroup,
@@ -90,7 +91,7 @@ func claimTask(client runtime.QueueClient, taskID string, runID uint, workerID s
 	}, nil
 }
 
-func reclaimTask(client runtime.QueueClient, task *TaskRun, log *logrus.Entry) (*queue.TaskReclaimResponse, *updateError) {
+func reclaimTask(client client.Queue, task *TaskRun, log *logrus.Entry) (*queue.TaskReclaimResponse, *updateError) {
 	log.Info("Reclaiming task")
 	tcrsp, _, err := client.ReclaimTask(task.TaskID, strconv.FormatInt(int64(task.RunID), 10))
 

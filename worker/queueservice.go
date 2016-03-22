@@ -17,8 +17,8 @@ import (
 	logrus "github.com/Sirupsen/logrus"
 	"github.com/taskcluster/httpbackoff"
 	"github.com/taskcluster/taskcluster-client-go/tcclient"
-	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
+	"github.com/taskcluster/taskcluster-worker/runtime/client"
 )
 
 type (
@@ -67,7 +67,7 @@ type (
 		queues           []messageQueue
 		expires          tcclient.Time
 		expirationOffset int
-		client           runtime.QueueClient
+		client           client.Queue
 		provisionerID    string
 		workerType       string
 		workerID         string

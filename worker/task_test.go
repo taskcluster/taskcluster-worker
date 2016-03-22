@@ -17,6 +17,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	pluginExtpoints "github.com/taskcluster/taskcluster-worker/plugins/extpoints"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/client"
 )
 
 var logger, _ = runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
@@ -127,7 +128,11 @@ func TestParsePayload(t *testing.T) {
 	}
 
 	tp := environment.TemporaryStorage.NewFilePath()
-	tr.context, tr.controller, err = runtime.NewTaskContext(tp, claim.taskClaim)
+	info := runtime.TaskInfo{
+		TaskID: claim.taskClaim.Status.TaskID,
+		RunID:  claim.taskClaim.RunID,
+	}
+	tr.context, tr.controller, err = runtime.NewTaskContext(tp, info)
 	defer func() {
 		tr.controller.CloseLog()
 		tr.controller.Dispose()
@@ -179,7 +184,7 @@ func TestRunTask(t *testing.T) {
 	tr, err := NewTaskRun(&config.Config{}, claim, environment, engine, pluginManager, logger.WithField("test", "TestRunTask"))
 	assert.Nil(t, err)
 
-	mockedQueue := &runtime.MockQueue{}
+	mockedQueue := &client.MockQueue{}
 	mockedQueue.On(
 		"ReportCompleted",
 		"abc",
@@ -201,7 +206,7 @@ func TestRunMalformedEnginePayloadTask(t *testing.T) {
 	tr, err := NewTaskRun(&config.Config{}, claim, environment, engine, pluginManager, logger.WithField("test", "TestRunTask"))
 	assert.Nil(t, err)
 
-	mockedQueue := &runtime.MockQueue{}
+	mockedQueue := &client.MockQueue{}
 	mockedQueue.On(
 		"ReportException",
 		"abc",

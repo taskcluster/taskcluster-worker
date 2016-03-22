@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/taskcluster/slugid-go/slugid"
-	"github.com/taskcluster/taskcluster-client-go/queue"
 )
 
 func nilOrPanic(err error, a ...interface{}) {
@@ -22,7 +21,7 @@ func nilOrPanic(err error, a ...interface{}) {
 func TestTaskContextLogging(t *testing.T) {
 	t.Parallel()
 	path := filepath.Join(os.TempDir(), slugid.V4())
-	context, control, err := NewTaskContext(path, &queue.TaskClaimResponse{})
+	context, control, err := NewTaskContext(path, TaskInfo{})
 	nilOrPanic(err, "Failed to create context")
 
 	context.Log("Hello World")
@@ -45,7 +44,7 @@ func TestTaskContextLogging(t *testing.T) {
 func TestTaskContextConcurrentLogging(t *testing.T) {
 	t.Parallel()
 	path := filepath.Join(os.TempDir(), slugid.V4())
-	context, control, err := NewTaskContext(path, &queue.TaskClaimResponse{})
+	context, control, err := NewTaskContext(path, TaskInfo{})
 	nilOrPanic(err, "Failed to create context")
 
 	wg := sync.WaitGroup{}

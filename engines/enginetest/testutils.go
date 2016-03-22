@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -79,7 +78,7 @@ func (p *EngineProvider) ensureEngine() {
 }
 
 func (p *EngineProvider) newTestTaskContext() (*runtime.TaskContext, *runtime.TaskContextController) {
-	ctx, control, err := runtime.NewTaskContext(p.environment.TemporaryStorage.NewFilePath(), &queue.TaskClaimResponse{})
+	ctx, control, err := runtime.NewTaskContext(p.environment.TemporaryStorage.NewFilePath(), runtime.TaskInfo{})
 	nilOrPanic(err, "Failed to create new TaskContext")
 	return ctx, control
 }

@@ -1,4 +1,4 @@
-package runtime
+package client
 
 import (
 	"github.com/stretchr/testify/mock"
@@ -6,10 +6,10 @@ import (
 	"github.com/taskcluster/taskcluster-client-go/tcclient"
 )
 
-// QueueClient is an interface to the Queue client provided by the
+// Queue is an interface to the Queue client provided by the
 // taskcluster-client-go package.  Passing around an interface allows the
 // queue client to be mocked
-type QueueClient interface {
+type Queue interface {
 	ReportCompleted(string, string) (*queue.TaskStatusResponse, *tcclient.CallSummary, error)
 	ReportException(string, string, *queue.TaskExceptionRequest) (*queue.TaskStatusResponse, *tcclient.CallSummary, error)
 	ReportFailed(string, string) (*queue.TaskStatusResponse, *tcclient.CallSummary, error)

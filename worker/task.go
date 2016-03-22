@@ -47,7 +47,11 @@ func NewTaskRun(
 ) (*TaskRun, error) {
 
 	tp := environment.TemporaryStorage.NewFilePath()
-	ctxt, ctxtctl, err := runtime.NewTaskContext(tp, claim.taskClaim)
+	info := runtime.TaskInfo{
+		TaskID: claim.taskClaim.Status.TaskID,
+		RunID:  claim.taskClaim.RunID,
+	}
+	ctxt, ctxtctl, err := runtime.NewTaskContext(tp, info)
 
 	queueClient := queue.New(&tcclient.Credentials{
 		ClientId:    claim.taskClaim.Credentials.ClientID,
