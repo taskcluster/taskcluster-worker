@@ -48,7 +48,9 @@ properties:
           The certificate for the client, if using temporary credentials and/or using authorized scopes.
         type:           string
     required:
-      - clientId, accessToken, certificate
+      - clientId
+      - accessToken
+      - certificate
   provisionerID:
     title:          ProvisionerID
     description: |-
@@ -89,4 +91,9 @@ properties:
       - expirationOffset
 additionalProperties: false
 required:
-  - credentials, provisionerId, workerGroup, workerId, capacity, queueService
+  - credentials
+  - provisionerId
+  - workerGroup
+  - workerId
+  - capacity
+  - queueService
