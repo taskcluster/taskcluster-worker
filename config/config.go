@@ -27,14 +27,14 @@ type (
 			// The Client ID for the client. Not very helpful, am I?
 			//
 			// Syntax:     ^[A-Za-z0-9@/:._-]+$
-			ClientID string `json:"clientID"`
+			ClientID string `json:"clientId"`
 		} `json:"credentials"`
 
 		// The amount of time to wait between task polling iterations
-		PollingInterval int `json:"pollingInterval"`
+		PollingInterval int `json:"pollingInterval,omitempty"`
 
 		// The provisioner (if any) that is responsible for spawning instances of this worker. Typically `aws-provisioner-v1`.
-		ProvisionerID string `json:"provisionerID"`
+		ProvisionerID string `json:"provisionerId"`
 
 		// Configuration relating to the polling of the TaskCluster Queue.
 		QueueService struct {
@@ -50,18 +50,18 @@ type (
 			Queue struct {
 
 				// Base URL for TaskCluster queue
-				URL string `json:"url"`
-			} `json:"queue"`
-		} `json:"taskcluster"`
+				URL string `json:"url,omitempty"`
+			} `json:"queue,omitempty"`
+		} `json:"taskcluster,omitempty"`
 
 		// A logical group for this worker to belong to, such as an AWS region.
 		WorkerGroup string `json:"workerGroup"`
 
 		// A unique name that can be used to identify which worker instance this is (such as AWS instance id).
-		WorkerID string `json:"workerID"`
+		WorkerID string `json:"workerId"`
 
 		// Type of worker pool the worker belongs to.
-		WorkerType string `json:"workerType"`
+		WorkerType string `json:"workerType,omitempty"`
 	}
 )
 
@@ -93,7 +93,7 @@ var ConfigSchema = func() runtime.CompositeSchema {
 		          "title": "Certificate",
 		          "type": "string"
 		        },
-		        "clientID": {
+		        "clientId": {
 		          "description": "The Client ID for the client. Not very helpful, am I?",
 		          "pattern": "^[A-Za-z0-9@/:._-]+$",
 		          "title": "ClientId",
@@ -101,7 +101,9 @@ var ConfigSchema = func() runtime.CompositeSchema {
 		        }
 		      },
 		      "required": [
-		        "clientId, accessToken, certificate"
+		        "clientId",
+		        "accessToken",
+		        "certificate"
 		      ],
 		      "title": "Credentials",
 		      "type": "object"
@@ -111,7 +113,7 @@ var ConfigSchema = func() runtime.CompositeSchema {
 		      "title": "PollingInterval",
 		      "type": "integer"
 		    },
-		    "provisionerID": {
+		    "provisionerId": {
 		      "description": "The provisioner (if any) that is responsible for spawning instances of this worker. Typically `+"`"+`aws-provisioner-v1`+"`"+`.",
 		      "title": "ProvisionerID",
 		      "type": "string"
@@ -155,7 +157,7 @@ var ConfigSchema = func() runtime.CompositeSchema {
 		      "title": "WorkerGroup",
 		      "type": "string"
 		    },
-		    "workerID": {
+		    "workerId": {
 		      "description": "A unique name that can be used to identify which worker instance this is (such as AWS instance id).",
 		      "title": "WorkerID",
 		      "type": "string"
@@ -167,7 +169,12 @@ var ConfigSchema = func() runtime.CompositeSchema {
 		    }
 		  },
 		  "required": [
-		    "credentials, provisionerId, workerGroup, workerId, capacity, queueService"
+		    "credentials",
+		    "provisionerId",
+		    "workerGroup",
+		    "workerId",
+		    "capacity",
+		    "queueService"
 		  ],
 		  "title": "Config",
 		  "type": "object"

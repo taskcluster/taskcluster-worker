@@ -61,11 +61,11 @@ func TestTaskManagerRunTask(t *testing.T) {
 	cfg := &config.Config{
 		Taskcluster: struct {
 			Queue struct {
-				URL string `json:"url"`
-			} `json:"queue"`
+				URL string `json:"url,omitempty"`
+			} `json:"queue,omitempty"`
 		}{
 			Queue: struct {
-				URL string `json:"url"`
+				URL string `json:"url,omitempty"`
 			}{
 				URL: s.URL,
 			},
@@ -132,11 +132,11 @@ func TestCancelTask(t *testing.T) {
 	cfg := &config.Config{
 		Taskcluster: struct {
 			Queue struct {
-				URL string `json:"url"`
-			} `json:"queue"`
+				URL string `json:"url,omitempty"`
+			} `json:"queue,omitempty"`
 		}{
 			Queue: struct {
-				URL string `json:"url"`
+				URL string `json:"url,omitempty"`
 			}{
 				URL: s.URL,
 			},
@@ -222,11 +222,11 @@ func TestWorkerShutdown(t *testing.T) {
 	cfg := &config.Config{
 		Taskcluster: struct {
 			Queue struct {
-				URL string `json:"url"`
-			} `json:"queue"`
+				URL string `json:"url,omitempty"`
+			} `json:"queue,omitempty"`
 		}{
 			Queue: struct {
-				URL string `json:"url"`
+				URL string `json:"url,omitempty"`
 			}{
 				URL: s.URL,
 			},
