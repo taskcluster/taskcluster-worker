@@ -1,4 +1,4 @@
-//go:generate go-composite-schema --unexported --required artifacts config-schema.yml generated_configschema.go
+//go:generate go-composite-schema --unexported --required artifacts payload-schema.yml generated_payloadschema.go
 
 // Package artifacts is responsible for uploading artifacts after builds
 package artifacts
@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"mime"
 	"path/filepath"
+	"time"
 
 	"github.com/taskcluster/taskcluster-client-go/tcclient"
 	"github.com/taskcluster/taskcluster-worker/engines"
@@ -24,29 +25,25 @@ func (pluginProvider) NewPlugin(extpoints.PluginOptions) (plugins.Plugin, error)
 	return plugin{}, nil
 }
 
-func (pluginProvider) ConfigSchema() runtime.CompositeSchema {
-	return runtime.NewEmptyCompositeSchema()
-}
-
 type plugin struct {
 	plugins.PluginBase
 }
 
 func (plugin) PayloadSchema() (runtime.CompositeSchema, error) {
-	return configSchema, nil
+	return payloadSchema, nil
 }
 
 func (plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
 	return &taskPlugin{
 		TaskPluginBase: plugins.TaskPluginBase{},
-		payload:        *(options.Payload.(*config)),
+		payload:        *(options.Payload.(*payload)),
 	}, nil
 }
 
 type taskPlugin struct {
 	plugins.TaskPluginBase
 	context *runtime.TaskContext
-	payload config
+	payload payload
 }
 
 func (tp *taskPlugin) Prepare(context *runtime.TaskContext) error {
@@ -56,6 +53,10 @@ func (tp *taskPlugin) Prepare(context *runtime.TaskContext) error {
 
 func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
 	for _, artifact := range tp.payload {
+		// If expires is set to this time it's either the default value or has been set to an invalid time anyway
+		if time.Time(artifact.Expires).IsZero() {
+			artifact.Expires = tp.context.TaskInfo.Expires
+		}
 		switch artifact.Type {
 		case "directory":
 			err := result.ExtractFolder(artifact.Path, tp.createUploadHandler(artifact.Name, artifact.Expires))

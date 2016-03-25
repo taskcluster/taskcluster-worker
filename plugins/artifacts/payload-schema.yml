@@ -1,5 +1,5 @@
 $schema: http://json-schema.org/draft-04/schema#
-title: config
+title: payload
 description: Artifacts to be published
 type: array
 items:
@@ -18,6 +18,7 @@ items:
       title: Artifact Name
       description: This will be the leading path to directories and the full name for files that are uploaded to s3
       type: string
+      pattern: "^[^/].*$"
     expires:
       title: Expiry Tate and Time
       description: Date when artifact should expire must be in the future

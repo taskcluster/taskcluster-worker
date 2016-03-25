@@ -69,7 +69,7 @@ func TestArtifactsEmpty(*testing.T) {
 
 func TestArtifactsFile(*testing.T) {
 	artifactTestCase{
-		Artifacts: "/public /public/blah.txt",
+		Artifacts: "public public/blah.txt",
 		TestCase: &plugintest.Case{
 			Payload: `{
 				"start": {
@@ -81,7 +81,7 @@ func TestArtifactsFile(*testing.T) {
 					{
 						"type": "file",
 						"path": "/artifacts/blah.txt",
-						"name": "/public/blah.txt"
+						"name": "public/blah.txt"
 					}
 				]
 			}`,
@@ -94,7 +94,7 @@ func TestArtifactsFile(*testing.T) {
 
 func TestArtifactsDirectory(*testing.T) {
 	artifactTestCase{
-		Artifacts: "/public /public/blah.txt /public/foo.txt /public/bar.json",
+		Artifacts: "public public/blah.txt public/foo.txt public/bar.json",
 		TestCase: &plugintest.Case{
 			Payload: `{
 				"start": {
@@ -106,7 +106,7 @@ func TestArtifactsDirectory(*testing.T) {
 					{
 						"type": "directory",
 						"path": "/artifacts",
-						"name": "/public"
+						"name": "public"
 					}
 				]
 			}`,

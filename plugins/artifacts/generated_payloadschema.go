@@ -9,12 +9,14 @@ import (
 
 type (
 	// Artifacts to be published
-	config []struct {
+	payload []struct {
 
 		// Date when artifact should expire must be in the future
-		Expires tcclient.Time `json:"expires"`
+		Expires tcclient.Time `json:"expires,omitempty"`
 
 		// This will be the leading path to directories and the full name for files that are uploaded to s3
+		//
+		// Syntax:     ^[^/].*$
 		Name string `json:"name"`
 
 		// Filesystem path of artifact
@@ -29,7 +31,7 @@ type (
 	}
 )
 
-var configSchema = func() runtime.CompositeSchema {
+var payloadSchema = func() runtime.CompositeSchema {
 	schema, err := runtime.NewCompositeSchema(
 		"artifacts",
 		`
@@ -46,6 +48,7 @@ var configSchema = func() runtime.CompositeSchema {
 		      },
 		      "name": {
 		        "description": "This will be the leading path to directories and the full name for files that are uploaded to s3",
+		        "pattern": "^[^/].*$",
 		        "title": "Artifact Name",
 		        "type": "string"
 		      },
@@ -71,13 +74,13 @@ var configSchema = func() runtime.CompositeSchema {
 		    ],
 		    "type": "object"
 		  },
-		  "title": "config",
+		  "title": "payload",
 		  "type": "array"
 		}
 		`,
 		true,
 		func() interface{} {
-			return &config{}
+			return &payload{}
 		},
 	)
 	if err != nil {

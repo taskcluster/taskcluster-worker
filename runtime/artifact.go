@@ -15,7 +15,6 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
-// TODO: Consider making Name, TaskID, RunID be in a BaseArtifact?
 type S3Artifact struct {
 	Name     string
 	Mimetype string
@@ -32,7 +31,7 @@ type ErrorArtifact struct {
 
 type RedirectArtifact struct {
 	Name     string
-	MimeType string
+	Mimetype string
 	URL      string
 	Expires  tcclient.Time
 }
@@ -46,25 +45,72 @@ func UploadS3Artifact(artifact S3Artifact, context *TaskContext) error {
 		Expires:     artifact.Expires,
 		StorageType: "s3",
 	})
-	par := queue.PostArtifactRequest(req)
-	parsp, _, err := context.Queue().CreateArtifact(
-		context.TaskID,
-		strconv.Itoa(context.RunID),
-		artifact.Name,
-		&par,
-	)
+	parsed, err := createArtifact(context, artifact.Name, req)
 	if err != nil {
-		// TODO: Do something with all of these errors
+		// TODO: Do something CORRECT with all of these errors
+		return err
 	}
 	var resp queue.S3ArtifactResponse
-	err = json.Unmarshal(json.RawMessage(*parsp), &resp)
+	err = json.Unmarshal(parsed, &resp)
 	if err != nil {
-		// TODO: Do something with all of these errors
+		// TODO: Do something CORRECT with all of these errors
+		return err
 	}
 
 	putArtifact(resp.PutURL, artifact.Mimetype, artifact.Stream)
 
 	return err
+}
+
+// CreateErrorArtifact is responsible for inserting error
+// artifacts into the queue. TODO: More docs here.
+func CreateErrorArtifact(artifact ErrorArtifact, context *TaskContext) error {
+	req, err := json.Marshal(queue.ErrorArtifactRequest{
+		Message:     artifact.Message,
+		Reason:      artifact.Reason,
+		Expires:     artifact.Expires,
+		StorageType: "error",
+	})
+	parsed, err := createArtifact(context, artifact.Name, req)
+	var resp queue.ErrorArtifactResponse
+	err = json.Unmarshal(parsed, &resp)
+	if err != nil {
+		// TODO: Do something with all of these errors
+	}
+	return nil
+}
+
+// CreateRedirectArtifact is responsible for inserting redirect
+// artifacts into the queue. TODO: More docs here.
+func CreateRedirectArtifact(artifact RedirectArtifact, context *TaskContext) error {
+	req, err := json.Marshal(queue.RedirectArtifactRequest{
+		ContentType: artifact.Mimetype,
+		URL:         artifact.URL,
+		Expires:     artifact.Expires,
+		StorageType: "reference",
+	})
+	parsed, err := createArtifact(context, artifact.Name, req)
+	var resp queue.RedirectArtifactResponse
+	err = json.Unmarshal(parsed, &resp)
+	if err != nil {
+		// TODO: Do something with all of these errors
+	}
+	return nil
+}
+
+func createArtifact(context *TaskContext, name string, req []byte) ([]byte, error) {
+	par := queue.PostArtifactRequest(req)
+	parsp, _, err := context.Queue().CreateArtifact(
+		context.TaskID,
+		strconv.Itoa(context.RunID),
+		name,
+		&par,
+	)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	return json.RawMessage(*parsp), nil
 }
 
 func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser) error {
@@ -106,18 +152,4 @@ func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser) error {
 		break
 	}
 	return err
-}
-
-// CreateErrorArtifact is responsible for inserting error
-// artifacts into the queue. TODO: More docs here.
-func CreateErrorArtifact(artifact ErrorArtifact, context *TaskContext) error {
-	fmt.Println(artifact.Name)
-	return nil
-}
-
-// CreateRedirectArtifact is responsible for inserting redirect
-// artifacts into the queue. TODO: More docs here.
-func CreateRedirectArtifact(artifact RedirectArtifact, context *TaskContext) error {
-	fmt.Println(artifact.Name)
-	return nil
 }
