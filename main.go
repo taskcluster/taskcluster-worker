@@ -82,7 +82,7 @@ func main() {
 		Credentials: struct {
 			AccessToken string `json:"accessToken"`
 			Certificate string `json:"certificate"`
-			ClientID    string `json:"clientID"`
+			ClientID    string `json:"clientId"`
 		}{
 			AccessToken: os.Getenv("TASKCLUSTER_ACCESS_TOKEN"),
 			Certificate: os.Getenv("TASKCLUSTER_CERTIFICATE"),

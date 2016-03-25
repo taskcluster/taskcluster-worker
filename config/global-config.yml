@@ -30,7 +30,7 @@ properties:
       authenticating against taskcluster endpoints.
     type:           object
     properties:
-      clientID:
+      clientId:
         title:          ClientId
         description: |-
           The Client ID for the client. Not very helpful, am I?
@@ -51,7 +51,7 @@ properties:
       - clientId
       - accessToken
       - certificate
-  provisionerID:
+  provisionerId:
     title:          ProvisionerID
     description: |-
       The provisioner (if any) that is responsible for spawning instances of this worker. Typically `aws-provisioner-v1`.
@@ -66,7 +66,7 @@ properties:
     description: |-
       Type of worker pool the worker belongs to.
     type:           string
-  workerID:
+  workerId:
     title:          WorkerID
     description: |-
       A unique name that can be used to identify which worker instance this is (such as AWS instance id).
