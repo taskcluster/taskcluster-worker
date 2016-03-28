@@ -88,6 +88,17 @@ func main() {
 			Certificate: os.Getenv("TASKCLUSTER_CERTIFICATE"),
 			ClientID:    os.Getenv("TASKCLUSTER_CLIENT_ID"),
 		},
+		Taskcluster: struct {
+			Queue struct {
+				URL string `json:"url,omitempty"`
+			} `json:"queue,omitempty"`
+		}{
+			Queue: struct {
+				URL string `json:"url,omitempty"`
+			}{
+				URL: "https://queue.taskcluster.net/v1/",
+			},
+		},
 		Capacity:      5,
 		ProvisionerID: "dummy-test-provisioner",
 		WorkerGroup:   "dummy-test-group",
