@@ -197,7 +197,7 @@ func (s *sandbox) Abort() error {
 
 func (s *sandbox) ExtractFile(path string) (ioext.ReadSeekCloser, error) {
 	data := s.files[path]
-	if data == nil {
+	if len(data) == 0 {
 		return nil, engines.ErrResourceNotFound
 	}
 	return ioext.NopCloser(bytes.NewReader(data)), nil

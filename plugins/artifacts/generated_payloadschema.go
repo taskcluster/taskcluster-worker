@@ -16,10 +16,12 @@ type (
 
 		// This will be the leading path to directories and the full name for files that are uploaded to s3
 		//
-		// Syntax:     ^[^/].*$
+		// Syntax:     ^[^/].*[^/]$
 		Name string `json:"name"`
 
 		// Filesystem path of artifact
+		//
+		// Syntax:     ^.*[^/]$
 		Path string `json:"path"`
 
 		// Artifacts can be either an individual `file` or a `directory` containing potentially multiple files with recursively included subdirectories
@@ -48,12 +50,13 @@ var payloadSchema = func() runtime.CompositeSchema {
 		      },
 		      "name": {
 		        "description": "This will be the leading path to directories and the full name for files that are uploaded to s3",
-		        "pattern": "^[^/].*$",
+		        "pattern": "^[^/].*[^/]$",
 		        "title": "Artifact Name",
 		        "type": "string"
 		      },
 		      "path": {
 		        "description": "Filesystem path of artifact",
+		        "pattern": "^.*[^/]$",
 		        "title": "Artifact Path",
 		        "type": "string"
 		      },

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"mime"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/taskcluster/taskcluster-client-go/tcclient"
@@ -62,9 +63,10 @@ func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
 
 		switch artifact.Type {
 		case "directory":
-			err = result.ExtractFolder(artifact.Path, tp.createUploadHandler(artifact.Name, artifact.Expires))
+			err = result.ExtractFolder(artifact.Path, tp.createUploadHandler(artifact.Name, artifact.Path, artifact.Expires))
 			if err != nil {
 				runtime.CreateErrorArtifact(runtime.ErrorArtifact{
+					Name:    artifact.Name,
 					Message: fmt.Sprintf("Could not open directory '%s'", artifact.Path),
 					Reason:  "invalid-resource-on-worker",
 					Expires: artifact.Expires,
@@ -74,21 +76,23 @@ func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
 			fileReader, err := result.ExtractFile(artifact.Path)
 			if err != nil {
 				runtime.CreateErrorArtifact(runtime.ErrorArtifact{
+					Name:    artifact.Name,
 					Message: fmt.Sprintf("Could not read file '%s'", artifact.Path),
 					Reason:  "file-missing-on-worker",
 					Expires: artifact.Expires,
 				}, tp.context)
+			} else {
+				err = tp.attemptUpload(fileReader, artifact.Path, artifact.Name, artifact.Expires)
 			}
-			err = tp.attemptUpload(fileReader, artifact.Path, artifact.Name, artifact.Expires)
 		}
 	}
 	// TODO: Don't always return true?
 	return true, nil
 }
 
-func (tp taskPlugin) createUploadHandler(name string, expires tcclient.Time) func(string, ioext.ReadSeekCloser) error {
+func (tp taskPlugin) createUploadHandler(name, prefix string, expires tcclient.Time) func(string, ioext.ReadSeekCloser) error {
 	return func(path string, stream ioext.ReadSeekCloser) error {
-		return tp.attemptUpload(stream, path, name, expires)
+		return tp.attemptUpload(stream, path, strings.Replace(path, prefix, name, 1), expires)
 	}
 }
 

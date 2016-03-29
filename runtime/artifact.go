@@ -2,9 +2,9 @@ package runtime
 
 import (
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
+	"errors"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strconv"
 	"time"
@@ -15,6 +15,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
+// S3Artifact wraps all of the needed fields to upload an s3 artifact
 type S3Artifact struct {
 	Name     string
 	Mimetype string
@@ -22,6 +23,7 @@ type S3Artifact struct {
 	Stream   ioext.ReadSeekCloser
 }
 
+// ErrorArtifact wraps all of the needed fields to upload an error artifact
 type ErrorArtifact struct {
 	Name    string
 	Message string
@@ -29,6 +31,7 @@ type ErrorArtifact struct {
 	Expires tcclient.Time
 }
 
+// RedirectArtifact wraps all of the needed fields to upload a redirect artifact
 type RedirectArtifact struct {
 	Name     string
 	Mimetype string
@@ -45,21 +48,26 @@ func UploadS3Artifact(artifact S3Artifact, context *TaskContext) error {
 		Expires:     artifact.Expires,
 		StorageType: "s3",
 	})
+	if err != nil {
+		return err
+	}
+
 	parsed, err := createArtifact(context, artifact.Name, req)
 	if err != nil {
-		// TODO: Do something CORRECT with all of these errors
 		return err
 	}
 	var resp queue.S3ArtifactResponse
 	err = json.Unmarshal(parsed, &resp)
 	if err != nil {
-		// TODO: Do something CORRECT with all of these errors
 		return err
 	}
 
-	putArtifact(resp.PutURL, artifact.Mimetype, artifact.Stream)
+	err = putArtifact(resp.PutURL, artifact.Mimetype, artifact.Stream)
+	if err != nil {
+		return err
+	}
 
-	return err
+	return nil
 }
 
 // CreateErrorArtifact is responsible for inserting error
@@ -71,11 +79,19 @@ func CreateErrorArtifact(artifact ErrorArtifact, context *TaskContext) error {
 		Expires:     artifact.Expires,
 		StorageType: "error",
 	})
+	if err != nil {
+		return err
+	}
+
 	parsed, err := createArtifact(context, artifact.Name, req)
+	if err != nil {
+		return err
+	}
+
 	var resp queue.ErrorArtifactResponse
 	err = json.Unmarshal(parsed, &resp)
 	if err != nil {
-		// TODO: Do something with all of these errors
+		return err
 	}
 	return nil
 }
@@ -89,12 +105,21 @@ func CreateRedirectArtifact(artifact RedirectArtifact, context *TaskContext) err
 		Expires:     artifact.Expires,
 		StorageType: "reference",
 	})
+	if err != nil {
+		return err
+	}
+
 	parsed, err := createArtifact(context, artifact.Name, req)
+	if err != nil {
+		return err
+	}
+
 	var resp queue.RedirectArtifactResponse
 	err = json.Unmarshal(parsed, &resp)
 	if err != nil {
-		// TODO: Do something with all of these errors
+		return err
 	}
+
 	return nil
 }
 
@@ -107,7 +132,6 @@ func createArtifact(context *TaskContext, name string, req []byte) ([]byte, erro
 		&par,
 	)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 	return json.RawMessage(*parsp), nil
@@ -117,7 +141,13 @@ func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser) error {
 	// TODO: Make this do retries
 	// TODO: Use https://golang.org/pkg/bufio/
 	u, err := url.Parse(urlStr)
+	if err != nil {
+		return err
+	}
 	contentLength, err := stream.Seek(0, 2)
+	if err != nil {
+		return err
+	}
 
 	header := make(http.Header)
 	header.Set("content-type", mime)
@@ -142,16 +172,31 @@ func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser) error {
 			ContentLength: contentLength,
 		}
 		resp, err := client.Do(req)
-		if err != nil || resp.StatusCode/100 != 2 {
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode/100 == 4 {
+			httpErr, err := httputil.DumpResponse(resp, true)
+			if err != nil {
+				return err
+			}
+			return errors.New(string(httpErr))
+		}
+		if resp.StatusCode/100 == 5 {
 			// TODO: Make this configurable
-			if attempts < 5 {
+			if attempts < 10 {
 				time.Sleep(backoff.Delay(attempts))
 				continue
+			} else {
+				httpErr, err := httputil.DumpResponse(resp, true)
+				if err != nil {
+					return err
+				}
+				return errors.New(string(httpErr))
 			}
 		}
-		rbody, err := ioutil.ReadAll(resp.Body)
-		fmt.Println(string(rbody))
-		break
+		// If we've made it here, the upload has succeeded
+		return nil
 	}
-	return err
 }
