@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	rt "runtime"
+	"testing"
 
 	"github.com/taskcluster/slugid-go/slugid"
 
@@ -55,6 +56,8 @@ type Case struct {
 	TaskID string
 	// Override the default generated TaskID
 	RunID int
+	// A testing struct can be useful inside for assertions
+	TestStruct *testing.T
 
 	// Each of these functions is called at the time specified in the name
 	BeforeBuildSandbox func(Options)

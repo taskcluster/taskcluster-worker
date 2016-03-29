@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/taskcluster/slugid-go/slugid"
@@ -17,25 +16,22 @@ import (
 
 type artifactTestCase struct {
 	TestCase  *plugintest.Case
-	Artifacts string
+	Artifacts []string
 }
 
 func (a artifactTestCase) Test() {
 	taskID := slugid.V4()
-	// TODO: Do something with this error
-
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "Hello, client")
+		fmt.Fprintln(w, "Hello, client.")
 	}))
 	defer ts.Close()
 
 	s3resp, _ := json.Marshal(queue.S3ArtifactResponse{
-		// TODO: Make this point to something that is always mocked. perhaps with configurable success/fail
 		PutURL: ts.URL,
 	})
 	resp := queue.PostArtifactResponse(s3resp)
 	mockedQueue := &client.MockQueue{}
-	for _, path := range strings.Split(a.Artifacts, " ") {
+	for _, path := range a.Artifacts {
 		mockedQueue.On(
 			"CreateArtifact",
 			taskID,
@@ -47,9 +43,10 @@ func (a artifactTestCase) Test() {
 	a.TestCase.QueueMock = mockedQueue
 	a.TestCase.TaskID = taskID
 	a.TestCase.Test()
+	mockedQueue.AssertExpectations(a.TestCase.TestStruct)
 }
 
-func TestArtifactsNone(*testing.T) {
+func TestArtifactsNone(t *testing.T) {
 	artifactTestCase{
 		TestCase: &plugintest.Case{
 			Payload: `{
@@ -60,13 +57,14 @@ func TestArtifactsNone(*testing.T) {
 				}
 			}`,
 			Plugin:        "artifacts",
+			TestStruct:    t,
 			PluginSuccess: true,
 			EngineSuccess: true,
 		},
 	}.Test()
 }
 
-func TestArtifactsEmpty(*testing.T) {
+func TestArtifactsEmpty(t *testing.T) {
 	artifactTestCase{
 		TestCase: &plugintest.Case{
 			Payload: `{
@@ -78,15 +76,16 @@ func TestArtifactsEmpty(*testing.T) {
 				"artifacts": []
 			}`,
 			Plugin:        "artifacts",
+			TestStruct:    t,
 			PluginSuccess: true,
 			EngineSuccess: true,
 		},
 	}.Test()
 }
 
-func TestArtifactsFile(*testing.T) {
+func TestArtifactsFile(t *testing.T) {
 	artifactTestCase{
-		Artifacts: "public public/blah.txt",
+		Artifacts: []string{"public/blah.txt"},
 		TestCase: &plugintest.Case{
 			Payload: `{
 				"start": {
@@ -103,15 +102,16 @@ func TestArtifactsFile(*testing.T) {
 				]
 			}`,
 			Plugin:        "artifacts",
+			TestStruct:    t,
 			PluginSuccess: true,
 			EngineSuccess: true,
 		},
 	}.Test()
 }
 
-func TestArtifactsDirectory(*testing.T) {
+func TestArtifactsDirectory(t *testing.T) {
 	artifactTestCase{
-		Artifacts: "public public/blah.txt public/foo.txt public/bar.json",
+		Artifacts: []string{"public/blah.txt", "public/foo.txt", "public/bar.json"},
 		TestCase: &plugintest.Case{
 			Payload: `{
 				"start": {
@@ -128,6 +128,7 @@ func TestArtifactsDirectory(*testing.T) {
 				]
 			}`,
 			Plugin:        "artifacts",
+			TestStruct:    t,
 			PluginSuccess: true,
 			EngineSuccess: true,
 		},

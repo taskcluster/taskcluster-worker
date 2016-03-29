@@ -41,7 +41,6 @@ type RedirectArtifact struct {
 
 // UploadS3Artifact is responsible for creating new artifacts
 // in the queue and then performing the upload to s3.
-// TODO: More docs here.
 func UploadS3Artifact(artifact S3Artifact, context *TaskContext) error {
 	req, err := json.Marshal(queue.S3ArtifactRequest{
 		ContentType: artifact.Mimetype,
@@ -71,7 +70,7 @@ func UploadS3Artifact(artifact S3Artifact, context *TaskContext) error {
 }
 
 // CreateErrorArtifact is responsible for inserting error
-// artifacts into the queue. TODO: More docs here.
+// artifacts into the queue.
 func CreateErrorArtifact(artifact ErrorArtifact, context *TaskContext) error {
 	req, err := json.Marshal(queue.ErrorArtifactRequest{
 		Message:     artifact.Message,
@@ -97,7 +96,7 @@ func CreateErrorArtifact(artifact ErrorArtifact, context *TaskContext) error {
 }
 
 // CreateRedirectArtifact is responsible for inserting redirect
-// artifacts into the queue. TODO: More docs here.
+// artifacts into the queue.
 func CreateRedirectArtifact(artifact RedirectArtifact, context *TaskContext) error {
 	req, err := json.Marshal(queue.RedirectArtifactRequest{
 		ContentType: artifact.Mimetype,
@@ -138,8 +137,6 @@ func createArtifact(context *TaskContext, name string, req []byte) ([]byte, erro
 }
 
 func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser) error {
-	// TODO: Make this do retries
-	// TODO: Use https://golang.org/pkg/bufio/
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		return err
@@ -152,7 +149,6 @@ func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser) error {
 	header := make(http.Header)
 	header.Set("content-type", mime)
 
-	// TODO: Mock out http client
 	backoff := got.DefaultBackOff
 	attempts := 0
 	client := &http.Client{

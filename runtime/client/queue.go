@@ -62,7 +62,6 @@ func (m *MockQueue) ReportException(taskID, runID string, payload *queue.TaskExc
 }
 
 func (m *MockQueue) CreateArtifact(taskID, runID, name string, payload *queue.PostArtifactRequest) (*queue.PostArtifactResponse, *tcclient.CallSummary, error) {
-	// TODO: Consider adding payload back in
 	args := m.Called(taskID, runID, name)
 	return args.Get(0).(*queue.PostArtifactResponse), args.Get(1).(*tcclient.CallSummary), args.Error(2)
 }
