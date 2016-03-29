@@ -1,9 +1,25 @@
 package env
 
 import (
-	"github.com/taskcluster/taskcluster-worker/plugins/plugintest"
 	"testing"
+
+	"github.com/taskcluster/taskcluster-worker/plugins/plugintest"
 )
+
+func TestEnvNone(*testing.T) {
+	plugintest.Case{
+		Payload: `{
+			"start": {
+				"delay": 0,
+				"function": "true",
+				"argument": "whatever"
+			}
+		}`,
+		Plugin:        "env",
+		PluginSuccess: true,
+		EngineSuccess: true,
+	}.Test()
+}
 
 func TestEnvDefinition(*testing.T) {
 	plugintest.Case{

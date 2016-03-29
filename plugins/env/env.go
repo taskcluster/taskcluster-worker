@@ -21,6 +21,9 @@ func (plugin) PayloadSchema() (runtime.CompositeSchema, error) {
 }
 
 func (plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
+	if options.Payload == nil {
+		return plugins.TaskPluginBase{}, nil
+	}
 	return taskPlugin{
 		TaskPluginBase: plugins.TaskPluginBase{},
 		payload:        *(options.Payload.(*envPayload)),
