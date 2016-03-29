@@ -65,12 +65,18 @@ func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
 		switch artifact.Type {
 		case "directory":
 			err = result.ExtractFolder(artifact.Path, tp.createUploadHandler(artifact.Name, artifact.Path, artifact.Expires))
-			if err != nil && !tp.errorHandled(artifact.Name, artifact.Expires, err) {
+			if err != nil {
+				if tp.errorHandled(artifact.Name, artifact.Expires, err) {
+					continue
+				}
 				return false, err
 			}
 		case "file":
 			fileReader, err := result.ExtractFile(artifact.Path)
-			if err != nil && !tp.errorHandled(artifact.Name, artifact.Expires, err) {
+			if err != nil {
+				if tp.errorHandled(artifact.Name, artifact.Expires, err) {
+					continue
+				}
 				return false, err
 			}
 			err = tp.attemptUpload(fileReader, artifact.Path, artifact.Name, artifact.Expires)
