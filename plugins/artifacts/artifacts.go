@@ -1,4 +1,4 @@
-//go:generate go-composite-schema --unexported --required artifacts payload-schema.yml generated_payloadschema.go
+//go:generate go-composite-schema --unexported artifacts payload-schema.yml generated_payloadschema.go
 
 // Package artifacts is responsible for uploading artifacts after builds
 package artifacts
@@ -35,6 +35,9 @@ func (plugin) PayloadSchema() (runtime.CompositeSchema, error) {
 }
 
 func (plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
+	if options.Payload == nil {
+		return plugins.TaskPluginBase{}, nil
+	}
 	return &taskPlugin{
 		TaskPluginBase: plugins.TaskPluginBase{},
 		payload:        *(options.Payload.(*payload)),

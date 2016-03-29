@@ -81,7 +81,7 @@ var payloadSchema = func() runtime.CompositeSchema {
 		  "type": "array"
 		}
 		`,
-		true,
+		false,
 		func() interface{} {
 			return &payload{}
 		},

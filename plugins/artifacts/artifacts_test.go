@@ -49,6 +49,23 @@ func (a artifactTestCase) Test() {
 	a.TestCase.Test()
 }
 
+func TestArtifactsNone(*testing.T) {
+	artifactTestCase{
+		TestCase: &plugintest.Case{
+			Payload: `{
+				"start": {
+					"delay": 0,
+					"function": "true",
+					"argument": "whatever"
+				}
+			}`,
+			Plugin:        "artifacts",
+			PluginSuccess: true,
+			EngineSuccess: true,
+		},
+	}.Test()
+}
+
 func TestArtifactsEmpty(*testing.T) {
 	artifactTestCase{
 		TestCase: &plugintest.Case{
