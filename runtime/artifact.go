@@ -125,7 +125,9 @@ func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser) error {
 	// TODO: Mock out http client
 	backoff := got.DefaultBackOff
 	attempts := 0
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: 10 * time.Minute, // There should be _some_ timeout, this seems like a good starting value.
+	}
 	for {
 		attempts++
 		stream.Seek(0, 0)

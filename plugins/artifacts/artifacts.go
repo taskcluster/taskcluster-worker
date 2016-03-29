@@ -52,14 +52,17 @@ func (tp *taskPlugin) Prepare(context *runtime.TaskContext) error {
 }
 
 func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
+	var err error
 	for _, artifact := range tp.payload {
+
 		// If expires is set to this time it's either the default value or has been set to an invalid time anyway
 		if time.Time(artifact.Expires).IsZero() {
 			artifact.Expires = tp.context.TaskInfo.Expires
 		}
+
 		switch artifact.Type {
 		case "directory":
-			err := result.ExtractFolder(artifact.Path, tp.createUploadHandler(artifact.Name, artifact.Expires))
+			err = result.ExtractFolder(artifact.Path, tp.createUploadHandler(artifact.Name, artifact.Expires))
 			if err != nil {
 				runtime.CreateErrorArtifact(runtime.ErrorArtifact{
 					Message: fmt.Sprintf("Could not open directory '%s'", artifact.Path),
@@ -76,7 +79,7 @@ func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
 					Expires: artifact.Expires,
 				}, tp.context)
 			}
-			tp.attemptUpload(fileReader, artifact.Path, artifact.Name, artifact.Expires)
+			err = tp.attemptUpload(fileReader, artifact.Path, artifact.Name, artifact.Expires)
 		}
 	}
 	// TODO: Don't always return true?
@@ -95,15 +98,12 @@ func (tp taskPlugin) attemptUpload(fileReader ioext.ReadSeekCloser, path string,
 		// application/octet-stream is the mime type for "unknown"
 		mimeType = "application/octet-stream"
 	}
-	runtime.UploadS3Artifact(runtime.S3Artifact{
+	return runtime.UploadS3Artifact(runtime.S3Artifact{
 		Name:     name,
 		Mimetype: mimeType,
 		Stream:   fileReader,
 		Expires:  expires,
 	}, tp.context)
-
-	// TODO: Don't just return nil
-	return nil
 }
 
 func init() {
