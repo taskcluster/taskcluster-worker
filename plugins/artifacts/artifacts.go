@@ -4,9 +4,9 @@
 package artifacts
 
 import (
-	"fmt"
 	"mime"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
@@ -58,39 +58,43 @@ func (tp *taskPlugin) Prepare(context *runtime.TaskContext) error {
 func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
 	var err error
 	for _, artifact := range tp.payload {
-
 		// If expires is set to this time it's either the default value or has been set to an invalid time anyway
 		if time.Time(artifact.Expires).IsZero() {
 			artifact.Expires = tp.context.TaskInfo.Expires
 		}
-
 		switch artifact.Type {
 		case "directory":
 			err = result.ExtractFolder(artifact.Path, tp.createUploadHandler(artifact.Name, artifact.Path, artifact.Expires))
-			if err != nil {
-				runtime.CreateErrorArtifact(runtime.ErrorArtifact{
-					Name:    artifact.Name,
-					Message: fmt.Sprintf("Could not open directory '%s'", artifact.Path),
-					Reason:  "invalid-resource-on-worker",
-					Expires: artifact.Expires,
-				}, tp.context)
+			if err != nil && !tp.errorHandled(artifact.Name, artifact.Expires, err) {
+				return false, err
 			}
 		case "file":
 			fileReader, err := result.ExtractFile(artifact.Path)
+			if err != nil && !tp.errorHandled(artifact.Name, artifact.Expires, err) {
+				return false, err
+			}
+			err = tp.attemptUpload(fileReader, artifact.Path, artifact.Name, artifact.Expires)
 			if err != nil {
-				runtime.CreateErrorArtifact(runtime.ErrorArtifact{
-					Name:    artifact.Name,
-					Message: fmt.Sprintf("Could not read file '%s'", artifact.Path),
-					Reason:  "file-missing-on-worker",
-					Expires: artifact.Expires,
-				}, tp.context)
-			} else {
-				err = tp.attemptUpload(fileReader, artifact.Path, artifact.Name, artifact.Expires)
+				return false, err
 			}
 		}
 	}
-	// TODO: Don't always return true?
 	return true, nil
+}
+
+func (tp taskPlugin) errorHandled(name string, expires tcclient.Time, err error) bool {
+	if err == engines.ErrFeatureNotSupported || err == engines.ErrResourceNotFound ||
+		err == engines.ErrNonFatalInternalError || err == engines.ErrHandlerInterrupt ||
+		reflect.TypeOf(err).String() == "engines.MalformedPayloadError" {
+		runtime.CreateErrorArtifact(runtime.ErrorArtifact{
+			Name:    name,
+			Message: err.Error(),
+			Reason:  "invalid-resource-on-worker",
+			Expires: expires,
+		}, tp.context)
+		return true
+	}
+	return false
 }
 
 func (tp taskPlugin) createUploadHandler(name, prefix string, expires tcclient.Time) func(string, ioext.ReadSeekCloser) error {
