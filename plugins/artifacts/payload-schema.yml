@@ -26,5 +26,4 @@ items:
       type: string
       format: date-time
 
-  # TODO: Should expires be required?
   required: [type, path, name]

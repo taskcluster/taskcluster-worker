@@ -6,7 +6,6 @@ package artifacts
 import (
 	"mime"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"time"
 
@@ -56,7 +55,8 @@ func (tp *taskPlugin) Prepare(context *runtime.TaskContext) error {
 }
 
 func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
-	var err error
+	nonFatalErrs := []engines.MalformedPayloadError{}
+
 	for _, artifact := range tp.payload {
 		// If expires is set to this time it's either the default value or has been set to an invalid time anyway
 		if time.Time(artifact.Expires).IsZero() {
@@ -64,9 +64,10 @@ func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
 		}
 		switch artifact.Type {
 		case "directory":
-			err = result.ExtractFolder(artifact.Path, tp.createUploadHandler(artifact.Name, artifact.Path, artifact.Expires))
+			err := result.ExtractFolder(artifact.Path, tp.createUploadHandler(artifact.Name, artifact.Path, artifact.Expires))
 			if err != nil {
 				if tp.errorHandled(artifact.Name, artifact.Expires, err) {
+					nonFatalErrs = append(nonFatalErrs, engines.NewMalformedPayloadError(err.Error()))
 					continue
 				}
 				return false, err
@@ -75,6 +76,7 @@ func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
 			fileReader, err := result.ExtractFile(artifact.Path)
 			if err != nil {
 				if tp.errorHandled(artifact.Name, artifact.Expires, err) {
+					nonFatalErrs = append(nonFatalErrs, engines.NewMalformedPayloadError(err.Error()))
 					continue
 				}
 				return false, err
@@ -85,17 +87,29 @@ func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
 			}
 		}
 	}
+
+	if len(nonFatalErrs) > 0 {
+		return false, engines.MergeMalformedPayload(nonFatalErrs...)
+	}
 	return true, nil
 }
 
 func (tp taskPlugin) errorHandled(name string, expires tcclient.Time, err error) bool {
-	if err == engines.ErrFeatureNotSupported || err == engines.ErrResourceNotFound ||
-		err == engines.ErrNonFatalInternalError || err == engines.ErrHandlerInterrupt ||
-		reflect.TypeOf(err).String() == "engines.MalformedPayloadError" {
+	var reason string
+	if _, ok := err.(*engines.MalformedPayloadError); ok {
+		reason = "invalid-resource-on-worker"
+	} else if err == engines.ErrFeatureNotSupported || err == engines.ErrNonFatalInternalError || err == engines.ErrHandlerInterrupt {
+		reason = "invalid-resource-on-worker"
+	} else if err == engines.ErrResourceNotFound {
+		reason = "file-missing-on-worker"
+	}
+
+	if reason != "" {
+		tp.context.Log("Artifact upload error handled. Continuing...", name, err.Error())
 		runtime.CreateErrorArtifact(runtime.ErrorArtifact{
 			Name:    name,
 			Message: err.Error(),
-			Reason:  "invalid-resource-on-worker",
+			Reason:  reason,
 			Expires: expires,
 		}, tp.context)
 		return true

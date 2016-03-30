@@ -15,7 +15,7 @@ import (
 )
 
 type artifactTestCase struct {
-	TestCase  *plugintest.Case
+	plugintest.Case
 	Artifacts []string
 }
 
@@ -40,15 +40,15 @@ func (a artifactTestCase) Test() {
 		).Return(&resp, &tcclient.CallSummary{}, nil)
 	}
 
-	a.TestCase.QueueMock = mockedQueue
-	a.TestCase.TaskID = taskID
-	a.TestCase.Test()
-	mockedQueue.AssertExpectations(a.TestCase.TestStruct)
+	a.Case.QueueMock = mockedQueue
+	a.Case.TaskID = taskID
+	a.Case.Test()
+	mockedQueue.AssertExpectations(a.Case.TestStruct)
 }
 
 func TestArtifactsNone(t *testing.T) {
 	artifactTestCase{
-		TestCase: &plugintest.Case{
+		Case: plugintest.Case{
 			Payload: `{
 				"start": {
 					"delay": 0,
@@ -66,7 +66,7 @@ func TestArtifactsNone(t *testing.T) {
 
 func TestArtifactsEmpty(t *testing.T) {
 	artifactTestCase{
-		TestCase: &plugintest.Case{
+		Case: plugintest.Case{
 			Payload: `{
 				"start": {
 					"delay": 0,
@@ -86,7 +86,7 @@ func TestArtifactsEmpty(t *testing.T) {
 func TestArtifactsFile(t *testing.T) {
 	artifactTestCase{
 		Artifacts: []string{"public/blah.txt"},
-		TestCase: &plugintest.Case{
+		Case: plugintest.Case{
 			Payload: `{
 				"start": {
 					"delay": 0,
@@ -112,7 +112,7 @@ func TestArtifactsFile(t *testing.T) {
 func TestArtifactsDirectory(t *testing.T) {
 	artifactTestCase{
 		Artifacts: []string{"public/blah.txt", "public/foo.txt", "public/bar.json"},
-		TestCase: &plugintest.Case{
+		Case: plugintest.Case{
 			Payload: `{
 				"start": {
 					"delay": 0,
