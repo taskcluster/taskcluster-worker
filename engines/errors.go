@@ -76,12 +76,20 @@ var ErrEngineNotSupported = errors.New("Engine is not available in the current c
 // path contained invalid characters, a required property was missing, or an
 // integer was outside the permitted range.
 type MalformedPayloadError struct {
-	message string
+	messages []string
 }
 
 // Error returns the error message and adheres to the Error interface
 func (e MalformedPayloadError) Error() string {
-	return e.message
+	if len(e.messages) == 1 {
+		return e.messages[0]
+	}
+	//TODO: Make this smarter in some way please!
+	msg := ""
+	for _, m := range e.messages {
+		msg += m + "\n"
+	}
+	return msg
 }
 
 // NewMalformedPayloadError creates a MalformedPayloadError object, please
@@ -91,7 +99,16 @@ func (e MalformedPayloadError) Error() string {
 // These will be printed in the logs and end-users will rely on them to debug
 // their tasks.
 func NewMalformedPayloadError(a ...interface{}) MalformedPayloadError {
-	return MalformedPayloadError{message: fmt.Sprint(a...)}
+	return MalformedPayloadError{messages: []string{fmt.Sprint(a...)}}
+}
+
+// MergeMalformedPayload merges a list of MalformedPayloadError objects
+func MergeMalformedPayload(errors ...MalformedPayloadError) MalformedPayloadError {
+	messages := []string{}
+	for _, e := range errors {
+		messages = append(messages, e.messages...)
+	}
+	return MalformedPayloadError{messages: messages}
 }
 
 // InternalError are errors that could not be completed because of issues related to the
