@@ -14,9 +14,9 @@ type (
 		// Date when artifact should expire must be in the future
 		Expires tcclient.Time `json:"expires,omitempty"`
 
-		// This will be the leading path to directories and the full name for files that are uploaded to s3
+		// This will be the leading path to directories and the full name for files that are uploaded to s3. It must not begin or end with "/" and must only contain printable ascii characters otherwise.
 		//
-		// Syntax:     ^[^/].*[^/]$
+		// Syntax:     ^([ -.0-~][ -~]*)[ -.0-~]$
 		Name string `json:"name"`
 
 		// Filesystem path of artifact
@@ -49,8 +49,8 @@ var payloadSchema = func() runtime.CompositeSchema {
 		        "type": "string"
 		      },
 		      "name": {
-		        "description": "This will be the leading path to directories and the full name for files that are uploaded to s3",
-		        "pattern": "^[^/].*[^/]$",
+		        "description": "This will be the leading path to directories and the full name for files that are uploaded to s3. It must not begin or end with \"/\" and must only contain printable ascii characters otherwise.",
+		        "pattern": "^([ -.0-~][ -~]*)[ -.0-~]$",
 		        "title": "Artifact Name",
 		        "type": "string"
 		      },

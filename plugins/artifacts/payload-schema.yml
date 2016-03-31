@@ -17,9 +17,9 @@ items:
       pattern: "^.*[^/]$"
     name:
       title: Artifact Name
-      description: This will be the leading path to directories and the full name for files that are uploaded to s3
+      description: This will be the leading path to directories and the full name for files that are uploaded to s3. It must not begin or end with "/" and must only contain printable ascii characters otherwise.
       type: string
-      pattern: "^[^/].*[^/]$"
+      pattern: "^([\x20-\x2e\x30-\x7e][\x20-\x7e]*)[\x20-\x2e\x30-\x7e]$"
     expires:
       title: Expiry Tate and Time
       description: Date when artifact should expire must be in the future
