@@ -7,6 +7,7 @@ import (
 
 	"sync"
 
+	"github.com/taskcluster/taskcluster-client-go/tcclient"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 
@@ -46,8 +47,11 @@ const (
 // should be exposed and nothing more.  One such anti-pattern could be for a
 // plugin to look at task.extra instead of adding data to task.payload.
 type TaskInfo struct {
-	TaskID string
-	RunID  int
+	TaskID   string
+	RunID    int
+	Created  tcclient.Time
+	Deadline tcclient.Time
+	Expires  tcclient.Time
 }
 
 // The TaskContext exposes generic properties and functionality related to a

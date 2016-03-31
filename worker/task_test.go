@@ -129,8 +129,11 @@ func TestParsePayload(t *testing.T) {
 
 	tp := environment.TemporaryStorage.NewFilePath()
 	info := runtime.TaskInfo{
-		TaskID: claim.taskClaim.Status.TaskID,
-		RunID:  claim.taskClaim.RunID,
+		TaskID:   claim.taskClaim.Status.TaskID,
+		RunID:    claim.taskClaim.RunID,
+		Created:  claim.taskClaim.Task.Created,
+		Deadline: claim.taskClaim.Task.Deadline,
+		Expires:  claim.taskClaim.Task.Expires,
 	}
 	tr.context, tr.controller, err = runtime.NewTaskContext(tp, info)
 	defer func() {

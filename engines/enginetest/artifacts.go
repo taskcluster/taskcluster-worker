@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
 // The ArtifactTestCase contains information sufficient to test artifact
@@ -69,7 +70,7 @@ func (c *ArtifactTestCase) TestExtractFolderNotFound() {
 	assert(r.buildRunSandbox(), "Task failed to run, payload: ", c.Payload)
 
 	err := r.resultSet.ExtractFolder(c.FolderNotFoundPath, func(
-		path string, reader engines.ReadSeekCloser,
+		path string, reader ioext.ReadSeekCloser,
 	) error {
 		return errors.New("File was found, didn't expect that!!!")
 	})
@@ -88,7 +89,7 @@ func (c *ArtifactTestCase) TestExtractNestedFolderPath() {
 	m := sync.Mutex{}
 	files := []string{}
 	err := r.resultSet.ExtractFolder(c.NestedFolderPath, func(
-		path string, reader engines.ReadSeekCloser,
+		path string, reader ioext.ReadSeekCloser,
 	) error {
 		m.Lock()
 		files = append(files, path)
@@ -136,7 +137,7 @@ func (c *ArtifactTestCase) TestExtractFolderHandlerInterrupt() {
 	assert(r.buildRunSandbox(), "Task failed to run, payload: ", c.Payload)
 
 	err := r.resultSet.ExtractFolder(c.NestedFolderPath, func(
-		path string, reader engines.ReadSeekCloser,
+		path string, reader ioext.ReadSeekCloser,
 	) error {
 		return errors.New("Error that should interrupt ExtractFolder")
 	})

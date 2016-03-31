@@ -17,6 +17,7 @@ type Queue interface {
 	ReclaimTask(string, string) (*queue.TaskReclaimResponse, *tcclient.CallSummary, error)
 	PollTaskUrls(string, string) (*queue.PollTaskUrlsResponse, *tcclient.CallSummary, error)
 	CancelTask(string) (*queue.TaskStatusResponse, *tcclient.CallSummary, error)
+	CreateArtifact(string, string, string, *queue.PostArtifactRequest) (*queue.PostArtifactResponse, *tcclient.CallSummary, error)
 }
 
 // MockQueue is a mocked TaskCluster queue client.  Calls to methods exposed by the queue
@@ -58,4 +59,9 @@ func (m *MockQueue) ReportFailed(taskID, runID string) (*queue.TaskStatusRespons
 func (m *MockQueue) ReportException(taskID, runID string, payload *queue.TaskExceptionRequest) (*queue.TaskStatusResponse, *tcclient.CallSummary, error) {
 	args := m.Called(taskID, runID, payload)
 	return args.Get(0).(*queue.TaskStatusResponse), args.Get(1).(*tcclient.CallSummary), args.Error(2)
+}
+
+func (m *MockQueue) CreateArtifact(taskID, runID, name string, payload *queue.PostArtifactRequest) (*queue.PostArtifactResponse, *tcclient.CallSummary, error) {
+	args := m.Called(taskID, runID, name)
+	return args.Get(0).(*queue.PostArtifactResponse), args.Get(1).(*tcclient.CallSummary), args.Error(2)
 }

@@ -7,6 +7,9 @@ import (
 	"os"
 	"regexp"
 	rt "runtime"
+	"testing"
+
+	"github.com/taskcluster/slugid-go/slugid"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
@@ -15,6 +18,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	pluginExtpoints "github.com/taskcluster/taskcluster-worker/plugins/extpoints"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
 
@@ -46,6 +50,14 @@ type Case struct {
 	MatchLog string
 	// If a regular expression is specified here, it must _not_ be in the sandbox log
 	NotMatchLog string
+	// A mocked out queue client
+	QueueMock *client.MockQueue
+	// Override the default generated TaskID
+	TaskID string
+	// Override the default generated TaskID
+	RunID int
+	// A testing struct can be useful inside for assertions
+	TestStruct *testing.T
 
 	// Each of these functions is called at the time specified in the name
 	BeforeBuildSandbox func(Options)
@@ -69,7 +81,20 @@ func (c Case) Test() {
 		Log:         runtimeEnvironment.Log.WithField("engine", "mock"),
 		// TODO: Add engine config
 	})
-	context, controller, err := runtime.NewTaskContext(runtimeEnvironment.TemporaryStorage.NewFilePath(), runtime.TaskInfo{})
+
+	taskID := c.TaskID
+	if taskID == "" {
+		taskID = slugid.V4()
+	}
+	context, controller, err := runtime.NewTaskContext(runtimeEnvironment.TemporaryStorage.NewFilePath(), runtime.TaskInfo{
+		TaskID: taskID,
+		RunID:  c.RunID,
+	})
+
+	if c.QueueMock != nil {
+		controller.SetQueueClient(c.QueueMock)
+	}
+
 	sandboxBuilder, err := engine.NewSandboxBuilder(engines.SandboxOptions{
 		TaskContext: context,
 		Payload:     parseEnginePayload(engine, c.Payload),
@@ -77,11 +102,14 @@ func (c Case) Test() {
 
 	provider := pluginExtpoints.PluginProviders.Lookup(c.Plugin)
 	assert(provider != nil, "Plugin does not exist! You tried to load: ", c.Plugin)
-	p, err := provider.NewPlugin(pluginExtpoints.PluginOptions{})
+	p, err := provider.NewPlugin(pluginExtpoints.PluginOptions{
+		Environment: runtimeEnvironment,
+		Engine:      &engine,
+		Log:         runtimeEnvironment.Log.WithField("engine", "mock"),
+	})
 	tp, err := p.NewTaskPlugin(plugins.TaskPluginOptions{
-		TaskInfo: &runtime.TaskInfo{},
+		TaskInfo: &context.TaskInfo,
 		Payload:  parsePluginPayload(p, c.Payload),
-		// TODO: Add plugin config
 	})
 
 	options := Options{
@@ -91,6 +119,9 @@ func (c Case) Test() {
 		Plugin:         p,
 		TaskPlugin:     tp,
 	}
+
+	err = tp.Prepare(context)
+	nilOrPanic(err)
 
 	c.maybeRun(c.BeforeBuildSandbox, options)
 	err = tp.BuildSandbox(sandboxBuilder)
