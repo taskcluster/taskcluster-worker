@@ -34,6 +34,7 @@ func assert(condition bool, a ...interface{}) {
 }
 
 func TestNewDomain(t *testing.T) {
+
 	// Start
 	controlSocket := "/tmp/guestfwd"
 	os.Remove(controlSocket)
@@ -58,6 +59,9 @@ func TestNewDomain(t *testing.T) {
 	conn, err := libvirt.NewVirConnection("qemu:///system")
 	nilOrPanic(err, "Failed at connecting...")
 	defer conn.CloseConnection()
+
+	err = defineBuiltInNetworkFilters(&conn)
+	nilOrPanic(err, "Failed to setup filters")
 
 	// Extract image
 	pwd, err := os.Getwd()

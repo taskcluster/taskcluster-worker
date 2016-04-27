@@ -1,4 +1,4 @@
-package virt
+package libvirt
 
 import (
 	"crypto/rand"
@@ -305,7 +305,7 @@ type ChannelDevice struct {
 
 // Domain specifies a libvirt domain, also known as a virtual machine.
 // https://libvirt.org/formatdomain.html
-type Domain struct {
+type DomainConfig struct {
 	// TODO: See hyperv features add these!
 	// See: https://libvirt.org/formatdomain.html#elementsFeatures
 	XMLName           xml.Name           `xml:"domain"`
@@ -420,7 +420,6 @@ type IPCondition struct {
 
 // FilterChain specifies a network-filter chain.
 type FilterChain struct {
-	XMLName  xml.Name          `xml:"filter"`
 	Name     string            `xml:"name,attr,omitempty"`  // Identifier
 	UUID     string            `xml:"uuid,omitempty"`       // UUID
 	Chain    string            `xml:"chain,attr,omitempty"` // "root", "ipv4", ...
