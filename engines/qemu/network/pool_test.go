@@ -6,7 +6,7 @@ import (
 )
 
 func TestNetworkCreateDestroy(t *testing.T) {
-	p := NewPool(1)
+	p := NewPool(3)
 
 	fmt.Println("Created network pool")
 
