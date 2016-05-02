@@ -17,6 +17,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/config"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/artifacts"
+	_ "github.com/taskcluster/taskcluster-worker/plugins/env"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/success"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
