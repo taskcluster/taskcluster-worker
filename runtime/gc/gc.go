@@ -19,7 +19,10 @@ type GarbageCollector struct {
 	m         sync.Mutex
 }
 
-// Register takes a Disposable resource for the GarbageCollector to manage
+// Register takes a Disposable resource for the GarbageCollector to manage.
+//
+// GarbageCollector will attempt to to call resource.Dispose() at any time,
+// you should return ErrDisposableInUse if the resource is in use.
 func (gc *GarbageCollector) Register(resource Disposable) {
 	gc.m.Lock()
 	defer gc.m.Unlock()
@@ -32,6 +35,10 @@ func (gc *GarbageCollector) Register(resource Disposable) {
 // resource. Returns true if the resource was tracked, notice that the resource
 // maybe have been disposed of while waiting for the GC lock. Say if the GC was
 // running when you made this call.
+//
+// Note, you don't have to use this method. When you resouce is in a state
+// where you don't want it to be disposed just ensure that Dispose() returns
+// ErrDisposableInUse.
 func (gc *GarbageCollector) Unregister(resource Disposable) bool {
 	gc.m.Lock()
 	defer gc.m.Unlock()
