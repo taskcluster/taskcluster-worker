@@ -29,6 +29,13 @@ type image struct {
 	err     error
 }
 
+// Instance represents an instance of an image.
+type Instance struct {
+	m        sync.Mutex
+	image    *image
+	diskFile string
+}
+
 // NewManager creates a new image manager using the imageFolder for storing
 // images and instances of images.
 func NewManager(imageFolder string, gc *gc.GarbageCollector) *Manager {
@@ -155,7 +162,10 @@ func (img *image) Dispose() error {
 	// Remove image entry
 	delete(img.manager.images, img.imageID)
 
-	// TODO: delete folder
+	// Delete the image folder
+	if err := os.RemoveAll(img.folder); err != nil {
+		return fmt.Errorf("Failed to delete image folder '%s', error: %s", img.folder, err)
+	}
 
 	return nil
 }
@@ -163,20 +173,24 @@ func (img *image) Dispose() error {
 // instance returns a new instance of the image for use in a virtual machine.
 // You must have called image.Acquire() first to prevent garbage collection.
 func (img *image) instance() *Instance {
-	// TODO: Copy the qcow2 file
-	// TODO: Change the backing file of the qcow2 file
-	// qemu-img rebase -f qcow2 -u -b disk.img -F raw layer.qcow2
+	// Create a copy of layer.qcow2
+	diskFile := filepath.Join(img.manager.imageFolder, slugid.V4()+".qcow2")
+	err := copyFile(filepath.Join(img.manager.imageFolder, "layer.qcow2"), diskFile)
+	if err != nil {
+		panic(fmt.Sprint("Failed to make copy of layer.qcow2, error: ", err))
+	}
+
 	return &Instance{
 		image:    img,
-		diskFile: "",
+		diskFile: diskFile,
 	}
 }
 
-// Instance represents an instance of an image.
-type Instance struct {
-	m        sync.Mutex
-	image    *image
-	diskFile string
+// Machine returns the virtual machine configuration for this instance.
+func (i *Instance) Machine() Machine {
+	i.m.Lock()
+	defer i.m.Unlock()
+	return *i.image.machine
 }
 
 // DiskFile returns the qcow2 file this image instance is backed by.
@@ -197,8 +211,12 @@ func (i *Instance) Release() {
 		panic("Instance of image is already disposed")
 	}
 
-	// TODO: Delete the underlying qcow2 file
-	i.image.Release()
+	// Delete the layer.qcow2 copy
+	if err := os.Remove(i.diskFile); err != nil {
+		// TODO: Log err somewhere... ideally to sentry!
+	}
 
-	i.image = nil
+	// Release the image
+	i.image.Release()
+	i.image = nil // ensure that we never do this twice
 }
