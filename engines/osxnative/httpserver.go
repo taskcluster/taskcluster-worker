@@ -41,5 +41,8 @@ func (s *httpServer) url() string {
 
 func newHttpServer() *httpServer {
 	m := make(map[string]string)
-	return &httpServer{httptest.NewServer(handler{&m}), &m}
+	return &httpServer{
+		testServer: httptest.NewServer(handler{&m}),
+		bodyMap:    &m,
+	}
 }

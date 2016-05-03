@@ -59,8 +59,8 @@ func TestInvalidCommand(t *testing.T) {
 		t.Fatalf("WaitForResult should return ErrNonFatalInternalError, but it didn't")
 	}
 
-	if r.Success() {
-		t.Fatalf("Command was expected to fail, but succeed")
+	if r != nil {
+		t.Fatalf("ResultSet was expected to be nil")
 	}
 }
 
@@ -142,9 +142,8 @@ func TestExecDownloadedScript(t *testing.T) {
 	defer serv.close()
 
 	testPayload := payload{
-		Link:       serv.url() + "/test.sh",
-		Command:    []string{"./test.sh"},
-		MaxRunTime: 1000,
+		Link:    serv.url() + "/test.sh",
+		Command: []string{"./test.sh"},
 	}
 
 	s, err := newTestSandbox(&testPayload, []string{})

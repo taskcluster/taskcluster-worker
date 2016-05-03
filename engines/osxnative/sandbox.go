@@ -101,7 +101,7 @@ func downloadLink(link string) (string, error) {
 
 func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 	if s.aborted {
-		return resultset{success: false}, engines.ErrSandboxAborted
+		return nil, engines.ErrSandboxAborted
 	}
 
 	if s.taskPayload.Link != "" {
@@ -144,13 +144,13 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 		s.context.LogError("Command \"", s.taskPayload.Command, "\" failed to run: ", err)
 		switch err.(type) {
 		case *exec.ExitError:
-			return resultset{success: false}, nil
+			return newResultSet(s.context, false), nil
 		default:
-			return resultset{success: false}, engines.ErrNonFatalInternalError
+			return nil, engines.ErrNonFatalInternalError
 		}
 	}
 
-	return resultset{success: true}, nil
+	return newResultSet(s.context, true), nil
 }
 
 func (s *sandbox) Abort() error {
