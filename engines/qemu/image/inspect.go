@@ -35,11 +35,11 @@ type information struct {
 
 // inspectImageFile reads image meta-data for an image file of type
 func inspectImageFile(imageFile string, format imageFormat) *information {
-	fmt := "raw"
+	f := "raw"
 	if format == imageQCOW2Format {
-		fmt = "qcow2"
+		f = "qcow2"
 	}
-	p := exec.Command("qemu-img", "-f", fmt, "--output", "json", filepath.Base(imageFile))
+	p := exec.Command("qemu-img", "info", "-f", f, "--output", "json", filepath.Base(imageFile))
 	p.Dir = filepath.Dir(imageFile)
 	data, err := p.Output()
 	if err != nil {

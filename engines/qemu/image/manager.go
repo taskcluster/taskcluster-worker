@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/getsentry/raven-go"
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
@@ -16,6 +18,8 @@ type Manager struct {
 	images      map[string]*image
 	imageFolder string
 	gc          *gc.GarbageCollector
+	log         *logrus.Entry
+	sentry      *raven.Client
 }
 
 // image represents an image of which multiple instances can be created
@@ -38,7 +42,7 @@ type Instance struct {
 
 // NewManager creates a new image manager using the imageFolder for storing
 // images and instances of images.
-func NewManager(imageFolder string, gc *gc.GarbageCollector) *Manager {
+func NewManager(imageFolder string, gc *gc.GarbageCollector, log *logrus.Entry, sentry *raven.Client) *Manager {
 	// Ensure the image folder is created
 	err := os.MkdirAll(imageFolder, 0600)
 	if err != nil {
@@ -48,10 +52,12 @@ func NewManager(imageFolder string, gc *gc.GarbageCollector) *Manager {
 		images:      make(map[string]*image),
 		imageFolder: imageFolder,
 		gc:          gc,
+		log:         log,
+		sentry:      sentry,
 	}
 }
 
-// NewInstance will return an Instance of the image with imageID. If no such
+// Instance will return an Instance of the image with imageID. If no such
 // image exists in the cache, download() will be called to download it to a
 // temporary filename.
 //
@@ -63,7 +69,7 @@ func NewManager(imageFolder string, gc *gc.GarbageCollector) *Manager {
 // that uniquely identifies the image. Sane patterns includes "url:<url>", or
 // "taskId:<taskId>/<runId>/<artifact>". It also the callers responsibility to
 // enforce any sort of access control.
-func (m *Manager) NewInstance(imageID string, download func(imageFile string) error) (*Instance, error) {
+func (m *Manager) Instance(imageID string, download func(imageFile string) error) (*Instance, error) {
 	m.m.Lock()
 
 	// Get image from cache and insert it if not present
@@ -120,9 +126,10 @@ func (img *image) loadImage(download func(imageFile string) error, done chan<- s
 	// Clean up if there is any error
 cleanup:
 	// Delete the image file
-	err2 := os.RemoveAll(imageFile)
-	if err2 != nil {
-		// TODO: Log a message to the log with err2
+	e := os.RemoveAll(imageFile)
+	if e != nil {
+		eventID := img.manager.sentry.CaptureError(e, nil) // TODO: Severity level warning
+		img.manager.log.Warning("Failed to delete image file, err: ", e, " sentry eventId: ", eventID)
 	}
 
 	// If there was an err, set ima.err and remove it from cache
@@ -134,9 +141,10 @@ cleanup:
 		img.manager.m.Unlock()
 
 		// Delete the image folder
-		err2 := os.RemoveAll(img.folder)
-		if err2 != nil {
-			// TODO: Log a message to the log with err2
+		e := os.RemoveAll(img.folder)
+		if e != nil {
+			eventID := img.manager.sentry.CaptureError(e, nil) // TODO: Severity level warning
+			img.manager.log.Warning("Failed to delete image folder, err: ", e, " sentry eventId: ", eventID)
 		}
 	} else {
 		img.manager.gc.Register(img)
@@ -154,7 +162,6 @@ func (img *image) Dispose() error {
 	if err := img.CanDispose(); err != nil {
 		return err
 	}
-
 	// Check that we're not disposing twice
 	if _, ok := img.manager.images[img.imageID]; !ok {
 		panic("Can't dispose an image twice")
@@ -174,8 +181,8 @@ func (img *image) Dispose() error {
 // You must have called image.Acquire() first to prevent garbage collection.
 func (img *image) instance() *Instance {
 	// Create a copy of layer.qcow2
-	diskFile := filepath.Join(img.manager.imageFolder, slugid.V4()+".qcow2")
-	err := copyFile(filepath.Join(img.manager.imageFolder, "layer.qcow2"), diskFile)
+	diskFile := filepath.Join(img.folder, slugid.V4()+".qcow2")
+	err := copyFile(filepath.Join(img.folder, "layer.qcow2"), diskFile)
 	if err != nil {
 		panic(fmt.Sprint("Failed to make copy of layer.qcow2, error: ", err))
 	}
@@ -190,6 +197,9 @@ func (img *image) instance() *Instance {
 func (i *Instance) Machine() Machine {
 	i.m.Lock()
 	defer i.m.Unlock()
+	if i.image == nil {
+		panic("Instance of image is already disposed")
+	}
 	return *i.image.machine
 }
 
@@ -200,7 +210,7 @@ func (i *Instance) DiskFile() string {
 	if i.image == nil {
 		panic("Instance of image is already disposed")
 	}
-	return ""
+	return i.diskFile
 }
 
 // Release frees the resources held by an instance.
@@ -213,7 +223,8 @@ func (i *Instance) Release() {
 
 	// Delete the layer.qcow2 copy
 	if err := os.Remove(i.diskFile); err != nil {
-		// TODO: Log err somewhere... ideally to sentry!
+		eventID := i.image.manager.sentry.CaptureError(err, nil)
+		i.image.manager.log.Error("Failed to layer.qcow2 copy, err: ", err, " sentry eventId: ", eventID)
 	}
 
 	// Release the image

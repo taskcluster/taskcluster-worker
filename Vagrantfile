@@ -37,6 +37,7 @@ Vagrant.configure(2) do |config|
     echo "PS1='[vagrant > \\W]$'" >> /home/vagrant/.bashrc
     echo "source /home/vagrant/.bashrc" >> /home/vagrant/.bash_profile
     echo "cd /go/src/github.com/taskcluster/taskcluster-worker/" >> /home/vagrant/.bash_profile
+    echo "sudo bash --login" >> /home/vagrant/.bash_profile
     echo "PS1='[vagrant > \\W]#'" >> /root/.bashrc
     sudo mkdir -p /go/src/github.com/taskcluster/taskcluster-worker/
     sudo chown -R vagrant:vagrant /go

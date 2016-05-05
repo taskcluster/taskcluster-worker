@@ -20,7 +20,7 @@ import (
 type DisposableResource struct {
 	refCount uint32
 	lastUsed time.Time
-	m        *sync.Mutex
+	m        sync.Mutex
 }
 
 // Acquire the resource incrementing the reference count by one
@@ -35,7 +35,7 @@ func (r *DisposableResource) Acquire() {
 func (r *DisposableResource) Release() {
 	r.m.Lock()
 	defer r.m.Unlock()
-	r.refCount++
+	r.refCount--
 	r.lastUsed = time.Now()
 }
 

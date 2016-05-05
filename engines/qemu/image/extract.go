@@ -166,9 +166,9 @@ func extractImage(imageFile, imageFolder string) (*Machine, error) {
 		return nil, engines.NewMalformedPayloadError("Image file contains ",
 			"'layer.qcow2' which has the dirty-flag set")
 	}
-	if layerInfo.BackingFile != "disk.raw" {
+	if layerInfo.BackingFile != "disk.img" {
 		return nil, engines.NewMalformedPayloadError("Image file contains ",
-			"'layer.qcow2' which has a backing file that isn't: 'disk.raw'")
+			"'layer.qcow2' which has a backing file that isn't: 'disk.img'")
 	}
 	if layerInfo.BackingFormat != "raw" {
 		return nil, engines.NewMalformedPayloadError("Image file contains ",

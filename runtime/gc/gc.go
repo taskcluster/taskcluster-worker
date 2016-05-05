@@ -1,6 +1,8 @@
 package gc
 
-import "sync"
+import (
+	"sync"
+)
 
 func indexOfResource(resources []Disposable, resource Disposable) int {
 	for i, r := range resources {
@@ -26,7 +28,7 @@ type GarbageCollector struct {
 func (gc *GarbageCollector) Register(resource Disposable) {
 	gc.m.Lock()
 	defer gc.m.Unlock()
-	if indexOfResource(gc.resources, resource) != -1 {
+	if indexOfResource(gc.resources, resource) == -1 {
 		gc.resources = append(gc.resources, resource)
 	}
 }
@@ -51,8 +53,17 @@ func (gc *GarbageCollector) Unregister(resource Disposable) bool {
 }
 
 // Collect runs garbage collection and reclaims resources, at this stage it just
-// disposes as many resources as possible.
+// calls CollectAll(), but in the future this should dispose resources somewhat
+// intelligently.
 func (gc *GarbageCollector) Collect() error {
+	return gc.CollectAll()
+}
+
+// CollectAll disposes all resources that can be disposed.
+//
+// All resources not returning: ErrDisposableInUse.
+// This is useful for testing when implementing resources.
+func (gc *GarbageCollector) CollectAll() error {
 	gc.m.Lock()
 	defer gc.m.Unlock()
 	var resources []Disposable
