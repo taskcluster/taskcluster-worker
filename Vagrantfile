@@ -28,7 +28,7 @@ Vagrant.configure(2) do |config|
   # Install QEMU, dnsmasq, go and configure a nice environment
   config.vm.provision "shell", inline: <<-SHELL
     sudo apt-get update -y
-    sudo apt-get install -y qemu dnsmasq-base build-essential git
+    sudo apt-get install -y qemu dnsmasq-base build-essential git liblz4-tool
     curl -s https://storage.googleapis.com/golang/go1.6.2.linux-amd64.tar.gz > /tmp/go.tar.gz
     sudo tar -C /usr/local -xzf /tmp/go.tar.gz
     rm /tmp/go.tar.gz

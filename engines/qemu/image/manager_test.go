@@ -1,3 +1,5 @@
+// +build vagrant
+
 package image
 
 import (
@@ -16,16 +18,16 @@ import (
 )
 
 func TestImageManager(t *testing.T) {
-	fmt.Println("Setup environment needed to test")
+	fmt.Println(" - Setup environment needed to test")
 	gc := &gc.GarbageCollector{}
 	log := logrus.StandardLogger()
 	sentry, _ := raven.New("")
 	imageFolder := filepath.Join("/tmp", slugid.V4())
 
-	fmt.Println("Create manager")
+	fmt.Println(" - Create manager")
 	manager := NewManager(imageFolder, gc, log.WithField("comp", "image-manager"), sentry)
 
-	fmt.Println("Test parallel download")
+	fmt.Println(" - Test parallel download")
 	// Check that download can return and error, and we won't download twice
 	// if we call before returning...
 	downloadError := errors.New("test error")
@@ -49,36 +51,36 @@ func TestImageManager(t *testing.T) {
 	assert(downloadError == err1, "Expected the downloadError: ", err1)
 	assert(instance == nil, "Expected instance to nil, when we have an error")
 
-	fmt.Println("Test instantiation of image")
+	fmt.Println(" - Test instantiation of image")
 	instance, err := manager.Instance("url:test-image-1", func(target string) error {
-		return copyFile("./image.tar", target)
+		return copyFile("./tinycore.tar.lz4", target)
 	})
 	nilOrPanic(err, "Failed to loadImage")
 	assert(instance != nil, "Expected an instance")
 
-	fmt.Println("Get the diskImage path so we can check it gets deleted")
+	fmt.Println(" - Get the diskImage path so we can check it gets deleted")
 	diskImage := instance.DiskFile()
 
-	fmt.Println("Inspect file for sanity check: ", diskImage)
+	fmt.Println(" - Inspect file for sanity check: ", diskImage)
 	info := inspectImageFile(diskImage, imageQCOW2Format)
 	assert(info != nil, "Expected a qcow2 file")
 	assert(info.Format == "qcow2")
 	assert(!info.DirtyFlag)
 	assert(info.BackingFile != "", "Missing backing file in qcow2")
 
-	fmt.Println("Check that backing file exists")
+	fmt.Println(" - Check that backing file exists")
 	backingFile := filepath.Join(filepath.Dir(diskImage), info.BackingFile)
 	_, err = os.Lstat(backingFile)
 	nilOrPanic(err, "backingFile missing")
 
-	fmt.Println("Garbage collect and test that image is still there")
+	fmt.Println(" - Garbage collect and test that image is still there")
 	nilOrPanic(gc.CollectAll(), "gc.CollectAll() failed")
 	_, err = os.Lstat(backingFile)
 	nilOrPanic(err, "backingFile missing after GC")
 	info = inspectImageFile(diskImage, imageQCOW2Format)
 	assert(info != nil, "diskImage for instance deleted after GC")
 
-	fmt.Println("Make a new instance")
+	fmt.Println(" - Make a new instance")
 	instance2, err := manager.Instance("url:test-image-1", func(target string) error {
 		panic("We shouldn't get here, as it is currently in the cache")
 	})
@@ -88,14 +90,14 @@ func TestImageManager(t *testing.T) {
 	info = inspectImageFile(diskImage2, imageQCOW2Format)
 	assert(info != nil, "diskImage2 missing initially")
 
-	fmt.Println("Release the first instance")
+	fmt.Println(" - Release the first instance")
 	instance.Release()
 	_, err = os.Lstat(diskImage)
 	assert(os.IsNotExist(err), "first instance diskImage shouldn't exist!")
 	info = inspectImageFile(diskImage2, imageQCOW2Format)
 	assert(info != nil, "diskImage2 missing after first instance release")
 
-	fmt.Println("Garbage collect and test that image is still there")
+	fmt.Println(" - Garbage collect and test that image is still there")
 	nilOrPanic(gc.CollectAll(), "gc.CollectAll() failed")
 	_, err = os.Lstat(backingFile)
 	nilOrPanic(err, "backingFile missing after second GC")
@@ -104,19 +106,19 @@ func TestImageManager(t *testing.T) {
 	info = inspectImageFile(diskImage2, imageQCOW2Format)
 	assert(info != nil, "diskImage2 missing after first instance release")
 
-	fmt.Println("Release the second instance")
+	fmt.Println(" - Release the second instance")
 	instance2.Release()
 	_, err = os.Lstat(diskImage2)
 	assert(os.IsNotExist(err), "second instance diskImage shouldn't exist!")
 	_, err = os.Lstat(backingFile)
 	nilOrPanic(err, "backingFile missing after release, this shouldn't be...")
 
-	fmt.Println("Garbage collect everything") // this should dispose the image
+	fmt.Println(" - Garbage collect everything") // this should dispose the image
 	nilOrPanic(gc.CollectAll(), "gc.CollectAll() failed")
 	_, err = os.Lstat(backingFile)
 	assert(os.IsNotExist(err), "Expected backingFile to be deleted after GC, file: ", backingFile)
 
-	fmt.Println("Check that we can indeed reload the image")
+	fmt.Println(" - Check that we can indeed reload the image")
 	_, err = manager.Instance("url:test-image-1", func(target string) error {
 		return downloadError
 	})

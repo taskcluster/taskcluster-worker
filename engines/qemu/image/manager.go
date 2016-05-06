@@ -22,6 +22,11 @@ type Manager struct {
 	sentry      *raven.Client
 }
 
+// Downloader is a function capable of downloading an image to an imageFile.
+// The downloader writes the image file to the imageFile supplied, and returns
+// an error if all retries etc. fails.
+type Downloader func(imageFile string) error
+
 // image represents an image of which multiple instances can be created
 type image struct {
 	gc.DisposableResource
@@ -69,7 +74,7 @@ func NewManager(imageFolder string, gc *gc.GarbageCollector, log *logrus.Entry, 
 // that uniquely identifies the image. Sane patterns includes "url:<url>", or
 // "taskId:<taskId>/<runId>/<artifact>". It also the callers responsibility to
 // enforce any sort of access control.
-func (m *Manager) Instance(imageID string, download func(imageFile string) error) (*Instance, error) {
+func (m *Manager) Instance(imageID string, download Downloader) (*Instance, error) {
 	m.m.Lock()
 
 	// Get image from cache and insert it if not present
@@ -102,8 +107,8 @@ func (m *Manager) Instance(imageID string, download func(imageFile string) error
 	return img.instance(), nil
 }
 
-func (img *image) loadImage(download func(imageFile string) error, done chan<- struct{}) {
-	imageFile := filepath.Join(img.manager.imageFolder, slugid.V4()+".tar")
+func (img *image) loadImage(download Downloader, done chan<- struct{}) {
+	imageFile := filepath.Join(img.manager.imageFolder, slugid.V4()+".tar.lz4")
 
 	// Create image folder
 	err := os.Mkdir(img.folder, 0600)

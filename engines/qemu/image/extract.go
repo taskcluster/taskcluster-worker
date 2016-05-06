@@ -42,6 +42,7 @@ type Machine struct {
 		MAC    string `json:"mac"`    // See RandomMAC()
 	} `json:"network"`
 	// TODO: Add more options in the future
+	// TODO: Add UUID
 }
 
 // Validate returns a MalformedPayloadError if the Machine definition isn't
@@ -93,8 +94,11 @@ func extractImage(imageFile, imageFolder string) (*Machine, error) {
 		return nil, engines.NewMalformedPayloadError("Image file is larger than ", maxImageSize, " bytes")
 	}
 
-	// Using tar so we get sparse files
-	tar := exec.Command("tar", "-C", imageFolder, "-xf", imageFile, "disk.img", "layer.qcow2", "machine.json")
+	// Using lz4 | tar so we get sparse files (sh to get OS pipes)
+	tar := exec.Command("sh", "-fec", "lz4 -dq '"+imageFile+"' - | "+
+		"tar -xoC '"+imageFolder+"' --no-same-permissions -- "+
+		"disk.img layer.qcow2 machine.json",
+	)
 	err := tar.Run()
 	if err != nil {
 		return nil, engines.NewMalformedPayloadError(

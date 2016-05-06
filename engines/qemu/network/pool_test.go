@@ -1,3 +1,5 @@
+// +build vagrant
+
 package network
 
 import (
