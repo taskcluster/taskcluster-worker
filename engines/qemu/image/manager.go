@@ -47,11 +47,11 @@ type Instance struct {
 
 // NewManager creates a new image manager using the imageFolder for storing
 // images and instances of images.
-func NewManager(imageFolder string, gc *gc.GarbageCollector, log *logrus.Entry, sentry *raven.Client) *Manager {
+func NewManager(imageFolder string, gc *gc.GarbageCollector, log *logrus.Entry, sentry *raven.Client) (*Manager, error) {
 	// Ensure the image folder is created
 	err := os.MkdirAll(imageFolder, 0600)
 	if err != nil {
-		panic(fmt.Sprint("Failed to create imageFolder: ", imageFolder, ", error: ", err))
+		return nil, fmt.Errorf("Failed to create imageFolder: %s, error: %s", imageFolder, err)
 	}
 	return &Manager{
 		images:      make(map[string]*image),
@@ -59,7 +59,7 @@ func NewManager(imageFolder string, gc *gc.GarbageCollector, log *logrus.Entry, 
 		gc:          gc,
 		log:         log,
 		sentry:      sentry,
-	}
+	}, nil
 }
 
 // Instance will return an Instance of the image with imageID. If no such
@@ -104,7 +104,7 @@ func (m *Manager) Instance(imageID string, download Downloader) (*Instance, erro
 		img.Release()
 		return nil, img.err
 	}
-	return img.instance(), nil
+	return img.instance()
 }
 
 func (img *image) loadImage(download Downloader, done chan<- struct{}) {
@@ -184,18 +184,18 @@ func (img *image) Dispose() error {
 
 // instance returns a new instance of the image for use in a virtual machine.
 // You must have called image.Acquire() first to prevent garbage collection.
-func (img *image) instance() *Instance {
+func (img *image) instance() (*Instance, error) {
 	// Create a copy of layer.qcow2
 	diskFile := filepath.Join(img.folder, slugid.V4()+".qcow2")
 	err := copyFile(filepath.Join(img.folder, "layer.qcow2"), diskFile)
 	if err != nil {
-		panic(fmt.Sprint("Failed to make copy of layer.qcow2, error: ", err))
+		return nil, fmt.Errorf("Failed to make copy of layer.qcow2, error: %s", err)
 	}
 
 	return &Instance{
 		image:    img,
 		diskFile: diskFile,
-	}
+	}, nil
 }
 
 // Machine returns the virtual machine configuration for this instance.

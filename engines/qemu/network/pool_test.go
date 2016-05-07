@@ -8,10 +8,13 @@ import (
 )
 
 func TestNetworkCreateDestroy(t *testing.T) {
-	p := NewPool(3)
+	fmt.Println(" - Creating network pool")
+	p, err := NewPool(3)
+	nilOrPanic(err, "Failed to create pool")
 
-	fmt.Println("Created network pool")
-
-	err := p.Dispose()
+	fmt.Println(" - Destroying network pool")
+	err = p.Dispose()
 	nilOrPanic(err, "Failed to dispose networks.")
+
+	fmt.Println(" - Network pool destroyed")
 }

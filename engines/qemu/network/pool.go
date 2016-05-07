@@ -46,20 +46,23 @@ type entry struct {
 // NewPool creates N virtual networks and returns Pool.
 // This should be called before the worker starts operating, we don't wish to
 // dynamically reconfigure networks at runtime.
-func NewPool(N int) *Pool {
+func NewPool(N int) (*Pool, error) {
 	p := &Pool{
 		networks: make(map[string]*entry),
 	}
 
 	// Maybe we could split the address space further someday in the future
 	if N > 100 {
-		panic("Can't create more than 100 networks")
+		return nil, fmt.Errorf("Can't create %d networks, 100 is the limit", N)
 	}
 
 	// Create a number of networks
 	for i := 0; i < N; i++ {
 		// Construct the network object
-		n := createNetwork(i, p)
+		n, err := createNetwork(i, p)
+		if err != nil {
+			return nil, err
+		}
 		p.networks[n.ipPrefix] = n
 	}
 
@@ -68,7 +71,7 @@ func NewPool(N int) *Pool {
 		{"sysctl", "-w", "net.ipv4.ip_forward=1"},
 	})
 	if err != nil {
-		panic(fmt.Sprint("Failed to enable ipv4 forwarding: ", err))
+		return nil, fmt.Errorf("Failed to enable ipv4 forwarding: %s", err)
 	}
 
 	// Create dnsmasq configuration
@@ -98,7 +101,7 @@ func NewPool(N int) *Pool {
 	p.dnsmasq.Stdout = nil
 	err = p.dnsmasq.Start()
 	if err != nil {
-		panic(fmt.Sprint("Failed to start dnsmasq, error: ", err))
+		return nil, fmt.Errorf("Failed to start dnsmasq, error: %s", err)
 	}
 	// Monitor dnsmasq and panic if it crashes unexpectedly
 	go (func(p *Pool, done chan<- struct{}) {
@@ -109,6 +112,7 @@ func NewPool(N int) *Pool {
 			// We could probably restart the dnsmasq, as long as we avoid an infinite
 			// loop that should be fine. But dnsmasq probably won't crash without a
 			// good reason.
+			// TODO: Repor to sentry
 			panic(fmt.Sprint("Fatal: dnsmasq died unexpectedly, error: ", err))
 		}
 	})(p, dnsmasqDone)
@@ -118,7 +122,7 @@ func NewPool(N int) *Pool {
 		{"ip", "addr", "add", metaDataIP, "dev", "lo"},
 	})
 	if err != nil {
-		panic(fmt.Sprint("Failed to add: ", metaDataIP, " to the loopback device: ", err))
+		return nil, fmt.Errorf("Failed to add: %s to the loopback device: %s", metaDataIP, err)
 	}
 
 	// Create the server
@@ -138,7 +142,7 @@ func NewPool(N int) *Pool {
 	if err != nil {
 		// If this happens ensure that we have configured the loopback device with:
 		// sudo ip addr add 169.254.169.254/24 scope link dev lo
-		panic(fmt.Sprint("Failed to listen on ", p.server.Addr, " error: ", err))
+		return nil, fmt.Errorf("Failed to listen on %s error: %s", p.server.Addr, err)
 	}
 
 	// Start the server
@@ -152,7 +156,7 @@ func NewPool(N int) *Pool {
 		}
 	})(p, serverDone)
 
-	return p
+	return p, nil
 }
 
 func (p *Pool) dispatchRequest(w http.ResponseWriter, r *http.Request) {
@@ -291,7 +295,7 @@ func (p *Pool) Dispose() error {
 // createNetwork creates a tap device and related ip-tables configuration.
 // This does not start dnsmasq, use newNetworkPool() to create a set of
 // networks with dnsmasq running.
-func createNetwork(index int, parent *Pool) *entry {
+func createNetwork(index int, parent *Pool) (*entry, error) {
 	// Each network has a name and an ip-prefix, we use the 192.168.0.0/16
 	// subnet starting from 192.168.150.0
 	tapDevice := "tctap" + strconv.Itoa(index)
@@ -308,13 +312,13 @@ func createNetwork(index int, parent *Pool) *entry {
 		{"ip", "route", "add", ipPrefix + ".0/24", "dev", tapDevice},
 	})
 	if err != nil {
-		panic(fmt.Sprint("Failed to setup tap device: ", tapDevice, ", error: ", err))
+		return nil, fmt.Errorf("Failed to setup tap device: %s, error: %s", tapDevice, err)
 	}
 
 	// Create iptables rules and chains
 	err = script(ipTableRules(tapDevice, ipPrefix, false))
 	if err != nil {
-		panic(fmt.Sprint("Failed to setup ip-tables for tap device: ", tapDevice, ", error: ", err))
+		return nil, fmt.Errorf("Failed to setup ip-tables for tap device: %s error: %s", tapDevice, err)
 	}
 
 	// Construct the network object
@@ -323,7 +327,7 @@ func createNetwork(index int, parent *Pool) *entry {
 		ipPrefix:  ipPrefix,
 		handler:   nil,
 		pool:      parent,
-	}
+	}, nil
 }
 
 // destroy deletes the networks tap device and related ip-tables configuration.

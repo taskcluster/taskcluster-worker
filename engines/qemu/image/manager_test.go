@@ -25,7 +25,8 @@ func TestImageManager(t *testing.T) {
 	imageFolder := filepath.Join("/tmp", slugid.V4())
 
 	fmt.Println(" - Create manager")
-	manager := NewManager(imageFolder, gc, log.WithField("comp", "image-manager"), sentry)
+	manager, err := NewManager(imageFolder, gc, log.WithField("subsystem", "image-manager"), sentry)
+	nilOrPanic(err, "Failed to create image manager")
 
 	fmt.Println(" - Test parallel download")
 	// Check that download can return and error, and we won't download twice
@@ -52,7 +53,7 @@ func TestImageManager(t *testing.T) {
 	assert(instance == nil, "Expected instance to nil, when we have an error")
 
 	fmt.Println(" - Test instantiation of image")
-	instance, err := manager.Instance("url:test-image-1", func(target string) error {
+	instance, err = manager.Instance("url:test-image-1", func(target string) error {
 		return copyFile("./tinycore.tar.lz4", target)
 	})
 	nilOrPanic(err, "Failed to loadImage")

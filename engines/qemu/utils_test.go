@@ -1,4 +1,4 @@
-package qemu
+package qemuengine
 
 import "fmt"
 
