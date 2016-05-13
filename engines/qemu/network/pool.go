@@ -198,6 +198,9 @@ type Network struct {
 func (n *Network) SetHandler(handler http.Handler) {
 	n.m.Lock()
 	defer n.m.Unlock()
+	if n.entry == nil {
+		panic("Network.SetHandler called after Network.Release()")
+	}
 	n.entry.m.Lock()
 	defer n.entry.m.Unlock()
 	n.entry.handler = handler
@@ -207,10 +210,13 @@ func (n *Network) SetHandler(handler http.Handler) {
 func (n *Network) TapDevice() string {
 	n.m.Lock()
 	defer n.m.Unlock()
+	if n.entry == nil {
+		panic("Network.TapDevice() called after Network.Relase()")
+	}
 	return n.entry.tapDevice
 }
 
-// Release returns this network to the Pool, this cannot be called twice.
+// Release returns this network to the Pool
 func (n *Network) Release() {
 	// Lock the wrapper
 	n.m.Lock()
@@ -218,9 +224,8 @@ func (n *Network) Release() {
 
 	// Prevent multiple Release calls
 	if n.entry == nil {
-		panic("Cannot release a network more than once!")
+		return
 	}
-	n.entry = nil
 
 	// Lock entry and clear the handler
 	n.entry.m.Lock()
@@ -231,10 +236,13 @@ func (n *Network) Release() {
 	n.entry.pool.m.Lock()
 	n.entry.inUse = false
 	n.entry.pool.m.Unlock()
+
+	// Clear entry so we don't release twice
+	n.entry = nil
 }
 
 // Network returns an unused network, or nil if no network is available.
-func (p *Pool) Network() *Network {
+func (p *Pool) Network() (*Network, error) {
 	p.m.Lock()
 	defer p.m.Unlock()
 	if p.networks == nil {
@@ -248,11 +256,11 @@ func (p *Pool) Network() *Network {
 			if entry.tapDevice == "" {
 				panic("entry.tapDevice is empty, implying the network has been destroyed")
 			}
-			return &Network{entry: entry}
+			return &Network{entry: entry}, nil
 		}
 	}
 
-	return nil
+	return nil, ErrAllNetworksInUse
 }
 
 // Dispose deletes all the networks created, should not be called while any of

@@ -4,8 +4,6 @@
 package qemuengine
 
 import (
-	"fmt"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
@@ -16,6 +14,7 @@ import (
 
 type engine struct {
 	engines.EngineBase
+	engineConfig *engineConfig
 	Log          *logrus.Entry
 	imageManager *image.Manager
 	networkPool  *network.Pool
@@ -59,10 +58,17 @@ func (p engineProvider) NewEngine(options extpoints.EngineOptions) (engines.Engi
 
 	// Construct engine object
 	return &engine{
+		engineConfig: c,
 		Log:          options.Log,
 		imageManager: imageManager,
 		networkPool:  networkPool,
 	}, nil
+}
+
+func (e *engine) Capabilities() engines.Capabilities {
+	return engines.Capabilities{
+		MaxConcurrency: e.engineConfig.MaxConcurrency,
+	}
 }
 
 func (e *engine) PayloadSchema() runtime.CompositeSchema {
@@ -76,6 +82,15 @@ func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sand
 		return nil, engines.ErrContractViolation
 	}
 
-	fmt.Println(p.Image)
-	return nil, nil
+	// Get an idle network
+	net, err := e.networkPool.Network()
+	if err == network.ErrAllNetworksInUse {
+		return nil, engines.ErrMaxConcurrencyExceeded
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// Create sandboxBuilder, it'll handle image downloading
+	return newSandboxBuilder(p, net, options.TaskContext, e), nil
 }

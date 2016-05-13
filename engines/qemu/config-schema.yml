@@ -13,6 +13,11 @@ properties:
     description: |
       Path to folder to be used for image storage and cache.
       Please ensure this has lots of space.
+  socketFolder:
+    type:           string
+    description: |
+      Path to folder to be used for internal unix-domain sockets.
+      Ideally, this shouldn't be readable by anyone else.
 required:
   - maxConcurrency
   - imageFolder

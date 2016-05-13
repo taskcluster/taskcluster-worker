@@ -26,8 +26,8 @@ type Shell interface {
 type Display struct {
 	Name        string
 	Description string
-	Width       int
-	Height      int
+	Width       int // 0 if unknown
+	Height      int // 0 if unknown
 }
 
 // The Sandbox interface represents an active sandbox.

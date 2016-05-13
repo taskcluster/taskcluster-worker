@@ -16,6 +16,10 @@ type (
 		// Mininum:    1
 		// Maximum:    100
 		MaxConcurrency int `json:"maxConcurrency"`
+
+		// Path to folder to be used for internal unix-domain sockets.
+		// Ideally, this shouldn't be readable by anyone else.
+		SocketFolder string `json:"socketFolder,omitempty"`
 	}
 )
 
@@ -36,6 +40,10 @@ var engineConfigSchema = func() runtime.CompositeSchema {
 		      "maximum": 100,
 		      "minimum": 1,
 		      "type": "integer"
+		    },
+		    "socketFolder": {
+		      "description": "Path to folder to be used for internal unix-domain sockets.\nIdeally, this shouldn't be readable by anyone else.\n",
+		      "type": "string"
 		    }
 		  },
 		  "required": [
