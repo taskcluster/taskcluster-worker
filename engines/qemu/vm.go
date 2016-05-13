@@ -174,9 +174,6 @@ func (vm *virtualMachine) Start() {
 	go func(vm *virtualMachine) {
 		vm.Error = vm.qemu.Wait()
 
-		// Notify everybody that the VM is stooped
-		close(vm.qemuDone)
-
 		// Release network and image
 		vm.m.Lock()
 		defer vm.m.Unlock()
@@ -190,6 +187,13 @@ func (vm *virtualMachine) Start() {
 		os.Remove(vm.qmpSocket)
 		vm.vncSocket = ""
 		vm.qmpSocket = ""
+
+		// Notify everybody that the VM is stooped
+		// Ensure resources are freed first, otherwise we'll race with resources
+		// against the next task. If the number of resources is limiting the
+		// number of concurrent tasks we can run.
+		// This is usually the case, so race would happen at full capacity.
+		close(vm.qemuDone)
 	}(vm)
 }
 
