@@ -206,14 +206,15 @@ func (n *Network) SetHandler(handler http.Handler) {
 	n.entry.handler = handler
 }
 
-// TapDevice returns the name of the tap-device for this network.
-func (n *Network) TapDevice() string {
+// NetDev returns the argument for the QEMU -netdev option.
+func (n *Network) NetDev(ID string) string {
 	n.m.Lock()
 	defer n.m.Unlock()
 	if n.entry == nil {
-		panic("Network.TapDevice() called after Network.Relase()")
+		panic("Network.NetDev() called after Network.Relase()")
 	}
-	return n.entry.tapDevice
+
+	return "tap,id=" + ID + ",ifname=" + n.entry.tapDevice + ",script=no,downscript=no"
 }
 
 // Release returns this network to the Pool

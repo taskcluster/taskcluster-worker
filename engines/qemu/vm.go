@@ -54,6 +54,8 @@ func newVirtualMachine(
 	}
 	options := []string{
 		"-name", "qemu-guest",
+		// TODO: Add -enable-kvm (configurable so can be disabled in tests)
+		"-machine", "pc-i440fx-2.1", // TODO: Configure additional options
 		"-m", "512", // TODO: Make memory configurable
 		"-realtime", "mlock=off", // TODO: Enable for things like talos
 		// TODO: fit to system HT, see: https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-devices-system-cpu
@@ -63,47 +65,42 @@ func newVirtualMachine(
 		"-no-user-config", "-nodefaults",
 		"-rtc", "base=utc", // TODO: Allow clock=vm for loadvm with windows
 		"-boot", "menu=off,strict=on",
-		"-device", arg("piix3-usb-uhci", opts{
-			"id":   "usb",
-			"bus":  "pci.0",
-			"addr": "0x1", // Always put USB on PCI 0x1 (not sure why)
-		}),
 		"-device", arg("VGA", opts{ // TODO: Investigate if we can use vmware
 			"id":        "video-0",
 			"vgamem_mb": "64", // TODO: Customize VGA memory
 			"bus":       "pci.0",
 			"addr":      "0x2", // QEMU uses PCI 0x2 for VGA by default
 		}),
+		"-device", arg("nec-usb-xhci", opts{
+			"id":   "usb",
+			"bus":  "pci.0",
+			"addr": "0x3", // Always put USB on PCI 0x3
+		}),
 		"-device", arg("virtio-balloon-pci", opts{
 			"id":   "balloon-0",
 			"bus":  "pci.0",
-			"addr": "0x3", // Always put balloon on PCI 0x3
+			"addr": "0x4", // Always put balloon on PCI 0x4
 		}),
-		"-netdev", arg("tap", opts{
-			"id":         "netdev-0",
-			"ifname":     vm.network.TapDevice(),
-			"script":     "no",
-			"downscript": "no",
-		}),
+		"-netdev", vm.network.NetDev("netdev-0"),
 		"-device", arg(vm.image.Machine().Network.Device, opts{
 			"netdev": "netdev-0",
 			"id":     "nic0",
 			"mac":    vm.image.Machine().Network.MAC,
 			"bus":    "pci.0",
-			"addr":   "0x4", // Always put network on PCI 0x4
+			"addr":   "0x5", // Always put network on PCI 0x5
 		}),
 		"-device", arg("AC97", opts{ // TODO: Customize sound device
 			"id":   "sound-0",
 			"bus":  "pci.0",
-			"addr": "0x5", // Always put sound on PCI 0x5
-		}),
-		"-device", arg("usb-mouse", opts{
-			"id":   "mouse-0",
-			"bus":  "usb.0",
-			"port": "0",
+			"addr": "0x6", // Always put sound on PCI 0x6
 		}),
 		"-device", arg("usb-kbd", opts{
 			"id":   "keyboard-0",
+			"bus":  "usb.0",
+			"port": "0",
+		}),
+		"-device", arg("usb-mouse", opts{
+			"id":   "mouse-0",
 			"bus":  "usb.0",
 			"port": "1",
 		}),
@@ -125,7 +122,7 @@ func newVirtualMachine(
 		"-device", arg("virtio-blk-pci", opts{
 			"scsi":      "off",
 			"bus":       "pci.0",
-			"addr":      "0x8", // Start disks as 0x8, reserve 0x6 and 0x7 for future
+			"addr":      "0x8", // Start disks as 0x8, reserve 0x7 for future
 			"drive":     "boot-disk",
 			"id":        "virtio-disk0",
 			"bootindex": "1",

@@ -21,4 +21,5 @@ properties:
 required:
   - maxConcurrency
   - imageFolder
+  - socketFolder
 additionalProperties: false

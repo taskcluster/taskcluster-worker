@@ -160,6 +160,7 @@ func (s *sandbox) waitForCrash() {
 	<-s.vm.Done
 
 	s.resolve.Do(func() {
+		// TODO: Read s.vm.Error and handle the error
 		s.resultError = errors.New("QEMU crashed unexpected")
 		s.resultAbort = engines.ErrSandboxTerminated
 	})
