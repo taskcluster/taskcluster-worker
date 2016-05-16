@@ -25,7 +25,7 @@ func (cmd) Summary() string {
 
 func (cmd) Usage() string {
 	return `Usage:
-  taskcluster-worker work <engine> --logging-level <level>
+  taskcluster-worker work <engine> [--logging-level <level>]
 
 Options:
   -l --logging-level <level>  	Set logging at <level>.
@@ -92,10 +92,10 @@ func (cmd) Execute(args map[string]interface{}) {
 			},
 		},
 		Capacity:      5,
-		ProvisionerID: "dummy-test-provisioner",
-		WorkerGroup:   "dummy-test-group",
-		WorkerType:    "dummy-test-type",
-		WorkerID:      "dummy-test-worker",
+		ProvisionerID: "test-dummy-provisioner",
+		WorkerType:    "dummy-worker-tc",
+		WorkerGroup:   "test-dummy-workers",
+		WorkerID:      "dummy-worker-tc",
 		QueueService: struct {
 			ExpirationOffset int `json:"expirationOffset"`
 		}{
