@@ -1,5 +1,3 @@
-//go:generate go-composite-schema --required start machine.yml generated_payloadschema.go
-
 package image
 
 import (

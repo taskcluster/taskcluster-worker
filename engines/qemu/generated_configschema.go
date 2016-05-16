@@ -19,7 +19,7 @@ type (
 
 		// Path to folder to be used for internal unix-domain sockets.
 		// Ideally, this shouldn't be readable by anyone else.
-		SocketFolder string `json:"socketFolder,omitempty"`
+		SocketFolder string `json:"socketFolder"`
 	}
 )
 
@@ -48,7 +48,8 @@ var engineConfigSchema = func() runtime.CompositeSchema {
 		  },
 		  "required": [
 		    "maxConcurrency",
-		    "imageFolder"
+		    "imageFolder",
+		    "socketFolder"
 		  ],
 		  "title": "Engine Config",
 		  "type": "object"
