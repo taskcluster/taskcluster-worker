@@ -46,8 +46,8 @@ func Run(argv []string) {
 
 	// Parse args for command provider
 	subArguments, _ := docopt.Parse(
-		provider.Usage(), arguments["<args>"].([]string),
-		true, "taskcluster-worker", true,
+		provider.Usage(), append([]string{cmd}, arguments["<args>"].([]string)...),
+		true, "taskcluster-worker", false, true,
 	)
 	// Execute provider with parsed args
 	provider.Execute(subArguments)
