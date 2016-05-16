@@ -1,4 +1,4 @@
-package qemuengine
+package vm
 
 import (
 	"net/http"
@@ -12,10 +12,10 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/network"
 )
 
-// virtualMachine holds the QEMU process and associated resources.
+// VirtualMachine holds the QEMU process and associated resources.
 // This is useful as the VM remains alive in the ResultSet stage, as we use
 // guest tools to copy files from the virtual machine.
-type virtualMachine struct {
+type VirtualMachine struct {
 	m         sync.Mutex // Protect access to resources
 	started   bool
 	network   *network.Network
@@ -28,12 +28,12 @@ type virtualMachine struct {
 	Error     error           // Error, to be read after Done is closed
 }
 
-// newVirtualMachine constructs a new virtual machine.
-func newVirtualMachine(
+// NewVirtualMachine constructs a new virtual machine.
+func NewVirtualMachine(
 	image *image.Instance, network *network.Network, socketFolder string,
-) *virtualMachine {
+) *VirtualMachine {
 	// Construct virtual machine
-	vm := &virtualMachine{
+	vm := &VirtualMachine{
 		vncSocket: filepath.Join(socketFolder, slugid.V4()+".sock"),
 		qmpSocket: filepath.Join(socketFolder, slugid.V4()+".sock"),
 		network:   network,
@@ -141,7 +141,8 @@ func newVirtualMachine(
 	return vm
 }
 
-func (vm *virtualMachine) SetHTTPHandler(handler http.Handler) {
+// SetHTTPHandler sets the HTTP handler for the meta-data service.
+func (vm *VirtualMachine) SetHTTPHandler(handler http.Handler) {
 	vm.m.Lock()
 	defer vm.m.Unlock()
 	if vm.network != nil {
@@ -151,7 +152,7 @@ func (vm *virtualMachine) SetHTTPHandler(handler http.Handler) {
 }
 
 // Start the virtual machine.
-func (vm *virtualMachine) Start() {
+func (vm *VirtualMachine) Start() {
 	vm.m.Lock()
 	if vm.started {
 		vm.m.Unlock()
@@ -168,7 +169,7 @@ func (vm *virtualMachine) Start() {
 	}
 
 	// Wait for QEMU to finish before closing Done
-	go func(vm *virtualMachine) {
+	go func(vm *VirtualMachine) {
 		vm.Error = vm.qemu.Wait()
 
 		// Release network and image
@@ -195,7 +196,7 @@ func (vm *virtualMachine) Start() {
 }
 
 // Kill the virtual machine, can only be called after Start()
-func (vm *virtualMachine) Kill() {
+func (vm *VirtualMachine) Kill() {
 	select {
 	case <-vm.Done:
 		return // We're obviously not running, so we must be done
@@ -205,7 +206,7 @@ func (vm *virtualMachine) Kill() {
 }
 
 // VNCSocket returns the path to VNC socket, empty-string if closed.
-func (vm *virtualMachine) VNCSocket() string {
+func (vm *VirtualMachine) VNCSocket() string {
 	// Lock access to vncSocket
 	vm.m.Lock()
 	defer vm.m.Unlock()

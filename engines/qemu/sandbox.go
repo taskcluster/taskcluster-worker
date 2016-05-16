@@ -9,13 +9,14 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/network"
+	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 )
 
 type sandbox struct {
 	engines.SandboxBase
-	vm          *virtualMachine
+	vm          *vm.VirtualMachine
 	command     []string
 	context     *runtime.TaskContext
 	engine      *engine
@@ -38,7 +39,7 @@ func newSandbox(
 ) *sandbox {
 	// Create sandbox
 	s := &sandbox{
-		vm:      newVirtualMachine(image, network, e.engineConfig.SocketFolder),
+		vm:      vm.NewVirtualMachine(image, network, e.engineConfig.SocketFolder),
 		command: command,
 		context: c,
 		engine:  e,

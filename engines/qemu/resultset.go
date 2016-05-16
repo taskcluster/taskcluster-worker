@@ -1,14 +1,17 @@
 package qemuengine
 
-import "github.com/taskcluster/taskcluster-worker/engines"
+import (
+	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
+)
 
 type resultSet struct {
 	engines.ResultSetBase
 	success bool
-	vm      *virtualMachine
+	vm      *vm.VirtualMachine
 }
 
-func newResultSet(success bool, vm *virtualMachine) *resultSet {
+func newResultSet(success bool, vm *vm.VirtualMachine) *resultSet {
 	return &resultSet{
 		success: success,
 		vm:      vm,
