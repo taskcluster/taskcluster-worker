@@ -9,7 +9,6 @@ import (
 
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
-	"github.com/taskcluster/taskcluster-worker/engines/qemu/network"
 )
 
 // VirtualMachine holds the QEMU process and associated resources.
@@ -18,7 +17,7 @@ import (
 type VirtualMachine struct {
 	m         sync.Mutex // Protect access to resources
 	started   bool
-	network   *network.Network
+	network   Network
 	image     *image.Instance
 	vncSocket string
 	qmpSocket string
@@ -30,7 +29,7 @@ type VirtualMachine struct {
 
 // NewVirtualMachine constructs a new virtual machine.
 func NewVirtualMachine(
-	image *image.Instance, network *network.Network, socketFolder string,
+	image *image.Instance, network Network, socketFolder string,
 ) *VirtualMachine {
 	// Construct virtual machine
 	vm := &VirtualMachine{
@@ -97,23 +96,23 @@ func NewVirtualMachine(
 		"-device", arg("usb-kbd", opts{
 			"id":   "keyboard-0",
 			"bus":  "usb.0",
-			"port": "0",
+			"port": "1", // USB port offset starts at 1
 		}),
 		"-device", arg("usb-mouse", opts{
 			"id":   "mouse-0",
 			"bus":  "usb.0",
-			"port": "1",
+			"port": "2",
 		}),
 		"-vnc", arg("unix:"+vm.vncSocket, opts{
 			"share": "force-shared",
 		}),
-		"-chardev", "socket,id=qmp-socket,path=" + vm.qmpSocket + ",nowait,server=on",
-		"-qmp", "qmp-socket",
+		"-chardev", "socket,id=qmpsocket,path=" + vm.qmpSocket + ",nowait,server=on",
+		"-mon", "chardev=qmpsocket,mode=control",
 		"-drive", arg("", opts{
 			"file":   vm.image.DiskFile(),
 			"if":     "none",
 			"id":     "boot-disk",
-			"cache":  "unsafe",
+			"cache":  "unsafe", // TODO: Make this customizable for image building
 			"aio":    "native",
 			"format": "qcow2",
 			"werror": "report",

@@ -49,7 +49,7 @@ type Instance struct {
 // images and instances of images.
 func NewManager(imageFolder string, gc *gc.GarbageCollector, log *logrus.Entry, sentry *raven.Client) (*Manager, error) {
 	// Ensure the image folder is created
-	err := os.MkdirAll(imageFolder, 0600)
+	err := os.MkdirAll(imageFolder, 0777)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create imageFolder: %s, error: %s", imageFolder, err)
 	}
@@ -111,7 +111,7 @@ func (img *image) loadImage(download Downloader, done chan<- struct{}) {
 	imageFile := filepath.Join(img.manager.imageFolder, slugid.V4()+".tar.lz4")
 
 	// Create image folder
-	err := os.Mkdir(img.folder, 0600)
+	err := os.Mkdir(img.folder, 0777)
 	if err != nil {
 		goto cleanup
 	}
