@@ -1,9 +1,10 @@
 package metaservice
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"sync"
 )
 
@@ -36,10 +37,11 @@ func New(command []string, env map[string]string, logDrain io.Writer, resultCall
 		mux:            http.NewServeMux(),
 	}
 
-	s.mux.HandleFunc("/engine/v1/command", s.handleCommand)
+	s.mux.HandleFunc("/engine/v1/execute", s.handleExecute)
 	s.mux.HandleFunc("/engine/v1/log", s.handleLog)
 	s.mux.HandleFunc("/engine/v1/success", s.handleSuccess)
 	s.mux.HandleFunc("/engine/v1/failed", s.handleFailed)
+	s.mux.HandleFunc("/", s.handleUnknown)
 
 	return s
 }
@@ -49,38 +51,66 @@ func (s *MetaService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mux.ServeHTTP(w, r)
 }
 
-// handleCommand handles GET /engine/v1/command
-func (s *MetaService) handleCommand(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+// reply will write status and response to ResponseWriter.
+func reply(w http.ResponseWriter, status int, response interface{}) {
+	var data []byte
+	if response != nil {
+		d, err := json.Marshal(response)
+		if err != nil {
+			panic(fmt.Sprintf("Failed to marshal %+v to JSON, error: %s", response, err))
+		}
+		data = d
+	}
+	w.WriteHeader(status)
+	w.Write(data)
+}
+
+// forceMethod will return true if the request r has the given method.
+// Otherwise, it'll return false and send an error message.
+func forceMethod(w http.ResponseWriter, r *http.Request, method string) bool {
+	if r.Method == method {
+		return true
+	}
+	reply(w, http.StatusMethodNotAllowed, Error{
+		Code:    ErrorCodeMethodNotAllowed,
+		Message: fmt.Sprintf("This meta-data API end-point only supports '%s' requests", method),
+	})
+	return false
+}
+
+// handleExecute handles GET /engine/v1/execute
+func (s *MetaService) handleExecute(w http.ResponseWriter, r *http.Request) {
+	if !forceMethod(w, r, http.MethodGet) {
 		return
 	}
 
-	// TODO: make all this API end-points operate on JSON
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(strings.Join(s.command, " ")))
+	reply(w, http.StatusOK, Execute{
+		Command: s.command,
+		Env:     s.env,
+	})
 }
 
 // handleLog handles with POST /engine/v1/log
 func (s *MetaService) handleLog(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-	_, err := io.Copy(s.logDrain, r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Error writing log, not entirely sure what the error was."))
+	if !forceMethod(w, r, http.MethodPost) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	_, err := io.Copy(s.logDrain, r.Body)
+	if err != nil {
+		reply(w, http.StatusInternalServerError, Error{
+			Code:    ErrorCodeInternalError,
+			Message: "Error while writing log, please ensure the task is completed",
+		})
+		return
+	}
+
+	reply(w, http.StatusOK, nil)
 }
 
 // handleSuccess handles PUT /engine/v1/success
 func (s *MetaService) handleSuccess(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+	if !forceMethod(w, r, http.MethodPut) {
 		return
 	}
 
@@ -97,16 +127,18 @@ func (s *MetaService) handleSuccess(w http.ResponseWriter, r *http.Request) {
 		if !resolved && s.resultCallback != nil {
 			s.resultCallback(true)
 		}
-		w.WriteHeader(http.StatusOK)
+		reply(w, http.StatusOK, nil)
 	} else {
-		w.WriteHeader(http.StatusConflict)
+		reply(w, http.StatusConflict, Error{
+			Code:    ErrorCodeResourceConflict,
+			Message: "The task have already been resolved failed, you must have a bug.",
+		})
 	}
 }
 
 // handleFailed handles PUT /engine/v1/failed
 func (s *MetaService) handleFailed(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+	if !forceMethod(w, r, http.MethodPut) {
 		return
 	}
 
@@ -123,8 +155,19 @@ func (s *MetaService) handleFailed(w http.ResponseWriter, r *http.Request) {
 		if !resolved && s.resultCallback != nil {
 			s.resultCallback(false)
 		}
-		w.WriteHeader(http.StatusOK)
+		reply(w, http.StatusOK, nil)
 	} else {
-		w.WriteHeader(http.StatusConflict)
+		reply(w, http.StatusConflict, Error{
+			Code:    ErrorCodeResourceConflict,
+			Message: "The task have already been resolved success, you must have a bug.",
+		})
 	}
+}
+
+// handleUnknown handles unhandled requests
+func (s *MetaService) handleUnknown(w http.ResponseWriter, r *http.Request) {
+	reply(w, http.StatusNotFound, Error{
+		Code:    ErrorCodeNoSuchEndPoint,
+		Message: "Unknown meta-data API end-point",
+	})
 }
