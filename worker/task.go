@@ -101,7 +101,7 @@ func (t *TaskRun) reclaim(until time.Time, done <-chan struct{}) {
 		client := t.controller.Queue()
 		claim, err := reclaimTask(client, t.TaskID, t.RunID, t.log)
 		if err != nil {
-			t.log.WithField("error", err.Error()).Warn("Error reclaiming task")
+			t.log.WithError(err).Error("Error reclaiming task")
 			t.Abort()
 		}
 
