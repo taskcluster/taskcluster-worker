@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-client-go/queue"
@@ -35,6 +36,8 @@ type TaskRun struct {
 	engine         engines.Engine
 	success        bool
 	shutdown       bool
+	queueURL       string
+	done           chan struct{}
 }
 
 func NewTaskRun(
@@ -79,10 +82,41 @@ func NewTaskRun(
 		controller:    ctxtctl,
 		engine:        engine,
 		pluginManager: pluginManager,
+		queueURL:      config.Taskcluster.Queue.URL,
+		done:          make(chan struct{}),
 	}
 
-	return tr, nil
+	go tr.reclaim(time.Time(claim.taskClaim.TakenUntil), tr.done)
 
+	return tr, nil
+}
+
+func (t *TaskRun) reclaim(until time.Time, done <-chan struct{}) {
+	duration := until.Sub(time.Now()).Seconds()
+	// Using a reclaim divisor of 1.3 with the default reclaim deadline (20 minutes),
+	// means that a reclaim event will happen with a few minutes left of the origin claim.
+	nextReclaim := duration / 1.3
+	select {
+	case <-time.After(time.Duration(nextReclaim * 1e+9)):
+		client := t.controller.Queue()
+		claim, err := reclaimTask(client, t.TaskID, t.RunID, t.log)
+		if err != nil {
+			t.log.WithError(err).Error("Error reclaiming task")
+			t.Abort()
+		}
+
+		queueClient := queue.New(&tcclient.Credentials{
+			ClientId:    claim.Credentials.ClientID,
+			AccessToken: claim.Credentials.AccessToken,
+			Certificate: claim.Credentials.Certificate,
+		})
+
+		queueClient.BaseURL = t.queueURL
+		t.controller.SetQueueClient(queueClient)
+		t.reclaim(time.Time(claim.TakenUntil), done)
+	case <-done:
+		return
+	}
 }
 
 // Abort will set the status of the task to aborted and abort the task execution
@@ -305,6 +339,7 @@ func (t *TaskRun) finishStage() error {
 // Tasks that have been cancelled will not be reported as an exception as the run
 // has already been resolved.
 func (t *TaskRun) exceptionStage(taskError error) {
+	close(t.done)
 	var reason runtime.ExceptionReason
 	if t.shutdown {
 		reason = runtime.WorkerShutdown
@@ -344,6 +379,7 @@ func (t *TaskRun) exceptionStage(taskError error) {
 // resolveTask will resolve the task as completed/failed depending on the outcome
 // of executing the task and finalizing the task plugins.
 func (t *TaskRun) resolveTask() error {
+	close(t.done)
 	resolve := reportCompleted
 	if !t.success {
 		resolve = reportFailed

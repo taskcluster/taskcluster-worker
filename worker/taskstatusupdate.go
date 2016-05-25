@@ -91,9 +91,9 @@ func claimTask(client client.Queue, taskID string, runID int, workerID string, w
 	}, nil
 }
 
-func reclaimTask(client client.Queue, task *TaskRun, log *logrus.Entry) (*queue.TaskReclaimResponse, *updateError) {
+func reclaimTask(client client.Queue, taskID string, runID int, log *logrus.Entry) (*queue.TaskReclaimResponse, *updateError) {
 	log.Info("Reclaiming task")
-	tcrsp, _, err := client.ReclaimTask(task.TaskID, strconv.FormatInt(int64(task.RunID), 10))
+	tcrsp, _, err := client.ReclaimTask(taskID, strconv.FormatInt(int64(runID), 10))
 
 	// check if an error occurred...
 	if err != nil {
