@@ -124,7 +124,7 @@ func CreateRedirectArtifact(artifact RedirectArtifact, context *TaskContext) err
 
 func createArtifact(context *TaskContext, name string, req []byte) ([]byte, error) {
 	par := queue.PostArtifactRequest(req)
-	parsp, _, err := context.Queue().CreateArtifact(
+	parsp, err := context.Queue().CreateArtifact(
 		context.TaskID,
 		strconv.Itoa(context.RunID),
 		name,
