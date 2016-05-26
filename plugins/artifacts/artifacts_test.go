@@ -9,7 +9,6 @@ import (
 
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-client-go/queue"
-	"github.com/taskcluster/taskcluster-client-go/tcclient"
 	"github.com/taskcluster/taskcluster-worker/plugins/plugintest"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 )
@@ -37,7 +36,7 @@ func (a artifactTestCase) Test() {
 			taskID,
 			"0",
 			path,
-		).Return(&resp, &tcclient.CallSummary{}, nil)
+		).Return(&resp, nil)
 	}
 
 	a.Case.QueueMock = mockedQueue

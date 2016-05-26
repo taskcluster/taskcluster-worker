@@ -40,7 +40,7 @@ type Manager struct {
 func newTaskManager(config *config.Config, engine engines.Engine, environment *runtime.Environment, log *logrus.Entry) (*Manager, error) {
 	queue := tcqueue.New(
 		&tcclient.Credentials{
-			ClientId:    config.Credentials.ClientID,
+			ClientID:    config.Credentials.ClientID,
 			AccessToken: config.Credentials.AccessToken,
 			Certificate: config.Credentials.Certificate,
 		},

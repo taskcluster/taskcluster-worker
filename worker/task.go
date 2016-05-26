@@ -60,7 +60,7 @@ func NewTaskRun(
 	ctxt, ctxtctl, err := runtime.NewTaskContext(tp, info)
 
 	queueClient := queue.New(&tcclient.Credentials{
-		ClientId:    claim.taskClaim.Credentials.ClientID,
+		ClientID:    claim.taskClaim.Credentials.ClientID,
 		AccessToken: claim.taskClaim.Credentials.AccessToken,
 		Certificate: claim.taskClaim.Credentials.Certificate,
 	})
@@ -106,7 +106,7 @@ func (t *TaskRun) reclaim(until time.Time, done <-chan struct{}) {
 		}
 
 		queueClient := queue.New(&tcclient.Credentials{
-			ClientId:    claim.Credentials.ClientID,
+			ClientID:    claim.Credentials.ClientID,
 			AccessToken: claim.Credentials.AccessToken,
 			Certificate: claim.Credentials.Certificate,
 		})

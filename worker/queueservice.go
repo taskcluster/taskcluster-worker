@@ -139,14 +139,17 @@ func (q *queueService) claimTasks(tasks []*taskMessage) {
 func (q *queueService) claimTask(task *taskMessage) (*taskClaim, error) {
 	claim, err := claimTask(q.client, task.TaskID, task.RunID, q.workerID, q.workerGroup, q.log)
 	if err != nil {
-		if err.statusCode == 401 || err.statusCode == 403 || err.statusCode >= 500 {
-			// Do not delete the message if task could not be claimed because of server
-			// or authorization failures
-			return nil, errors.New("Error when attempting to claim task.  Task was *not* deleted from Azure.")
+		switch err := err.(type) {
+		case *updateError:
+			if err.statusCode == 401 || err.statusCode == 403 || err.statusCode >= 500 {
+				// Do not delete the message if task could not be claimed because of server
+				// or authorization failures
+				return nil, errors.New("Error when attempting to claim task.  Task was *not* deleted from Azure.")
+			}
 		}
 
 		_ = q.deleteFromAzure(task.signedDeleteURL)
-		return nil, errors.New("Error when attempting to claim task.  Error is non-recoverable so task was deleted from Azure.")
+		return nil, fmt.Errorf("Error when attempting to claim task %v. Error is non-recoverable so task was (hopefully) deleted from Azure. Cause: %v", task.TaskID, err)
 	}
 	_ = q.deleteFromAzure(task.signedDeleteURL)
 	return claim, nil
@@ -343,7 +346,7 @@ func (q *queueService) refreshMessageQueueURLs() error {
 
 	q.log.Debug("Refreshing Azure message queue urls")
 
-	signedURLs, _, err := q.client.PollTaskUrls(q.provisionerID, q.workerType)
+	signedURLs, err := q.client.PollTaskUrls(q.provisionerID, q.workerType)
 	if err != nil {
 		q.log.WithField("error", err).Warn("Error retrieving message queue urls.")
 		return errors.New("Error retrieving message queue urls.")
