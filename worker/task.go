@@ -396,9 +396,24 @@ func (t *TaskRun) resolveTask() error {
 // disposeStage is responsible for cleaning up resources allocated for the task execution.
 // This will involve closing all necessary files and disposing of contexts, plugins, and sandboxes.
 func (t *TaskRun) disposeStage() {
+	if t.plugin != nil {
+		err := t.plugin.Dispose()
+		if err != nil {
+			t.log.WithError(err).Warn("Could not dispose plugin")
+		}
+	}
+
+	if t.resultSet != nil {
+		err := t.resultSet.Dispose()
+		if err != nil {
+			t.log.WithError(err).Warn("Could not dispose result set")
+		}
+	}
+
 	err := t.controller.Dispose()
 	if err != nil {
-		t.log.WithField("error", err.Error()).Warn("Could not dispose of task context")
+		t.log.WithError(err).Warn("Could not dispose of task context")
 	}
+
 	return
 }
