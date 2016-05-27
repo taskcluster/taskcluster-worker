@@ -3,16 +3,17 @@
 package osxnative
 
 import (
-	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path"
-	"testing"
-
+	"github.com/Sirupsen/logrus"
+	assert "github.com/stretchr/testify/require"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
+	"io/ioutil"
+	"os"
+	osuser "os/user"
+	"path"
+	"testing"
 )
 
 type testCase struct {
@@ -31,7 +32,18 @@ func makeResultSet(t *testing.T) resultset {
 		t.Fatal(err)
 	}
 
-	return newResultSet(context, true)
+	engine := engine{
+		EngineBase: engines.EngineBase{},
+		log:        logrus.New().WithField("component", "test"),
+	}
+
+	return resultset{
+		ResultSetBase: engines.ResultSetBase{},
+		taskUser:      user{},
+		context:       context,
+		success:       true,
+		engine:        &engine,
+	}
 }
 
 func TestValidPath(t *testing.T) {
@@ -52,10 +64,13 @@ func TestValidPath(t *testing.T) {
 		{"/", false},
 	}
 
+	userInfo, err := osuser.Current()
+	assert.NoError(t, err)
+
 	r := makeResultSet(t)
 
 	for _, tc := range testCases {
-		if r.validPath(tc.pathName) != tc.expectedResult {
+		if r.validPath(userInfo.HomeDir, tc.pathName) != tc.expectedResult {
 			t.Errorf("validPath(%s) != %t", tc.pathName, tc.expectedResult)
 		}
 	}
@@ -63,47 +78,30 @@ func TestValidPath(t *testing.T) {
 
 func TestExtractFile(t *testing.T) {
 	r := makeResultSet(t)
+	defer r.Dispose()
 
 	_, err := r.ExtractFile("invalid-path/invalid-file")
-
-	if err != engines.ErrResourceNotFound {
-		t.Fatalf("Invalid error type %v\n", err)
-	}
+	assert.Equal(t, err, engines.ErrResourceNotFound)
 
 	file, err := r.ExtractFile("test-data/test.txt")
-
-	if err != nil {
-		t.Fatalf("File test/test.txt returned failure: %v\n", err)
-	}
+	assert.NoError(t, err)
 
 	data, err := ioutil.ReadAll(file)
 
-	if err != nil {
-		t.Fatalf("Error reading file: %v\n", err)
-	}
-
-	sdata := string(data)
-	if sdata != "test.txt\n" {
-		t.Fatalf("File content doesn't match \"%s\"\n", sdata)
-	}
-
-	err = file.Close()
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, string(data), "test.txt\n")
+	assert.NoError(t, file.Close())
 }
 
 func TestExtractFolder(t *testing.T) {
 	r := makeResultSet(t)
+	defer r.Dispose()
 
 	err := r.ExtractFolder("invalid-path/", func(p string, stream ioext.ReadSeekCloser) error {
 		return nil
 	})
 
-	if err != engines.ErrResourceNotFound {
-		t.Fatalf("Invalid error type %v\n", err)
-	}
+	assert.Equal(t, err, engines.ErrResourceNotFound)
 
 	err = r.ExtractFolder("test-data", func(p string, stream ioext.ReadSeekCloser) error {
 		expected := path.Base(p) + "\n"
@@ -115,17 +113,15 @@ func TestExtractFolder(t *testing.T) {
 		}
 
 		if sdata != expected {
-			return errors.New(fmt.Sprintf(
+			return fmt.Errorf(
 				"Invalid file contents. content: \"%s\" expected: \"%s\"",
 				sdata,
 				expected,
-			))
+			)
 		}
 
 		return nil
 	})
 
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 }

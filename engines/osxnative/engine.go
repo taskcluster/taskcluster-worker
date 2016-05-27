@@ -50,5 +50,6 @@ func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sandb
 		taskPayload:        taskPayload,
 		context:            options.TaskContext,
 		envMutex:           &m,
+		engine:             &e,
 	}, nil
 }

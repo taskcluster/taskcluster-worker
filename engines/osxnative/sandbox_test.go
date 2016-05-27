@@ -3,12 +3,13 @@
 package osxnative
 
 import (
+	"github.com/Sirupsen/logrus"
+	assert "github.com/stretchr/testify/require"
+	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 	"io/ioutil"
 	"os"
 	"testing"
-
-	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 func newTestSandbox(taskPayload *payload, env []string) (*sandbox, error) {
@@ -22,7 +23,12 @@ func newTestSandbox(taskPayload *payload, env []string) (*sandbox, error) {
 		return nil, err
 	}
 
-	return newSandbox(context, taskPayload, env), nil
+	engine := engine{
+		EngineBase: engines.EngineBase{},
+		log:        logrus.New().WithField("component", "test"),
+	}
+
+	return newSandbox(context, taskPayload, env, &engine), nil
 }
 
 func TestWaitResult(t *testing.T) {
@@ -31,19 +37,14 @@ func TestWaitResult(t *testing.T) {
 	}
 
 	s, err := newTestSandbox(&testPayload, []string{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	r, err := s.WaitForResult()
+	assert.NoError(t, err)
 
-	if err != nil {
-		t.Fatal(err)
-	}
+	defer r.Dispose()
 
-	if !r.Success() {
-		t.Fatalf("Command was expected to be sucessful, but failed")
-	}
+	assert.True(t, r.Success())
 }
 
 func TestInvalidCommand(t *testing.T) {
@@ -52,19 +53,11 @@ func TestInvalidCommand(t *testing.T) {
 	}
 
 	s, err := newTestSandbox(&testPayload, []string{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	r, err := s.WaitForResult()
-
-	if err != engines.ErrNonFatalInternalError {
-		t.Fatalf("WaitForResult should return ErrNonFatalInternalError, but it didn't")
-	}
-
-	if r != nil {
-		t.Fatalf("ResultSet was expected to be nil")
-	}
+	assert.Equal(t, err, engines.ErrNonFatalInternalError)
+	assert.Nil(t, r)
 }
 
 func TestFailedCommand(t *testing.T) {
@@ -73,19 +66,13 @@ func TestFailedCommand(t *testing.T) {
 	}
 
 	s, err := newTestSandbox(&testPayload, []string{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	r, err := s.WaitForResult()
+	assert.NoError(t, err)
 
-	if err != nil {
-		t.Fatalf("WaitForResult should return nil but returned \"%v\"", err)
-	}
-
-	if r.Success() {
-		t.Fatalf("Command was expected to fail, but succeed")
-	}
+	defer r.Dispose()
+	assert.False(t, r.Success())
 }
 
 func TestAbort(t *testing.T) {
@@ -94,53 +81,35 @@ func TestAbort(t *testing.T) {
 	}
 
 	s, err := newTestSandbox(&testPayload, []string{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
-	err = s.Abort()
-	if err != nil {
-		t.Fatalf("Abort failed: %v", err)
-	}
+	assert.NoError(t, s.Abort())
 
 	_, err = s.WaitForResult()
-
-	if err != engines.ErrSandboxAborted {
-		t.Fatalf("WaitForResult should return ErrSandboxAborted, but returned %v", err)
-	}
+	assert.Equal(t, err, engines.ErrSandboxAborted)
 }
 
 func TestDownloadLink(t *testing.T) {
 	expectedContent := "test"
 
-	s := newHttpServer()
+	s := newHTTPServer()
 	s.addHandle("/test.txt", expectedContent)
 	defer s.close()
 
-	filename, err := downloadLink(s.url() + "/test.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
+	filename, err := downloadLink(".", s.url()+"/test.txt")
+	assert.NoError(t, err)
 
 	defer os.Remove(filename)
 
 	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	content := string(data)
-	if content != expectedContent {
-		t.Fatalf(
-			"File content expected to be \"%s\", but it contains \"%s\"",
-			expectedContent,
-			content,
-		)
-	}
+	assert.Equal(t, content, expectedContent)
 }
 
 func TestExecDownloadedScript(t *testing.T) {
-	serv := newHttpServer()
+	serv := newHTTPServer()
 	serv.addHandle("/test.sh", "#!/bin/sh\necho -n test\n")
 	defer serv.close()
 
@@ -150,17 +119,11 @@ func TestExecDownloadedScript(t *testing.T) {
 	}
 
 	s, err := newTestSandbox(&testPayload, []string{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	r, err := s.WaitForResult()
+	assert.NoError(t, err)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !r.Success() {
-		t.Fatalf("Command was expected to be sucessful, but failed")
-	}
+	defer r.Dispose()
+	assert.True(t, r.Success())
 }

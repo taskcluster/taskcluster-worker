@@ -12,6 +12,7 @@ type sandboxbuilder struct {
 	taskPayload *payload
 	context     *runtime.TaskContext
 	envMutex    *sync.Mutex
+	engine      *engine
 }
 
 func (s sandboxbuilder) SetEnvironmentVariable(name string, value string) error {
@@ -23,7 +24,7 @@ func (s sandboxbuilder) SetEnvironmentVariable(name string, value string) error 
 		return engines.ErrNamingConflict
 	}
 
-	s.context.Log("Setting \"", name, "\" environment variable to \"", value, "\" ")
+	s.context.Log("Setting \"", name, "\" environment variable to \"", value, "\" \n")
 	s.env[name] = value
 	return nil
 }
@@ -34,5 +35,5 @@ func (s sandboxbuilder) StartSandbox() (engines.Sandbox, error) {
 		env = append(env, name+"="+value)
 	}
 
-	return newSandbox(s.context, s.taskPayload, env), nil
+	return newSandbox(s.context, s.taskPayload, env, s.engine), nil
 }
