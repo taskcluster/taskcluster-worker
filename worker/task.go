@@ -58,7 +58,6 @@ func NewTaskRun(
 		Expires:  claim.taskClaim.Task.Expires,
 	}
 	ctxt, ctxtctl, err := runtime.NewTaskContext(tp, info)
-	ctxt.LogEntry = log
 
 	queueClient := queue.New(&tcclient.Credentials{
 		ClientID:    claim.taskClaim.Credentials.ClientID,

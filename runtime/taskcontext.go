@@ -7,7 +7,6 @@ import (
 
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-client-go/tcclient"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
@@ -64,7 +63,6 @@ type TaskInfo struct {
 // properties, and abortion notifications.
 type TaskContext struct {
 	TaskInfo
-	LogEntry   *logrus.Entry
 	webHookSet *webhookserver.WebHookSet
 	logStream  *stream.Stream
 	mu         sync.RWMutex
@@ -175,10 +173,6 @@ func (c *TaskContext) log(prefix string, a ...interface{}) {
 	_, err := fmt.Fprintln(c.logStream, a...)
 	if err != nil {
 		//TODO: Forward this to the system log, it's not a critical error
-	}
-
-	if c.LogEntry != nil {
-		c.LogEntry.Debug(a...)
 	}
 }
 
