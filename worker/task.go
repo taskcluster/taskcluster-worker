@@ -103,6 +103,7 @@ func (t *TaskRun) reclaim(until time.Time, done <-chan struct{}) {
 		if err != nil {
 			t.log.WithError(err).Error("Error reclaiming task")
 			t.Abort()
+			return
 		}
 
 		queueClient := queue.New(&tcclient.Credentials{
