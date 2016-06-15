@@ -79,7 +79,7 @@ func newTaskManager(config *config.Config, engine engines.Engine, environment *r
 		Log:         log.WithField("component", "Plugin Manager"),
 	}
 
-	pm, err := extpoints.NewPluginManager([]string{"success", "artifacts", "env", "volume"}, *m.pluginOptions)
+	pm, err := extpoints.NewPluginManager([]string{"success", "artifacts", "env", "volume", "livelog"}, *m.pluginOptions)
 	if err != nil {
 		log.WithField("error", err.Error()).Warn("Error creating task manager. Could not create plugin manager")
 		return nil, err

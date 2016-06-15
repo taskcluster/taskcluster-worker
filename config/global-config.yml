@@ -89,6 +89,32 @@ properties:
         type:           integer
     required:
       - expirationOffset
+  statelessHostname:
+    title: StatelessHostname
+    description: |-
+      Configuration for the stateless hostname generation
+    type: object
+    properties:
+      enabled:
+        title: Enabled
+        description: |-
+          Enables or disables the stateless hostname generation
+        type: boolean
+      secret:
+        title: Secret
+        description: |-
+          Secret used when generating stateless hostname
+        type: string
+      domain:
+        title: Domain
+        description: |-
+          Domain to use when generating stateless hostname
+        type: string
+    additionalProperties: false
+    required:
+      - enabled
+      - secret
+      - domain
 additionalProperties: false
 required:
   - credentials

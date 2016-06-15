@@ -140,7 +140,7 @@ func TestParsePayload(t *testing.T) {
 		Deadline: claim.taskClaim.Task.Deadline,
 		Expires:  claim.taskClaim.Task.Expires,
 	}
-	tr.context, tr.controller, err = runtime.NewTaskContext(tp, info)
+	tr.context, tr.controller, err = runtime.NewTaskContext(tp, info, nil)
 	defer func() {
 		tr.controller.CloseLog()
 		tr.controller.Dispose()

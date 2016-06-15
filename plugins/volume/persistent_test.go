@@ -45,7 +45,7 @@ func TestPersistentVolumeReuse(t *testing.T) {
 	context, controller, err := runtime.NewTaskContext(environment.TemporaryStorage.NewFilePath(), runtime.TaskInfo{
 		TaskID: taskID,
 		RunID:  0,
-	})
+	}, nil)
 	assert.Nil(t, err, "Could not create task context. %s", err)
 
 	sandboxBuilder, err := engine.NewSandboxBuilder(engines.SandboxOptions{
@@ -128,7 +128,7 @@ func TestPersistentVolumeReuse(t *testing.T) {
 	context, controller, _ = runtime.NewTaskContext(environment.TemporaryStorage.NewFilePath(), runtime.TaskInfo{
 		TaskID: taskID,
 		RunID:  0,
-	})
+	}, nil)
 
 	sandboxBuilder, _ = engine.NewSandboxBuilder(engines.SandboxOptions{
 		TaskContext: context,

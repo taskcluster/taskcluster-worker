@@ -38,24 +38,6 @@ var environmentWhitelist = []string{
 	"TASKCLUSTER_PUBLIC_IP",
 }
 
-type stdoutLogWriter struct {
-	context *runtime.TaskContext
-}
-
-func (w stdoutLogWriter) Write(p []byte) (int, error) {
-	w.context.Log(string(p))
-	return len(p), nil
-}
-
-type stderrLogWriter struct {
-	context *runtime.TaskContext
-}
-
-func (w stderrLogWriter) Write(p []byte) (int, error) {
-	w.context.LogError(string(p))
-	return len(p), nil
-}
-
 type sandbox struct {
 	engines.SandboxBase
 	context     *runtime.TaskContext
@@ -130,8 +112,8 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 	}
 
 	cmd := exec.Command(s.taskPayload.Command[0], s.taskPayload.Command[1:]...)
-	cmd.Stdout = stdoutLogWriter{s.context}
-	cmd.Stderr = stderrLogWriter{s.context}
+	cmd.Stdout = s.context.LogDrain()
+	cmd.Stderr = s.context.LogDrain()
 
 	// USER and HOME are treated seperately because their values
 	// depend on either we create the new user successfuly or not

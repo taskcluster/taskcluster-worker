@@ -1,18 +1,28 @@
 package runtime
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 
 	"sync"
 
 	"github.com/taskcluster/taskcluster-client-go/tcclient"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
+	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 
 	"gopkg.in/djherbis/stream.v1"
 )
+
+// ErrLogNotClosed represents an invalid attempt to extract a log
+// while it is still open.
+var ErrLogNotClosed = errors.New("Log is still open")
+
+// ErrLogClosed raises when there is a double call to CloseLog.
+var ErrLogClosed = errors.New("Log already closed")
 
 // An ExceptionReason specifies the reason a task reached an exception state.
 type ExceptionReason string
@@ -63,12 +73,14 @@ type TaskInfo struct {
 // properties, and abortion notifications.
 type TaskContext struct {
 	TaskInfo
-	webHookSet *webhookserver.WebHookSet
-	logStream  *stream.Stream
-	mu         sync.RWMutex
-	queue      client.Queue
-	status     TaskStatus
-	cancelled  bool
+	webHookSet  *webhookserver.WebHookSet
+	logStream   *stream.Stream
+	logLocation string // Absolute path to log file
+	logClosed   bool
+	mu          sync.RWMutex
+	queue       client.Queue
+	status      TaskStatus
+	cancelled   bool
 }
 
 // TaskContextController exposes logic for controlling the TaskContext.
@@ -80,25 +92,38 @@ type TaskContextController struct {
 }
 
 // NewTaskContext creates a TaskContext and associated TaskContextController
-func NewTaskContext(tempLogFile string, task TaskInfo) (*TaskContext, *TaskContextController, error) {
+func NewTaskContext(tempLogFile string,
+	task TaskInfo,
+	server webhookserver.WebHookServer) (*TaskContext, *TaskContextController, error) {
 	logStream, err := stream.New(tempLogFile)
 	if err != nil {
 		return nil, nil, err
 	}
 	ctx := &TaskContext{
-		logStream: logStream,
-		TaskInfo:  task,
+		logStream:   logStream,
+		logLocation: tempLogFile,
+		TaskInfo:    task,
+		webHookSet:  webhookserver.NewWebHookSet(server),
 	}
 	return ctx, &TaskContextController{ctx}, nil
 }
 
 // CloseLog will close the log so no more messages can be written.
 func (c *TaskContextController) CloseLog() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.logClosed {
+		return ErrLogClosed
+	}
+
+	c.logClosed = true
 	return c.logStream.Close()
 }
 
 // Dispose will clean-up all resources held by the TaskContext
 func (c *TaskContextController) Dispose() error {
+	c.webHookSet.Dispose()
+
 	return c.logStream.Remove()
 }
 
@@ -193,6 +218,20 @@ func (c *TaskContext) LogDrain() io.Writer {
 // Consumers should ensure the ReadCloser is closed before discarding it.
 func (c *TaskContext) NewLogReader() (io.ReadCloser, error) {
 	return c.logStream.NextReader()
+}
+
+// ExtractLog returns an IO object to read the log.
+func (c *TaskContext) ExtractLog() (ioext.ReadSeekCloser, error) {
+	if !c.logClosed {
+		return nil, ErrLogNotClosed
+	}
+
+	file, err := os.Open(c.logLocation)
+	if err != nil {
+		return nil, err
+	}
+
+	return file, nil
 }
 
 // AttachWebHook will take an http.Handler and expose it to the internet such

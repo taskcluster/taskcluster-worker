@@ -3,13 +3,15 @@
 package osxnative
 
 import (
-	"github.com/Sirupsen/logrus"
-	assert "github.com/stretchr/testify/require"
-	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/runtime"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/Sirupsen/logrus"
+	assert "github.com/stretchr/testify/require"
+
+	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 func newTestSandbox(taskPayload *payload, env []string) (*sandbox, error) {
@@ -18,7 +20,7 @@ func newTestSandbox(taskPayload *payload, env []string) (*sandbox, error) {
 		return nil, err
 	}
 
-	context, _, err := runtime.NewTaskContext(temp.NewFilePath(), runtime.TaskInfo{})
+	context, _, err := runtime.NewTaskContext(temp.NewFilePath(), runtime.TaskInfo{}, nil)
 	if err != nil {
 		return nil, err
 	}

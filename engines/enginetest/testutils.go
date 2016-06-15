@@ -119,7 +119,7 @@ func (p *EngineProvider) releaseEngine() {
 }
 
 func (p *EngineProvider) newTestTaskContext() (*runtime.TaskContext, *runtime.TaskContextController) {
-	ctx, control, err := runtime.NewTaskContext(p.environment.TemporaryStorage.NewFilePath(), runtime.TaskInfo{})
+	ctx, control, err := runtime.NewTaskContext(p.environment.TemporaryStorage.NewFilePath(), runtime.TaskInfo{}, nil)
 	nilOrPanic(err, "Failed to create new TaskContext")
 	return ctx, control
 }

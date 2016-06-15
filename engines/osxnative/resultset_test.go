@@ -4,16 +4,18 @@ package osxnative
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	assert "github.com/stretchr/testify/require"
-	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/runtime"
-	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"io/ioutil"
 	"os"
 	osuser "os/user"
 	"path"
 	"testing"
+
+	"github.com/Sirupsen/logrus"
+	assert "github.com/stretchr/testify/require"
+
+	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
 type testCase struct {
@@ -27,7 +29,7 @@ func makeResultSet(t *testing.T) resultset {
 		t.Fatal(err)
 	}
 
-	context, _, err := runtime.NewTaskContext(temp.NewFilePath(), runtime.TaskInfo{})
+	context, _, err := runtime.NewTaskContext(temp.NewFilePath(), runtime.TaskInfo{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

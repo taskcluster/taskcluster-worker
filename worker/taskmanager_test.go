@@ -2,10 +2,12 @@ package worker
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -19,9 +21,11 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/artifacts"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/env"
+	_ "github.com/taskcluster/taskcluster-worker/plugins/livelog"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/success"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/volume"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 )
 
 type MockQueueService struct {
@@ -34,13 +38,29 @@ func (q *MockQueueService) ClaimWork(ntasks int) []*TaskRun {
 
 func TestTaskManagerRunTask(t *testing.T) {
 	resolved := false
+	var serverURL string
 	var handler = func(w http.ResponseWriter, r *http.Request) {
-		resolved = true
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		json.NewEncoder(w).Encode(&queue.TaskStatusResponse{})
+		if strings.Contains(r.URL.Path, "/artifacts/public/logs/live_backing.log") {
+			json.NewEncoder(w).Encode(&queue.S3ArtifactResponse{
+				PutURL: serverURL,
+			})
+			return
+		}
+
+		if strings.Contains(r.URL.Path, "/artifacts/public/logs/live.log") {
+			json.NewEncoder(w).Encode(&queue.RedirectArtifactResponse{})
+			return
+		}
+
+		if strings.Contains(r.URL.Path, "/task/abc/runs/1/completed") {
+			resolved = true
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			json.NewEncoder(w).Encode(&queue.TaskStatusResponse{})
+		}
 	}
 
 	s := httptest.NewServer(http.HandlerFunc(handler))
+	serverURL = s.URL
 	defer s.Close()
 
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
@@ -50,9 +70,26 @@ func TestTaskManagerRunTask(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	localServer, err := webhookserver.NewLocalServer(
+		net.TCPAddr{
+			IP:   []byte{127, 0, 0, 1},
+			Port: 60000,
+		},
+		"example.com",
+		"",
+		"",
+		"",
+		10*time.Minute,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
 	environment := &runtime.Environment{
 		TemporaryStorage: tempStorage,
+		WebHookServer:    localServer,
 	}
+
 	engineProvider := extpoints.EngineProviders.Lookup("mock")
 	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
 		Environment: environment,
@@ -71,7 +108,7 @@ func TestTaskManagerRunTask(t *testing.T) {
 			Queue: struct {
 				URL string `json:"url,omitempty"`
 			}{
-				URL: s.URL,
+				URL: serverURL,
 			},
 		},
 	}
@@ -106,13 +143,31 @@ func TestTaskManagerRunTask(t *testing.T) {
 
 func TestCancelTask(t *testing.T) {
 	resolved := false
+	var serverURL string
 	var handler = func(w http.ResponseWriter, r *http.Request) {
-		resolved = true
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		json.NewEncoder(w).Encode(&queue.TaskStatusResponse{})
+
+		if strings.Contains(r.URL.Path, "/artifacts/public/logs/live_backing.log") {
+			json.NewEncoder(w).Encode(&queue.S3ArtifactResponse{
+				PutURL: serverURL,
+			})
+			return
+		}
+
+		if strings.Contains(r.URL.Path, "/artifacts/public/logs/live.log") {
+			json.NewEncoder(w).Encode(&queue.RedirectArtifactResponse{})
+			return
+		}
+
+		if strings.Contains(r.URL.Path, "/task/abc/runs/1/") {
+			resolved = true
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			json.NewEncoder(w).Encode(&queue.TaskStatusResponse{})
+		}
 	}
 
 	s := httptest.NewServer(http.HandlerFunc(handler))
+	serverURL = s.URL
 	defer s.Close()
 
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
@@ -122,8 +177,24 @@ func TestCancelTask(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	localServer, err := webhookserver.NewLocalServer(
+		net.TCPAddr{
+			IP:   []byte{127, 0, 0, 1},
+			Port: 60000,
+		},
+		"example.com",
+		"",
+		"",
+		"",
+		10*time.Minute,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
 	environment := &runtime.Environment{
 		TemporaryStorage: tempStorage,
+		WebHookServer:    localServer,
 	}
 	engineProvider := extpoints.EngineProviders.Lookup("mock")
 	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
@@ -143,7 +214,7 @@ func TestCancelTask(t *testing.T) {
 			Queue: struct {
 				URL string `json:"url,omitempty"`
 			}{
-				URL: s.URL,
+				URL: serverURL,
 			},
 		},
 	}
@@ -187,23 +258,39 @@ func TestCancelTask(t *testing.T) {
 
 func TestWorkerShutdown(t *testing.T) {
 	var resCount int32
+	var serverURL string
 
 	var handler = func(w http.ResponseWriter, r *http.Request) {
-		var exception queue.TaskExceptionRequest
-		err := json.NewDecoder(r.Body).Decode(&exception)
-		// Ignore errors for now
-		if err != nil {
+		if strings.Contains(r.URL.Path, "/artifacts/public/logs/live_backing.log") {
+			json.NewEncoder(w).Encode(&queue.S3ArtifactResponse{
+				PutURL: serverURL,
+			})
 			return
 		}
 
-		assert.Equal(t, "worker-shutdown", exception.Reason)
-		atomic.AddInt32(&resCount, 1)
+		if strings.Contains(r.URL.Path, "/artifacts/public/logs/live.log") {
+			json.NewEncoder(w).Encode(&queue.RedirectArtifactResponse{})
+			return
+		}
 
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		json.NewEncoder(w).Encode(&queue.TaskStatusResponse{})
+		if strings.Contains(r.URL.Path, "exception") {
+			var exception queue.TaskExceptionRequest
+			err := json.NewDecoder(r.Body).Decode(&exception)
+			// Ignore errors for now
+			if err != nil {
+				return
+			}
+
+			assert.Equal(t, "worker-shutdown", exception.Reason)
+			atomic.AddInt32(&resCount, 1)
+
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			json.NewEncoder(w).Encode(&queue.TaskStatusResponse{})
+		}
 	}
 
 	s := httptest.NewServer(http.HandlerFunc(handler))
+	serverURL = s.URL
 	defer s.Close()
 
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
@@ -213,9 +300,26 @@ func TestWorkerShutdown(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	localServer, err := webhookserver.NewLocalServer(
+		net.TCPAddr{
+			IP:   []byte{127, 0, 0, 1},
+			Port: 60000,
+		},
+		"example.com",
+		"",
+		"",
+		"",
+		10*time.Minute,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
 	environment := &runtime.Environment{
 		TemporaryStorage: tempStorage,
+		WebHookServer:    localServer,
 	}
+
 	engineProvider := extpoints.EngineProviders.Lookup("mock")
 	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
 		Environment: environment,
@@ -234,7 +338,7 @@ func TestWorkerShutdown(t *testing.T) {
 			Queue: struct {
 				URL string `json:"url,omitempty"`
 			}{
-				URL: s.URL,
+				URL: serverURL,
 			},
 		},
 	}

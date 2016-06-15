@@ -43,6 +43,19 @@ type (
 			ExpirationOffset int `json:"expirationOffset"`
 		} `json:"queueService"`
 
+		// Configuration for the stateless hostname generation
+		StatelessHostname struct {
+
+			// Domain to use when generating stateless hostname
+			Domain string `json:"domain"`
+
+			// Enables or disables the stateless hostname generation
+			Enabled bool `json:"enabled"`
+
+			// Secret used when generating stateless hostname
+			Secret string `json:"secret"`
+		} `json:"statelessHostname,omitempty"`
+
 		// Properties related to the TaskCluster Platform
 		Taskcluster struct {
 
@@ -131,6 +144,34 @@ var ConfigSchema = func() runtime.CompositeSchema {
 		        "expirationOffset"
 		      ],
 		      "title": "QueueService",
+		      "type": "object"
+		    },
+		    "statelessHostname": {
+		      "additionalProperties": false,
+		      "description": "Configuration for the stateless hostname generation",
+		      "properties": {
+		        "domain": {
+		          "description": "Domain to use when generating stateless hostname",
+		          "title": "Domain",
+		          "type": "string"
+		        },
+		        "enabled": {
+		          "description": "Enables or disables the stateless hostname generation",
+		          "title": "Enabled",
+		          "type": "boolean"
+		        },
+		        "secret": {
+		          "description": "Secret used when generating stateless hostname",
+		          "title": "Secret",
+		          "type": "string"
+		        }
+		      },
+		      "required": [
+		        "enabled",
+		        "secret",
+		        "domain"
+		      ],
+		      "title": "StatelessHostname",
 		      "type": "object"
 		    },
 		    "taskcluster": {

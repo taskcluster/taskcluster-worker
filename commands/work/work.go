@@ -1,8 +1,10 @@
 package work
 
 import (
+	"net"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/slugid-go/slugid"
@@ -10,6 +12,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/config"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 	"github.com/taskcluster/taskcluster-worker/worker"
 )
 
@@ -42,31 +45,6 @@ func (cmd) Execute(args map[string]interface{}) bool {
 	if err != nil {
 		os.Stderr.WriteString(err.Error())
 		os.Exit(1)
-	}
-
-	// Find engine provider
-	engineName := args["<engine>"].(string)
-	engineProvider := extpoints.EngineProviders.Lookup(engineName)
-	if engineProvider == nil {
-		engineNames := extpoints.EngineProviders.Names()
-		logger.Fatalf("Must supply a valid engine.  Supported Engines %v", engineNames)
-	}
-
-	// Create a temporary folder
-	tempPath := filepath.Join(os.TempDir(), slugid.Nice())
-	tempStorage, err := runtime.NewTemporaryStorage(tempPath)
-	runtimeEnvironment := &runtime.Environment{
-		Log:              logger,
-		TemporaryStorage: tempStorage,
-	}
-
-	// Initialize the engine
-	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
-		Environment: runtimeEnvironment,
-		Log:         logger.WithField("engine", engineName),
-	})
-	if err != nil {
-		logger.Fatal(err.Error())
 	}
 
 	// TODO (garndt): Need to load up a real config in the future
@@ -102,6 +80,15 @@ func (cmd) Execute(args map[string]interface{}) bool {
 			ExpirationOffset: 300,
 		},
 		PollingInterval: 10,
+		StatelessHostname: struct {
+			Domain  string `json:"domain"`
+			Enabled bool   `json:"enabled"`
+			Secret  string `json:"secret"`
+		}{
+			Domain:  "taskcluster-worker.net",
+			Enabled: true,
+			Secret:  os.Getenv("STATELESS_SECRET"),
+		},
 	}
 
 	l := logger.WithFields(logrus.Fields{
@@ -110,6 +97,55 @@ func (cmd) Execute(args map[string]interface{}) bool {
 		"workerGroup":   config.WorkerGroup,
 		"provisionerID": config.ProvisionerID,
 	})
+
+	// Find engine provider
+	engineName := args["<engine>"].(string)
+	engineProvider := extpoints.EngineProviders.Lookup(engineName)
+	if engineProvider == nil {
+		engineNames := extpoints.EngineProviders.Names()
+		logger.Fatalf("Must supply a valid engine.  Supported Engines %v", engineNames)
+	}
+
+	// Create a temporary folder
+	tempPath := filepath.Join(os.TempDir(), slugid.Nice())
+	tempStorage, err := runtime.NewTemporaryStorage(tempPath)
+	if err != nil {
+		panic(err)
+	}
+
+	localServer, err := webhookserver.NewLocalServer(
+		net.TCPAddr{
+			IP:   []byte{127, 0, 0, 1},
+			Port: 60000,
+		},
+		"taskcluster-worker.net",
+		config.StatelessHostname.Secret,
+		"",
+		"",
+		10*time.Minute,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	go func() {
+		panic(localServer.ListenAndServe())
+	}()
+
+	runtimeEnvironment := &runtime.Environment{
+		Log:              logger,
+		TemporaryStorage: tempStorage,
+		WebHookServer:    localServer,
+	}
+
+	// Initialize the engine
+	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
+		Environment: runtimeEnvironment,
+		Log:         logger.WithField("engine", engineName),
+	})
+	if err != nil {
+		logger.Fatal(err.Error())
+	}
 
 	w, err := worker.New(config, engine, runtimeEnvironment, l)
 	if err != nil {

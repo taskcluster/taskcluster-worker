@@ -57,7 +57,7 @@ func NewTaskRun(
 		Deadline: claim.taskClaim.Task.Deadline,
 		Expires:  claim.taskClaim.Task.Expires,
 	}
-	ctxt, ctxtctl, err := runtime.NewTaskContext(tp, info)
+	ctxt, ctxtctl, err := runtime.NewTaskContext(tp, info, environment.WebHookServer)
 
 	queueClient := queue.New(&tcclient.Credentials{
 		ClientID:    claim.taskClaim.Credentials.ClientID,
@@ -329,7 +329,7 @@ func (t *TaskRun) finishStage() error {
 
 	err = t.plugin.Finished(t.success)
 	if err != nil {
-		t.context.LogError(fmt.Sprintf("Could not finish cleaning up task execution. %s", err))
+		t.log.Error(fmt.Sprintf("Could not finish cleaning up task execution. %s", err))
 		return err
 	}
 
