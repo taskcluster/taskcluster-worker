@@ -20,6 +20,7 @@ import (
 	_ "github.com/taskcluster/taskcluster-worker/plugins/artifacts"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/env"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/success"
+	_ "github.com/taskcluster/taskcluster-worker/plugins/volume"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
@@ -75,7 +76,7 @@ func TestTaskManagerRunTask(t *testing.T) {
 		},
 	}
 
-	tm, err := newTaskManager(cfg, engine, environment, logger.WithField("test", "TestRunTask"))
+	tm, err := newTaskManager(cfg, engine, environment, logger.WithField("test", "TestTaskManagerRunTask"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -15,7 +15,7 @@ import (
 // When the worker encounters this error from an optional method, it should
 // workaround if possible, but most likely resolve the task as "exception"
 // with reason "malformed-payload".
-var ErrFeatureNotSupported = errors.New("Feature not support by current engine")
+var ErrFeatureNotSupported = errors.New("Feature not supported by the current engine")
 
 // ErrMutableMountNotSupported is returned when volume attachments are
 // supported, but mutable mounts aren't supported.

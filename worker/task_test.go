@@ -108,7 +108,7 @@ func ensureEnvironment(t *testing.T) (*runtime.Environment, engines.Engine, plug
 
 	pluginOptions := &pluginExtpoints.PluginOptions{
 		Environment: environment,
-		Engine:      &engine,
+		Engine:      engine,
 		Log:         logger.WithField("component", "Plugin Manager"),
 	}
 
