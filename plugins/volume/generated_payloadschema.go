@@ -20,7 +20,7 @@ type (
 
 var payloadSchema = func() runtime.CompositeSchema {
 	schema, err := runtime.NewCompositeSchema(
-		"volume",
+		"volumes",
 		`
 		{
 		  "$schema": "http://json-schema.org/draft-04/schema#",

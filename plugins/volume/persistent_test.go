@@ -30,7 +30,7 @@ func TestPersistentVolumeReuse(t *testing.T) {
 			"function": "set-volume",
 			"argument": "/home/worker"
 		},
-		"volume": {
+		"volumes": {
 			"persistent": [
 				{
 					"mountPoint": "/home/worker",
@@ -114,7 +114,7 @@ func TestPersistentVolumeReuse(t *testing.T) {
 			"function": "get-volume",
 			"argument": "/home/worker"
 		},
-		"volume": {
+		"volumes": {
 			"persistent": [
 				{
 					"mountPoint": "/home/worker",

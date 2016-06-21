@@ -1,4 +1,4 @@
-//go:generate go-composite-schema --unexported volume payload-schema.yml generated_payloadschema.go
+//go:generate go-composite-schema --unexported volumes payload-schema.yml generated_payloadschema.go
 
 // Package volume implements a plugin for managing various volume types supported
 // by the taskcluster-worker engines.  At a higher level there is one main volume
