@@ -54,6 +54,11 @@ func (vs *volumeSet) Prepare(context *runtime.TaskContext) error {
 				}
 				vs.volumes = append(vs.volumes, v)
 			}
+		default:
+			panic(
+				"Unrecognized volume type. This should never happen and " +
+					"is considered a fatal error.",
+			)
 		}
 	}
 
