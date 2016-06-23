@@ -104,7 +104,7 @@ func (c Case) Test() {
 	assert(provider != nil, "Plugin does not exist! You tried to load: ", c.Plugin)
 	p, err := provider.NewPlugin(pluginExtpoints.PluginOptions{
 		Environment: runtimeEnvironment,
-		Engine:      &engine,
+		Engine:      engine,
 		Log:         runtimeEnvironment.Log.WithField("engine", "mock"),
 	})
 	tp, err := p.NewTaskPlugin(plugins.TaskPluginOptions{

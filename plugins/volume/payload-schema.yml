@@ -1,0 +1,20 @@
+$schema: http://json-schema.org/draft-04/schema#
+title: payload
+description: Manager for volumes mounted into task environments
+type: object
+properties:
+  persistent:
+    type: array
+    items:
+      type: object
+      properties:
+        mountPoint:
+          title: Mount Point
+          description: Path to mount volume into task environment
+          type: string
+        name:
+          title: Volume Name
+          description: Identifier for the persisent volume to be reused between tasks.
+          type: string
+      required: [mountPoint, name]
+addtionalProperies: false
