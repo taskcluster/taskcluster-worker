@@ -1,3 +1,4 @@
+// +build darwin
 //go:generate go-composite-schema --unexported --required engine payload-schema.yml generated_payloadschema.go
 
 // Package osxnative implements the Mac OSX engine
