@@ -19,14 +19,13 @@ Architecture
 
 See https://docs.taskcluster.net/manual/execution/workers/taskcluster-worker
 
-Installing
-----------
-
-=== Binary releases ===
+Installing From Binary
+----------------------
 
 See https://github.com/taskcluster/taskcluster-worker/releases
 
-=== Building from source ===
+Installing From Source
+----------------------
 
 1) [Install go 1.6](https://golang.org/doc/install) or higher
 2) `go get -u -t -d github.com/taskcluster-worker/...`
@@ -50,7 +49,7 @@ git tag v1.0.3
 git push --tags
 ```
 
-Freezing dependencies
+Freezing Dependencies
 ---------------------
 
 We are currently using [godep](https://github.com/tools/godep) to vendor dependencies.
@@ -74,7 +73,7 @@ git diff --cached
 git commit -m "Froze jsonschema2go at revision fa5483ebd1cf3c73374e815f0befaba6184f3090"
 ```
 
-Updating dependencies
+Updating Dependencies
 ---------------------
 
 The simplest is probably:
@@ -95,3 +94,10 @@ git diff --cached
 # commit changes
 git commit -m "Updated all go package dependencies to latest versions"
 ```
+
+Contributing
+------------
+
+We welcome Pull Requests and Issues!
+
+Find us in `#taskcluster-worker` on `irc.mozilla.org`
