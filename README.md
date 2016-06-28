@@ -7,160 +7,91 @@ TaskCluster Worker
 [![Coverage Status](https://coveralls.io/repos/taskcluster/taskcluster-worker/badge.svg?branch=master&service=github)](https://coveralls.io/github/taskcluster/taskcluster-worker?branch=master)
 [![License](https://img.shields.io/badge/license-MPL%202.0-orange.svg)](http://mozilla.org/MPL/2.0)
 
-A generic worker for task cluster, written in go.
+A worker for TaskCluster, written in go.
 
+This is our next generation worker, that has a pluggable architecture for
+adding support for new engines (think Docker™ engine, Windows™ native engine,
+OS X™ native engine, KVM™/Xen™ engine) and adding engine-independent plugins
+(think livelogs, caches/volumes, auth proxies, interactive ssh/vnc).
 
-** Warning very EARLY notes**
+Architecture
+------------
 
-Place we outline interfaces and patterns for next generation worker.
+See https://docs.taskcluster.net/manual/execution/workers/taskcluster-worker
+
+Installing
+----------
+
+=== Binary releases ===
+
+See https://github.com/taskcluster/taskcluster-worker/releases
+
+=== Building from source ===
+
+1) [Install go 1.6](https://golang.org/doc/install) or higher
+2) `go get -u -t -d github.com/taskcluster-worker/...`
+3) `cd "${GOPATH}/src/github.com/taskcluster-worker"`
+4) `make rebuild`
+
+Testing
+-------
 
 ```
-Goal: have all interfaces and central classes defined and documented.
+make rebuild
+```
 
+Releasing
+---------
 
+Simply create a tag, and push to github.
 
+```
+git tag v1.0.3
+git push --tags
+```
 
-Things we sort of need:
-  - garbage collector...
-  - state machines... (http://www.timschmelmer.com/2013/08/state-machines-with-state-functions-in.html)
-    - basically a state is a function that takes an action and returns a new function (state)
+Freezing dependencies
+---------------------
 
+We are currently using [godep](https://github.com/tools/godep) to vendor dependencies.
 
+```
+# install godep tool
+go get -u github.com/tools/godep
+# copy vendored dependencies into your GOPATH
+godep restore ./...
+# change versions
+cd ../jsonschema2go
+git reset --hard fa5483ebd1cf3c73374e815f0befaba6184f3090
+cd ../taskcluster-worker
+# save changes
+godep save github.com/taskcluster/jsonschema2go/...
+# add changes
+git add Godeps/ vendor/
+# check changes look correct
+git diff --cached
+# commit changes
+git commit -m "Froze jsonschema2go at revision fa5483ebd1cf3c73374e815f0befaba6184f3090"
+```
 
-state machine:
+Updating dependencies
+---------------------
 
-type stateFn func(context, event String) stateFn
+The simplest is probably:
 
-func init(context, event) stateFn {
-  switch event {
-    case "loop":
-      return init;
-  }
-}
-idea would be that event is some struct that can have different kinds of data
-and each state must handle all possible inputs. Inputs could be:
-  engine reported that execution finished
-  an unhandle error occured
-  some file was downloaded (or pre-setup state finished)
-  task was cancelled (arrived by pulse message)
-  artifacts have been exported
-  environment has been cleaned up
-
-various different things that happens. Ideally a task goes from:
-  claimed -> loading -> running -> uploading -> cleanup
-But sometimes we have cancel, fatal errors (to task), reclaim failed happening
-and keeping track of where the state then goes is hard. An explicite state machine
-might help. Granted we should keep inputs to a minimum.
-
-We might need two state-machines one for the worker life cycle, with states like:
-  booting, claiming, running, shutting down
-Again just ideas...
-
-
------------------- etherpad
-Resources:
-https://blog.golang.org/context (maybe there is something smart here - not sure)
-Use sync.Mutex
-
-
-main:
-if startFlag == aws:
-  host := NewAWSHost() // cloud provider specific function
-elseif startFlag == hardware:
-  host := NewHWHost() // cloud provider specific function
-elseif startFlag == google cloud engine
-  host := NewGAEHost() // cloud provider specific function
-config := host.LoadConfig()
-platform := NewPlatform() // platform specific function
-tasks := []Task{};
-
-handler := func(task) {
-    tasks = append(tasks, task)
-    go func() {
-        task.Run(platform)
-        task_done<- task
-    }
-}
-
-for {   // <-- this should probably be a state machine
-    count := queue.ClaimTask(slots - len(tasks), this.handler)
-    if (len(tasks) == 0 && host.ShouldShutdownNow()) {
-        // Shut down
-    }
-    if count == 0 {
-        sleep 5s
-    }
-    // TODO: handle shutdown from host which lives in a different goroutine
-    for {
-        select {
-            case task <- task_done:
-                // Remove task from tasks
-            default:
-                if len(tasks) >= slots {
-                    task <-task_done
-                    // Remove task from tasks
-                }
-                break;
-        }
-    }
-}
-
-QueueService
-New(...config)
-ClaimTasks(maxTasks, handler) int
-
-Task
-New(task, status)
-Run(platform) // create Engine and handle logs, updates etc...
-Use a function and switch statement for each state
-
-type interface Exec {
-    Start(command string[]) bool, err
-    StdinPipe() io.WriteCloser, err
-    StdoutPipe() io.ReadCloser, err
-    StderrPipe() io.ReadCloser, err
-    Abort()
-}
-
-type interface Engine {
-    // TODO: Figure out how to report async errors, abort and differ between internal error
-    // and malformed-payload
-    // TODO: Figure out how to configure cache interaction
-    AttachCache(source string, string target, readOnly bool) err
-    AttachProxy(name string, handler func(ResponseWriter, *Request)) err
-    AttachService(image string, command string[], env) err
-    Start(command string[], env map[string]string) bool, err
-    StdinPipe() io.WriteCloser, err
-    StdoutPipe() io.ReadCloser, err
-    StderrPipe() io.ReadCloser, err
-    NewExec() Exec
-    ArchiveFolder(path) <-chan(string, io.ReadCloser)
-    ArchiveFile(path) string, io.ReadCloser
-    Archive() io.ReadCloser
-    Abort()
-}
-
-type struct CacheFolder { // not sure about this
-    Archive() io.ReadCloser
-    Path() string
-    Delete() // I can't do anything about errors so just log them, or panic
-    Size() uint64
-}
-
-type interface Platform {
-    NewEngine() Engine
-    NewCacheFolder() CacheFolder
-}
-
-type interface Host {
-    ShouldShutdownNow() bool
-    ShuttingDown() <- chan struct{}{}
-    LoadConfig()
-}
-
-Cache
-New(platform)
-ExclusiveCache(name string) CacheFolder
-SharedCache
-
+```
+# install godep tool
+go get -u github.com/tools/godep
+# copy vendored dependencies into your GOPATH
+godep restore ./...
+# update versions
+go get -u -t ./...
+# save changes
+godep save ./...
+# add changes
+git add Godeps/ vendor/
+# check changes look correct
+git diff --cached
+# commit changes
+git commit -m "Updated all go package dependencies to latest versions"
 ```

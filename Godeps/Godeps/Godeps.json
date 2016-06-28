@@ -1,0 +1,6 @@
+{
+	"ImportPath": "github.com/taskcluster/taskcluster-worker/Godeps",
+	"GoVersion": "go1.6",
+	"GodepVersion": "v74",
+	"Deps": []
+}
