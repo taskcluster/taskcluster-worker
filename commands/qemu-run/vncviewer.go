@@ -27,9 +27,9 @@ func StartVNCViewer(socket string, done <-chan struct{}) {
 	}
 
 	// Listen on localhost for connections
-	listener, err := net.Listen("tcp", "127.0.0.1:5900")
+	listener, err := net.Listen("tcp", "127.0.0.1:59007")
 	if err != nil {
-		fmt.Println("Failed to listen on PORT 5900, error: ", err)
+		fmt.Println("Failed to listen on PORT 59007, error: ", err)
 	}
 
 	// Proxy vnc connections to the unix domain socket
@@ -49,7 +49,7 @@ func StartVNCViewer(socket string, done <-chan struct{}) {
 	}()
 
 	// Launch vinagre
-	cmd := exec.Command("vinagre", "localhost:5900")
+	cmd := exec.Command("vinagre", "localhost:59007")
 	if err := cmd.Start(); err != nil {
 		fmt.Println("Failed to start 'vinagre', error: ", err)
 	}

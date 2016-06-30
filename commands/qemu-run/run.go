@@ -78,7 +78,7 @@ func (cmd) Execute(arguments map[string]interface{}) {
 
 	// Create virtual machine
 	log.Info("Creating virtual machine")
-	vm := vm.NewVirtualMachine(image, net, tempFolder)
+	vm := vm.NewVirtualMachine(image, net, tempFolder, "", "")
 
 	// Create meta-data service
 	log.Info("Creating meta-data service")

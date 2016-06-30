@@ -42,4 +42,5 @@ Vagrant.configure(2) do |config|
     sudo mkdir -p /go/src/github.com/taskcluster/taskcluster-worker/
     sudo chown -R vagrant:vagrant /go
   SHELL
+  # Now we test with: go test -race -tags vagrant ./...
 end

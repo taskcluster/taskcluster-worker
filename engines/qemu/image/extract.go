@@ -2,64 +2,16 @@ package image
 
 import (
 	"crypto/rand"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"os/exec"
 	"path/filepath"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
+	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
 const maxImageSize = 20 * 1024 * 1024 * 1024
-
-// isPlainFile returns an true if filePath is a plain file, not a directory,
-// symlink, device, etc.
-func isPlainFile(filePath string) bool {
-	fileInfo, err := os.Lstat(filePath)
-	if err != nil {
-		return false
-	}
-	return fileInfo.Mode()&(os.ModeDir|os.ModeSymlink|os.ModeNamedPipe|os.ModeSocket|os.ModeDevice) == 0
-}
-
-// isFileLessThan returns true if filePath is a file less than maxSize
-func isFileLessThan(filePath string, maxSize int64) bool {
-	fileInfo, err := os.Lstat(filePath)
-	if err != nil {
-		return false
-	}
-	return fileInfo.Size() < maxSize
-}
-
-// Machine defines the options for a virtual machine.
-type Machine struct {
-	Network struct {
-		Device string `json:"device"` // "rtl8139"
-		MAC    string `json:"mac"`    // See RandomMAC()
-	} `json:"network"`
-	// TODO: Add more options in the future
-	// TODO: Add UUID
-}
-
-// Validate returns a MalformedPayloadError if the Machine definition isn't
-// valid and legal.
-func (m *Machine) Validate() error {
-	hasError := false
-	errors := "Invalid machine defintion in 'machine.json'"
-	msg := func(a ...interface{}) {
-		errors += "\n" + fmt.Sprint(a...)
-		hasError = true
-	}
-
-	if m.Network.Device != "rtl8139" {
-		msg("network.device must be 'rtl8139', but '", m.Network.Device, "' was given")
-	}
-	// TODO: validate the MAC address
-
-	return nil
-}
 
 // RandomMAC generates a new random MAC with the local bit set.
 func RandomMAC() string {
@@ -83,12 +35,12 @@ func RandomMAC() string {
 //
 // Returns a MalformedPayloadError if we believe extraction failed due to a
 // badly formatted image.
-func extractImage(imageFile, imageFolder string) (*Machine, error) {
+func extractImage(imageFile, imageFolder string) (*vm.Machine, error) {
 	// Restrict file to some maximum size
-	if !isPlainFile(imageFile) {
+	if !ioext.IsPlainFile(imageFile) {
 		return nil, fmt.Errorf("extractImage: imageFile is not a file")
 	}
-	if !isFileLessThan(imageFile, maxImageSize) {
+	if !ioext.IsFileLessThan(imageFile, maxImageSize) {
 		return nil, engines.NewMalformedPayloadError("Image file is larger than ", maxImageSize, " bytes")
 	}
 
@@ -112,10 +64,10 @@ func extractImage(imageFile, imageFolder string) (*Machine, error) {
 	// Check files exist, are plain files and not larger than maxImageSize
 	for _, name := range []string{"disk.img", "layer.qcow2", "machine.json"} {
 		f := filepath.Join(imageFolder, name)
-		if !isPlainFile(f) {
+		if !ioext.IsPlainFile(f) {
 			return nil, engines.NewMalformedPayloadError("Image file is missing '", name, "'")
 		}
-		if !isFileLessThan(f, maxImageSize) {
+		if !ioext.IsFileLessThan(f, maxImageSize) {
 			return nil, engines.NewMalformedPayloadError("Image file contains '",
 				name, "' larger than ", maxImageSize, " bytes")
 		}
@@ -123,19 +75,9 @@ func extractImage(imageFile, imageFolder string) (*Machine, error) {
 
 	// Load the machine configuration
 	machineFile := filepath.Join(imageFolder, "machine.json")
-	if !isFileLessThan(machineFile, 1024*1024) {
-		return nil, engines.NewMalformedPayloadError("Image file contains ",
-			"'machine.json' larger than 1MiB. That's not okay for a JSON file.")
-	}
-	machineData, err := ioutil.ReadFile(machineFile)
+	machine, err := vm.LoadMachine(machineFile)
 	if err != nil {
 		return nil, err
-	}
-	machine := &Machine{}
-	err = json.Unmarshal(machineData, machine)
-	if err != nil {
-		return nil, engines.NewMalformedPayloadError("Image file contains ",
-			"invalid JSON in 'machine.json', error: ", err)
 	}
 
 	// Inspect the raw disk file

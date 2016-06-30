@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/taskcluster/slugid-go/slugid"
-	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
 )
 
 // VirtualMachine holds the QEMU process and associated resources.
@@ -18,7 +17,7 @@ type VirtualMachine struct {
 	m         sync.Mutex // Protect access to resources
 	started   bool
 	network   Network
-	image     *image.Instance
+	image     Image
 	vncSocket string
 	qmpSocket string
 	qemu      *exec.Cmd
@@ -29,7 +28,7 @@ type VirtualMachine struct {
 
 // NewVirtualMachine constructs a new virtual machine.
 func NewVirtualMachine(
-	image *image.Instance, network Network, socketFolder string,
+	image Image, network Network, socketFolder, cdrom1, cdrom2 string,
 ) *VirtualMachine {
 	// Construct virtual machine
 	vm := &VirtualMachine{
@@ -54,7 +53,10 @@ func NewVirtualMachine(
 	options := []string{
 		"-name", "qemu-guest",
 		// TODO: Add -enable-kvm (configurable so can be disabled in tests)
-		"-machine", "pc-i440fx-2.1", // TODO: Configure additional options
+		"-machine", arg("pc-i440fx-2.1", opts{
+			"accel": accelerator,
+			// TODO: Configure additional options")
+		}),
 		"-m", "512", // TODO: Make memory configurable
 		"-realtime", "mlock=off", // TODO: Enable for things like talos
 		// TODO: fit to system HT, see: https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-devices-system-cpu
@@ -114,7 +116,7 @@ func NewVirtualMachine(
 			"id":     "boot-disk",
 			"cache":  "unsafe", // TODO: Make this customizable for image building
 			"aio":    "native",
-			"format": "qcow2",
+			"format": vm.image.Format(),
 			"werror": "report",
 			"rerror": "report",
 		}),
@@ -127,6 +129,49 @@ func NewVirtualMachine(
 			"bootindex": "1",
 		}),
 		// TODO: Add cache volumes
+	}
+
+	if cdrom1 != "" {
+		options = append(options, []string{
+			"-drive", arg("", opts{
+				"file":   cdrom1,
+				"if":     "none",
+				"id":     "cdrom1",
+				"cache":  "unsafe",
+				"aio":    "native",
+				"format": "raw",
+				"werror": "report",
+				"rerror": "report",
+			}) + ",readonly",
+			"-device", arg("ide-cd", opts{
+				"bootindex": "2",
+				"drive":     "cdrom1",
+				"id":        "ide-cd1",
+				"bus":       "ide.0",
+				"unit":      "0",
+			}),
+		}...)
+	}
+	if cdrom2 != "" {
+		options = append(options, []string{
+			"-drive", arg("", opts{
+				"file":   cdrom2,
+				"if":     "none",
+				"id":     "cdrom2",
+				"cache":  "unsafe",
+				"aio":    "native",
+				"format": "raw",
+				"werror": "report",
+				"rerror": "report",
+			}) + ",readonly",
+			"-device", arg("ide-cd", opts{
+				"bootindex": "3",
+				"drive":     "cdrom2",
+				"id":        "ide-cd2",
+				"bus":       "ide.0",
+				"unit":      "1",
+			}),
+		}...)
 	}
 
 	// Create done channel
@@ -160,16 +205,10 @@ func (vm *VirtualMachine) Start() {
 	vm.started = true
 	vm.m.Unlock()
 
-	// Start QEMU
-	vm.Error = vm.qemu.Start()
-	if vm.Error != nil {
-		close(vm.qemuDone)
-		return
-	}
-
-	// Wait for QEMU to finish before closing Done
+	// Start QEMU and wait for it to finish before closing Done
 	go func(vm *VirtualMachine) {
-		vm.Error = vm.qemu.Wait()
+		_, vm.Error = vm.qemu.Output()
+		// TODO: Consider using vm.qemu.Start() and vm.qemu.Wait()
 
 		// Release network and image
 		vm.m.Lock()

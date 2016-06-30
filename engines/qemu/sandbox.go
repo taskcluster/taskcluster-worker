@@ -38,7 +38,7 @@ func newSandbox(
 ) *sandbox {
 	// Create sandbox
 	s := &sandbox{
-		vm:      vm.NewVirtualMachine(image, network, e.engineConfig.SocketFolder),
+		vm:      vm.NewVirtualMachine(image, network, e.engineConfig.SocketFolder, "", ""),
 		context: c,
 		engine:  e,
 		proxies: proxies,

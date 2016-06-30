@@ -9,6 +9,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/getsentry/raven-go"
 	"github.com/taskcluster/slugid-go/slugid"
+	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
 
@@ -32,7 +33,7 @@ type image struct {
 	gc.DisposableResource
 	imageID string
 	folder  string
-	machine *Machine
+	machine *vm.Machine
 	done    <-chan struct{}
 	manager *Manager
 	err     error
@@ -199,7 +200,7 @@ func (img *image) instance() (*Instance, error) {
 }
 
 // Machine returns the virtual machine configuration for this instance.
-func (i *Instance) Machine() Machine {
+func (i *Instance) Machine() vm.Machine {
 	i.m.Lock()
 	defer i.m.Unlock()
 	if i.image == nil {
@@ -216,6 +217,11 @@ func (i *Instance) DiskFile() string {
 		panic("Instance of image is already disposed")
 	}
 	return i.diskFile
+}
+
+// Format returns the image format: 'qcow2'
+func (i *Instance) Format() string {
+	return "qcow2"
 }
 
 // Release frees the resources held by an instance.
