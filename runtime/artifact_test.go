@@ -10,7 +10,6 @@ import (
 
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-client-go/queue"
-	"github.com/taskcluster/taskcluster-client-go/tcclient"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
@@ -31,7 +30,7 @@ func setupArtifactTest(name string, artifactResp queue.PostArtifactRequest) (*Ta
 		taskID,
 		"0",
 		name,
-	).Return(&resp, &tcclient.CallSummary{}, nil)
+	).Return(&resp, nil)
 	controller.SetQueueClient(mockedQueue)
 	return context, mockedQueue
 }

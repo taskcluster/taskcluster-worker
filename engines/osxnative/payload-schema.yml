@@ -1,0 +1,23 @@
+$schema:            http://json-schema.org/draft-04/schema#
+title:              "Payload"
+type:               "object"
+description: |-
+  Payload for Mac OSX Engine
+properties:
+  link:
+    title: "Executable to download"
+    type: "string"
+    description: |-
+      Link to an script/executable to run. The file must still be
+      explicitly be referenced by the command field.
+  command:
+    title: "Command to run"
+    type: "array"
+    minItems: 1
+    items:
+      type: "string"
+    description: |-
+      The first item is the executable to run, followed by command line parameters
+required:
+  - "command"
+additionalProperties: false

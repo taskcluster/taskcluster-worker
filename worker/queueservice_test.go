@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/taskcluster/httpbackoff"
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-client-go/tcclient"
@@ -52,7 +53,7 @@ func TestRetrievePollTaskUrls(t *testing.T) {
 			SignedDeleteURL: "def",
 			SignedPollURL:   "456",
 		}},
-	}, &tcclient.CallSummary{}, nil)
+	}, nil)
 	service.refreshMessageQueueURLs()
 	assert.Equal(t,
 		len(service.queues),
@@ -82,7 +83,7 @@ func TestRetrievePollTaskUrlsErrorCaught(t *testing.T) {
 		ProvisionerID,
 		WorkerType,
 	// Error value does not matter, just as long as we create an error to return
-	).Return(&queue.PollTaskUrlsResponse{}, &tcclient.CallSummary{}, errors.New("bad error"))
+	).Return(&queue.PollTaskUrlsResponse{}, errors.New("bad error"))
 
 	err := service.refreshMessageQueueURLs()
 	if err == nil {
@@ -590,7 +591,7 @@ func TestClaimTask(t *testing.T) {
 		Task:        queue.TaskDefinitionResponse{},
 		WorkerGroup: WorkerType,
 		WorkerID:    WorkerID,
-	}, &tcclient.CallSummary{}, nil)
+	}, nil)
 
 	task := &taskMessage{
 		TaskID:          "abc",
@@ -642,9 +643,10 @@ func TestClaimTaskError(t *testing.T) {
 			WorkerID:    WorkerID,
 		},
 	).Return(&queue.TaskClaimResponse{},
-		&tcclient.CallSummary{
-			HttpResponse: &http.Response{StatusCode: 401},
-		}, errors.New("Not good"))
+		httpbackoff.BadHttpResponseCode{
+			HttpResponseCode: 401,
+		},
+	)
 	task := &taskMessage{
 		TaskID:          "abc",
 		RunID:           0,
@@ -701,7 +703,7 @@ func TestClaimTasks(t *testing.T) {
 		Task:        queue.TaskDefinitionResponse{},
 		WorkerGroup: WorkerType,
 		WorkerID:    WorkerID,
-	}, &tcclient.CallSummary{}, nil)
+	}, nil)
 	mockedQueue.On(
 		"ClaimTask",
 		"def",
@@ -726,7 +728,7 @@ func TestClaimTasks(t *testing.T) {
 		Task:        queue.TaskDefinitionResponse{},
 		WorkerGroup: WorkerType,
 		WorkerID:    WorkerID,
-	}, &tcclient.CallSummary{}, nil)
+	}, nil)
 	tasks := []*taskMessage{{
 		TaskID:          "abc",
 		RunID:           0,

@@ -1,0 +1,158 @@
+{
+	"ImportPath": "github.com/taskcluster/taskcluster-worker",
+	"GoVersion": "go1.6",
+	"GodepVersion": "v74",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.10.0-19-gf3cfb45",
+			"Rev": "f3cfb454f4c209e6668c95216c4744b8fddb2356"
+		},
+		{
+			"ImportPath": "github.com/cenkalti/backoff",
+			"Comment": "v1.0.0-7-gcdf48bb",
+			"Rev": "cdf48bbc1eb78d1349cbda326a4a037f7ba565c6"
+		},
+		{
+			"ImportPath": "github.com/cloudfoundry-incubator/candiedyaml",
+			"Rev": "99c3df83b51532e3615f851d8c2dbb638f5313bf"
+		},
+		{
+			"ImportPath": "github.com/davecgh/go-spew/spew",
+			"Rev": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
+		},
+		{
+			"ImportPath": "github.com/docopt/docopt-go",
+			"Comment": "0.6.2",
+			"Rev": "784ddc588536785e7299f7272f39101f7faccc3f"
+		},
+		{
+			"ImportPath": "github.com/fatih/camelcase",
+			"Rev": "f6a740d52f961c60348ebb109adde9f4635d7540"
+		},
+		{
+			"ImportPath": "github.com/getsentry/raven-go",
+			"Rev": "dffeb57df75d6a911f00232155194e43d79d38d7"
+		},
+		{
+			"ImportPath": "github.com/ghodss/yaml",
+			"Rev": "aa0c862057666179de291b67d9f093d12b5a8473"
+		},
+		{
+			"ImportPath": "github.com/kr/text",
+			"Rev": "7cafcd837844e784b526369c9bce262804aebc60"
+		},
+		{
+			"ImportPath": "github.com/pborman/uuid",
+			"Comment": "v1.0-11-gc55201b",
+			"Rev": "c55201b036063326c5b1b89ccfe45a184973d073"
+		},
+		{
+			"ImportPath": "github.com/pmezard/go-difflib/difflib",
+			"Rev": "792786c7400a136282c1664665ae0a8db921c6c2"
+		},
+		{
+			"ImportPath": "github.com/stretchr/objx",
+			"Rev": "1a9d0bb9f541897e62256577b352fdbc1fb4fd94"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/assert",
+			"Comment": "v1.1.3-19-gd77da35",
+			"Rev": "d77da356e56a7428ad25149ca77381849a6a5232"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/mock",
+			"Comment": "v1.1.3-19-gd77da35",
+			"Rev": "d77da356e56a7428ad25149ca77381849a6a5232"
+		},
+		{
+			"ImportPath": "github.com/taskcluster/go-got",
+			"Rev": "10e07044aea43d5559d1199a8da1b35d3d44e2c7"
+		},
+		{
+			"ImportPath": "github.com/taskcluster/httpbackoff",
+			"Rev": "f9087afc98a375b390587243d2a854bd560d7be8"
+		},
+		{
+			"ImportPath": "github.com/taskcluster/jsonschema2go",
+			"Rev": "9f23800d3ab7d5f6cb64a21b80cf3871498f7e8c"
+		},
+		{
+			"ImportPath": "github.com/taskcluster/jsonschema2go/text",
+			"Rev": "9f23800d3ab7d5f6cb64a21b80cf3871498f7e8c"
+		},
+		{
+			"ImportPath": "github.com/taskcluster/slugid-go/slugid",
+			"Comment": "v1.0.0-15-gebb8c41",
+			"Rev": "ebb8c41c0720cfec64716a75678bea5bf5f7a835"
+		},
+		{
+			"ImportPath": "github.com/taskcluster/stateless-dns-go/hostname",
+			"Comment": "v1.0.3-9-g1d943d0",
+			"Rev": "1d943d09238cf2144e818f04a6e37f6161029fd3"
+		},
+		{
+			"ImportPath": "github.com/taskcluster/taskcluster-base-go/jsontest",
+			"Rev": "17117b6af097b2a13df9ce80d4a9ef7dffcbc1c1"
+		},
+		{
+			"ImportPath": "github.com/taskcluster/taskcluster-client-go/queue",
+			"Rev": "0e37a2b8b0e4b7989c691675c55b609d896d9f35"
+		},
+		{
+			"ImportPath": "github.com/taskcluster/taskcluster-client-go/tcclient",
+			"Rev": "0e37a2b8b0e4b7989c691675c55b609d896d9f35"
+		},
+		{
+			"ImportPath": "github.com/tent/hawk-go",
+			"Rev": "8bd4a9f3b4cf4a535303c3f5ce3811475764139c"
+		},
+		{
+			"ImportPath": "github.com/xeipuuv/gojsonpointer",
+			"Rev": "e0fe6f68307607d540ed8eac07a342c33fa1b54a"
+		},
+		{
+			"ImportPath": "github.com/xeipuuv/gojsonreference",
+			"Rev": "e02fc20de94c78484cd5ffb007f8af96be030a45"
+		},
+		{
+			"ImportPath": "github.com/xeipuuv/gojsonschema",
+			"Rev": "c539bca196be50ccdd1f0bcd9076de95f9081831"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/unix",
+			"Rev": "d4feaf1a7e61e1d9e79e6c4e76c6349e9cab0a03"
+		},
+		{
+			"ImportPath": "golang.org/x/tools/go/ast/astutil",
+			"Rev": "1727758746e7a08feaaceb9366d1468498ac2ac2"
+		},
+		{
+			"ImportPath": "golang.org/x/tools/imports",
+			"Rev": "1727758746e7a08feaaceb9366d1468498ac2ac2"
+		},
+		{
+			"ImportPath": "gopkg.in/djherbis/stream.v1",
+			"Comment": "v1.0.1",
+			"Rev": "26a761059928627ca84837000dfb33447c66a146"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/vendor/github.com/davecgh/go-spew/spew",
+			"Comment": "v1.1.3-19-gd77da35",
+			"Rev": "d77da356e56a7428ad25149ca77381849a6a5232"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/vendor/github.com/pmezard/go-difflib/difflib",
+			"Comment": "v1.1.3-19-gd77da35",
+			"Rev": "d77da356e56a7428ad25149ca77381849a6a5232"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/vendor/github.com/stretchr/objx",
+			"Comment": "v1.1.3-19-gd77da35",
+			"Rev": "d77da356e56a7428ad25149ca77381849a6a5232"
+		}
+	]
+}

@@ -107,7 +107,7 @@ func (s *schemaEntry) Parse(data map[string]json.RawMessage) (interface{}, error
 	value := data[s.property]
 	if value == nil {
 		if s.required {
-			return nil, errors.New("Property is missing")
+			return nil, errors.New("Property \"" + s.property + "\" is missing")
 		}
 		return nil, nil
 	}

@@ -1,11 +1,15 @@
 package worker
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/taskcluster/slugid-go/slugid"
@@ -53,6 +57,7 @@ var claim = &taskClaim{
 			ClientID:    "abc",
 			Certificate: "",
 		},
+		TakenUntil: tcclient.Time(time.Now().Add(time.Minute * 5)),
 	},
 	definition: &queue.TaskDefinitionResponse{
 		Payload: []byte(taskDefinitions["validEnginePayload"].definition),
@@ -103,7 +108,7 @@ func ensureEnvironment(t *testing.T) (*runtime.Environment, engines.Engine, plug
 
 	pluginOptions := &pluginExtpoints.PluginOptions{
 		Environment: environment,
-		Engine:      &engine,
+		Engine:      engine,
 		Log:         logger.WithField("component", "Plugin Manager"),
 	}
 
@@ -178,6 +183,7 @@ func TestCreateTaskPlugins(t *testing.T) {
 	}
 
 	err = tr.createTaskPlugins()
+	close(tr.done)
 	assert.NotNil(t, err, "Error should have been returned when creating task plugins")
 	assert.Equal(t, "engines.MalformedPayloadError", reflect.TypeOf(err).String())
 }
@@ -192,7 +198,7 @@ func TestRunTask(t *testing.T) {
 		"ReportCompleted",
 		"abc",
 		"1",
-	).Return(&queue.TaskStatusResponse{}, &tcclient.CallSummary{}, nil)
+	).Return(&queue.TaskStatusResponse{}, nil)
 
 	tr.controller.SetQueueClient(mockedQueue)
 
@@ -215,10 +221,74 @@ func TestRunMalformedEnginePayloadTask(t *testing.T) {
 		"abc",
 		"1",
 		&queue.TaskExceptionRequest{Reason: "malformed-payload"},
-	).Return(&queue.TaskStatusResponse{}, &tcclient.CallSummary{}, nil)
+	).Return(&queue.TaskStatusResponse{}, nil)
 
 	tr.controller.SetQueueClient(mockedQueue)
 
 	tr.Run()
 	mockedQueue.AssertCalled(t, "ReportException", "abc", "1", &queue.TaskExceptionRequest{Reason: "malformed-payload"})
+}
+
+func TestReclaimTask(t *testing.T) {
+	environment, engine, pluginManager := ensureEnvironment(t)
+	claim.definition = &queue.TaskDefinitionResponse{
+		Payload: []byte(taskDefinitions["validEnginePayload"].definition),
+	}
+	claim.taskClaim.TakenUntil = tcclient.Time(time.Now().Add(time.Millisecond * 4))
+
+	reclaimEvents := 0
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		switch r.URL.Path {
+		case "/task/abc/runs/1/reclaim":
+			reclaimEvents++
+			json.NewEncoder(w).Encode(&queue.TaskReclaimResponse{
+				Credentials: struct {
+					AccessToken string `json:"accessToken"`
+					Certificate string `json:"certificate"`
+					ClientID    string `json:"clientId"`
+				}{
+					AccessToken: "4567890",
+					ClientID:    "def",
+					Certificate: "",
+				},
+				TakenUntil: tcclient.Time(time.Now().Add(time.Millisecond * 4)),
+			})
+		case "/task/abc/runs/1/completed":
+			json.NewEncoder(w).Encode(&queue.TaskStatusResponse{})
+		}
+	}
+
+	s := httptest.NewServer(http.HandlerFunc(handler))
+	defer s.Close()
+
+	cfg := &config.Config{
+		Taskcluster: struct {
+			Queue struct {
+				URL string `json:"url,omitempty"`
+			} `json:"queue,omitempty"`
+		}{
+			Queue: struct {
+				URL string `json:"url,omitempty"`
+			}{
+				URL: s.URL,
+			},
+		},
+	}
+
+	tr, err := NewTaskRun(cfg, claim, environment, engine, pluginManager, logger.WithField("test", "TestRunTask"))
+	assert.Nil(t, err)
+
+	oldClient := tr.context.Queue()
+
+	tr.Run()
+
+	newClient := tr.context.Queue()
+	assert.NotEqual(t, newClient, oldClient, "clients should not be the same after reclaim")
+
+	assert.True(
+		t,
+		reclaimEvents >= 0 && reclaimEvents <= 3,
+		fmt.Sprintf("Task should have been reclaimed at least 1 times and not more than 3, but was reclaimed %d times", reclaimEvents),
+	)
 }

@@ -14,10 +14,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/taskcluster-client-go/tcclient"
 	"github.com/taskcluster/taskcluster-worker/config"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/artifacts"
+	_ "github.com/taskcluster/taskcluster-worker/plugins/env"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/success"
+	_ "github.com/taskcluster/taskcluster-worker/plugins/volume"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
@@ -73,7 +76,7 @@ func TestTaskManagerRunTask(t *testing.T) {
 		},
 	}
 
-	tm, err := newTaskManager(cfg, engine, environment, logger.WithField("test", "TestRunTask"))
+	tm, err := newTaskManager(cfg, engine, environment, logger.WithField("test", "TestTaskManagerRunTask"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,9 +94,10 @@ func TestTaskManagerRunTask(t *testing.T) {
 				ClientID:    "abc",
 				Certificate: "",
 			},
+			TakenUntil: tcclient.Time(time.Now().Add(time.Minute * 5)),
 		},
 		definition: &queue.TaskDefinitionResponse{
-			Payload: []byte(`{"start": {"delay": 10,"function": "write-log","argument": "Hello World"}}`),
+			Payload: []byte(`{"start": {"delay": 1,"function": "write-log","argument": "Hello World"}}`),
 		},
 	}
 	tm.run(claim)
@@ -160,6 +164,7 @@ func TestCancelTask(t *testing.T) {
 				ClientID:    "abc",
 				Certificate: "",
 			},
+			TakenUntil: tcclient.Time(time.Now().Add(time.Minute * 5)),
 		},
 		definition: &queue.TaskDefinitionResponse{
 			Payload: []byte(`{"start": {"delay": 5000,"function": "write-log","argument": "Hello World"}}`),
@@ -255,6 +260,7 @@ func TestWorkerShutdown(t *testing.T) {
 					ClientID:    "abc",
 					Certificate: "",
 				},
+				TakenUntil: tcclient.Time(time.Now().Add(time.Minute * 5)),
 			},
 		},
 		&taskClaim{
@@ -273,6 +279,7 @@ func TestWorkerShutdown(t *testing.T) {
 					ClientID:    "abc",
 					Certificate: "",
 				},
+				TakenUntil: tcclient.Time(time.Now().Add(time.Minute * 5)),
 			},
 		},
 	}

@@ -16,7 +16,7 @@ import (
 // breaking source compatibility with older plugins.
 type PluginOptions struct {
 	Environment *runtime.Environment
-	Engine      *engines.Engine
+	Engine      engines.Engine
 	Log         *logrus.Entry
 }
 
