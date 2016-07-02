@@ -7,21 +7,153 @@ import (
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
+	"github.com/xeipuuv/gojsonschema"
 )
 
 // Machine specifies arguments for various QEMU options.
 //
 // This only allows certain arguments to be specified.
 type Machine struct {
+	UUID    string `json:"uuid"`
 	Network struct {
-		Device string `json:"device"` // "rtl8139"
-		MAC    string `json:"mac"`    // Set local bit, ensure unicast address
+		Device string `json:"device"`
+		MAC    string `json:"mac"`
 	} `json:"network"`
+	Keyboard struct {
+		Layout string `json:"layout"`
+	} `json:"keyboard"`
+	Sound *struct {
+		Device     string `json:"device"`
+		Controller string `json:"controller"`
+	} `json:"sound,omitempty"`
 	// TODO: Add more options in the future
-	// TODO: Add UUID
-
-	// TODO: Specify this with a JSON schema instead
 }
+
+// TODO: Find a way that this schema can be included in the documentation...
+const machineSchemaString = `{
+	"$schema":										"http://json-schema.org/draft-04/schema#",
+	"title":											"Machine Definition",
+	"description":								"Hardware definition for a virtual machine",
+	"type":												"object",
+	"properties": {
+		"uuid": {
+			"type":										"string",
+			"pattern":								"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+			"description":						"System UUID for the virtual machine"
+		},
+		"network": {
+			"type":									 	"object",
+			"properties": {
+				"device": {
+					"type":								"string",
+					"description":				"Network device",
+					"enum": [
+						"rtl8139",
+						"e1000"
+					]
+				},
+				"mac": {
+					"type":								"string",
+					"pattern":						"^[0-9a-f][26ae](:[0-9a-f]{2}){5}$",
+					"description":				"Local unicast MAC Address"
+				}
+			},
+			"additionalProperties":		false,
+			"required": [
+				"device",
+				"mac"
+			]
+		},
+		"keyboard": {
+			"type":										"object",
+			"properties": {
+				"layout": {
+					"type":								"string",
+					"description":				"Keyboard layout",
+					"enum": [
+						"ar", "da", "de", "de-ch", "en-gb", "en-us", "es", "et", "fi", "fo",
+						"fr", "fr-be", "fr-ca", "fr-ch", "hr", "hu", "is", "it", "ja", "lt",
+						"lv", "mk", "nl", "nl-be", "no", "pl", "pt", "pt-br", "ru", "sl",
+						"sv", "th", "tr"
+					]
+				}
+			},
+			"additionalProperties":		false,
+			"required": [
+				"layout"
+			]
+		},
+		"sound": { "anyOf":
+			[{
+				"type": 								"object",
+				"properties": {
+					"device": {
+						"type":							"string",
+						"description":			"Audio Device",
+						"enum": [
+							"AC97",
+							"ES1370"
+						]
+					},
+					"controller": {
+						"type":							"string",
+						"description":			"Audio Controller",
+						"enum": [
+							"pci"
+						]
+					}
+				},
+				"additionalProperties":	false,
+				"required": [
+					"device",
+					"controller"
+				]
+			}, {
+				"type": 								"object",
+				"properties": {
+					"device": {
+						"type":							"string",
+						"description":			"Audio Device",
+						"enum": [
+							"hda-duplex",
+							"hda-micro",
+							"hda-output"
+						]
+					},
+					"controller": {
+						"type":							"string",
+						"description":			"Audio Controller",
+						"enum": [
+							"ich9-intel-hda",
+							"intel-hda"
+						]
+					}
+				},
+				"additionalProperties":	false,
+				"required": [
+					"device",
+					"controller"
+				]
+			}]
+		}
+	},
+	"additionalProperties":				false,
+	"required": [
+		"uuid",
+		"network",
+		"keyboard"
+	]
+}`
+
+var machineSchema = func() *gojsonschema.Schema {
+	schema, err := gojsonschema.NewSchema(
+		gojsonschema.NewStringLoader(machineSchemaString),
+	)
+	if err != nil {
+		panic(err)
+	}
+	return schema
+}()
 
 // LoadMachine will load machine definition from file
 func LoadMachine(machineFile string) (*Machine, error) {
@@ -68,17 +200,31 @@ func (m *Machine) Validate() error {
 		hasError = true
 	}
 
-	// Validate network device
-	if m.Network.Device != "rtl8139" && m.Network.Device != "e1000" {
-		msg("network.device must be 'rtl8139', but '", m.Network.Device, "' was given")
-	}
-
-	// Validate the MAC address
-	err := validateMAC(m.Network.MAC)
+	// Render to JSON so we can validate with gojsonschema
+	// (this isn't efficient, but we'll rarely do this so who cares)
+	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
-		msg(err.Error())
+		panic(fmt.Sprintln(
+			"json.Marshal should never fail for vm.Machine, error: ", err,
+		))
 	}
 
+	// Validate against JSON schema
+	result, err := machineSchema.Validate(
+		gojsonschema.NewStringLoader(string(data)),
+	)
+	if err != nil {
+		panic(fmt.Sprintln(
+			"machineSchema.Validate should always be able to validate, error: ", err,
+		))
+	}
+	if !result.Valid() {
+		for _, err := range result.Errors() {
+			msg(err.(*gojsonschema.ResultErrorFields).String())
+		}
+	}
+
+	// Return any errors collected
 	if hasError {
 		return engines.NewMalformedPayloadError(errs)
 	}

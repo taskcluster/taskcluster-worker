@@ -62,11 +62,14 @@ func NewVirtualMachine(
 		// TODO: fit to system HT, see: https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-devices-system-cpu
 		// TODO: Configure CPU instruction sets: http://forum.ipfire.org/viewtopic.php?t=12642
 		"-smp", "cpus=2,sockets=2,cores=1,threads=1",
-		"-uuid", "9372acf5-d413-4572-bc7b-7a1d2df57bab", // TODO: allow customization
+		"-uuid", vm.image.Machine().UUID,
 		"-no-user-config", "-nodefaults",
 		"-rtc", "base=utc", // TODO: Allow clock=vm for loadvm with windows
 		"-boot", "menu=off,strict=on",
-		"-device", arg("VGA", opts{ // TODO: Investigate if we can use vmware
+		"-k", vm.image.Machine().Keyboard.Layout,
+		"-device", arg("vmware-svga", opts{
+			// TODO: Investigate if we can use vmware
+			// VGA ought to be the safe choice here
 			"id":        "video-0",
 			"vgamem_mb": "64", // TODO: Customize VGA memory
 			"bus":       "pci.0",
@@ -90,11 +93,7 @@ func NewVirtualMachine(
 			"bus":    "pci.0",
 			"addr":   "0x5", // Always put network on PCI 0x5
 		}),
-		"-device", arg("AC97", opts{ // TODO: Customize sound device
-			"id":   "sound-0",
-			"bus":  "pci.0",
-			"addr": "0x6", // Always put sound on PCI 0x6
-		}),
+		// Reserve PCI 0x6 for sound device/controller
 		"-device", arg("usb-kbd", opts{
 			"id":   "keyboard-0",
 			"bus":  "usb.0",
@@ -129,6 +128,32 @@ func NewVirtualMachine(
 			"bootindex": "1",
 		}),
 		// TODO: Add cache volumes
+	}
+
+	// Add optional sound device
+	if vm.image.Machine().Sound != nil {
+		if vm.image.Machine().Sound.Controller == "pci" {
+			options = append(options, []string{
+				"-device", arg(vm.image.Machine().Sound.Device, opts{
+					"id":   "sound-0",
+					"bus":  "pci.0",
+					"addr": "0x6", // Always put sound on PCI 0x6
+				}),
+			}...)
+		} else {
+			options = append(options, []string{
+				"-device", arg(vm.image.Machine().Sound.Controller, opts{
+					"id":   "sound-0",
+					"bus":  "pci.0",
+					"addr": "0x6", // Always put sound on PCI 0x6
+				}),
+				"-device", arg(vm.image.Machine().Sound.Device, opts{
+					"id":  "sound-0-codec-0",
+					"bus": "sound-0.0",
+					"cad": "0",
+				}),
+			}...)
+		}
 	}
 
 	if cdrom1 != "" {

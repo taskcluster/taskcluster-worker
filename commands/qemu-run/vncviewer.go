@@ -31,6 +31,7 @@ func StartVNCViewer(socket string, done <-chan struct{}) {
 	if err != nil {
 		fmt.Println("Failed to listen on PORT 59007, error: ", err)
 	}
+	fmt.Println("Listening for vnc clients on localhost:59007")
 
 	// Proxy vnc connections to the unix domain socket
 	go func() {
