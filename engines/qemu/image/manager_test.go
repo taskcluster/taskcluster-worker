@@ -17,6 +17,8 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
 
+const testImageFile = "./tinycore-worker.tar.lz4"
+
 func TestImageManager(t *testing.T) {
 	fmt.Println(" - Setup environment needed to test")
 	gc := &gc.GarbageCollector{}
@@ -54,7 +56,7 @@ func TestImageManager(t *testing.T) {
 
 	fmt.Println(" - Test instantiation of image")
 	instance, err = manager.Instance("url:test-image-1", func(target string) error {
-		return copyFile("./tinycore.tar.lz4", target)
+		return copyFile(testImageFile, target)
 	})
 	nilOrPanic(err, "Failed to loadImage")
 	assert(instance != nil, "Expected an instance")

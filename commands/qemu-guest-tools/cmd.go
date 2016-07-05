@@ -23,8 +23,8 @@ the virtual machines used with QEMU engine.
 usage: taskcluster-worker qemu-guest-tools [options]
 
 options:
-     --host <ip> IP-address of meta-data server [default: 169.254.169.254]
-  -h --help      Show this screen.
+     --host <ip>  IP-address of meta-data server [default: 169.254.169.254].
+  -h --help      	Show this screen.
 `
 }
 

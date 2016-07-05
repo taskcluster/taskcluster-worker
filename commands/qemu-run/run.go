@@ -83,7 +83,7 @@ func (cmd) Execute(arguments map[string]interface{}) {
 	// Create meta-data service
 	log.Info("Creating meta-data service")
 	ms := metaservice.New(command, make(map[string]string), os.Stdout, func(result bool) {
-		fmt.Println("### Task Completed: ", result)
+		fmt.Println("### Task Completed, result = ", result)
 	})
 
 	// Setup http handler

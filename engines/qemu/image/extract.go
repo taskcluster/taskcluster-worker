@@ -11,7 +11,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
-const maxImageSize = 20 * 1024 * 1024 * 1024
+const maxImageSize = int64(20 * 1024 * 1024 * 1024) // Use int64 for i386 builds
 
 // RandomMAC generates a new random MAC with the local bit set.
 func RandomMAC() string {

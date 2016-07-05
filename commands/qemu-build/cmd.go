@@ -34,11 +34,11 @@ usage:
 	taskcluster-worker qemu-build [options] from-image <image.tar.lz4> <result.tar.lz4>
 
 options:
-     --no-vnc       Do not open a VNC display.
-     --size <size>  Size of the image in GiB [default: 10].
-     --boot <file>  File to use as cd-rom 1 and boot medium.
-     --cdrom <file> File to use as cd-rom 2 (drivers etc).
-  -h --help         Show this screen.
+     --no-vnc       	Do not open a VNC display.
+     --size <size>  	Size of the image in GiB [default: 10].
+     --boot <file>  	File to use as cd-rom 1 and boot medium.
+     --cdrom <file>	 	File to use as cd-rom 2 (drivers etc).
+  -h --help         	Show this screen.
 `
 }
 
