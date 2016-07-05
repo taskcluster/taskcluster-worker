@@ -5,6 +5,7 @@
 package qemuengine
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,15 +17,22 @@ import (
 
 const testImageFile = "./image/tinycore-worker.tar.lz4"
 
+// makeTestServer will setup a httptest.Server instance serving the
+// testImageFile from the source tree. This is necessary to use the test image
+// in our test cases.
 func makeTestServer() *httptest.Server {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Printf("Serving request, %+v\n", r)
 		w.WriteHeader(http.StatusOK)
 		f, err := os.Open(testImageFile)
 		if err != nil {
 			fmtPanic("Unexpected error opening image file, err: ", err)
 		}
 		defer f.Close()
-		io.Copy(w, f)
+		_, err = io.Copy(w, f)
+		if err != nil && err != io.EOF {
+			fmtPanic("Unexpected error copying image file, err: ", err)
+		}
 	})
 	return httptest.NewServer(handler)
 }
@@ -42,7 +50,10 @@ var provider = enginetest.EngineProvider{
 
 func TestLogTarget(t *testing.T) {
 	s := makeTestServer()
-	defer s.Close()
+	defer func() {
+		s.CloseClientConnections()
+		s.Close()
+	}()
 
 	c := enginetest.LoggingTestCase{
 		EngineProvider: provider,
@@ -50,7 +61,7 @@ func TestLogTarget(t *testing.T) {
 		TargetPayload: `{
 	    "start": {
 	      "image": "` + s.URL + `",
-	      "command": ["sh", "-c", "echo 'hello world' && true"]
+	      "command": ["sh", "-c", "echo 'Hello World' && true"]
 	    }
 	  }`,
 		FailingPayload: `{

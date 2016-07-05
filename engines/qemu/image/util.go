@@ -48,6 +48,7 @@ const maxRetries = 7
 //
 // If there is a non-200 response this will return a MalformedPayloadError.
 func DownloadImage(url string) Downloader {
+	// TODO: Add some logging, I really want to abstract away Logger
 	// TODO: This method could probably exist somewhere else, in say runtime
 	//       downloading from a URL to a file or stream with retries, etc. is a
 	//       common thing. Using range headers for retries and getting integrity
@@ -60,7 +61,7 @@ func DownloadImage(url string) Downloader {
 		}
 		defer out.Close()
 
-		attempt := 0
+		attempt := 1
 		for {
 			// Move to start of file and truncate the file
 			_, err = out.Seek(0, 0)
@@ -77,7 +78,7 @@ func DownloadImage(url string) Downloader {
 			if err != nil {
 				goto retry
 			}
-			if 500 >= res.StatusCode && res.StatusCode < 600 {
+			if 500 <= res.StatusCode && res.StatusCode < 600 {
 				err = fmt.Errorf("Image download failed with status code: %d", res.StatusCode)
 				goto retry
 			}
@@ -97,7 +98,7 @@ func DownloadImage(url string) Downloader {
 				return nil
 			}
 		retry:
-			if attempt > maxRetries {
+			if attempt >= maxRetries {
 				return err
 			}
 			attempt++

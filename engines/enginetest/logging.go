@@ -19,6 +19,7 @@ type LoggingTestCase struct {
 
 func (c *LoggingTestCase) grepLogFromPayload(payload string, needle string, success bool) bool {
 	r := c.newRun()
+	defer r.Dispose()
 	r.NewSandboxBuilder(payload)
 	s := r.buildRunSandbox()
 	if s != success {
