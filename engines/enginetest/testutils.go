@@ -45,6 +45,9 @@ type EngineProvider struct {
 	Engine string
 	// Engine configuration as JSON
 	Config string
+	// Function to be called before using the engine, may return a function to be
+	// called after running the engine.
+	Setup func() func()
 }
 
 func (p *EngineProvider) ensureEngine() {
@@ -146,11 +149,17 @@ type run struct {
 	resultSet      engines.ResultSet
 	logReader      io.ReadCloser
 	closedLog      bool
+	cleanup        func()
 }
 
 func (p *EngineProvider) newRun() *run {
+	var cleanup func()
+	if p.Setup != nil {
+		cleanup = p.Setup()
+	}
 	p.ensureEngine()
 	r := run{}
+	r.cleanup = cleanup
 	r.provider = p
 	r.context, r.control = p.newTestTaskContext()
 	return &r
@@ -200,6 +209,13 @@ func (r *run) ReadLog() string {
 }
 
 func (r *run) Dispose() {
+	// Make sure to call whatever cleanup routine was returned from setup
+	defer func() {
+		if r.cleanup != nil {
+			r.cleanup()
+			r.cleanup = nil
+		}
+	}()
 	if r.sandboxBuilder != nil {
 		nilOrPanic(r.sandboxBuilder.Discard(), "")
 		r.sandboxBuilder = nil

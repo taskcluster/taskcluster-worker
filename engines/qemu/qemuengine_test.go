@@ -1,46 +1,74 @@
-// +build disabled
+// +build vagrant
 
 // Change the build tag to "vagrant"
 
 package qemuengine
 
-import "github.com/taskcluster/taskcluster-worker/engines/enginetest"
+import (
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+
+	"github.com/taskcluster/taskcluster-worker/engines/enginetest"
+)
+
+const testImageFile = "./image/tinycore-worker.tar.lz4"
+
+func makeTestServer() *httptest.Server {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		f, err := os.Open(testImageFile)
+		if err != nil {
+			fmtPanic("Unexpected error opening image file, err: ", err)
+		}
+		defer f.Close()
+		io.Copy(w, f)
+	})
+	return httptest.NewServer(handler)
+}
 
 var provider = enginetest.EngineProvider{
 	Engine: "qemu",
 	Config: `{
-    "maxConcurrency":   2,
-    "imageFolder":      "/tmp/images/",
-    "socketFolder":     "/tmp/"
+		"qemu": {
+			"maxConcurrency":   2,
+			"imageFolder":      "/tmp/images/",
+			"socketFolder":     "/tmp/"
+		}
   }`,
 }
 
-// TODO: Setup server hosting image on localhost
+func TestLogTarget(t *testing.T) {
+	s := makeTestServer()
+	defer s.Close()
 
-var loggingTestCase = enginetest.LoggingTestCase{
-	EngineProvider: provider,
-	Target:         "Hello World",
-	TargetPayload: `{
-    "start": {
-      "image": "http://...",
-      "command": ["sh", "-c", "echo 'hello world' && true"]
-    }
-  }`,
-	FailingPayload: `{
-    "start": {
-    "image": "http://...",
-    "command": ["sh", "-c", "echo 'hello world' && false"]
-    }
-  }`,
-	SilentPayload: `{
-    "start": {
-    "image": "http://...",
-    "command": ["sh", "-c", "echo 'no hello' && true"]
-    }
-  }`,
+	c := enginetest.LoggingTestCase{
+		EngineProvider: provider,
+		Target:         "Hello World",
+		TargetPayload: `{
+	    "start": {
+	      "image": "` + s.URL + `",
+	      "command": ["sh", "-c", "echo 'hello world' && true"]
+	    }
+	  }`,
+		FailingPayload: `{
+	    "start": {
+		    "image": "` + s.URL + `",
+		    "command": ["sh", "-c", "echo 'hello world' && false"]
+	    }
+	  }`,
+		SilentPayload: `{
+	    "start": {
+		    "image": "` + s.URL + `",
+		    "command": ["sh", "-c", "echo 'no hello' && true"]
+	    }
+	  }`,
+	}
+
+	c.TestLogTarget()
 }
-
-func TestLogTarget(t *t.T) { loggingTestCase.TestLogTarget() }
 
 //func TestLogTargetWhenFailing(t *t.T) { loggingTestCase.TestLogTargetWhenFailing() }
 //func TestSilentTask(t *t.T)           { loggingTestCase.TestSilentTask() }
