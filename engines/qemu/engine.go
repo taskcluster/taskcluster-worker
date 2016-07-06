@@ -24,10 +24,6 @@ type engineProvider struct {
 	extpoints.EngineProviderBase
 }
 
-func init() {
-	extpoints.EngineProviders.Register(engineProvider{}, "qemu")
-}
-
 func (p engineProvider) ConfigSchema() runtime.CompositeSchema {
 	return engineConfigSchema
 }

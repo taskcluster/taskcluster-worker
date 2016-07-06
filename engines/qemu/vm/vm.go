@@ -54,7 +54,7 @@ func NewVirtualMachine(
 		"-name", "qemu-guest",
 		// TODO: Add -enable-kvm (configurable so can be disabled in tests)
 		"-machine", arg("pc-i440fx-2.1", opts{
-			"accel": accelerator,
+			"accel": "kvm",
 			// TODO: Configure additional options")
 		}),
 		"-m", "512", // TODO: Make memory configurable

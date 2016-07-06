@@ -1,4 +1,4 @@
-// +build vagrant
+// +build qemu
 
 package network
 

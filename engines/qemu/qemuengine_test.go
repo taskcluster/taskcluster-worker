@@ -1,6 +1,4 @@
-// +build vagrant
-
-// Change the build tag to "vagrant"
+// +build qemu
 
 package qemuengine
 
