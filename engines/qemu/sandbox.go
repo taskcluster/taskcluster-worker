@@ -62,12 +62,12 @@ func newSandbox(
 func (s *sandbox) handleRequest(w http.ResponseWriter, r *http.Request) {
 	// Sanity checks and identifiation of name/hostname/virtualhost/folder
 	if r.URL.Path[0] != '/' {
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 	p := strings.SplitN(r.URL.Path[1:], "/", 2)
 	if len(p) != 2 {
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 	name, path := p[0], "/"+p[1]
@@ -75,10 +75,11 @@ func (s *sandbox) handleRequest(w http.ResponseWriter, r *http.Request) {
 	// If name is engine, we pass it to meta-data
 	if name == "engine" {
 		s.metaService.ServeHTTP(w, r)
+		return
 	}
 	h := s.proxies[name]
 	if h == nil {
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 	r.URL.Path = path

@@ -37,14 +37,14 @@ var provider = enginetest.EngineProvider{
 	Engine: "qemu",
 	Config: `{
 		"qemu": {
-			"maxConcurrency":   2,
+			"maxConcurrency":   6,
 			"imageFolder":      "/tmp/images/",
 			"socketFolder":     "/tmp/"
 		}
   }`,
 }
 
-func TestLogTarget(t *testing.T) {
+func TestLoggging(t *testing.T) {
 	s := makeTestServer()
 	defer func() {
 		s.CloseClientConnections()
@@ -53,17 +53,17 @@ func TestLogTarget(t *testing.T) {
 
 	c := enginetest.LoggingTestCase{
 		EngineProvider: provider,
-		Target:         "Hello World",
+		Target:         "hello-world",
 		TargetPayload: `{
 	    "start": {
 	      "image": "` + s.URL + `",
-	      "command": ["sh", "-c", "echo 'Hello World' && true"]
+	      "command": ["sh", "-c", "echo 'hello-world' && true"]
 	    }
 	  }`,
 		FailingPayload: `{
 	    "start": {
 		    "image": "` + s.URL + `",
-		    "command": ["sh", "-c", "echo 'hello world' && false"]
+		    "command": ["sh", "-c", "echo 'hello-world' && false"]
 	    }
 	  }`,
 		SilentPayload: `{
@@ -75,8 +75,7 @@ func TestLogTarget(t *testing.T) {
 	}
 
 	c.TestLogTarget()
+	c.TestLogTargetWhenFailing()
+	c.TestSilentTask()
+	c.Test()
 }
-
-//func TestLogTargetWhenFailing(t *t.T) { loggingTestCase.TestLogTargetWhenFailing() }
-//func TestSilentTask(t *t.T)           { loggingTestCase.TestSilentTask() }
-//func TestLoggingTestCase(t *t.T)      { loggingTestCase.Test() }
