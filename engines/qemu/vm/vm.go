@@ -230,10 +230,16 @@ func (vm *VirtualMachine) Start() {
 	vm.started = true
 	vm.m.Unlock()
 
+	// Start QEMU
+	vm.Error = vm.qemu.Start()
+	if vm.Error != nil {
+		close(vm.qemuDone)
+		return
+	}
+
 	// Start QEMU and wait for it to finish before closing Done
 	go func(vm *VirtualMachine) {
-		_, vm.Error = vm.qemu.Output()
-		// TODO: Consider using vm.qemu.Start() and vm.qemu.Wait()
+		vm.Error = vm.qemu.Wait()
 
 		// Release network and image
 		vm.m.Lock()

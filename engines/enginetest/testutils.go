@@ -221,7 +221,10 @@ func (r *run) Dispose() {
 		r.sandboxBuilder = nil
 	}
 	if r.sandbox != nil {
-		nilOrPanic(r.sandbox.Abort(), "")
+		err := r.sandbox.Abort()
+		if err != nil && err != engines.ErrSandboxTerminated {
+			fmtPanic("Sandbox.Abort() failed, error: ", err)
+		}
 		r.sandbox = nil
 	}
 	if r.resultSet != nil {
