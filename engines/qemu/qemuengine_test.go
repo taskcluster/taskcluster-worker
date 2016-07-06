@@ -5,7 +5,6 @@
 package qemuengine
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -22,7 +21,6 @@ const testImageFile = "./image/tinycore-worker.tar.lz4"
 // in our test cases.
 func makeTestServer() *httptest.Server {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf("Serving request, %+v\n", r)
 		w.WriteHeader(http.StatusOK)
 		f, err := os.Open(testImageFile)
 		if err != nil {
