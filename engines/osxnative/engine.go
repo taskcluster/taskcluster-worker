@@ -4,11 +4,12 @@
 package osxnative
 
 import (
+	"sync"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	"github.com/taskcluster/taskcluster-worker/runtime"
-	"sync"
 )
 
 type engine struct {
@@ -18,11 +19,6 @@ type engine struct {
 
 type engineProvider struct {
 	extpoints.EngineProviderBase
-}
-
-func init() {
-	// Register the mac engine as an import side-effect
-	extpoints.EngineProviders.Register(engineProvider{}, "macosx")
 }
 
 func (e engineProvider) NewEngine(options extpoints.EngineOptions) (engines.Engine, error) {

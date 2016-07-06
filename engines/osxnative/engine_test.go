@@ -1,8 +1,11 @@
+// +build darwin
+
 package osxnative
 
 import (
-	"github.com/taskcluster/taskcluster-worker/engines/enginetest"
 	t "testing"
+
+	"github.com/taskcluster/taskcluster-worker/engines/enginetest"
 )
 
 var provider = enginetest.EngineProvider{
