@@ -70,7 +70,7 @@ func (n *UserNetwork) dispatchRequest(w http.ResponseWriter, r *http.Request) {
 	if handler != nil {
 		handler.ServeHTTP(w, r)
 	} else {
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 	}
 }
 

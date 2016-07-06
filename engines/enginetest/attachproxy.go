@@ -68,7 +68,7 @@ func (c *ProxyTestCase) TestPing404IsUnsuccessful() {
 	) {
 		pinged = true
 		pingPath = r.URL.Path
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("Yay, you managed to ping the end-point, secret=42!!!"))
 	}))
 	nilOrPanic(err, "Error failed to AttachProxy")
