@@ -38,6 +38,10 @@
 			"Rev": "f6a740d52f961c60348ebb109adde9f4635d7540"
 		},
 		{
+			"ImportPath": "github.com/gedex/inflector",
+			"Rev": "91797f1712fd58f224781be1080b8613d096187e"
+		},
+		{
 			"ImportPath": "github.com/getsentry/raven-go",
 			"Rev": "dffeb57df75d6a911f00232155194e43d79d38d7"
 		},
