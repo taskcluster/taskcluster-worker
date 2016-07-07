@@ -40,6 +40,7 @@ func assert(condition bool, a ...interface{}) {
 type EngineProvider struct {
 	m           sync.Mutex
 	engine      engines.Engine
+	refCount    int
 	environment *runtime.Environment
 	// Name of engine
 	Engine string
@@ -53,6 +54,7 @@ type EngineProvider struct {
 func (p *EngineProvider) ensureEngine() {
 	p.m.Lock()
 	defer p.m.Unlock()
+	p.refCount++
 	if p.engine != nil {
 		return
 	}
@@ -78,6 +80,25 @@ func (p *EngineProvider) ensureEngine() {
 	})
 	nilOrPanic(err, "Failed to create Engine")
 	p.engine = engine
+}
+
+func (p *EngineProvider) releaseEngine() {
+	p.m.Lock()
+	defer p.m.Unlock()
+
+	if p.engine == nil {
+		fmtPanic("releaseEngine() but we don't have an active engine")
+	}
+	if p.refCount <= 0 {
+		fmtPanic("releaseEngine() but refCount <= 0")
+	}
+	p.refCount--
+	if p.refCount <= 0 {
+		err := p.engine.Dispose()
+		nilOrPanic(err, "engine.Dispose(), error: ")
+		p.refCount = 0
+		p.engine = nil
+	}
 }
 
 func (p *EngineProvider) newTestTaskContext() (*runtime.TaskContext, *runtime.TaskContextController) {
@@ -211,6 +232,11 @@ func (r *run) ReadLog() string {
 func (r *run) Dispose() {
 	// Make sure to call whatever cleanup routine was returned from setup
 	defer func() {
+		if r.provider != nil {
+			r.provider.releaseEngine()
+			r.provider = nil
+		}
+
 		if r.cleanup != nil {
 			r.cleanup()
 			r.cleanup = nil

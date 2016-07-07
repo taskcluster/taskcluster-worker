@@ -30,6 +30,7 @@ type sandbox struct {
 // newSandbox will create a new sandbox and start it.
 func newSandbox(
 	command []string,
+	env map[string]string,
 	proxies map[string]http.Handler,
 	image *image.Instance,
 	network *network.Network,
@@ -45,7 +46,7 @@ func newSandbox(
 	}
 
 	// Setup meta-data service
-	s.metaService = metaservice.New(command, make(map[string]string), c.LogDrain(), s.result)
+	s.metaService = metaservice.New(command, env, c.LogDrain(), s.result)
 
 	// Setup network handler
 	s.vm.SetHTTPHandler(http.HandlerFunc(s.handleRequest))

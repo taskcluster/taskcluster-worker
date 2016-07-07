@@ -90,3 +90,9 @@ func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sand
 	// Create sandboxBuilder, it'll handle image downloading
 	return newSandboxBuilder(p, net, options.TaskContext, e), nil
 }
+
+func (e *engine) Dispose() error {
+	err := e.networkPool.Dispose()
+	e.networkPool = nil
+	return err
+}

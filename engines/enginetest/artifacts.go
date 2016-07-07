@@ -147,7 +147,6 @@ func (c *ArtifactTestCase) TestExtractFolderHandlerInterrupt() {
 
 // Test runs all test cases in parallel
 func (c *ArtifactTestCase) Test() {
-	c.ensureEngine()
 	wg := sync.WaitGroup{}
 	wg.Add(5)
 	go func() { c.TestExtractTextFile(); wg.Done() }()

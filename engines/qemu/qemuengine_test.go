@@ -3,6 +3,7 @@
 package qemuengine
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -44,7 +45,7 @@ var provider = enginetest.EngineProvider{
   }`,
 }
 
-func TestLoggging(t *testing.T) {
+func TestLogging(t *testing.T) {
 	s := makeTestServer()
 	defer func() {
 		s.CloseClientConnections()
@@ -77,5 +78,36 @@ func TestLoggging(t *testing.T) {
 	c.TestLogTarget()
 	c.TestLogTargetWhenFailing()
 	c.TestSilentTask()
+	c.Test()
+}
+
+func TestEnvironmentVarialbes(t *testing.T) {
+	s := makeTestServer()
+	defer func() {
+		s.CloseClientConnections()
+		s.Close()
+	}()
+
+	c := enginetest.EnvVarTestCase{
+		EngineProvider: provider,
+		VariableName:   "TEST_ENV_VAR",
+		InvalidVariableNames: []string{
+			"#=#",
+		},
+		Payload: `{
+	    "start": {
+	      "image": "` + s.URL + `",
+	      "command": ["sh", "-c", "echo $TEST_ENV_VAR && true"]
+	    }
+	  }`,
+	}
+
+	fmt.Println("TestPrintVariable")
+	c.TestPrintVariable()
+	fmt.Println("TestVariableNameConflict")
+	c.TestVariableNameConflict()
+	fmt.Println("TestInvalidVariableNames")
+	c.TestInvalidVariableNames()
+	fmt.Println("Test")
 	c.Test()
 }

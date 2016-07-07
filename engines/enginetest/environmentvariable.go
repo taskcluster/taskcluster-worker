@@ -57,7 +57,6 @@ func (c *EnvVarTestCase) TestInvalidVariableNames() {
 
 // Test runs all tests in parallel
 func (c *EnvVarTestCase) Test() {
-	c.ensureEngine()
 	wg := sync.WaitGroup{}
 	wg.Add(3)
 	go func() { c.TestPrintVariable(); wg.Done() }()

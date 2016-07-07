@@ -51,7 +51,6 @@ func (c *LoggingTestCase) TestSilentTask() {
 
 // Test will run all logging tests
 func (c *LoggingTestCase) Test() {
-	c.ensureEngine()
 	wg := sync.WaitGroup{}
 	wg.Add(3)
 	go func() { c.TestLogTarget(); wg.Done() }()

@@ -85,6 +85,16 @@ type Engine interface {
 	//
 	// Non-fatal errors: ErrFeatureNotSupported
 	NewMemoryDisk() (Volume, error)
+
+	// Dispose cleans up any resources held by the engine. The engine object
+	// cannot be used after Dispose() has been called.
+	//
+	// This method need not be thread-safe! And may NOT be called before all
+	// SandboxBuilders, Sandboxes and ResultSets have been disposed.
+	//
+	// This is mostly useful for cleanup after tests, as we won't switch between
+	// engines in production.
+	Dispose() error
 }
 
 // The Capabilities structure defines the set of features supported by an engine.
@@ -145,4 +155,9 @@ func (EngineBase) NewCacheFolder() (Volume, error) {
 // isn't supported.
 func (EngineBase) NewMemoryDisk() (Volume, error) {
 	return nil, ErrFeatureNotSupported
+}
+
+// Dispose trivially implements cleanup by doing nothing.
+func (EngineBase) Dispose() error {
+	return nil
 }

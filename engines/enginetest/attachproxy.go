@@ -143,7 +143,6 @@ func (c *ProxyTestCase) TestParallelPings() {
 
 // Test runs all tests for the ProxyTestCase is parallel
 func (c *ProxyTestCase) Test() {
-	c.ensureEngine()
 	wg := sync.WaitGroup{}
 	wg.Add(4)
 	go func() { c.TestPingProxyPayload(); wg.Done() }()

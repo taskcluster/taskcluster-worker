@@ -21,6 +21,7 @@ type sandboxBuilder struct {
 	imageError error
 	imageDone  <-chan struct{}
 	proxies    map[string]http.Handler
+	env        map[string]string
 	context    *runtime.TaskContext
 	engine     *engine
 }
@@ -34,6 +35,7 @@ func newSandboxBuilder(payload *qemuPayload, network *network.Network, c *runtim
 		command:   payload.Command,
 		imageDone: imageDone,
 		proxies:   make(map[string]http.Handler),
+		env:       make(map[string]string),
 		context:   c,
 		engine:    e,
 	}
@@ -85,6 +87,31 @@ func (sb *sandboxBuilder) AttachProxy(hostname string, handler http.Handler) err
 	return nil
 }
 
+// envVarPattern defines allowed environment variable names
+var envVarPattern = regexp.MustCompile("^[a-zA-Z_][a-zA-Z0-9_]*$")
+
+func (sb *sandboxBuilder) SetEnvironmentVariable(name, value string) error {
+	// Simple sanity check of environment variable names
+	if !envVarPattern.MatchString(name) {
+		return engines.NewMalformedPayloadError("Environment variable name: '",
+			name, "' is not allowed for QEMU engine. Environment variable names",
+			" must be on the form: ", envVarPattern.String())
+	}
+
+	// Acquire the lock
+	sb.m.Lock()
+	defer sb.m.Unlock()
+
+	// Check if the name is already used
+	if _, ok := sb.env[name]; ok {
+		return engines.ErrNamingConflict
+	}
+
+	// Set the env var
+	sb.env[name] = value
+	return nil
+}
+
 func (sb *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
 	// Wait for the image downloading to be done
 	<-sb.imageDone
@@ -111,7 +138,7 @@ func (sb *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
 	defer sb.m.Unlock()
 
 	// Create a sandbox
-	s := newSandbox(sb.command, sb.proxies, sb.image, sb.network, sb.context, sb.engine)
+	s := newSandbox(sb.command, sb.env, sb.proxies, sb.image, sb.network, sb.context, sb.engine)
 	sb.network = nil
 	sb.image = nil
 
