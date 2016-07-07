@@ -6,15 +6,19 @@ import "github.com/taskcluster/taskcluster-worker/runtime"
 
 type (
 	// Manager for volumes mounted into task environments
-	payload struct {
-		Persistent []struct {
+	payload []struct {
 
-			// Path to mount volume into task environment
-			MountPoint string `json:"mountPoint"`
+		// Path to mount volume into task environment
+		MountPoint string `json:"mountPoint"`
 
-			// Identifier for the persisent volume to be reused between tasks.
-			Name string `json:"name"`
-		} `json:"persistent,omitempty"`
+		// Identifier for the persisent volume to be reused between tasks.
+		Name string `json:"name,omitempty"`
+
+		// Type of volume to request from the engine
+		//
+		// Possible values:
+		//   * "persistent"
+		Type string `json:"type"`
 	}
 )
 
@@ -26,32 +30,35 @@ var payloadSchema = func() runtime.CompositeSchema {
 		  "$schema": "http://json-schema.org/draft-04/schema#",
 		  "addtionalProperies": false,
 		  "description": "Manager for volumes mounted into task environments",
-		  "properties": {
-		    "persistent": {
-		      "items": {
-		        "properties": {
-		          "mountPoint": {
-		            "description": "Path to mount volume into task environment",
-		            "title": "Mount Point",
-		            "type": "string"
-		          },
-		          "name": {
-		            "description": "Identifier for the persisent volume to be reused between tasks.",
-		            "title": "Volume Name",
-		            "type": "string"
-		          }
-		        },
-		        "required": [
-		          "mountPoint",
-		          "name"
-		        ],
-		        "type": "object"
+		  "items": {
+		    "properties": {
+		      "mountPoint": {
+		        "description": "Path to mount volume into task environment",
+		        "title": "Mount Point",
+		        "type": "string"
 		      },
-		      "type": "array"
-		    }
+		      "name": {
+		        "description": "Identifier for the persisent volume to be reused between tasks.",
+		        "title": "Volume Name",
+		        "type": "string"
+		      },
+		      "type": {
+		        "description": "Type of volume to request from the engine",
+		        "enum": [
+		          "persistent"
+		        ],
+		        "title": "Volume Type",
+		        "type": "string"
+		      }
+		    },
+		    "required": [
+		      "type",
+		      "mountPoint"
+		    ],
+		    "type": "object"
 		  },
 		  "title": "payload",
-		  "type": "object"
+		  "type": "array"
 		}
 		`,
 		false,
