@@ -8,7 +8,8 @@ export PATH := $(GOPATH)/bin:$(PATH)
 
 all: build
 build:
-	go fmt ./...
+	go fmt $$(go list ./... | grep -v /vendor/)
+	go install $$(go list ./... | grep -v /vendor/)
 
 generate:
 	# these three tools are needed for go generate steps later...
@@ -34,4 +35,4 @@ test:
 	go list ./... | grep -v /vendor/ | xargs -n1 golint
 
 dev-test:
-	go test -race ./...
+	go test -race $$(go list ./... | grep -v /vendor/)
