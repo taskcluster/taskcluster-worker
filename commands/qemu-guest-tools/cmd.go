@@ -5,6 +5,8 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
+var debug = runtime.Debug("guesttools")
+
 func init() {
 	extpoints.CommandProviders.Register(cmd{}, "qemu-guest-tools")
 }

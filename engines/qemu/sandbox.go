@@ -52,6 +52,7 @@ func newSandbox(
 	s.vm.SetHTTPHandler(http.HandlerFunc(s.handleRequest))
 
 	// Start the VM
+	debug("Starting virtual machine")
 	s.vm.Start()
 
 	// Resolve when VM is closed

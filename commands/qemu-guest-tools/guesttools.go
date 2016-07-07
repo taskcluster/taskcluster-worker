@@ -9,10 +9,12 @@ import (
 	"os/exec"
 	"time"
 
+	"gopkg.in/djherbis/buffer.v1"
+	"gopkg.in/djherbis/nio.v2"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/go-got"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
-	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
 type guestTools struct {
@@ -102,7 +104,7 @@ func (g *guestTools) Run() {
 }
 
 func (g *guestTools) createTaskLog() io.WriteCloser {
-	reader, writer := io.Pipe()
+	reader, writer := nio.Pipe(buffer.New(5))
 	req, err := http.NewRequest("POST", g.baseURL+"engine/v1/log", reader)
 	if err != nil {
 		g.log.Panic("Failed to create request for log, error: ", err)
@@ -119,7 +121,7 @@ func (g *guestTools) createTaskLog() io.WriteCloser {
 		}
 	}()
 
-	return ioext.NewBufferedWriteCloser(writer, 8*1024*1024)
+	return writer
 }
 
 func (g *guestTools) startInteractiveRequests() {

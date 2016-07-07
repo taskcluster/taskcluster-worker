@@ -41,7 +41,9 @@ func newSandboxBuilder(payload *qemuPayload, network *network.Network, c *runtim
 	}
 	// Start downloading and extracting the image
 	go func() {
+		debug("downloading image: %s (if not already present)", payload.Image)
 		inst, err := e.imageManager.Instance("URL:"+payload.Image, image.DownloadImage(payload.Image))
+		debug("downloaded image: %s", payload.Image)
 		sb.m.Lock()
 		// if already discarded then we don't set the image... instead we release it
 		// immediately. We don't want to risk leaking an image and run out of

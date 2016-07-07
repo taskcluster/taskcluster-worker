@@ -5,3 +5,7 @@
 // This is how the command and environment variables enter the virtual machine.
 // It is also the services that the guest uses to report logs and final result.
 package metaservice
+
+import "github.com/taskcluster/taskcluster-worker/runtime"
+
+var debug = runtime.Debug("metaservice")

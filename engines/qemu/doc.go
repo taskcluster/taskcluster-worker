@@ -7,3 +7,7 @@
 // This is tested against Debian Jessie 64bit, should probably work with most
 // other systems.
 package qemuengine
+
+import "github.com/taskcluster/taskcluster-worker/runtime"
+
+var debug = runtime.Debug("qemu")

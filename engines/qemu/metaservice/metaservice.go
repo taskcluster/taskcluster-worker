@@ -84,6 +84,7 @@ func (s *MetaService) handleExecute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	debug("GET /engine/v1/execute")
 	reply(w, http.StatusOK, Execute{
 		Command: s.command,
 		Env:     s.env,
@@ -96,6 +97,7 @@ func (s *MetaService) handleLog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	debug("POST /engine/v1/log")
 	_, err := io.Copy(s.logDrain, r.Body)
 	if err != nil {
 		reply(w, http.StatusInternalServerError, Error{
@@ -123,6 +125,7 @@ func (s *MetaService) handleSuccess(w http.ResponseWriter, r *http.Request) {
 	s.resolved = true
 	s.m.Unlock()
 
+	debug("PUT /engine/v1/success")
 	if s.result {
 		if !resolved && s.resultCallback != nil {
 			s.resultCallback(true)
@@ -151,6 +154,7 @@ func (s *MetaService) handleFailed(w http.ResponseWriter, r *http.Request) {
 	s.resolved = true
 	s.m.Unlock()
 
+	debug("PUT /engine/v1/failed")
 	if !s.result {
 		if !resolved && s.resultCallback != nil {
 			s.resultCallback(false)
@@ -166,6 +170,7 @@ func (s *MetaService) handleFailed(w http.ResponseWriter, r *http.Request) {
 
 // handleUnknown handles unhandled requests
 func (s *MetaService) handleUnknown(w http.ResponseWriter, r *http.Request) {
+	debug("Unhandled request: %+v", r)
 	reply(w, http.StatusNotFound, Error{
 		Code:    ErrorCodeNoSuchEndPoint,
 		Message: "Unknown meta-data API end-point",

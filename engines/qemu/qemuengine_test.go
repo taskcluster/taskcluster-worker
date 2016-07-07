@@ -3,7 +3,6 @@
 package qemuengine
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -81,7 +80,7 @@ func TestLogging(t *testing.T) {
 	c.Test()
 }
 
-func TestEnvironmentVarialbes(t *testing.T) {
+func TestEnvironmentVariables(t *testing.T) {
 	s := makeTestServer()
 	defer func() {
 		s.CloseClientConnections()
@@ -102,12 +101,34 @@ func TestEnvironmentVarialbes(t *testing.T) {
 	  }`,
 	}
 
-	fmt.Println("TestPrintVariable")
 	c.TestPrintVariable()
-	fmt.Println("TestVariableNameConflict")
 	c.TestVariableNameConflict()
-	fmt.Println("TestInvalidVariableNames")
 	c.TestInvalidVariableNames()
-	fmt.Println("Test")
+	c.Test()
+}
+
+func TestAttachProxy(t *testing.T) {
+	s := makeTestServer()
+	defer func() {
+		s.CloseClientConnections()
+		s.Close()
+	}()
+
+	c := enginetest.ProxyTestCase{
+		EngineProvider: provider,
+		ProxyName:      "test-proxy",
+		PingProxyPayload: `{
+			"start": {
+				"image": "` + s.URL + `",
+				"command": ["sh", "-ec", "echo -e 'Pinging\\n\\n'; STATUS=$(curl -s -o /tmp/output -w '%{http_code}' http://taskcluster/test-proxy/v1/ping); cat /tmp/output; test $STATUS -eq 200;"]
+			}
+		}`,
+	}
+	c.TestLiveLogging()
+
+	c.TestPingProxyPayload()
+	c.TestPing404IsUnsuccessful()
+
+	c.TestParallelPings()
 	c.Test()
 }
