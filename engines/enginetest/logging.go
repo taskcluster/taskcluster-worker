@@ -18,10 +18,14 @@ type LoggingTestCase struct {
 }
 
 func (c *LoggingTestCase) grepLogFromPayload(payload string, needle string, success bool) bool {
+	debug(" - New run")
 	r := c.newRun()
 	defer r.Dispose()
+	debug(" - New sandbox builder")
 	r.NewSandboxBuilder(payload)
+	debug(" - Build and run")
 	s := r.buildRunSandbox()
+	debug(" - Result: %v", s)
 	if s != success {
 		fmtPanic("Task with payload: ", payload, " had ResultSet.Success(): ", s)
 	}
@@ -30,6 +34,7 @@ func (c *LoggingTestCase) grepLogFromPayload(payload string, needle string, succ
 
 // TestLogTarget check that Target is logged by TargetPayload
 func (c *LoggingTestCase) TestLogTarget() {
+	debug("## TestLogTarget")
 	if !c.grepLogFromPayload(c.TargetPayload, c.Target, true) {
 		fmtPanic("Couldn't find target: ", c.Target, " in logs from TargetPayload")
 	}
@@ -37,6 +42,7 @@ func (c *LoggingTestCase) TestLogTarget() {
 
 // TestLogTargetWhenFailing check that Target is logged by FailingPayload
 func (c *LoggingTestCase) TestLogTargetWhenFailing() {
+	debug("## TestLogTargetWhenFailing")
 	if !c.grepLogFromPayload(c.FailingPayload, c.Target, false) {
 		fmtPanic("Couldn't find target: ", c.Target, " in logs from FailingPayload")
 	}
@@ -44,6 +50,7 @@ func (c *LoggingTestCase) TestLogTargetWhenFailing() {
 
 // TestSilentTask checks that Target isn't logged by SilentPayload
 func (c *LoggingTestCase) TestSilentTask() {
+	debug("## TestSilentTask")
 	if c.grepLogFromPayload(c.SilentPayload, c.Target, true) {
 		fmtPanic("Found target: ", c.Target, " in logs from SilentPayload")
 	}

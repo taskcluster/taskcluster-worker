@@ -11,3 +11,7 @@
 // machine attached to a TAP device can't contact the meta-data handler of
 // another virtual machine.
 package network
+
+import "github.com/taskcluster/taskcluster-worker/runtime"
+
+var debug = runtime.Debug("network")

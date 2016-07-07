@@ -272,7 +272,7 @@ func (p *Pool) Dispose() error {
 	}
 
 	// Gracefully stop the server
-	p.server.Stop(30 * time.Second)
+	p.server.Stop(500 * time.Millisecond)
 	<-p.serverDone
 
 	// Kills dnsmasq
