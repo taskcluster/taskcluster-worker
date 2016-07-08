@@ -145,7 +145,6 @@ func (c *ShellTestCase) TestAbortSleepCommand() {
 
 // Test runs all tests in parallel
 func (c *ShellTestCase) Test() {
-	c.ensureEngine()
 	wg := sync.WaitGroup{}
 	wg.Add(3)
 	go func() { c.TestCommand(); wg.Done() }()

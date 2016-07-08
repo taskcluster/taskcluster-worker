@@ -17,12 +17,26 @@
 			"Rev": "cdf48bbc1eb78d1349cbda326a4a037f7ba565c6"
 		},
 		{
+			"ImportPath": "github.com/cespare/cp",
+			"Rev": "165db2f241fd235aec29ba6d9b1ccd5f1c14637c"
+		},
+		{
 			"ImportPath": "github.com/cloudfoundry-incubator/candiedyaml",
 			"Rev": "99c3df83b51532e3615f851d8c2dbb638f5313bf"
 		},
 		{
 			"ImportPath": "github.com/davecgh/go-spew/spew",
 			"Rev": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
+		},
+		{
+			"ImportPath": "github.com/djherbis/buffer/limio",
+			"Comment": "v1.0.0-1-g20781a7",
+			"Rev": "20781a7a890a71d6061b5b45b6bcf5311bbd9118"
+		},
+		{
+			"ImportPath": "github.com/djherbis/buffer/wrapio",
+			"Comment": "v1.0.0-1-g20781a7",
+			"Rev": "20781a7a890a71d6061b5b45b6bcf5311bbd9118"
 		},
 		{
 			"ImportPath": "github.com/docopt/docopt-go",
@@ -46,6 +60,30 @@
 			"Rev": "aa0c862057666179de291b67d9f093d12b5a8473"
 		},
 		{
+			"ImportPath": "github.com/golang/lint",
+			"Rev": "c7bacac2b21ca01afa1dee0acf64df3ce047c28f"
+		},
+		{
+			"ImportPath": "github.com/golang/lint/golint",
+			"Rev": "c7bacac2b21ca01afa1dee0acf64df3ce047c28f"
+		},
+		{
+			"ImportPath": "github.com/jonasfj/go-import-subtree",
+			"Rev": "6f76e76b5ae8291ce7b1e38c6e626ba03236bd0f"
+		},
+		{
+			"ImportPath": "github.com/jonasfj/go-import-subtree/example",
+			"Rev": "6f76e76b5ae8291ce7b1e38c6e626ba03236bd0f"
+		},
+		{
+			"ImportPath": "github.com/jonasfj/go-import-subtree/example/extpoints",
+			"Rev": "6f76e76b5ae8291ce7b1e38c6e626ba03236bd0f"
+		},
+		{
+			"ImportPath": "github.com/jonasfj/go-import-subtree/example/plugins/hello",
+			"Rev": "6f76e76b5ae8291ce7b1e38c6e626ba03236bd0f"
+		},
+		{
 			"ImportPath": "github.com/kr/text",
 			"Rev": "7cafcd837844e784b526369c9bce262804aebc60"
 		},
@@ -57,6 +95,41 @@
 		{
 			"ImportPath": "github.com/pmezard/go-difflib/difflib",
 			"Rev": "792786c7400a136282c1664665ae0a8db921c6c2"
+		},
+		{
+			"ImportPath": "github.com/progrium/go-extpoints",
+			"Comment": "go-plugins-43-g529a176",
+			"Rev": "529a176f52394e48e8882dd70a01732f1bb480f3"
+		},
+		{
+			"ImportPath": "github.com/progrium/go-extpoints/examples/extensions/tool-example",
+			"Comment": "go-plugins-43-g529a176",
+			"Rev": "529a176f52394e48e8882dd70a01732f1bb480f3"
+		},
+		{
+			"ImportPath": "github.com/progrium/go-extpoints/examples/tool",
+			"Comment": "go-plugins-43-g529a176",
+			"Rev": "529a176f52394e48e8882dd70a01732f1bb480f3"
+		},
+		{
+			"ImportPath": "github.com/progrium/go-extpoints/examples/tool/extpoints",
+			"Comment": "go-plugins-43-g529a176",
+			"Rev": "529a176f52394e48e8882dd70a01732f1bb480f3"
+		},
+		{
+			"ImportPath": "github.com/progrium/go-extpoints/examples/tool/types",
+			"Comment": "go-plugins-43-g529a176",
+			"Rev": "529a176f52394e48e8882dd70a01732f1bb480f3"
+		},
+		{
+			"ImportPath": "github.com/progrium/go-extpoints/tests",
+			"Comment": "go-plugins-43-g529a176",
+			"Rev": "529a176f52394e48e8882dd70a01732f1bb480f3"
+		},
+		{
+			"ImportPath": "github.com/progrium/go-extpoints/tests/extpoints",
+			"Comment": "go-plugins-43-g529a176",
+			"Rev": "529a176f52394e48e8882dd70a01732f1bb480f3"
 		},
 		{
 			"ImportPath": "github.com/stretchr/objx",
@@ -127,16 +200,34 @@
 			"Rev": "c539bca196be50ccdd1f0bcd9076de95f9081831"
 		},
 		{
+			"ImportPath": "golang.org/x/net/netutil",
+			"Rev": "ef00b378c73f107bf44d5c9b69875255ce89b79a"
+		},
+		{
 			"ImportPath": "golang.org/x/sys/unix",
 			"Rev": "d4feaf1a7e61e1d9e79e6c4e76c6349e9cab0a03"
 		},
 		{
 			"ImportPath": "golang.org/x/tools/go/ast/astutil",
-			"Rev": "1727758746e7a08feaaceb9366d1468498ac2ac2"
+			"Rev": "527b253f588776e5f72a0a0d1e93195cd3f82707"
+		},
+		{
+			"ImportPath": "golang.org/x/tools/go/gcimporter15",
+			"Rev": "527b253f588776e5f72a0a0d1e93195cd3f82707"
 		},
 		{
 			"ImportPath": "golang.org/x/tools/imports",
-			"Rev": "1727758746e7a08feaaceb9366d1468498ac2ac2"
+			"Rev": "527b253f588776e5f72a0a0d1e93195cd3f82707"
+		},
+		{
+			"ImportPath": "gopkg.in/djherbis/buffer.v1",
+			"Comment": "v1.0.0",
+			"Rev": "c8b7051e392cf78efc6f82f20ff71e89f20e0ea3"
+		},
+		{
+			"ImportPath": "gopkg.in/djherbis/nio.v2",
+			"Comment": "v2.0.0",
+			"Rev": "10a4f7449e60dc995db3f6f781666894851762bd"
 		},
 		{
 			"ImportPath": "gopkg.in/djherbis/stream.v1",
@@ -144,19 +235,9 @@
 			"Rev": "26a761059928627ca84837000dfb33447c66a146"
 		},
 		{
-			"ImportPath": "github.com/stretchr/testify/vendor/github.com/davecgh/go-spew/spew",
-			"Comment": "v1.1.3-19-gd77da35",
-			"Rev": "d77da356e56a7428ad25149ca77381849a6a5232"
-		},
-		{
-			"ImportPath": "github.com/stretchr/testify/vendor/github.com/pmezard/go-difflib/difflib",
-			"Comment": "v1.1.3-19-gd77da35",
-			"Rev": "d77da356e56a7428ad25149ca77381849a6a5232"
-		},
-		{
-			"ImportPath": "github.com/stretchr/testify/vendor/github.com/stretchr/objx",
-			"Comment": "v1.1.3-19-gd77da35",
-			"Rev": "d77da356e56a7428ad25149ca77381849a6a5232"
+			"ImportPath": "gopkg.in/tylerb/graceful.v1",
+			"Comment": "v1.2.5",
+			"Rev": "9a3d4236b03bb5d26f7951134d248f9d5510d599"
 		}
 	]
 }

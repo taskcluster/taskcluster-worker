@@ -1,15 +1,18 @@
+// +build darwin
+
 package osxnative
 
 import (
 	"errors"
 	"fmt"
-	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/runtime"
-	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
 type testCase struct {

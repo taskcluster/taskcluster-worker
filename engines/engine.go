@@ -24,10 +24,11 @@ type SandboxOptions struct {
 //
 // While we do not intend to use multiple engines at the same time, implementors
 // must design engines to support running multiple sandboxes in parallel. If
-// the engine can't run multiple sandboxes in parallel, it should return set
-// IsSingletonEngine to false in its FeatureSet(). Additionally, it must return
-// ErrEngineIsSingleton if a second sandbox is created, before the previous
-// sandbox is disposed.
+// the engine can't run an unbounded number of sandboxes in parallel, it should
+// return set MaxConcurrency to non-zero in its Capabilities(). Additionally,
+// it must return ErrMaxConcurrencyExceeded if a sandbox is creation would
+// violate it's declared MaxConcurrency. Obviously, when a sandbox is disposed
+// it should be possible call NewSandboxBuilder() again.
 //
 // Obviously not all engines are available on all platforms and not all features
 // can be implemented on all platforms. See individual methods to see which are
@@ -69,7 +70,7 @@ type Engine interface {
 	// SandboxOptions and return a MalformedPayloadError error if the payload
 	// is invalid.
 	//
-	// Non-fatal errors: MalformedPayloadError, ErrEngineIsSingleton.
+	// Non-fatal errors: MalformedPayloadError, ErrMaxConcurrencyExceeded.
 	NewSandboxBuilder(options SandboxOptions) (SandboxBuilder, error)
 
 	// NewCacheFolder returns a new Volume backed by a file system folder
@@ -84,6 +85,16 @@ type Engine interface {
 	//
 	// Non-fatal errors: ErrFeatureNotSupported
 	NewMemoryDisk() (Volume, error)
+
+	// Dispose cleans up any resources held by the engine. The engine object
+	// cannot be used after Dispose() has been called.
+	//
+	// This method need not be thread-safe! And may NOT be called before all
+	// SandboxBuilders, Sandboxes and ResultSets have been disposed.
+	//
+	// This is mostly useful for cleanup after tests, as we won't switch between
+	// engines in production.
+	Dispose() error
 }
 
 // The Capabilities structure defines the set of features supported by an engine.
@@ -105,7 +116,6 @@ type Capabilities struct {
 	MaxConcurrency int
 	// Note: the zero value of Capabilities should always indicate the sane
 	// defaults, typically that a feature isn't supported.
-	// (IsSingletonEngine is an excellent example of a valid exception)
 }
 
 // EngineBase is a base implemenation of Engine. It will implement all optional
@@ -145,4 +155,9 @@ func (EngineBase) NewCacheFolder() (Volume, error) {
 // isn't supported.
 func (EngineBase) NewMemoryDisk() (Volume, error) {
 	return nil, ErrFeatureNotSupported
+}
+
+// Dispose trivially implements cleanup by doing nothing.
+func (EngineBase) Dispose() error {
+	return nil
 }

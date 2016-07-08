@@ -20,17 +20,22 @@ type EnvVarTestCase struct {
 
 // TestPrintVariable checks that variable value can be printed
 func (c *EnvVarTestCase) TestPrintVariable() {
+	debug("## TestPrintVariable")
 	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
 	err := r.sandboxBuilder.SetEnvironmentVariable(c.VariableName, "Hello World")
 	nilOrPanic(err, "SetEnvironmentVariable failed")
-	assert(r.buildRunSandbox(), "Payload exited unsuccessfully")
+	debug(" - Build and run")
+	s := r.buildRunSandbox()
+	debug(" - Result: %v", s)
+	assert(s, "Payload exited unsuccessfully")
 	assert(r.GrepLog("Hello World"), "Didn't find variable value in log")
 }
 
 // TestVariableNameConflict checks that variable name can't conflict
 func (c *EnvVarTestCase) TestVariableNameConflict() {
+	debug("## TestVariableNameConflict")
 	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
@@ -44,6 +49,7 @@ func (c *EnvVarTestCase) TestVariableNameConflict() {
 
 // TestInvalidVariableNames checks that invalid variables returns correct error
 func (c *EnvVarTestCase) TestInvalidVariableNames() {
+	debug("## TestInvalidVariableNames")
 	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
@@ -57,7 +63,6 @@ func (c *EnvVarTestCase) TestInvalidVariableNames() {
 
 // Test runs all tests in parallel
 func (c *EnvVarTestCase) Test() {
-	c.ensureEngine()
 	wg := sync.WaitGroup{}
 	wg.Add(3)
 	go func() { c.TestPrintVariable(); wg.Done() }()

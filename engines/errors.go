@@ -25,6 +25,10 @@ var ErrMutableMountNotSupported = errors.New("The engine doesn't support mutable
 // supported, but immutable mounts aren't supported.
 var ErrImmutableMountNotSupported = errors.New("The engine doesn't support immutable volume attachements")
 
+// ErrSandboxBuilderDiscarded is returned when a SandboxBuilder was discarded
+// while StartSandbox() was in the process of starting the sandbox.
+var ErrSandboxBuilderDiscarded = errors.New("The SandboxBuilder was discarded while StartSandbox() was running")
+
 // ErrResourceNotFound is returned when trying to extract a file or folder that
 // doesn't exist.
 var ErrResourceNotFound = errors.New("The referenced resource wasn't found")
@@ -59,9 +63,10 @@ var ErrNonFatalInternalError = errors.New("Engine encountered a non-fatal intern
 // violated.
 var ErrContractViolation = errors.New("Engine has detected a contract violation")
 
-// ErrEngineIsSingleton is returned when attempts to start multiple sandboxes of
-// a singleton engine.
-var ErrEngineIsSingleton = errors.New("Engine cannot run multiple sandboxes in parallel")
+// ErrMaxConcurrencyExceeded is returned when the engine has limitation on how
+// many sandboxes it can run in parallel and this limit is violated.
+var ErrMaxConcurrencyExceeded = errors.New("Engine is cannot run more than " +
+	"Engine.Capabilities().MaxCurrency sandbox in parallel")
 
 // ErrEngineNotSupported is used to indicate that the engine isn't supported in
 // the current configuration.

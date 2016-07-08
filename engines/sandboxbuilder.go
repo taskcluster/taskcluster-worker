@@ -46,7 +46,10 @@ type SandboxBuilder interface {
 	// engine-specific format, a MalformedPayloadError should be returned.
 	// For example a docker engine may expect the hostname to be an actual
 	// hostname, where as a different engine could have it being the path of a
-	// unix-domain socket, a port on localhost, or the prefix of a URL path.
+	// unix-domain socket, or the prefix of a URL path.
+	//
+	// To ensure that all plugins works with all engines, AttachProxy should
+	// always allow hostnames matching /[a-z]{3,22}/.
 	//
 	// It is the engines responsbility to ensure that requests aimed at the given
 	// name is forwarded to the handler. And to ensure that no other processes are
@@ -78,7 +81,7 @@ type SandboxBuilder interface {
 	// held by the SandboxBuilder instance should be released or transferred to
 	// the Sandbox implementation.
 	//
-	// Non-fatal errors: MalformedPayloadError
+	// Non-fatal errors: MalformedPayloadError, ErrSandboxBuilderDiscarded
 	StartSandbox() (Sandbox, error)
 
 	// Discard must free all resources held by the SandboxBuilder interface.

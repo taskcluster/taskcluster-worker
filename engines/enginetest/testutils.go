@@ -16,6 +16,8 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
 
+var debug = runtime.Debug("enginetest")
+
 func fmtPanic(a ...interface{}) {
 	panic(fmt.Sprintln(a...))
 }
@@ -40,16 +42,21 @@ func assert(condition bool, a ...interface{}) {
 type EngineProvider struct {
 	m           sync.Mutex
 	engine      engines.Engine
+	refCount    int
 	environment *runtime.Environment
 	// Name of engine
 	Engine string
 	// Engine configuration as JSON
 	Config string
+	// Function to be called before using the engine, may return a function to be
+	// called after running the engine.
+	Setup func() func()
 }
 
 func (p *EngineProvider) ensureEngine() {
 	p.m.Lock()
 	defer p.m.Unlock()
+	p.refCount++
 	if p.engine != nil {
 		return
 	}
@@ -75,6 +82,25 @@ func (p *EngineProvider) ensureEngine() {
 	})
 	nilOrPanic(err, "Failed to create Engine")
 	p.engine = engine
+}
+
+func (p *EngineProvider) releaseEngine() {
+	p.m.Lock()
+	defer p.m.Unlock()
+
+	if p.engine == nil {
+		fmtPanic("releaseEngine() but we don't have an active engine")
+	}
+	if p.refCount <= 0 {
+		fmtPanic("releaseEngine() but refCount <= 0")
+	}
+	p.refCount--
+	if p.refCount <= 0 {
+		err := p.engine.Dispose()
+		nilOrPanic(err, "engine.Dispose(), error: ")
+		p.refCount = 0
+		p.engine = nil
+	}
 }
 
 func (p *EngineProvider) newTestTaskContext() (*runtime.TaskContext, *runtime.TaskContextController) {
@@ -146,11 +172,17 @@ type run struct {
 	resultSet      engines.ResultSet
 	logReader      io.ReadCloser
 	closedLog      bool
+	cleanup        func()
 }
 
 func (p *EngineProvider) newRun() *run {
+	var cleanup func()
+	if p.Setup != nil {
+		cleanup = p.Setup()
+	}
 	p.ensureEngine()
 	r := run{}
+	r.cleanup = cleanup
 	r.provider = p
 	r.context, r.control = p.newTestTaskContext()
 	return &r
@@ -200,12 +232,27 @@ func (r *run) ReadLog() string {
 }
 
 func (r *run) Dispose() {
+	// Make sure to call whatever cleanup routine was returned from setup
+	defer func() {
+		if r.provider != nil {
+			r.provider.releaseEngine()
+			r.provider = nil
+		}
+
+		if r.cleanup != nil {
+			r.cleanup()
+			r.cleanup = nil
+		}
+	}()
 	if r.sandboxBuilder != nil {
 		nilOrPanic(r.sandboxBuilder.Discard(), "")
 		r.sandboxBuilder = nil
 	}
 	if r.sandbox != nil {
-		nilOrPanic(r.sandbox.Abort(), "")
+		err := r.sandbox.Abort()
+		if err != nil && err != engines.ErrSandboxTerminated {
+			fmtPanic("Sandbox.Abort() failed, error: ", err)
+		}
 		r.sandbox = nil
 	}
 	if r.resultSet != nil {

@@ -1,0 +1,25 @@
+$schema:            http://json-schema.org/draft-04/schema#
+title:              "Engine Config"
+type:               object
+properties:
+  maxConcurrency:
+    type:           integer
+    minimum:        1
+    maximum:        100
+    description: |
+      Maximum number of current VMs the engine is allowed to run.
+  imageFolder:
+    type:           string
+    description: |
+      Path to folder to be used for image storage and cache.
+      Please ensure this has lots of space.
+  socketFolder:
+    type:           string
+    description: |
+      Path to folder to be used for internal unix-domain sockets.
+      Ideally, this shouldn't be readable by anyone else.
+required:
+  - maxConcurrency
+  - imageFolder
+  - socketFolder
+additionalProperties: false

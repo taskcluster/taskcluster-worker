@@ -105,7 +105,6 @@ func (c *VolumeTestCase) TestReadToReadOnlyVolume() {
 
 // Test runs all tests on the test case.
 func (c *VolumeTestCase) Test() {
-	c.ensureEngine()
 	wg := sync.WaitGroup{}
 	wg.Add(4)
 	go func() { c.TestWriteReadVolume(); wg.Done() }()

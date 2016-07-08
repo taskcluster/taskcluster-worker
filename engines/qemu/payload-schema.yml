@@ -1,0 +1,22 @@
+$schema:            http://json-schema.org/draft-04/schema#
+title:              "QEMU Payload"
+type:               object
+properties:
+  image:
+    type:           string
+    format:         uri
+    description: |
+      URL to an image file. This is a lz4 compressed tar archieve containing
+      a raw disk image `disk.img`, a qcow2 overlay `layer.qcow2` and a machine
+      definition file `machine.json`.
+      Refer to engine documentation for more details.
+  command:
+    type:           array
+    items:
+      type:         string
+    description: |
+      Command and arguments to execute on the guest.
+required:
+  - image
+  - command
+additionalProperties: false

@@ -1,6 +1,8 @@
 package gc
 
-import "sync"
+import (
+	"sync"
+)
 
 func indexOfResource(resources []Disposable, resource Disposable) int {
 	for i, r := range resources {
@@ -19,11 +21,14 @@ type GarbageCollector struct {
 	m         sync.Mutex
 }
 
-// Register takes a Disposable resource for the GarbageCollector to manage
+// Register takes a Disposable resource for the GarbageCollector to manage.
+//
+// GarbageCollector will attempt to to call resource.Dispose() at any time,
+// you should return ErrDisposableInUse if the resource is in use.
 func (gc *GarbageCollector) Register(resource Disposable) {
 	gc.m.Lock()
 	defer gc.m.Unlock()
-	if indexOfResource(gc.resources, resource) != -1 {
+	if indexOfResource(gc.resources, resource) == -1 {
 		gc.resources = append(gc.resources, resource)
 	}
 }
@@ -32,6 +37,10 @@ func (gc *GarbageCollector) Register(resource Disposable) {
 // resource. Returns true if the resource was tracked, notice that the resource
 // maybe have been disposed of while waiting for the GC lock. Say if the GC was
 // running when you made this call.
+//
+// Note, you don't have to use this method. When you resouce is in a state
+// where you don't want it to be disposed just ensure that Dispose() returns
+// ErrDisposableInUse.
 func (gc *GarbageCollector) Unregister(resource Disposable) bool {
 	gc.m.Lock()
 	defer gc.m.Unlock()
@@ -44,8 +53,17 @@ func (gc *GarbageCollector) Unregister(resource Disposable) bool {
 }
 
 // Collect runs garbage collection and reclaims resources, at this stage it just
-// disposes as many resources as possible.
+// calls CollectAll(), but in the future this should dispose resources somewhat
+// intelligently.
 func (gc *GarbageCollector) Collect() error {
+	return gc.CollectAll()
+}
+
+// CollectAll disposes all resources that can be disposed.
+//
+// All resources not returning: ErrDisposableInUse.
+// This is useful for testing when implementing resources.
+func (gc *GarbageCollector) CollectAll() error {
 	gc.m.Lock()
 	defer gc.m.Unlock()
 	var resources []Disposable

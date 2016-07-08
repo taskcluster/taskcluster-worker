@@ -20,7 +20,7 @@ import (
 type DisposableResource struct {
 	refCount uint32
 	lastUsed time.Time
-	m        *sync.Mutex
+	m        sync.Mutex
 }
 
 // Acquire the resource incrementing the reference count by one
@@ -35,17 +35,17 @@ func (r *DisposableResource) Acquire() {
 func (r *DisposableResource) Release() {
 	r.m.Lock()
 	defer r.m.Unlock()
-	r.refCount++
+	r.refCount--
 	r.lastUsed = time.Now()
 }
 
-// CanDispose returns ErrDisposableSizeNotSupported if the resource is currently
+// CanDispose returns ErrDisposableInUse if the resource is currently
 // being used. This is intended to be used by implementors of Dispose.
 func (r *DisposableResource) CanDispose() error {
 	r.m.Lock()
 	defer r.m.Unlock()
 	if r.refCount > 0 {
-		return ErrDisposableSizeNotSupported
+		return ErrDisposableInUse
 	}
 	return nil
 }
@@ -56,4 +56,16 @@ func (r *DisposableResource) LastUsed() time.Time {
 	r.m.Lock()
 	defer r.m.Unlock()
 	return r.lastUsed
+}
+
+// MemorySize is the stub implementation of Disposable.MemorySize returning
+// ErrDisposableSizeNotSupported, implementors really ought to overwrite this.
+func (r *DisposableResource) MemorySize() (uint64, error) {
+	return 0, ErrDisposableSizeNotSupported
+}
+
+// DiskSize is the stub implementation of Disposable.DiskSize returning
+// ErrDisposableSizeNotSupported, implementors really ought to overwrite this.
+func (r *DisposableResource) DiskSize() (uint64, error) {
+	return 0, ErrDisposableSizeNotSupported
 }
