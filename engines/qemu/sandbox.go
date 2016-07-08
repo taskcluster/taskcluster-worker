@@ -46,7 +46,7 @@ func newSandbox(
 	}
 
 	// Setup meta-data service
-	s.metaService = metaservice.New(command, env, c.LogDrain(), s.result)
+	s.metaService = metaservice.New(command, env, c.LogDrain(), s.result, e.Environment)
 
 	// Setup network handler
 	s.vm.SetHTTPHandler(http.HandlerFunc(s.handleRequest))

@@ -6,20 +6,44 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"time"
+
+	"github.com/taskcluster/slugid-go/slugid"
+	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
+
+type artifactResult struct {
+	File ioext.ReadSeekCloser
+	Err  error
+	Done chan<- struct{}
+}
+
+type listFolderResult struct {
+	Files []string
+	Err   error
+	Done  chan<- struct{}
+}
 
 // MetaService implements the meta-data service that communicates worker process
 // running inside the virtual machine. This is how the command to run gets into
 // the virtual machine, and how logs and artifacts are copied out.
 type MetaService struct {
-	m              sync.Mutex
-	command        []string
-	env            map[string]string
-	logDrain       io.Writer
-	resultCallback func(bool)
-	resolved       bool
-	result         bool
-	mux            *http.ServeMux
+	m                   sync.Mutex
+	command             []string
+	env                 map[string]string
+	logDrain            io.Writer
+	resultCallback      func(bool)
+	environment         *runtime.Environment
+	resolved            bool
+	result              bool
+	mux                 *http.ServeMux
+	actionOut           chan Action
+	pendingArtifacts    map[string]*artifactResult
+	mPendingArtifacts   sync.Mutex
+	pendingListFolders  map[string]*listFolderResult
+	mPendingListFolders sync.Mutex
 }
 
 // New returns a new MetaService that will tell the virtual machine to
@@ -28,19 +52,24 @@ type MetaService struct {
 //
 // The callback resultCallback will be called when the guest reports that the
 // command is done.
-func New(command []string, env map[string]string, logDrain io.Writer, resultCallback func(bool)) *MetaService {
+func New(command []string, env map[string]string, logDrain io.Writer, resultCallback func(bool), environment *runtime.Environment) *MetaService {
 	s := &MetaService{
-		command:        command,
-		env:            env,
-		logDrain:       logDrain,
-		resultCallback: resultCallback,
-		mux:            http.NewServeMux(),
+		command:          command,
+		env:              env,
+		logDrain:         logDrain,
+		resultCallback:   resultCallback,
+		environment:      environment,
+		mux:              http.NewServeMux(),
+		actionOut:        make(chan Action),
+		pendingArtifacts: make(map[string]*artifactResult),
 	}
 
 	s.mux.HandleFunc("/engine/v1/execute", s.handleExecute)
 	s.mux.HandleFunc("/engine/v1/log", s.handleLog)
 	s.mux.HandleFunc("/engine/v1/success", s.handleSuccess)
 	s.mux.HandleFunc("/engine/v1/failed", s.handleFailed)
+	s.mux.HandleFunc("/engine/v1/poll", s.handlePoll)
+	s.mux.HandleFunc("/engine/v1/artifact", s.handleArtifact)
 	s.mux.HandleFunc("/", s.handleUnknown)
 
 	return s
@@ -52,7 +81,7 @@ func (s *MetaService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // reply will write status and response to ResponseWriter.
-func reply(w http.ResponseWriter, status int, response interface{}) {
+func reply(w http.ResponseWriter, status int, response interface{}) error {
 	var data []byte
 	if response != nil {
 		d, err := json.Marshal(response)
@@ -62,7 +91,8 @@ func reply(w http.ResponseWriter, status int, response interface{}) {
 		data = d
 	}
 	w.WriteHeader(status)
-	w.Write(data)
+	_, err := w.Write(data)
+	return err
 }
 
 // forceMethod will return true if the request r has the given method.
@@ -176,3 +206,188 @@ func (s *MetaService) handleUnknown(w http.ResponseWriter, r *http.Request) {
 		Message: "Unknown meta-data API end-point",
 	})
 }
+
+// handlePoll handles GET /engine/v1/poll
+func (s *MetaService) handlePoll(w http.ResponseWriter, r *http.Request) {
+	if !forceMethod(w, r, http.MethodGet) {
+		return
+	}
+
+	debug("GET /engine/v1/poll")
+	select {
+	case <-time.After(30 * time.Second):
+		reply(w, http.StatusOK, Action{
+			ID:   slugid.V4(),
+			Type: "none",
+		})
+	case action := <-s.actionOut:
+		err := reply(w, http.StatusOK, action)
+		if err != nil {
+			// Take the artifactResult record out of the dictionary
+			s.mPendingArtifacts.Lock()
+			result := s.pendingArtifacts[action.ID]
+			delete(s.pendingArtifacts, action.ID)
+			s.mPendingArtifacts.Unlock()
+
+			// If nil, then the request is already being handled, and there is no need
+			// to abort (presumably the action we received on the other side)
+			if result != nil {
+				result.Err = engines.ErrNonFatalInternalError
+				close(result.Done)
+			}
+		}
+	}
+}
+
+// handleArtifact handles request uploading an artifact in response to a
+// get-artifact action.
+func (s *MetaService) handleArtifact(w http.ResponseWriter, r *http.Request) {
+	if !forceMethod(w, r, http.MethodPost) {
+		return
+	}
+
+	// Get action id that this artifact is being posted for
+	id := r.URL.Query().Get("id")
+
+	// Take the artifactResult record out of the dictionary
+	s.mPendingArtifacts.Lock()
+	result := s.pendingArtifacts[id]
+	delete(s.pendingArtifacts, id)
+	s.mPendingArtifacts.Unlock()
+
+	// If there was no result record, we're done
+	if result == nil {
+		reply(w, http.StatusBadRequest, Error{
+			Code: ErrorCodeUnknownActionID,
+			Message: fmt.Sprintf(
+				"Action id: '%s' is not known, perhaps it has timed out.", id,
+			),
+		})
+		return
+	}
+
+	// If header indicates a 404, then we return an ErrResourceNotFound error
+	if r.Header.Get("X-Taskcluster-Worker-Error") == "file-not-found" {
+		reply(w, http.StatusOK, nil)
+		result.Err = engines.ErrResourceNotFound
+		close(result.Done)
+		return
+	}
+
+	// Create a temporary file
+	f, err := s.environment.TemporaryStorage.NewFile()
+	if err != nil {
+		reply(w, http.StatusInternalServerError, Error{
+			Code:    ErrorCodeInternalError,
+			Message: "Unable to write file to disk",
+		})
+		result.Err = engines.ErrNonFatalInternalError
+		close(result.Done)
+		return
+	}
+
+	// Copy body to temporary file
+	_, err = io.Copy(f, r.Body)
+	if err != nil {
+		f.Close() // Release temporary file
+		reply(w, http.StatusInternalServerError, Error{
+			Code:    ErrorCodeInternalError,
+			Message: "Error copying request body to disk",
+		})
+		result.Err = engines.ErrNonFatalInternalError
+		close(result.Done)
+		return
+	}
+
+	// Reply 200 OK (as client didn't do anything wrong)
+	reply(w, http.StatusOK, nil)
+
+	// Seek to start of temporary file
+	_, err = f.Seek(0, 0)
+	if err != nil {
+		f.Close() // Release temporary file
+		result.Err = engines.ErrNonFatalInternalError
+		close(result.Done)
+		return
+	}
+
+	// Return temporary file as result
+	result.File = f
+	close(result.Done)
+}
+
+// GetArtifact will tell polling guest-tools to send a given artifact.
+func (s *MetaService) GetArtifact(path string) (ioext.ReadSeekCloser, error) {
+	retries := 3
+	for {
+		f, err := s.getArtifactWithoutRetry(path)
+		retries--
+		if err == engines.ErrNonFatalInternalError && retries > 0 {
+			continue
+		}
+		return f, err
+	}
+}
+
+func (s *MetaService) getArtifactWithoutRetry(path string) (ioext.ReadSeekCloser, error) {
+	// Create get-artifact action (to be sent)
+	action := Action{
+		ID:   slugid.V4(),
+		Type: "get-artifact",
+		Path: path,
+	}
+
+	// Create isDone channel and result record
+	isDone := make(chan struct{})
+	result := artifactResult{
+		Done: isDone,
+	}
+
+	// Insert result record
+	s.mPendingArtifacts.Lock()
+	s.pendingArtifacts[action.ID] = &result
+	s.mPendingArtifacts.Unlock()
+
+	// Send action to guest-tools
+	select {
+	case <-time.After(30 * time.Second):
+		s.mPendingArtifacts.Lock()
+		delete(s.pendingArtifacts, action.ID)
+		s.mPendingArtifacts.Unlock()
+		return nil, engines.ErrNonFatalInternalError
+	case s.actionOut <- action:
+	}
+
+	// Wait for result from guest-tools
+	select {
+	case <-time.After(30 * time.Second):
+		// Take the result from the pendingArtifacts
+		s.mPendingArtifacts.Lock()
+		res := s.pendingArtifacts[action.ID]
+		delete(s.pendingArtifacts, action.ID)
+		s.mPendingArtifacts.Unlock()
+
+		// if it was present in pendingArtifacts, then we're done
+		if res != nil {
+			return nil, engines.ErrNonFatalInternalError
+		}
+		// If pendingArtifacts[action.ID] was nil, then a request has arrived
+		// we just wait for the isDone to be resolve with an error or something.
+		<-isDone
+	case <-isDone:
+	}
+
+	return result.File, result.Err
+}
+
+/*
+func (s *MetaService) listFolder(path string) ([]string, error) {
+	// Create list-folder action (to be sent)
+	action := Action{
+		ID:   slugid.V4(),
+		Type: "list-folder",
+		Path: path,
+	}
+
+}
+*/

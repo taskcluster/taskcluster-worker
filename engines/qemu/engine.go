@@ -18,6 +18,7 @@ type engine struct {
 	Log          *logrus.Entry
 	imageManager *image.Manager
 	networkPool  *network.Pool
+	Environment  *runtime.Environment
 }
 
 type engineProvider struct {
@@ -58,6 +59,7 @@ func (p engineProvider) NewEngine(options extpoints.EngineOptions) (engines.Engi
 		Log:          options.Log,
 		imageManager: imageManager,
 		networkPool:  networkPool,
+		Environment:  options.Environment,
 	}, nil
 }
 
