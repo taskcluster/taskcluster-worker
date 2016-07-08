@@ -91,7 +91,7 @@ func (s *sandbox) handleRequest(w http.ResponseWriter, r *http.Request) {
 
 func (s *sandbox) result(success bool) {
 	s.resolve.Do(func() {
-		s.resultSet = newResultSet(success, s.vm)
+		s.resultSet = newResultSet(success, s.vm, s.metaService)
 		s.resultAbort = engines.ErrSandboxTerminated
 	})
 }
