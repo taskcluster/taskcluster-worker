@@ -24,10 +24,9 @@ func (cmd) Summary() string {
 
 func (cmd) Usage() string {
 	return `
-taskcluster-worker qemu-build takes
-
-run a given command inside an image to test it,
-and give you an VNC viewer to get you into the virtual machine.
+taskcluster-worker qemu-build takes a machine definition as JSON or an existing
+image and two ISO files to mounted as CDs and creates a virtual machine that
+will be saved to disk when terminated.
 
 usage:
 	taskcluster-worker qemu-build [options] from-new <machine.json> <result.tar.lz4>
