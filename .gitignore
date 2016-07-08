@@ -1,4 +1,3 @@
 /taskcluster-worker
 /.vagrant
 coverage.out
-/.vagrant
