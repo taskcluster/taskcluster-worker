@@ -120,15 +120,14 @@ func TestAttachProxy(t *testing.T) {
 		PingProxyPayload: `{
 			"start": {
 				"image": "` + s.URL + `",
-				"command": ["sh", "-ec", "echo -e 'Pinging\\n\\n'; STATUS=$(curl -s -o /tmp/output -w '%{http_code}' http://taskcluster/test-proxy/v1/ping); cat /tmp/output; test $STATUS -eq 200;"]
+				"command": ["sh", "-ec", "echo 'Pinging'; STATUS=$(curl -s -o /tmp/output -w '%{http_code}' http://taskcluster/test-proxy/v1/ping); cat /tmp/output; test $STATUS -eq 200;"]
 			}
 		}`,
 	}
-	c.TestLiveLogging()
 
 	c.TestPingProxyPayload()
 	c.TestPing404IsUnsuccessful()
-
+	c.TestLiveLogging()
 	c.TestParallelPings()
 	c.Test()
 }
