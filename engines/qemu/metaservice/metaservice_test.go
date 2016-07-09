@@ -143,4 +143,85 @@ func TestMetaService(t *testing.T) {
 	f, err = s.GetArtifact("/home/worker/wrong-file")
 	assert(f == nil, "Didn't expect to get a file")
 	assert(err == engines.ErrResourceNotFound, "Expected ErrResourceNotFound")
+
+	debug("### Test polling and list-folder")
+
+	// Check that we can poll for an action, and reply to a list-folder
+	go func() {
+		// Start polling for an action
+		req, err := http.NewRequest("GET", "http://169.254.169.254/engine/v1/poll", nil)
+		nilOrPanic(err)
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, req)
+		assert(w.Code == http.StatusOK)
+		action := Action{}
+		err = json.Unmarshal(w.Body.Bytes(), &action)
+		nilOrPanic(err, "Failed to decode JSON")
+
+		// Check that the action is 'list-folder' (as expected)
+		assert(action.ID != "", "Expected action.ID != ''")
+		assert(action.Type == "list-folder", "Expected list-folder action")
+		assert(action.Path == "/home/worker/", "Expected action.Path")
+
+		// Post back an reply
+		payload, _ := json.Marshal(Files{
+			Files:    []string{"/home/worker/test-file"},
+			NotFound: false,
+		})
+		req, err = http.NewRequest("POST",
+			"http://169.254.169.254/engine/v1/reply?id="+action.ID,
+			bytes.NewBuffer(payload),
+		)
+		nilOrPanic(err)
+		req.Header.Set("Content-Type", "application/json")
+		w = httptest.NewRecorder()
+		s.ServeHTTP(w, req)
+		assert(w.Code == http.StatusOK, "Unexpected status: ", w.Code)
+	}()
+
+	// List folder through metaservice
+	files, err := s.ListFolder("/home/worker/")
+	nilOrPanic(err, "Failed to list-folder")
+	assert(len(files) == 1, "Expected one file")
+	assert(files[0] == "/home/worker/test-file", "Got the wrong file")
+
+	debug("### Test polling and list-folder (not-found)")
+
+	// Check that we can poll for an action, and reply to a list-folder, not found
+	go func() {
+		// Start polling for an action
+		req, err := http.NewRequest("GET", "http://169.254.169.254/engine/v1/poll", nil)
+		nilOrPanic(err)
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, req)
+		assert(w.Code == http.StatusOK)
+		action := Action{}
+		err = json.Unmarshal(w.Body.Bytes(), &action)
+		nilOrPanic(err, "Failed to decode JSON")
+
+		// Check that the action is 'list-folder' (as expected)
+		assert(action.ID != "", "Expected action.ID != ''")
+		assert(action.Type == "list-folder", "Expected list-folder action")
+		assert(action.Path == "/home/worker/missing/", "Expected action.Path")
+
+		// Post back an reply
+		payload, _ := json.Marshal(Files{
+			Files:    nil,
+			NotFound: true,
+		})
+		req, err = http.NewRequest("POST",
+			"http://169.254.169.254/engine/v1/reply?id="+action.ID,
+			bytes.NewBuffer(payload),
+		)
+		nilOrPanic(err)
+		req.Header.Set("Content-Type", "application/json")
+		w = httptest.NewRecorder()
+		s.ServeHTTP(w, req)
+		assert(w.Code == http.StatusOK, "Unexpected status: ", w.Code)
+	}()
+
+	// List folder through metaservice
+	files, err = s.ListFolder("/home/worker/missing/")
+	assert(err == engines.ErrResourceNotFound, "Expected ErrResourceNotFound")
+	assert(len(files) == 0, "Expected zero files")
 }

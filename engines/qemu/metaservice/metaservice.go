@@ -226,7 +226,7 @@ func (s *MetaService) handlePoll(w http.ResponseWriter, r *http.Request) {
 			Type: "none",
 		})
 	case action := <-s.actionOut:
-		debug("sending action with id=%s", action.ID)
+		debug(" -> Sending action with id=%s", action.ID)
 		if reply(w, http.StatusOK, action) != nil {
 			// Take the asyncRecord record out of the dictionary
 			s.mPendingRecords.Lock()
@@ -301,7 +301,7 @@ func (s *MetaService) handleReply(w http.ResponseWriter, r *http.Request) {
 
 	// Get action id
 	id := r.URL.Query().Get("id")
-	debug("GET /engine/v1/reply?id=%s", id)
+	debug("POST /engine/v1/reply?id=%s", id)
 
 	// if we timeout, we take the async record
 	s.mPendingRecords.Lock()
@@ -420,7 +420,6 @@ func (s *MetaService) listFolderWithoutRetries(path string) ([]string, error) {
 			})
 			return
 		}
-
 		// Parse JSON payload
 		p := Files{}
 		if json.Unmarshal(body, &p) != nil {
@@ -436,6 +435,7 @@ func (s *MetaService) listFolderWithoutRetries(path string) ([]string, error) {
 		if p.NotFound {
 			Err = engines.ErrResourceNotFound
 		} else {
+			Err = nil
 			Result = p.Files
 		}
 	})

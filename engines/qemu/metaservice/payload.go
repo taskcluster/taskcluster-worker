@@ -32,7 +32,6 @@ type Action struct {
 
 // Files is the request payload for the /engine/v1/list-folder end-point.
 type Files struct {
-	ID       string   `json:"id"`       // id, if the triggering action
 	Files    []string `json:"files"`    // List of absolute file paths
 	NotFound bool     `json:"notFound"` // true, if path doesn't exist
 }
