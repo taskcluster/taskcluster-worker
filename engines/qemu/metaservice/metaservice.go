@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"sync"
 	"time"
@@ -26,24 +27,28 @@ type listFolderResult struct {
 	Done  chan<- struct{}
 }
 
+type asyncCallback func(http.ResponseWriter, *http.Request)
+type asyncRecord struct {
+	Callback asyncCallback
+	Done     chan<- struct{}
+}
+
 // MetaService implements the meta-data service that communicates worker process
 // running inside the virtual machine. This is how the command to run gets into
 // the virtual machine, and how logs and artifacts are copied out.
 type MetaService struct {
-	m                   sync.Mutex
-	command             []string
-	env                 map[string]string
-	logDrain            io.Writer
-	resultCallback      func(bool)
-	environment         *runtime.Environment
-	resolved            bool
-	result              bool
-	mux                 *http.ServeMux
-	actionOut           chan Action
-	pendingArtifacts    map[string]*artifactResult
-	mPendingArtifacts   sync.Mutex
-	pendingListFolders  map[string]*listFolderResult
-	mPendingListFolders sync.Mutex
+	m               sync.Mutex
+	command         []string
+	env             map[string]string
+	logDrain        io.Writer
+	resultCallback  func(bool)
+	environment     *runtime.Environment
+	resolved        bool
+	result          bool
+	mux             *http.ServeMux
+	actionOut       chan Action
+	pendingRecords  map[string]*asyncRecord
+	mPendingRecords sync.Mutex
 }
 
 // New returns a new MetaService that will tell the virtual machine to
@@ -54,14 +59,14 @@ type MetaService struct {
 // command is done.
 func New(command []string, env map[string]string, logDrain io.Writer, resultCallback func(bool), environment *runtime.Environment) *MetaService {
 	s := &MetaService{
-		command:          command,
-		env:              env,
-		logDrain:         logDrain,
-		resultCallback:   resultCallback,
-		environment:      environment,
-		mux:              http.NewServeMux(),
-		actionOut:        make(chan Action),
-		pendingArtifacts: make(map[string]*artifactResult),
+		command:        command,
+		env:            env,
+		logDrain:       logDrain,
+		resultCallback: resultCallback,
+		environment:    environment,
+		mux:            http.NewServeMux(),
+		actionOut:      make(chan Action),
+		pendingRecords: make(map[string]*asyncRecord),
 	}
 
 	s.mux.HandleFunc("/engine/v1/execute", s.handleExecute)
@@ -69,7 +74,7 @@ func New(command []string, env map[string]string, logDrain io.Writer, resultCall
 	s.mux.HandleFunc("/engine/v1/success", s.handleSuccess)
 	s.mux.HandleFunc("/engine/v1/failed", s.handleFailed)
 	s.mux.HandleFunc("/engine/v1/poll", s.handlePoll)
-	s.mux.HandleFunc("/engine/v1/artifact", s.handleArtifact)
+	s.mux.HandleFunc("/engine/v1/reply", s.handleReply)
 	s.mux.HandleFunc("/", s.handleUnknown)
 
 	return s
@@ -221,42 +226,91 @@ func (s *MetaService) handlePoll(w http.ResponseWriter, r *http.Request) {
 			Type: "none",
 		})
 	case action := <-s.actionOut:
-		err := reply(w, http.StatusOK, action)
-		if err != nil {
-			// Take the artifactResult record out of the dictionary
-			s.mPendingArtifacts.Lock()
-			result := s.pendingArtifacts[action.ID]
-			delete(s.pendingArtifacts, action.ID)
-			s.mPendingArtifacts.Unlock()
+		debug("sending action with id=%s", action.ID)
+		if reply(w, http.StatusOK, action) != nil {
+			// Take the asyncRecord record out of the dictionary
+			s.mPendingRecords.Lock()
+			rec := s.pendingRecords[action.ID]
+			delete(s.pendingRecords, action.ID)
+			s.mPendingRecords.Unlock()
 
 			// If nil, then the request is already being handled, and there is no need
 			// to abort (presumably the action we received on the other side)
-			if result != nil {
-				result.Err = engines.ErrNonFatalInternalError
-				close(result.Done)
+			if rec != nil {
+				close(rec.Done)
 			}
 		}
 	}
 }
 
-// handleArtifact handles request uploading an artifact in response to a
-// get-artifact action.
-func (s *MetaService) handleArtifact(w http.ResponseWriter, r *http.Request) {
+// asyncRequest will return action to the current (or next) request to
+// GET /engine/v1/poll, then it'll wait for a POST request to /engine/v1/reply
+// with matching id in querystring and forward this request to cb.
+func (s *MetaService) asyncRequest(action Action, cb asyncCallback) {
+	// Ensure the action has a unique id
+	action.ID = slugid.V4()
+
+	// Create channel to track when the callback has been called
+	isDone := make(chan struct{})
+	rec := asyncRecord{
+		Callback: cb,
+		Done:     isDone,
+	}
+
+	// Insert asyncRecord is pending set
+	s.mPendingRecords.Lock()
+	s.pendingRecords[action.ID] = &rec
+	s.mPendingRecords.Unlock()
+
+	// Send action
+	select {
+	case <-time.After(30 * time.Second):
+		// If sending times out we delete the record
+		s.mPendingRecords.Lock()
+		delete(s.pendingRecords, action.ID)
+		s.mPendingRecords.Unlock()
+		return
+	case s.actionOut <- action:
+	}
+
+	// Wait for async callback to have been called
+	select {
+	case <-time.After(30 * time.Second):
+		// if we timeout, we take the async record
+		s.mPendingRecords.Lock()
+		rec := s.pendingRecords[action.ID]
+		delete(s.pendingRecords, action.ID)
+		s.mPendingRecords.Unlock()
+
+		// if there was a record, we've removed it and we're done...
+		if rec != nil {
+			return
+		}
+		// if there was no record, we have to wait for isDone as a request must
+		// be in the process executing the callback
+		<-isDone
+	case <-isDone:
+	}
+}
+
+// handleReply handles
+func (s *MetaService) handleReply(w http.ResponseWriter, r *http.Request) {
 	if !forceMethod(w, r, http.MethodPost) {
 		return
 	}
 
-	// Get action id that this artifact is being posted for
+	// Get action id
 	id := r.URL.Query().Get("id")
+	debug("GET /engine/v1/reply?id=%s", id)
 
-	// Take the artifactResult record out of the dictionary
-	s.mPendingArtifacts.Lock()
-	result := s.pendingArtifacts[id]
-	delete(s.pendingArtifacts, id)
-	s.mPendingArtifacts.Unlock()
+	// if we timeout, we take the async record
+	s.mPendingRecords.Lock()
+	rec := s.pendingRecords[id]
+	delete(s.pendingRecords, id)
+	s.mPendingRecords.Unlock()
 
-	// If there was no result record, we're done
-	if result == nil {
+	// If there is no record of this action, we just return 400
+	if rec == nil {
 		reply(w, http.StatusBadRequest, Error{
 			Code: ErrorCodeUnknownActionID,
 			Message: fmt.Sprintf(
@@ -266,54 +320,64 @@ func (s *MetaService) handleArtifact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If header indicates a 404, then we return an ErrResourceNotFound error
-	if r.Header.Get("X-Taskcluster-Worker-Error") == "file-not-found" {
+	// Call the callback from the record and mark it done.
+	defer close(rec.Done)
+	rec.Callback(w, r)
+}
+
+func (s *MetaService) getArtifactWithoutRetry(path string) (ioext.ReadSeekCloser, error) {
+	// Create result values to be set in the callback
+	var File ioext.ReadSeekCloser
+	var Err error
+	Err = engines.ErrNonFatalInternalError
+
+	s.asyncRequest(Action{
+		Type: "get-artifact",
+		Path: path,
+	}, func(w http.ResponseWriter, r *http.Request) {
+		// Return an ErrResourceNotFound error, if file could not be found
+		if r.Header.Get("X-Taskcluster-Worker-Error") == "file-not-found" {
+			reply(w, http.StatusOK, nil)
+			Err = engines.ErrResourceNotFound
+			return
+		}
+
+		// Create a temporary file
+		f, err := s.environment.TemporaryStorage.NewFile()
+		if err != nil {
+			reply(w, http.StatusInternalServerError, Error{
+				Code:    ErrorCodeInternalError,
+				Message: "Unable to write file to disk",
+			})
+			return
+		}
+
+		// Copy body to temporary file
+		_, err = io.Copy(f, r.Body)
+		if err != nil {
+			f.Close() // Release temporary file
+			reply(w, http.StatusInternalServerError, Error{
+				Code:    ErrorCodeInternalError,
+				Message: "Error copying request body to disk",
+			})
+			return
+		}
+
+		// Reply 200 OK (as client didn't do anything wrong)
 		reply(w, http.StatusOK, nil)
-		result.Err = engines.ErrResourceNotFound
-		close(result.Done)
-		return
-	}
 
-	// Create a temporary file
-	f, err := s.environment.TemporaryStorage.NewFile()
-	if err != nil {
-		reply(w, http.StatusInternalServerError, Error{
-			Code:    ErrorCodeInternalError,
-			Message: "Unable to write file to disk",
-		})
-		result.Err = engines.ErrNonFatalInternalError
-		close(result.Done)
-		return
-	}
+		// Seek to start of temporary file
+		_, err = f.Seek(0, 0)
+		if err != nil {
+			f.Close() // Release temporary file
+			return
+		}
 
-	// Copy body to temporary file
-	_, err = io.Copy(f, r.Body)
-	if err != nil {
-		f.Close() // Release temporary file
-		reply(w, http.StatusInternalServerError, Error{
-			Code:    ErrorCodeInternalError,
-			Message: "Error copying request body to disk",
-		})
-		result.Err = engines.ErrNonFatalInternalError
-		close(result.Done)
-		return
-	}
+		File = f
+		Err = nil
+	})
 
-	// Reply 200 OK (as client didn't do anything wrong)
-	reply(w, http.StatusOK, nil)
-
-	// Seek to start of temporary file
-	_, err = f.Seek(0, 0)
-	if err != nil {
-		f.Close() // Release temporary file
-		result.Err = engines.ErrNonFatalInternalError
-		close(result.Done)
-		return
-	}
-
-	// Return temporary file as result
-	result.File = f
-	close(result.Done)
+	return File, Err
 }
 
 // GetArtifact will tell polling guest-tools to send a given artifact.
@@ -329,65 +393,65 @@ func (s *MetaService) GetArtifact(path string) (ioext.ReadSeekCloser, error) {
 	}
 }
 
-func (s *MetaService) getArtifactWithoutRetry(path string) (ioext.ReadSeekCloser, error) {
-	// Create get-artifact action (to be sent)
-	action := Action{
-		ID:   slugid.V4(),
-		Type: "get-artifact",
-		Path: path,
-	}
+func (s *MetaService) listFolderWithoutRetries(path string) ([]string, error) {
+	var Result []string
+	var Err error
+	Err = engines.ErrNonFatalInternalError
 
-	// Create isDone channel and result record
-	isDone := make(chan struct{})
-	result := artifactResult{
-		Done: isDone,
-	}
-
-	// Insert result record
-	s.mPendingArtifacts.Lock()
-	s.pendingArtifacts[action.ID] = &result
-	s.mPendingArtifacts.Unlock()
-
-	// Send action to guest-tools
-	select {
-	case <-time.After(30 * time.Second):
-		s.mPendingArtifacts.Lock()
-		delete(s.pendingArtifacts, action.ID)
-		s.mPendingArtifacts.Unlock()
-		return nil, engines.ErrNonFatalInternalError
-	case s.actionOut <- action:
-	}
-
-	// Wait for result from guest-tools
-	select {
-	case <-time.After(30 * time.Second):
-		// Take the result from the pendingArtifacts
-		s.mPendingArtifacts.Lock()
-		res := s.pendingArtifacts[action.ID]
-		delete(s.pendingArtifacts, action.ID)
-		s.mPendingArtifacts.Unlock()
-
-		// if it was present in pendingArtifacts, then we're done
-		if res != nil {
-			return nil, engines.ErrNonFatalInternalError
-		}
-		// If pendingArtifacts[action.ID] was nil, then a request has arrived
-		// we just wait for the isDone to be resolve with an error or something.
-		<-isDone
-	case <-isDone:
-	}
-
-	return result.File, result.Err
-}
-
-/*
-func (s *MetaService) listFolder(path string) ([]string, error) {
-	// Create list-folder action (to be sent)
-	action := Action{
-		ID:   slugid.V4(),
+	s.asyncRequest(Action{
 		Type: "list-folder",
 		Path: path,
-	}
+	}, func(w http.ResponseWriter, r *http.Request) {
+		// Check content-type
+		if r.Header.Get("Content-Type") != "application/json" {
+			reply(w, http.StatusBadRequest, Error{
+				Code:    ErrorCodeInvalidPayload,
+				Message: "Content-Type must be application/json",
+			})
+			return
+		}
 
+		// Read first 10 MiB of body (limited for safety)
+		body, err := ioutil.ReadAll(io.LimitReader(r.Body, 10*1024*1024))
+		if err != nil {
+			reply(w, http.StatusInternalServerError, Error{
+				Code:    ErrorCodeInternalError,
+				Message: "Failed to read request body",
+			})
+			return
+		}
+
+		// Parse JSON payload
+		p := Files{}
+		if json.Unmarshal(body, &p) != nil {
+			reply(w, http.StatusBadRequest, Error{
+				Code:    ErrorCodeInvalidPayload,
+				Message: "Invalid JSON payload",
+			})
+			return
+		}
+
+		// If body parse we return OK
+		reply(w, http.StatusOK, nil)
+		if p.NotFound {
+			Err = engines.ErrResourceNotFound
+		} else {
+			Result = p.Files
+		}
+	})
+
+	return Result, Err
 }
-*/
+
+// ListFolder the contents of a folder (recursively)
+func (s *MetaService) ListFolder(path string) ([]string, error) {
+	retries := 3
+	for {
+		files, err := s.listFolderWithoutRetries(path)
+		retries--
+		if err == engines.ErrNonFatalInternalError && retries > 0 {
+			continue
+		}
+		return files, err
+	}
+}

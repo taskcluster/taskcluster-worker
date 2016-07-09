@@ -13,6 +13,7 @@ const (
 	ErrorCodeInternalError    = "InternalError"
 	ErrorCodeResourceConflict = "ResourceConflict"
 	ErrorCodeUnknownActionID  = "UnknownActionId"
+	ErrorCodeInvalidPayload   = "InvalidPayload"
 )
 
 // Error is the response payload for any error senario.

@@ -92,7 +92,7 @@ func TestMetaService(t *testing.T) {
 
 		// Post back an artifact
 		req, err = http.NewRequest("POST",
-			"http://169.254.169.254/engine/v1/artifact?id="+action.ID,
+			"http://169.254.169.254/engine/v1/reply?id="+action.ID,
 			bytes.NewBufferString("hello-world"),
 		)
 		nilOrPanic(err)
@@ -129,7 +129,7 @@ func TestMetaService(t *testing.T) {
 
 		// Post back an artifact
 		req, err = http.NewRequest("POST",
-			"http://169.254.169.254/engine/v1/artifact?id="+action.ID,
+			"http://169.254.169.254/engine/v1/reply?id="+action.ID,
 			nil,
 		)
 		nilOrPanic(err)
