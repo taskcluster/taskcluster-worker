@@ -42,6 +42,15 @@ func (cmd) Execute(arguments map[string]interface{}) {
 	command := arguments["<command>"].([]string)
 	vnc := arguments["--vnc"].(bool)
 
+	// Create temporary storage and environment
+	storage, err := runtime.NewTemporaryStorage(os.TempDir())
+	if err != nil {
+		panic("Failed to create TemporaryStorage")
+	}
+	environment := &runtime.Environment{
+		TemporaryStorage: storage,
+	}
+
 	// Create a temporary folder
 	tempFolder := filepath.Join("/tmp", slugid.V4())
 	if err := os.Mkdir(tempFolder, 0777); err != nil {
@@ -84,7 +93,7 @@ func (cmd) Execute(arguments map[string]interface{}) {
 	log.Info("Creating meta-data service")
 	ms := metaservice.New(command, make(map[string]string), os.Stdout, func(result bool) {
 		fmt.Println("### Task Completed, result = ", result)
-	})
+	}, environment)
 
 	// Setup http handler
 	vm.SetHTTPHandler(ms)

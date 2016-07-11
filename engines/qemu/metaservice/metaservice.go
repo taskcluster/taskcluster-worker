@@ -9,23 +9,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
-
-type artifactResult struct {
-	File ioext.ReadSeekCloser
-	Err  error
-	Done chan<- struct{}
-}
-
-type listFolderResult struct {
-	Files []string
-	Err   error
-	Done  chan<- struct{}
-}
 
 type asyncCallback func(http.ResponseWriter, *http.Request)
 type asyncRecord struct {
@@ -454,4 +443,30 @@ func (s *MetaService) ListFolder(path string) ([]string, error) {
 		}
 		return files, err
 	}
+}
+
+var upgrader = websocket.Upgrader{
+	HandshakeTimeout: 30 * time.Second,
+}
+
+// ExecShell will send an action to guest-tools to execute a shell, then wait
+// for guest-tools to callback establish a websocket and connect to an
+// implementation of engines.Shell
+func (s *MetaService) ExecShell() (engines.Shell, error) {
+	var Shell engines.Shell
+	var Err error
+
+	s.asyncRequest(Action{
+		Type: "exec-shell",
+	}, func(w http.ResponseWriter, r *http.Request) {
+		ws, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			Err = engines.ErrNonFatalInternalError
+			return
+		}
+
+		Shell = newShell(ws)
+	})
+
+	return Shell, Err
 }

@@ -24,10 +24,9 @@ type Error struct {
 
 // Action is the response payload for the /engine/v1/poll end-point.
 type Action struct {
-	ID   string   `json:"id"`   // id, to be used when replying
-	Type string   `json:"type"` // none, get-artifact, list-folder, exec-shell
-	Path string   `json:"path"` // file path, if get-artifact/list-folder
-	Args []string `json:"args"` // command + args, if exec-shell
+	ID   string `json:"id"`   // id, to be used when replying
+	Type string `json:"type"` // none, get-artifact, list-folder, exec-shell
+	Path string `json:"path"` // file path, if get-artifact/list-folder
 }
 
 // Files is the request payload for the /engine/v1/list-folder end-point.

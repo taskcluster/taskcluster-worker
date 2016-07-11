@@ -101,11 +101,11 @@ func (c *ProxyTestCase) TestLiveLogging() {
 		for !strings.Contains(buf.String(), "Pinging") {
 			b := []byte{0}
 			n, err := r.logReader.Read(b)
-			nilOrPanic(err, "Failed while reading from livelog...")
 			if n != 1 {
 				panic("Expected one byte to be read!")
 			}
 			buf.WriteByte(b[0])
+			nilOrPanic(err, "Failed while reading from livelog...")
 		}
 		close(readPinging)
 	}()
