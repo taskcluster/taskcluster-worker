@@ -68,6 +68,11 @@
 			"Rev": "c7bacac2b21ca01afa1dee0acf64df3ce047c28f"
 		},
 		{
+			"ImportPath": "github.com/gorilla/websocket",
+			"Comment": "v1.0.0-15-g54f9dec",
+			"Rev": "54f9decdbfb3fe254c5df3d5aa234480989f4af0"
+		},
+		{
 			"ImportPath": "github.com/jonasfj/go-import-subtree",
 			"Rev": "6f76e76b5ae8291ce7b1e38c6e626ba03236bd0f"
 		},
