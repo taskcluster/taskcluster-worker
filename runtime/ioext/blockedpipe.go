@@ -46,7 +46,7 @@ func (r *PipeReader) Read(data []byte) (int, error) {
 	defer r.m.Unlock()
 
 	// Wait till unblocked isn't zero or we have a read error
-	for r.unblocked == 0 && r.rerr != nil {
+	for r.unblocked == 0 && r.rerr == nil {
 		r.c.Wait()
 	}
 
@@ -61,8 +61,9 @@ func (r *PipeReader) Read(data []byte) (int, error) {
 	// If unblocked isn't -1 (infinite) and unblocked < len(data) then we have to
 	// limit the length of data
 	if r.unblocked < int64(len(data)) && r.unblocked != -1 {
-		data = data[r.unblocked:]
+		data = data[:r.unblocked]
 	}
+
 	// If unblocked isn't -1 (infinite) then we must subtract the bytes we've
 	// decided to read
 	if r.unblocked != -1 {
