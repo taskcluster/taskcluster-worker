@@ -4,11 +4,21 @@ import (
 	"encoding/binary"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
+)
+
+const (
+	writeTimeout        = 5 * time.Second
+	pongTimeout         = 30 * time.Second
+	pingInterval        = 10 * time.Second
+	maxMessageSize      = 10 * 1024
+	maxOutstandingBytes = 8 * 1024
+	readBlockSize       = 4 * 1024
 )
 
 type shell struct {
@@ -27,15 +37,12 @@ type shell struct {
 
 // newShell takes a websocket and creates a shell object implementing the
 // engines.Shell interface.
-//
-// The websocket protocol is as follows, all messages have to following form:
-//   [kind] [stream] [payload]
-//
 func newShell(ws *websocket.Conn) *shell {
 	stdinReader, stdin := ioext.BlockedPipe()
-	stdinReader.Unblock(8 * 1024) // Unblock an initial 8kb
 	stdout, stdoutWriter := io.Pipe()
 	stderr, stderrWriter := io.Pipe()
+	stdinReader.Unblock(maxOutstandingBytes)
+
 	s := &shell{
 		ws:           ws,
 		stdin:        stdin,
@@ -45,8 +52,15 @@ func newShell(ws *websocket.Conn) *shell {
 		stdoutWriter: stdoutWriter,
 		stderrWriter: stderrWriter,
 	}
+
+	ws.SetReadLimit(maxMessageSize)
+	ws.SetReadDeadline(time.Now().Add(pongTimeout))
+	ws.SetPongHandler(s.pongHandler)
+
 	go s.writeMessages()
 	go s.readMessages()
+	go s.sendPings()
+
 	return s
 }
 
@@ -61,7 +75,9 @@ func (s *shell) dispose() {
 }
 
 func (s *shell) send(message []byte) {
+	// Write message and ensure we reset the write deadline
 	s.mWrite.Lock()
+	s.ws.SetWriteDeadline(time.Now().Add(writeTimeout))
 	err := s.ws.WriteMessage(websocket.BinaryMessage, message)
 	s.mWrite.Unlock()
 
@@ -74,8 +90,37 @@ func (s *shell) send(message []byte) {
 	}
 }
 
+func (s *shell) sendPings() {
+	for {
+		// Sleep for ping interval time
+		time.Sleep(pingInterval)
+
+		// Write a ping message, and reset the write deadline
+		s.mWrite.Lock()
+		s.ws.SetWriteDeadline(time.Now().Add(writeTimeout))
+		err := s.ws.WriteMessage(websocket.PingMessage, []byte{})
+		s.mWrite.Unlock()
+
+		// If there is an error we resolve with internal error
+		if err != nil {
+			s.resolve.Do(func() {
+				s.success = false
+				s.err = engines.ErrNonFatalInternalError
+				s.dispose()
+			})
+			return
+		}
+	}
+}
+
+func (s *shell) pongHandler(string) error {
+	// Reset the read deadline
+	s.ws.SetReadDeadline(time.Now().Add(pongTimeout))
+	return nil
+}
+
 func (s *shell) writeMessages() {
-	m := make([]byte, 4096+2)
+	m := make([]byte, 2+readBlockSize)
 	m[0] = MessageTypeData
 	m[1] = StreamStdin
 	for {
