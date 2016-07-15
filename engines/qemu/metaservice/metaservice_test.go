@@ -8,7 +8,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
@@ -224,4 +226,129 @@ func TestMetaService(t *testing.T) {
 	files, err = s.ListFolder("/home/worker/missing/")
 	assert(err == engines.ErrResourceNotFound, "Expected ErrResourceNotFound")
 	assert(len(files) == 0, "Expected zero files")
+}
+
+func TestMetaServiceShell(t *testing.T) {
+	// Create temporary storage
+	storage, err := runtime.NewTemporaryStorage(os.TempDir())
+	if err != nil {
+		panic("Failed to create TemporaryStorage")
+	}
+
+	// Setup a new MetaService
+	log := bytes.NewBuffer(nil)
+	result := false
+	resolved := false
+	meta := New([]string{"bash", "-c", "whoami"}, make(map[string]string), log, func(r bool) {
+		if resolved {
+			panic("It shouldn't be possible to resolve twice")
+		}
+		resolved = true
+		result = r
+	}, &runtime.Environment{
+		TemporaryStorage: storage,
+	})
+	s := httptest.NewServer(meta)
+	defer s.Close()
+
+	debug("### Test shell running an echo service")
+
+	go func() {
+		// Start polling for an action
+		req, err := http.NewRequest("GET", s.URL+"/engine/v1/poll", nil)
+		nilOrPanic(err)
+		res, err := http.DefaultClient.Do(req)
+		nilOrPanic(err)
+		assert(res.StatusCode == http.StatusOK)
+		action := Action{}
+		data, err := ioutil.ReadAll(res.Body)
+		nilOrPanic(err)
+		err = json.Unmarshal(data, &action)
+		nilOrPanic(err, "Failed to decode JSON")
+
+		// Check that the action is 'exec-shell' (as expected)
+		assert(action.ID != "", "Expected action.ID != ''")
+		assert(action.Type == "exec-shell", "Expected exec-shell action")
+		assert(action.Path == "", "Didn't expect action.Path")
+
+		dialer := websocket.Dialer{
+			HandshakeTimeout: 30 * time.Second,
+			ReadBufferSize:   8 * 1024,
+			WriteBufferSize:  8 * 1024,
+		}
+		ws, _, err := dialer.Dial("ws:"+s.URL[5:]+"/engine/v1/reply?id="+action.ID, nil)
+		nilOrPanic(err, "Failed to open websocket")
+
+		debug("guest-tool: Read: 'hi' on stdin")
+		t, m, err := ws.ReadMessage()
+		assert(t == websocket.BinaryMessage, "expected BinaryMessage")
+		assert(bytes.Compare(m, []byte{
+			MessageTypeData, StreamStdin, 'h', 'i',
+		}) == 0, "expected 'hi' on stdin")
+
+		debug("guest-tool: Ack: 'hi' from stdin")
+		err = ws.WriteMessage(websocket.BinaryMessage, []byte{
+			MessageTypeAck, StreamStdin, 0, 0, 0, 2,
+		})
+		nilOrPanic(err, "Failed to send ack")
+
+		debug("guest-tool: Send: 'hello' on stdout")
+		err = ws.WriteMessage(websocket.BinaryMessage, []byte{
+			MessageTypeData, StreamStdout, 'h', 'e', 'l', 'l', 'o',
+		})
+		nilOrPanic(err, "Failed to send 'hello'")
+
+		debug("guest-tool: Read: ack for the 'hello'")
+		t, m, err = ws.ReadMessage()
+		assert(t == websocket.BinaryMessage, "expected BinaryMessage")
+		assert(bytes.Compare(m, []byte{
+			MessageTypeAck, StreamStdout, 0, 0, 0, 5,
+		}) == 0, "expected ack for 5 on stdout")
+
+		debug("guest-tool: Send: close on stdout")
+		err = ws.WriteMessage(websocket.BinaryMessage, []byte{
+			MessageTypeData, StreamStdout,
+		})
+		nilOrPanic(err, "Failed to send close for stdout")
+
+		debug("guest-tool: Read: close for stdin")
+		t, m, err = ws.ReadMessage()
+		assert(t == websocket.BinaryMessage, "expected BinaryMessage")
+		assert(bytes.Compare(m, []byte{
+			MessageTypeData, StreamStdin,
+		}) == 0, "expected stdin to be closed")
+
+		debug("guest-tool: Send: exit success")
+		err = ws.WriteMessage(websocket.BinaryMessage, []byte{
+			MessageTypeExit, 0,
+		})
+		nilOrPanic(err, "Failed to send 'exit' success")
+	}()
+
+	// Exec shell through metaservice
+	shell, err := meta.ExecShell()
+	assert(err == nil, "Unexpected error: ", err)
+
+	debug("server: Writing 'hi' on stdin")
+	_, err = shell.StdinPipe().Write([]byte("hi"))
+	nilOrPanic(err, "Failed to write 'hi' on stdin")
+
+	debug("server: Reading stdout (waiting for stdout to close)")
+	b, err := ioutil.ReadAll(shell.StdoutPipe())
+	nilOrPanic(err, "Failed to readAll from stdout")
+	assert(string(b) == "hello", "Failed to read 'hello'")
+
+	debug("server: Closing stdin")
+	err = shell.StdinPipe().Close()
+	nilOrPanic(err)
+
+	debug("server: Waiting for exit success")
+	success, err := shell.Wait()
+	assert(err == nil, "Unexpected error: ", err)
+	assert(success, "Expected success")
+
+	debug("server: Reading nothing stderr (just check that it's closed)")
+	b, err = ioutil.ReadAll(shell.StderrPipe())
+	nilOrPanic(err, "Failed to readAll from stderr")
+	assert(string(b) == "", "Failed to read ''")
 }

@@ -284,13 +284,9 @@ func (s *MetaService) asyncRequest(action Action, cb asyncCallback) {
 
 // handleReply handles
 func (s *MetaService) handleReply(w http.ResponseWriter, r *http.Request) {
-	if !forceMethod(w, r, http.MethodPost) {
-		return
-	}
-
 	// Get action id
 	id := r.URL.Query().Get("id")
-	debug("POST /engine/v1/reply?id=%s", id)
+	debug("%s /engine/v1/reply?id=%s", r.Method, id)
 
 	// if we timeout, we take the async record
 	s.mPendingRecords.Lock()
@@ -324,6 +320,10 @@ func (s *MetaService) getArtifactWithoutRetry(path string) (ioext.ReadSeekCloser
 		Type: "get-artifact",
 		Path: path,
 	}, func(w http.ResponseWriter, r *http.Request) {
+		if !forceMethod(w, r, http.MethodPost) {
+			return
+		}
+
 		// Return an ErrResourceNotFound error, if file could not be found
 		if r.Header.Get("X-Taskcluster-Worker-Error") == "file-not-found" {
 			reply(w, http.StatusOK, nil)
@@ -391,6 +391,10 @@ func (s *MetaService) listFolderWithoutRetries(path string) ([]string, error) {
 		Type: "list-folder",
 		Path: path,
 	}, func(w http.ResponseWriter, r *http.Request) {
+		if !forceMethod(w, r, http.MethodPost) {
+			return
+		}
+
 		// Check content-type
 		if r.Header.Get("Content-Type") != "application/json" {
 			reply(w, http.StatusBadRequest, Error{
