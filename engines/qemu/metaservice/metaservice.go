@@ -313,7 +313,9 @@ func (s *MetaService) handleReply(w http.ResponseWriter, r *http.Request) {
 	rec.Callback(w, r)
 }
 
-func (s *MetaService) getArtifactWithoutRetry(path string) (ioext.ReadSeekCloser, error) {
+func (s *MetaService) getArtifactWithoutRetry(path string) (
+	ioext.ReadSeekCloser, error,
+) {
 	// Create result values to be set in the callback
 	var File ioext.ReadSeekCloser
 	var Err error
