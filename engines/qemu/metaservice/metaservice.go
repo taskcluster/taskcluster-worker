@@ -46,7 +46,10 @@ type MetaService struct {
 //
 // The callback resultCallback will be called when the guest reports that the
 // command is done.
-func New(command []string, env map[string]string, logDrain io.Writer, resultCallback func(bool), environment *runtime.Environment) *MetaService {
+func New(
+	command []string, env map[string]string, logDrain io.Writer,
+	resultCallback func(bool), environment *runtime.Environment,
+) *MetaService {
 	s := &MetaService{
 		command:        command,
 		env:            env,

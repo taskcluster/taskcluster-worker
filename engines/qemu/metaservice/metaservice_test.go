@@ -78,14 +78,14 @@ func TestMetaService(t *testing.T) {
 	// Check that we can poll for an action, and reply with an artifact
 	go func() {
 		// Start polling for an action
-		req, err := http.NewRequest("GET", "http://169.254.169.254/engine/v1/poll", nil)
-		nilOrPanic(err)
+		req, err2 := http.NewRequest("GET", "http://169.254.169.254/engine/v1/poll", nil)
+		nilOrPanic(err2)
 		w := httptest.NewRecorder()
 		s.ServeHTTP(w, req)
 		assert(w.Code == http.StatusOK)
 		action := Action{}
-		err = json.Unmarshal(w.Body.Bytes(), &action)
-		nilOrPanic(err, "Failed to decode JSON")
+		err2 = json.Unmarshal(w.Body.Bytes(), &action)
+		nilOrPanic(err2, "Failed to decode JSON")
 
 		// Check that the action is 'get-artifact' (as expected)
 		assert(action.ID != "", "Expected action.ID != ''")
@@ -93,11 +93,11 @@ func TestMetaService(t *testing.T) {
 		assert(action.Path == "/home/worker/test-file", "Expected action.Path")
 
 		// Post back an artifact
-		req, err = http.NewRequest("POST",
+		req, err2 = http.NewRequest("POST",
 			"http://169.254.169.254/engine/v1/reply?id="+action.ID,
 			bytes.NewBufferString("hello-world"),
 		)
-		nilOrPanic(err)
+		nilOrPanic(err2)
 		w = httptest.NewRecorder()
 		s.ServeHTTP(w, req)
 		assert(w.Code == http.StatusOK)
@@ -115,14 +115,14 @@ func TestMetaService(t *testing.T) {
 	// Check that we can poll for an action, and reply with an error not-found
 	go func() {
 		// Start polling for an action
-		req, err := http.NewRequest("GET", "http://169.254.169.254/engine/v1/poll", nil)
-		nilOrPanic(err)
+		req, err2 := http.NewRequest("GET", "http://169.254.169.254/engine/v1/poll", nil)
+		nilOrPanic(err2)
 		w := httptest.NewRecorder()
 		s.ServeHTTP(w, req)
 		assert(w.Code == http.StatusOK)
 		action := Action{}
-		err = json.Unmarshal(w.Body.Bytes(), &action)
-		nilOrPanic(err, "Failed to decode JSON")
+		err2 = json.Unmarshal(w.Body.Bytes(), &action)
+		nilOrPanic(err2, "Failed to decode JSON")
 
 		// Check that the action is 'get-artifact' (as expected)
 		assert(action.ID != "", "Expected action.ID != ''")
@@ -130,11 +130,11 @@ func TestMetaService(t *testing.T) {
 		assert(action.Path == "/home/worker/wrong-file", "Expected action.Path")
 
 		// Post back an artifact
-		req, err = http.NewRequest("POST",
+		req, err2 = http.NewRequest("POST",
 			"http://169.254.169.254/engine/v1/reply?id="+action.ID,
 			nil,
 		)
-		nilOrPanic(err)
+		nilOrPanic(err2)
 		req.Header.Set("X-Taskcluster-Worker-Error", "file-not-found")
 		w = httptest.NewRecorder()
 		s.ServeHTTP(w, req)
@@ -151,14 +151,14 @@ func TestMetaService(t *testing.T) {
 	// Check that we can poll for an action, and reply to a list-folder
 	go func() {
 		// Start polling for an action
-		req, err := http.NewRequest("GET", "http://169.254.169.254/engine/v1/poll", nil)
-		nilOrPanic(err)
+		req, err2 := http.NewRequest("GET", "http://169.254.169.254/engine/v1/poll", nil)
+		nilOrPanic(err2)
 		w := httptest.NewRecorder()
 		s.ServeHTTP(w, req)
 		assert(w.Code == http.StatusOK)
 		action := Action{}
-		err = json.Unmarshal(w.Body.Bytes(), &action)
-		nilOrPanic(err, "Failed to decode JSON")
+		err2 = json.Unmarshal(w.Body.Bytes(), &action)
+		nilOrPanic(err2, "Failed to decode JSON")
 
 		// Check that the action is 'list-folder' (as expected)
 		assert(action.ID != "", "Expected action.ID != ''")
@@ -170,11 +170,11 @@ func TestMetaService(t *testing.T) {
 			Files:    []string{"/home/worker/test-file"},
 			NotFound: false,
 		})
-		req, err = http.NewRequest("POST",
+		req, err2 = http.NewRequest("POST",
 			"http://169.254.169.254/engine/v1/reply?id="+action.ID,
 			bytes.NewBuffer(payload),
 		)
-		nilOrPanic(err)
+		nilOrPanic(err2)
 		req.Header.Set("Content-Type", "application/json")
 		w = httptest.NewRecorder()
 		s.ServeHTTP(w, req)
@@ -192,14 +192,14 @@ func TestMetaService(t *testing.T) {
 	// Check that we can poll for an action, and reply to a list-folder, not found
 	go func() {
 		// Start polling for an action
-		req, err := http.NewRequest("GET", "http://169.254.169.254/engine/v1/poll", nil)
-		nilOrPanic(err)
+		req, err2 := http.NewRequest("GET", "http://169.254.169.254/engine/v1/poll", nil)
+		nilOrPanic(err2)
 		w := httptest.NewRecorder()
 		s.ServeHTTP(w, req)
 		assert(w.Code == http.StatusOK)
 		action := Action{}
-		err = json.Unmarshal(w.Body.Bytes(), &action)
-		nilOrPanic(err, "Failed to decode JSON")
+		err2 = json.Unmarshal(w.Body.Bytes(), &action)
+		nilOrPanic(err2, "Failed to decode JSON")
 
 		// Check that the action is 'list-folder' (as expected)
 		assert(action.ID != "", "Expected action.ID != ''")
@@ -211,11 +211,11 @@ func TestMetaService(t *testing.T) {
 			Files:    nil,
 			NotFound: true,
 		})
-		req, err = http.NewRequest("POST",
+		req, err2 = http.NewRequest("POST",
 			"http://169.254.169.254/engine/v1/reply?id="+action.ID,
 			bytes.NewBuffer(payload),
 		)
-		nilOrPanic(err)
+		nilOrPanic(err2)
 		req.Header.Set("Content-Type", "application/json")
 		w = httptest.NewRecorder()
 		s.ServeHTTP(w, req)
@@ -237,14 +237,12 @@ func TestMetaServiceShell(t *testing.T) {
 
 	// Setup a new MetaService
 	log := bytes.NewBuffer(nil)
-	result := false
 	resolved := false
 	meta := New([]string{"bash", "-c", "whoami"}, make(map[string]string), log, func(r bool) {
 		if resolved {
 			panic("It shouldn't be possible to resolve twice")
 		}
 		resolved = true
-		result = r
 	}, &runtime.Environment{
 		TemporaryStorage: storage,
 	})
@@ -255,16 +253,16 @@ func TestMetaServiceShell(t *testing.T) {
 
 	go func() {
 		// Start polling for an action
-		req, err := http.NewRequest("GET", s.URL+"/engine/v1/poll", nil)
-		nilOrPanic(err)
-		res, err := http.DefaultClient.Do(req)
-		nilOrPanic(err)
+		req, err2 := http.NewRequest("GET", s.URL+"/engine/v1/poll", nil)
+		nilOrPanic(err2)
+		res, err2 := http.DefaultClient.Do(req)
+		nilOrPanic(err2)
 		assert(res.StatusCode == http.StatusOK)
 		action := Action{}
-		data, err := ioutil.ReadAll(res.Body)
-		nilOrPanic(err)
-		err = json.Unmarshal(data, &action)
-		nilOrPanic(err, "Failed to decode JSON")
+		data, err2 := ioutil.ReadAll(res.Body)
+		nilOrPanic(err2)
+		err2 = json.Unmarshal(data, &action)
+		nilOrPanic(err2, "Failed to decode JSON")
 
 		// Check that the action is 'exec-shell' (as expected)
 		assert(action.ID != "", "Expected action.ID != ''")
@@ -276,53 +274,53 @@ func TestMetaServiceShell(t *testing.T) {
 			ReadBufferSize:   8 * 1024,
 			WriteBufferSize:  8 * 1024,
 		}
-		ws, _, err := dialer.Dial("ws:"+s.URL[5:]+"/engine/v1/reply?id="+action.ID, nil)
-		nilOrPanic(err, "Failed to open websocket")
+		ws, _, err2 := dialer.Dial("ws:"+s.URL[5:]+"/engine/v1/reply?id="+action.ID, nil)
+		nilOrPanic(err2, "Failed to open websocket")
 
 		debug("guest-tool: Read: 'hi' on stdin")
-		t, m, err := ws.ReadMessage()
+		t, m, err2 := ws.ReadMessage()
 		assert(t == websocket.BinaryMessage, "expected BinaryMessage")
 		assert(bytes.Compare(m, []byte{
 			MessageTypeData, StreamStdin, 'h', 'i',
 		}) == 0, "expected 'hi' on stdin")
 
 		debug("guest-tool: Ack: 'hi' from stdin")
-		err = ws.WriteMessage(websocket.BinaryMessage, []byte{
+		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
 			MessageTypeAck, StreamStdin, 0, 0, 0, 2,
 		})
-		nilOrPanic(err, "Failed to send ack")
+		nilOrPanic(err2, "Failed to send ack")
 
 		debug("guest-tool: Send: 'hello' on stdout")
-		err = ws.WriteMessage(websocket.BinaryMessage, []byte{
+		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
 			MessageTypeData, StreamStdout, 'h', 'e', 'l', 'l', 'o',
 		})
-		nilOrPanic(err, "Failed to send 'hello'")
+		nilOrPanic(err2, "Failed to send 'hello'")
 
 		debug("guest-tool: Read: ack for the 'hello'")
-		t, m, err = ws.ReadMessage()
+		t, m, err2 = ws.ReadMessage()
 		assert(t == websocket.BinaryMessage, "expected BinaryMessage")
 		assert(bytes.Compare(m, []byte{
 			MessageTypeAck, StreamStdout, 0, 0, 0, 5,
 		}) == 0, "expected ack for 5 on stdout")
 
 		debug("guest-tool: Send: close on stdout")
-		err = ws.WriteMessage(websocket.BinaryMessage, []byte{
+		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
 			MessageTypeData, StreamStdout,
 		})
-		nilOrPanic(err, "Failed to send close for stdout")
+		nilOrPanic(err2, "Failed to send close for stdout")
 
 		debug("guest-tool: Read: close for stdin")
-		t, m, err = ws.ReadMessage()
+		t, m, err2 = ws.ReadMessage()
 		assert(t == websocket.BinaryMessage, "expected BinaryMessage")
 		assert(bytes.Compare(m, []byte{
 			MessageTypeData, StreamStdin,
 		}) == 0, "expected stdin to be closed")
 
 		debug("guest-tool: Send: exit success")
-		err = ws.WriteMessage(websocket.BinaryMessage, []byte{
+		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
 			MessageTypeExit, 0,
 		})
-		nilOrPanic(err, "Failed to send 'exit' success")
+		nilOrPanic(err2, "Failed to send 'exit' success")
 	}()
 
 	// Exec shell through metaservice
