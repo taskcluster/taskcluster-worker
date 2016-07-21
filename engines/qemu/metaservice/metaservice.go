@@ -16,6 +16,10 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
+// PollTimeout is the maximum amount of time a poll request will be left
+// hanging before getting a response (even if the response is none).
+const PollTimeout = 30 * time.Second
+
 type asyncCallback func(http.ResponseWriter, *http.Request)
 type asyncRecord struct {
 	Callback asyncCallback
@@ -212,7 +216,7 @@ func (s *MetaService) handlePoll(w http.ResponseWriter, r *http.Request) {
 
 	debug("GET /engine/v1/poll")
 	select {
-	case <-time.After(30 * time.Second):
+	case <-time.After(PollTimeout):
 		reply(w, http.StatusOK, Action{
 			ID:   slugid.V4(),
 			Type: "none",

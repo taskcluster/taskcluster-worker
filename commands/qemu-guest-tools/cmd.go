@@ -37,5 +37,6 @@ func (cmd) Execute(arguments map[string]interface{}) {
 	log := logger.WithField("component", "qemu-guest-tools")
 
 	g := new(host, log)
+	g.StartProcessingActions()
 	g.Run()
 }

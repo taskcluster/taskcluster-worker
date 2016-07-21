@@ -1,27 +1,34 @@
 package qemuguesttools
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	"gopkg.in/djherbis/buffer.v1"
 	"gopkg.in/djherbis/nio.v2"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/gorilla/websocket"
 	"github.com/taskcluster/go-got"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
+	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
+	"golang.org/x/net/context"
+	"golang.org/x/net/context/ctxhttp"
 )
 
 type guestTools struct {
-	baseURL string
-	got     *got.Got
-	log     *logrus.Entry
-	taskLog io.Writer
+	baseURL     string
+	got         *got.Got
+	log         *logrus.Entry
+	taskLog     io.Writer
+	stopPolling func()
 }
 
 var backOff = &got.BackOff{
@@ -46,9 +53,6 @@ func new(host string, log *logrus.Entry) *guestTools {
 }
 
 func (g *guestTools) Run() {
-	// Start reverse-request to execute interactive requests
-	go g.startInteractiveRequests()
-
 	// Poll for instructions on how to execute the current task
 	task := metaservice.Execute{}
 	for {
@@ -124,8 +128,188 @@ func (g *guestTools) createTaskLog() io.WriteCloser {
 	return writer
 }
 
-func (g *guestTools) startInteractiveRequests() {
-	//TODO: Implement something here that calls the meta-data service and
-	//      does long-polling to see if there is an operation to undertake.
-	//			This is things like an artifact to export, or a bash command to run.
+func (g *guestTools) StartProcessingActions() {
+	if g.stopPolling != nil {
+		panic("Already polling, you must call StopProcessingActions() first")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	g.stopPolling = cancel
+	go g.polling(ctx)
+}
+
+func (g *guestTools) StopProcessingActions() {
+	if g.stopPolling != nil {
+		g.stopPolling()
+	}
+	g.stopPolling = nil
+}
+
+const pollTimeout = metaservice.PollTimeout + 5*time.Second
+
+func (g *guestTools) polling(ctx context.Context) {
+	// Poll the metaservice for an action to perform
+	req, err := http.NewRequest(http.MethodGet, g.baseURL+"/engine/v1/poll", nil)
+	if err != nil {
+		g.log.Panicln("Failed to create polling request, error: ", err)
+	}
+
+	// Do request with a timeout
+	c, _ := context.WithTimeout(ctx, pollTimeout)
+	res, err := ctxhttp.Do(c, nil, req)
+	if err != nil && err != context.Canceled {
+		g.log.Info("Poll request failed, error: ", err)
+		// if this wasn't a deadline exceeded error, we'll sleep a second to avoid
+		// spinning the CPU while waiting for DHCP to come up.
+		if err != context.DeadlineExceeded {
+			time.Sleep(1 * time.Second)
+		}
+		return
+	}
+
+	// Read the request body
+	defer res.Body.Close()
+	data, err := ioext.ReadAtmost(res.Body, 2*1024*1024)
+	if err != nil {
+		g.log.Error("Failed to read poll request body, error: ", err)
+		return
+	}
+
+	// Parse the request body
+	action := metaservice.Action{}
+	err = json.Unmarshal(data, &action)
+	if err != nil {
+		g.log.Error("Failed to parse poll request body, error: ", err)
+		return
+	}
+
+	g.dispatchAction(action)
+}
+
+func (g *guestTools) dispatchAction(action metaservice.Action) {
+	switch action.Type {
+	case "none":
+		return // Do nothing we have to poll again
+	case "get-artifact":
+		go g.doGetArtifact(action.ID, action.Path)
+	case "list-folder":
+		go g.doListFolder(action.ID, action.Path)
+	case "exec-shell":
+		go g.doExecShell(action.ID)
+	default:
+		g.log.Error("Unknown action type: ", action.Type, " ID = ", action.ID)
+	}
+}
+
+func (g *guestTools) doGetArtifact(ID, path string) {
+	// Construct body as buffered file read, if there is an error it's because
+	// the file doesn't exist and we set the body the nil, as we still have to
+	// report this in the reply (just with an empty body)
+	var body io.Reader
+	f, err := os.Open(path)
+	if err == nil {
+		body = bufio.NewReader(f)
+	}
+
+	// Create reply
+	req, err := http.NewRequest(http.MethodPost, g.baseURL+"/engine/v1/reply?id="+ID, body)
+	if err != nil {
+		g.log.Panic("Failed to create reply request, error: ", err)
+	}
+	// If body is nil, the file is missing
+	if body == nil {
+		req.Header.Set("X-Taskcluster-Worker-Error", "file-not-found")
+	}
+
+	// Send the reply
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		g.log.Error("Reply with artifact for path: ", path, " failed error: ", err)
+		return
+	}
+	defer res.Body.Close()
+	// Log any errors, we can't really do much
+	if res.StatusCode != http.StatusOK {
+		g.log.Error("Reply with artifact for path: ", path, " got status: ", res.StatusCode)
+	}
+}
+
+func (g *guestTools) doListFolder(ID, path string) {
+	files := []string{}
+	err := filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
+		// Stop iteration and send an error to metaservice, if there is an error
+		// with the path we were asked to iterate over.
+		if p == path && err != nil {
+			return err
+		}
+
+		// We ignore errors, directories and anything that isn't plain files
+		if info != nil && err == nil && ioext.IsPlainFileInfo(info) {
+			files = append(files, p)
+		}
+		return nil // Ignore other errors
+	})
+	notFound := err != nil
+
+	// Create reply request... We use got here, this means that we get retries...
+	// There is no harm in retries, server will just ignore them.
+	req := g.got.Post(g.baseURL+"/engine/v1/reply?id="+ID, nil)
+	err = req.JSON(metaservice.Files{
+		Files:    files,
+		NotFound: notFound,
+	})
+	if err != nil {
+		g.log.Panic("Failed to serialize JSON payload, error: ", err)
+	}
+
+	// Send the reply
+	res, err := req.Send()
+	if err != nil {
+		g.log.Error("Reply with list-folder for path: ", path, " failed error: ", err)
+		return
+	}
+	if res.StatusCode != http.StatusOK {
+		g.log.Error("Reply with list-folder for path: ", path, " got status: ", res.StatusCode)
+	}
+}
+
+var dialer = websocket.Dialer{
+	HandshakeTimeout: 30 * time.Second,
+	ReadBufferSize:   8 * 1024,
+	WriteBufferSize:  8 * 1024,
+}
+
+func (g *guestTools) doExecShell(ID string) {
+	// Establish a websocket reply
+	ws, _, err := dialer.Dial("ws:"+g.baseURL[5:]+"/engine/v1/reply?id="+ID, nil)
+	if err != nil {
+		g.log.Error("Failed to establish websocket for reply to ID = ", ID)
+		return
+	}
+
+	// Create a new shellHandler
+	handler := newShellHandler(ws, g.log.WithField("shell", ID))
+
+	// Create a shell
+	shell := exec.Command("sh")
+	shell.Stdin = handler.StdinPipe()
+	shell.Stdout = handler.StdoutPipe()
+	shell.Stderr = handler.StderrPipe()
+
+	// Start the shell, this must finished before we can call Kill()
+	err = shell.Start()
+
+	// Start communication
+	handler.Communicate(func() {
+		if shell.Process != nil {
+			shell.Process.Kill()
+		}
+	})
+
+	// If starting the shell didn't fail, then we wait for the shell to terminate
+	if err == nil {
+		err = shell.Wait()
+	}
+	// If we didn't any error starting or waiting for the shell, then it was a
+	// success.
+	handler.Terminated(err == nil)
 }

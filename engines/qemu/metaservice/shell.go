@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	writeTimeout        = 5 * time.Second
 	pongTimeout         = 30 * time.Second
+	writeTimeout        = pongTimeout * 3 / 2
 	pingInterval        = 10 * time.Second
 	maxMessageSize      = 10 * 1024
 	maxOutstandingBytes = 8 * 1024
@@ -218,13 +218,15 @@ func (s *shell) readMessages() {
 		}
 
 		// If bytes from stdin are acknowleged, then we unblock additional bytes
-		if mType == MessageTypeAck && len(mData) == 4 {
-			n := binary.BigEndian.Uint32(mData)
-			s.stdinReader.Unblock(int64(n))
+		if mType == MessageTypeAck && len(mData) == 5 {
+			if mData[0] == StreamStdin {
+				n := binary.BigEndian.Uint32(mData[1:])
+				s.stdinReader.Unblock(int64(n))
+			}
 		}
 
 		// If we get an exit message, we resolve and close the websocket
-		if mType == MessageTypeExit && len(mData) > 0 {
+		if mType == MessageTypeExit && len(mData) == 1 {
 			s.resolve.Do(func() {
 				s.success = (mData[0] == 0)
 				s.err = engines.ErrShellTerminated

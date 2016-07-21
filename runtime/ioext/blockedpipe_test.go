@@ -86,7 +86,7 @@ func TestBlockedPipeClosedPipe(t *testing.T) {
 
 		// Read to end
 		p = make([]byte, 5)
-		n, err = io.ReadFull(r, p)
+		_, err = io.ReadFull(r, p)
 		if err != io.ErrClosedPipe {
 			panic("Expected ErrClosedPipe")
 		}
