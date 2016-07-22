@@ -80,7 +80,7 @@ The simplest is probably:
 go get -u github.com/tools/godep      # install godep tool
 godep restore ./...                   # copy vendored dependencies into your GOPATH
 go get -u -t ./...                    # update versions
-godep save ./...                      # save changes
+godep update ./...                    # update dependencies
 git add Godeps/ vendor/               # add changes
 git diff --cached                     # check changes look correct
 git commit -m "Updated all go package dependencies to latest versions"
