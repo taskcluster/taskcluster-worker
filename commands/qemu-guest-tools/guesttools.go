@@ -52,11 +52,18 @@ func new(host string, log *logrus.Entry) *guestTools {
 	}
 }
 
+func (g *guestTools) url(path string) string {
+	if len(path) > 0 && path[0] == '/' {
+		path = path[1:]
+	}
+	return g.baseURL + path
+}
+
 func (g *guestTools) Run() {
 	// Poll for instructions on how to execute the current task
 	task := metaservice.Execute{}
 	for {
-		res, err := g.got.Get(g.baseURL + "engine/v1/execute").Send()
+		res, err := g.got.Get(g.url("engine/v1/execute")).Send()
 		if err != nil {
 			g.log.Println("Failed to GET /engine/v1/execute, error: ", err)
 			goto retry
@@ -99,7 +106,7 @@ func (g *guestTools) Run() {
 		result = "failed"
 	}
 
-	res, err := g.got.Put(g.baseURL+"engine/v1/"+result, nil).Send()
+	res, err := g.got.Put(g.url("engine/v1/"+result), nil).Send()
 	if err != nil {
 		g.log.Println("Failed to report result ", result, ", error: ", err)
 	} else if res.StatusCode != http.StatusOK {
@@ -109,7 +116,7 @@ func (g *guestTools) Run() {
 
 func (g *guestTools) createTaskLog() io.WriteCloser {
 	reader, writer := nio.Pipe(buffer.New(5))
-	req, err := http.NewRequest("POST", g.baseURL+"engine/v1/log", reader)
+	req, err := http.NewRequest("POST", g.url("engine/v1/log"), reader)
 	if err != nil {
 		g.log.Panic("Failed to create request for log, error: ", err)
 	}
@@ -134,7 +141,11 @@ func (g *guestTools) StartProcessingActions() {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	g.stopPolling = cancel
-	go g.polling(ctx)
+	go func() {
+		for ctx.Err() == nil {
+			g.poll(ctx)
+		}
+	}()
 }
 
 func (g *guestTools) StopProcessingActions() {
@@ -146,9 +157,9 @@ func (g *guestTools) StopProcessingActions() {
 
 const pollTimeout = metaservice.PollTimeout + 5*time.Second
 
-func (g *guestTools) polling(ctx context.Context) {
+func (g *guestTools) poll(ctx context.Context) {
 	// Poll the metaservice for an action to perform
-	req, err := http.NewRequest(http.MethodGet, g.baseURL+"/engine/v1/poll", nil)
+	req, err := http.NewRequest(http.MethodGet, g.url("engine/v1/poll"), nil)
 	if err != nil {
 		g.log.Panicln("Failed to create polling request, error: ", err)
 	}
@@ -156,11 +167,13 @@ func (g *guestTools) polling(ctx context.Context) {
 	// Do request with a timeout
 	c, _ := context.WithTimeout(ctx, pollTimeout)
 	res, err := ctxhttp.Do(c, nil, req)
-	if err != nil && err != context.Canceled {
+	//res, res := http.DefaultClient.Do(req)
+	if err != nil {
 		g.log.Info("Poll request failed, error: ", err)
+
 		// if this wasn't a deadline exceeded error, we'll sleep a second to avoid
 		// spinning the CPU while waiting for DHCP to come up.
-		if err != context.DeadlineExceeded {
+		if err != context.DeadlineExceeded && err != context.Canceled {
 			time.Sleep(1 * time.Second)
 		}
 		return
@@ -201,6 +214,8 @@ func (g *guestTools) dispatchAction(action metaservice.Action) {
 }
 
 func (g *guestTools) doGetArtifact(ID, path string) {
+	g.log.Info("Sending artifact: ", path)
+
 	// Construct body as buffered file read, if there is an error it's because
 	// the file doesn't exist and we set the body the nil, as we still have to
 	// report this in the reply (just with an empty body)
@@ -211,7 +226,7 @@ func (g *guestTools) doGetArtifact(ID, path string) {
 	}
 
 	// Create reply
-	req, err := http.NewRequest(http.MethodPost, g.baseURL+"/engine/v1/reply?id="+ID, body)
+	req, err := http.NewRequest(http.MethodPost, g.url("engine/v1/reply?id="+ID), body)
 	if err != nil {
 		g.log.Panic("Failed to create reply request, error: ", err)
 	}
@@ -234,6 +249,8 @@ func (g *guestTools) doGetArtifact(ID, path string) {
 }
 
 func (g *guestTools) doListFolder(ID, path string) {
+	g.log.Info("Listing path: ", path)
+
 	files := []string{}
 	err := filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
 		// Stop iteration and send an error to metaservice, if there is an error
@@ -252,7 +269,7 @@ func (g *guestTools) doListFolder(ID, path string) {
 
 	// Create reply request... We use got here, this means that we get retries...
 	// There is no harm in retries, server will just ignore them.
-	req := g.got.Post(g.baseURL+"/engine/v1/reply?id="+ID, nil)
+	req := g.got.Post(g.url("engine/v1/reply?id="+ID), nil)
 	err = req.JSON(metaservice.Files{
 		Files:    files,
 		NotFound: notFound,
@@ -280,7 +297,7 @@ var dialer = websocket.Dialer{
 
 func (g *guestTools) doExecShell(ID string) {
 	// Establish a websocket reply
-	ws, _, err := dialer.Dial("ws:"+g.baseURL[5:]+"/engine/v1/reply?id="+ID, nil)
+	ws, _, err := dialer.Dial("ws:"+g.url("engine/v1/reply?id=" + ID)[5:], nil)
 	if err != nil {
 		g.log.Error("Failed to establish websocket for reply to ID = ", ID)
 		return

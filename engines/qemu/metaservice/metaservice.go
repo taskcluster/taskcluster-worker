@@ -42,6 +42,7 @@ type MetaService struct {
 	actionOut       chan Action
 	pendingRecords  map[string]*asyncRecord
 	mPendingRecords sync.Mutex
+	haltPolling     chan struct{} // Closed when polling should stop (for tests)
 }
 
 // New returns a new MetaService that will tell the virtual machine to
@@ -63,6 +64,7 @@ func New(
 		mux:            http.NewServeMux(),
 		actionOut:      make(chan Action),
 		pendingRecords: make(map[string]*asyncRecord),
+		haltPolling:    make(chan struct{}),
 	}
 
 	s.mux.HandleFunc("/engine/v1/execute", s.handleExecute)
@@ -208,6 +210,16 @@ func (s *MetaService) handleUnknown(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// StopPollers will stop all polling requests. This is only used for testing,
+// where it is important that clients stop polling or we can't Close the server.
+func (s *MetaService) StopPollers() {
+	select {
+	case <-s.haltPolling:
+	default:
+		close(s.haltPolling)
+	}
+}
+
 // handlePoll handles GET /engine/v1/poll
 func (s *MetaService) handlePoll(w http.ResponseWriter, r *http.Request) {
 	if !forceMethod(w, r, http.MethodGet) {
@@ -216,6 +228,11 @@ func (s *MetaService) handlePoll(w http.ResponseWriter, r *http.Request) {
 
 	debug("GET /engine/v1/poll")
 	select {
+	case <-s.haltPolling:
+		reply(w, http.StatusOK, Action{
+			ID:   slugid.V4(),
+			Type: "none",
+		})
 	case <-time.After(PollTimeout):
 		reply(w, http.StatusOK, Action{
 			ID:   slugid.V4(),
