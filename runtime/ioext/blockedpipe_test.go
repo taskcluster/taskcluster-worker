@@ -1,8 +1,11 @@
 package ioext
 
 import (
+	"bytes"
+	"crypto/rand"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"testing"
 	"time"
 )
@@ -126,4 +129,71 @@ func TestBlockedPipeClosedPipe(t *testing.T) {
 	// And we should have cleanedup, not leaking anything that would be bad
 	<-cleanedup
 	fmt.Println("- Cleanup")
+}
+
+func TestBlockedReachesEOF(t *testing.T) {
+	r, w := BlockedPipe()
+	r.Unblock(1024)
+
+	go func() {
+		w.Write([]byte("Hello"))
+		w.Close()
+	}()
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		panic(fmt.Sprintf("Unexpected error: %s", err))
+	}
+	if string(data) != "Hello" {
+		panic("Expected to get 'Hello'")
+	}
+}
+
+func TestBlockedHugeStream(t *testing.T) {
+	r, w := BlockedPipe()
+	r.Unblock(4096 + 4*1024*1024 + 7)
+
+	input := make([]byte, 4*1024*1024+7)
+	rand.Read(input)
+	go func() {
+		w.Write(input)
+		w.Close()
+	}()
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		panic(fmt.Sprintf("Unexpected error: %s", err))
+	}
+	if !bytes.Equal(input, data) {
+		panic("Expected input to match data")
+	}
+}
+
+func TestBlockedSlowStream(t *testing.T) {
+	r, w := BlockedPipe()
+	r.Unblock(4096)
+
+	input := make([]byte, 4*1024*1024+7)
+	rand.Read(input)
+	go func() {
+		w.Write(input)
+		w.Close()
+	}()
+	done := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-done:
+				break
+			case <-time.After(1 * time.Millisecond):
+				r.Unblock(4096)
+			}
+		}
+	}()
+	data, err := ioutil.ReadAll(r)
+	close(done)
+	if err != nil {
+		panic(fmt.Sprintf("Unexpected error: %s", err))
+	}
+	if !bytes.Equal(input, data) {
+		panic("Expected input to match data")
+	}
 }

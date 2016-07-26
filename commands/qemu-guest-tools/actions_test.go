@@ -2,12 +2,17 @@ package qemuguesttools
 
 import (
 	"bytes"
+	"crypto/rand"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
@@ -127,4 +132,121 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 	files, err = meta.ListFolder(emptyFolder)
 	assert(len(files) == 0, "Expected zero files")
 	assert(err == nil, "Didn't expect any error")
+
+	////////////////////
+	testShellHello(meta)
+	testShellCat(meta)
+	testShellCatStdErr(meta)
+}
+
+func testShellHello(meta *metaservice.MetaService) {
+	debug("### Test meta.Shell (using 'echo hello')")
+	shell, err := meta.ExecShell()
+	nilOrPanic(err, "Failed to call meta.ExecShell()")
+
+	readHello := sync.WaitGroup{}
+	readHello.Add(1)
+	// Discard stderr
+	go io.Copy(ioutil.Discard, shell.StderrPipe())
+	go func() {
+		shell.StdinPipe().Write([]byte("echo HELLO\n"))
+		readHello.Wait()
+		shell.StdinPipe().Close()
+	}()
+	go func() {
+		data := bytes.Buffer{}
+		for {
+			b := []byte{0}
+			n, werr := shell.StdoutPipe().Read(b)
+			data.Write(b[:n])
+			if strings.Contains(data.String(), "HELLO") {
+				readHello.Done()
+				break
+			}
+			if werr != nil {
+				assert(werr == io.EOF, "Expected EOF!")
+				break
+			}
+		}
+		// Discard the rest
+		go io.Copy(ioutil.Discard, shell.StdoutPipe())
+	}()
+
+	success, err := shell.Wait()
+	nilOrPanic(err, "Got an error from shell.Wait, error: ", err)
+	assert(success, "Expected success from shell, we closed with end of stdin")
+}
+
+func testShellCat(meta *metaservice.MetaService) {
+	debug("### Test meta.Shell (using 'exec cat -')")
+	shell, err := meta.ExecShell()
+	nilOrPanic(err, "Failed to call meta.ExecShell()")
+
+	input := make([]byte, 42*1024*1024+7)
+	rand.Read(input)
+
+	// Discard stderr
+	go io.Copy(ioutil.Discard, shell.StderrPipe())
+	go func() {
+		if goruntime.GOOS == "windows" {
+			shell.StdinPipe().Write([]byte("type con\n"))
+		} else {
+			shell.StdinPipe().Write([]byte("exec cat -\n"))
+		}
+		shell.StdinPipe().Write(input)
+		shell.StdinPipe().Close()
+		debug("Closed stdin")
+	}()
+	var output []byte
+	outputDone := sync.WaitGroup{}
+	outputDone.Add(1)
+	go func() {
+		data, rerr := ioutil.ReadAll(shell.StdoutPipe())
+		nilOrPanic(rerr, "Got error from stdout pipe, error: ", rerr)
+		output = data
+		outputDone.Done()
+	}()
+
+	success, err := shell.Wait()
+	nilOrPanic(err, "Got an error from shell.Wait, error: ", err)
+	assert(success, "Expected success from shell, we closed with end of stdin")
+	outputDone.Wait()
+	assert(bytes.Compare(output, input) == 0, "Expected data to match input")
+}
+
+func testShellCatStdErr(meta *metaservice.MetaService) {
+	debug("### Test meta.Shell (using 'exec cat - 1>&2')")
+	shell, err := meta.ExecShell()
+	nilOrPanic(err, "Failed to call meta.ExecShell()")
+
+	input := make([]byte, 4*1024*1024+37)
+	rand.Read(input)
+
+	// Discard stderr
+	go io.Copy(ioutil.Discard, shell.StdoutPipe())
+	go func() {
+		if goruntime.GOOS == "windows" {
+			shell.StdinPipe().Write([]byte("type con 1>&2\n"))
+		} else {
+			shell.StdinPipe().Write([]byte("exec cat -  1>&2\n"))
+		}
+		shell.StdinPipe().Write(input)
+		shell.StdinPipe().Close()
+		debug("Closed stdin")
+	}()
+	var output []byte
+	outputDone := sync.WaitGroup{}
+	outputDone.Add(1)
+	go func() {
+		data, rerr := ioutil.ReadAll(shell.StderrPipe())
+		nilOrPanic(rerr, "Got error from stderr pipe, error: ", rerr)
+		output = data
+		outputDone.Done()
+	}()
+
+	success, err := shell.Wait()
+	nilOrPanic(err, "Got an error from shell.Wait, error: ", err)
+	assert(success, "Expected success from shell, we closed with end of stdin")
+	outputDone.Wait()
+	assert(bytes.Compare(output, input) == 0, "Expected data to match input")
 }

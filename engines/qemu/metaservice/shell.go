@@ -16,9 +16,9 @@ const (
 	pongTimeout         = 30 * time.Second
 	writeTimeout        = pongTimeout * 3 / 2
 	pingInterval        = 10 * time.Second
-	maxMessageSize      = 10 * 1024
-	maxOutstandingBytes = 8 * 1024
-	readBlockSize       = 4 * 1024
+	readBlockSize       = 64 * 1024
+	maxMessageSize      = readBlockSize + 4*1024
+	maxOutstandingBytes = 2 * readBlockSize
 )
 
 type shell struct {
@@ -39,8 +39,10 @@ type shell struct {
 // engines.Shell interface.
 func newShell(ws *websocket.Conn) *shell {
 	stdinReader, stdin := ioext.BlockedPipe()
-	stdout, stdoutWriter := io.Pipe()
-	stderr, stderrWriter := io.Pipe()
+	tellOut := make(chan int, 5)
+	tellErr := make(chan int, 5)
+	stdout, stdoutWriter := ioext.AsyncPipe(2*maxOutstandingBytes, tellOut)
+	stderr, stderrWriter := ioext.AsyncPipe(2*maxOutstandingBytes, tellErr)
 	stdinReader.Unblock(maxOutstandingBytes)
 
 	s := &shell{
@@ -60,6 +62,8 @@ func newShell(ws *websocket.Conn) *shell {
 	go s.writeMessages()
 	go s.readMessages()
 	go s.sendPings()
+	go s.sendAck(StreamStdout, tellOut)
+	go s.sendAck(StreamStderr, tellErr)
 
 	return s
 }
@@ -83,6 +87,7 @@ func (s *shell) send(message []byte) {
 
 	if err != nil {
 		s.resolve.Do(func() {
+			debug("Resolving internal error: Failed to send message, error: %s", err)
 			s.success = false
 			s.err = engines.ErrNonFatalInternalError
 			s.dispose()
@@ -104,12 +109,32 @@ func (s *shell) sendPings() {
 		// If there is an error we resolve with internal error
 		if err != nil {
 			s.resolve.Do(func() {
+				debug("Resolving with internal-error, failed to send ping, error: %s", err)
 				s.success = false
 				s.err = engines.ErrNonFatalInternalError
 				s.dispose()
 			})
 			return
 		}
+	}
+}
+
+func (s *shell) sendAck(streamID byte, tell <-chan int) {
+	// reserve a buffer for sending acknowledgments
+	ack := make([]byte, 2+4)
+	ack[0] = MessageTypeAck
+
+	for {
+		n := <-tell
+		if n == 0 {
+			debug("Final ack for streamID sent: %d", streamID)
+			break // we've served all of the stream
+		}
+
+		// Send an acknowledgment message (this is for congestion control)
+		ack[1] = streamID
+		binary.BigEndian.PutUint32(ack[2:], uint32(n))
+		s.send(ack)
 	}
 }
 
@@ -133,6 +158,7 @@ func (s *shell) writeMessages() {
 
 		// If EOF, then we send an empty payload to signal this
 		if err == io.EOF {
+			debug("Reached EOF of stdin")
 			s.send(m[:2])
 			return
 		}
@@ -140,6 +166,7 @@ func (s *shell) writeMessages() {
 		if err != nil && err != io.EOF {
 			// If we fail to read from stdin, then we cleanup
 			s.resolve.Do(func() {
+				debug("Resolving internal error: Failed to read stdin, error: %s", err)
 				s.success = false
 				s.err = engines.ErrNonFatalInternalError
 				s.dispose()
@@ -150,14 +177,11 @@ func (s *shell) writeMessages() {
 }
 
 func (s *shell) readMessages() {
-	// reserve a buffer for sending acknowledgments
-	ack := make([]byte, 2+4)
-	ack[0] = MessageTypeAck
-
 	for {
 		t, m, err := s.ws.ReadMessage()
 		if err != nil {
 			s.resolve.Do(func() {
+				debug("Resolving internal error: Failed to read message, error: %s", err)
 				s.success = false
 				s.err = engines.ErrNonFatalInternalError
 				s.dispose()
@@ -182,33 +206,25 @@ func (s *shell) readMessages() {
 
 			// Write payload or close stream if payload is zero length
 			var err error
-			var n int
 			if mStream == StreamStdout {
 				if len(mPayload) > 0 {
-					n, err = s.stdoutWriter.Write(mPayload)
+					_, err = s.stdoutWriter.Write(mPayload)
 				} else {
 					err = s.stdoutWriter.Close()
 				}
 			}
 			if mStream == StreamStderr {
 				if len(mPayload) > 0 {
-					n, err = s.stderrWriter.Write(mPayload)
+					_, err = s.stderrWriter.Write(mPayload)
 				} else {
 					err = s.stderrWriter.Close()
 				}
 			}
 
-			// If payload was non-zero and successfully written we send an
-			// acknowledgment message (this is for congestion control)
-			if err == nil && n > 0 {
-				ack[1] = mStream
-				binary.BigEndian.PutUint32(ack[2:], uint32(n))
-				s.send(ack)
-			}
-
 			// If there was an error writing to output stream we close with error
 			if err != nil {
 				s.resolve.Do(func() {
+					debug("Resolving internal error: Failed to write streamID: %d, error: %s", mStream, err)
 					s.success = false
 					s.err = engines.ErrNonFatalInternalError
 					s.dispose()
@@ -230,6 +246,11 @@ func (s *shell) readMessages() {
 			s.resolve.Do(func() {
 				s.success = (mData[0] == 0)
 				s.err = engines.ErrShellTerminated
+				debug("Resolving due to Exit message, success: %v", s.success)
+
+				s.mWrite.Lock()
+				s.ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+				s.mWrite.Unlock()
 				s.dispose()
 			})
 			return
@@ -251,6 +272,8 @@ func (s *shell) StderrPipe() io.ReadCloser {
 
 func (s *shell) Abort() error {
 	s.resolve.Do(func() {
+		debug("Resolving by aborting shell")
+
 		// Write an abort message
 		m := make([]byte, 1)
 		m[0] = MessageTypeAbort

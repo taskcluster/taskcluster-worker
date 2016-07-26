@@ -17,30 +17,33 @@ const (
 	pongTimeout         = 30 * time.Second
 	writeTimeout        = pongTimeout * 3 / 2
 	pingInterval        = 10 * time.Second
-	maxMessageSize      = 10 * 1024
-	maxOutstandingBytes = 8 * 1024
-	readBlockSize       = 4 * 1024
+	readBlockSize       = 64 * 1024
+	maxMessageSize      = readBlockSize + 4*1024
+	maxOutstandingBytes = 2 * readBlockSize
 )
 
 type shellHandler struct {
-	log          *logrus.Entry
-	ws           *websocket.Conn
-	mWrite       sync.Mutex
-	stdin        io.ReadCloser
-	stdout       io.WriteCloser
-	stderr       io.WriteCloser
-	stdinWriter  io.WriteCloser
-	stdoutReader *ioext.PipeReader
-	stderrReader *ioext.PipeReader
-	resolve      atomics.Once // wrap calls to abortFunc and success
-	abortFunc    func()
-	success      bool
+	log           *logrus.Entry
+	ws            *websocket.Conn
+	mWrite        sync.Mutex
+	stdin         io.ReadCloser
+	stdout        io.WriteCloser
+	stderr        io.WriteCloser
+	stdinWriter   io.WriteCloser
+	stdoutReader  *ioext.PipeReader
+	stderrReader  *ioext.PipeReader
+	streamingDone sync.WaitGroup // Done when stdout/stderr are done streaming
+	resolve       atomics.Once   // wrap calls to abortFunc and success
+	abortFunc     func()
+	success       bool
+	tellIn        <-chan int
 }
 
 // newShellHandler returns a new shellHandler structure for that can
 // serve/expose a shell over a websocket.
 func newShellHandler(ws *websocket.Conn, log *logrus.Entry) *shellHandler {
-	stdin, stdinWriter := io.Pipe()
+	tellIn := make(chan int, 5)
+	stdin, stdinWriter := ioext.AsyncPipe(2*maxOutstandingBytes, tellIn)
 	stdoutReader, stdout := ioext.BlockedPipe()
 	stderrReader, stderr := ioext.BlockedPipe()
 	stdoutReader.Unblock(maxOutstandingBytes)
@@ -55,6 +58,7 @@ func newShellHandler(ws *websocket.Conn, log *logrus.Entry) *shellHandler {
 		stdinWriter:  stdinWriter,
 		stdoutReader: stdoutReader,
 		stderrReader: stderrReader,
+		tellIn:       tellIn,
 	}
 
 	ws.SetReadLimit(maxMessageSize)
@@ -73,10 +77,12 @@ func (s *shellHandler) Communicate(abortFunc func()) {
 	go s.sendPings()
 	go s.waitForSuccess()
 
+	s.streamingDone.Add(2)
 	go s.transmitStream(s.stdoutReader, metaservice.StreamStdout)
 	go s.transmitStream(s.stderrReader, metaservice.StreamStderr)
 
 	go s.readMessages()
+	go s.sendAcks()
 }
 
 // StdinPipe returns the stdin stream
@@ -97,6 +103,16 @@ func (s *shellHandler) StderrPipe() io.WriteCloser {
 // Terminated tells that the shell has been terminated
 func (s *shellHandler) Terminated(success bool) {
 	s.log.Info("Terminated, success = ", success)
+
+	// Close pipes
+	s.StdoutPipe().Close()
+	s.StderrPipe().Close()
+
+	// Wait for stdout/stderr to finish streaming, resolving the shell before
+	// all the output from the shell has been read doesn't make any sense.
+	s.log.Info("Waiting for stdout/stderr to finish")
+	s.streamingDone.Wait()
+
 	s.resolve.Do(func() {
 		s.log.Info("Resovling the shell using Terminated()")
 		s.success = success
@@ -104,7 +120,7 @@ func (s *shellHandler) Terminated(success bool) {
 }
 
 func (s *shellHandler) abort() {
-	s.log.Info("aborting due to error")
+	s.log.Info("Trying to abort (if not already resolved)")
 	s.resolve.Do(func() {
 		s.log.Error("Resolving the shell using abort()")
 		if s.abortFunc != nil {
@@ -134,6 +150,7 @@ func (s *shellHandler) sendPings() {
 
 		// Write a ping message, and reset the write deadline
 		s.mWrite.Lock()
+		s.log.Info("Sending ping")
 		s.ws.SetWriteDeadline(time.Now().Add(writeTimeout))
 		err := s.ws.WriteMessage(websocket.PingMessage, []byte{})
 		s.mWrite.Unlock()
@@ -141,7 +158,12 @@ func (s *shellHandler) sendPings() {
 		// If there is an error we resolve with internal error
 		if err != nil {
 			// This is expected when close is called, it's how this for-loop is broken
-			s.log.Info("Failed to send ping, error: ", err)
+			if err == websocket.ErrCloseSent {
+				s.abort() // don't log, we probably don't have to call abort() either
+				return
+			}
+
+			s.log.Error("Failed to send ping, error: ", err)
 			s.abort()
 			return
 		}
@@ -179,8 +201,12 @@ func (s *shellHandler) waitForSuccess() {
 		s.log.Error("Failed to send 'Exit' message, error: ", err)
 	}
 
-	// Close the websocket
-	s.ws.Close()
+	// Close the connection gracefully, We do this because closing the websocket
+	// may cause server ping/pongs or acknowledgment messages to fail, so it
+	// can't process outstanding messages.
+	s.ws.WriteMessage(websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+	)
 
 	// Close all streams (in case there's any go-routines blocked on them)
 	s.stdinWriter.Close()
@@ -202,7 +228,10 @@ func (s *shellHandler) transmitStream(r io.Reader, streamID byte) {
 
 		// If EOF, then we send an empty payload to signal this
 		if err == io.EOF {
+			s.log.Info("Reached EOF for streamID: ", streamID)
 			s.send(m[:2])
+			// We're done streaming, signal this so an Exit message can be sent.
+			s.streamingDone.Done()
 			return
 		}
 
@@ -216,16 +245,15 @@ func (s *shellHandler) transmitStream(r io.Reader, streamID byte) {
 }
 
 func (s *shellHandler) readMessages() {
-	// reserve a buffer for sending acknowledgments
-	ack := make([]byte, 2+4)
-	ack[0] = metaservice.MessageTypeAck
-	ack[1] = metaservice.StreamStdin
-
 	for {
 		t, m, err := s.ws.ReadMessage()
 		if err != nil {
 			// This is expected to happen when the loop breaks
-			s.log.Info("Failed to read message from websocket, error: ", err)
+			if e, ok := err.(*websocket.CloseError); ok && e.Code == websocket.CloseNormalClosure {
+				s.log.Info("Websocket closed normally error: ", err)
+			} else {
+				s.log.Error("Failed to read message from websocket, error: ", err)
+			}
 			s.abort()
 			return
 		}
@@ -247,21 +275,14 @@ func (s *shellHandler) readMessages() {
 
 			// Write payload or close stream if payload is zero length
 			var err error
-			var n int
 			if mStream == metaservice.StreamStdin {
 				if len(mPayload) > 0 {
-					n, err = s.stdinWriter.Write(mPayload)
+					_, err = s.stdinWriter.Write(mPayload)
 				} else {
 					err = s.stdinWriter.Close()
 				}
 			}
 
-			// If payload was non-zero and successfully written we send an
-			// acknowledgment message (this is for congestion control)
-			if err == nil && n > 0 {
-				binary.BigEndian.PutUint32(ack[2:], uint32(n))
-				s.send(ack)
-			}
 			// If there are errors writing to stdin, then we'll abort...
 			// The right thing might be to return an error, as in pipe-broken...
 			// Maybe one day we can consider this, for now abort seems reasonable.
@@ -295,5 +316,24 @@ func (s *shellHandler) readMessages() {
 			})
 			return
 		}
+	}
+}
+
+func (s *shellHandler) sendAcks() {
+	// reserve a buffer for sending acknowledgments
+	ack := make([]byte, 2+4)
+	ack[0] = metaservice.MessageTypeAck
+	ack[1] = metaservice.StreamStdin
+
+	for {
+		n := <-s.tellIn
+		if n == 0 {
+			s.log.Info("Final ack for stdin sent")
+			break // we've served all of the stream
+		}
+
+		// Send an acknowledgment message (this is for congestion control)
+		binary.BigEndian.PutUint32(ack[2:], uint32(n))
+		s.send(ack)
 	}
 }
