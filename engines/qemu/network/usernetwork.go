@@ -28,7 +28,7 @@ type UserNetwork struct {
 // meta-data service should be sufficiently isolated.
 func NewUserNetwork(socketFolder string) (*UserNetwork, error) {
 	n := &UserNetwork{
-		socketFile: filepath.Join(socketFolder, "meta-"+slugid.V4()+".sock"),
+		socketFile: filepath.Join(socketFolder, "meta-"+slugid.Nice()+".sock"),
 	}
 	n.server = &graceful.Server{
 		Timeout: 30 * time.Second,

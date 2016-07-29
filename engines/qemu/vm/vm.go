@@ -37,8 +37,8 @@ func NewVirtualMachine(
 ) *VirtualMachine {
 	// Construct virtual machine
 	vm := &VirtualMachine{
-		vncSocket: filepath.Join(socketFolder, slugid.V4()+".sock"),
-		qmpSocket: filepath.Join(socketFolder, slugid.V4()+".sock"),
+		vncSocket: filepath.Join(socketFolder, slugid.Nice()+".sock"),
+		qmpSocket: filepath.Join(socketFolder, slugid.Nice()+".sock"),
 		network:   network,
 		image:     image,
 		log:       log,

@@ -249,5 +249,6 @@ func testShellCatStdErr(meta *metaservice.MetaService) {
 	nilOrPanic(err, "Got an error from shell.Wait, error: ", err)
 	assert(success, "Expected success from shell, we closed with end of stdin")
 	outputDone.Wait()
-	assert(bytes.Compare(output, input) == 0, "Expected data to match input")
+	assert(bytes.Equal(output, input), "Expected data to match input, ",
+		"len(input) = ", len(input), " len(output) = ", len(output))
 }

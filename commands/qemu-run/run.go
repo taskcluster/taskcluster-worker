@@ -52,7 +52,7 @@ func (cmd) Execute(arguments map[string]interface{}) {
 	}
 
 	// Create a temporary folder
-	tempFolder := filepath.Join("/tmp", slugid.V4())
+	tempFolder := filepath.Join("/tmp", slugid.Nice())
 	if err = os.Mkdir(tempFolder, 0777); err != nil {
 		log.Fatal("Failed to create temporary folder in /tmp, error: ", err)
 	}

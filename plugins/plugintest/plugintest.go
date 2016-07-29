@@ -84,7 +84,7 @@ func (c Case) Test() {
 
 	taskID := c.TaskID
 	if taskID == "" {
-		taskID = slugid.V4()
+		taskID = slugid.Nice()
 	}
 	context, controller, err := runtime.NewTaskContext(runtimeEnvironment.TemporaryStorage.NewFilePath(), runtime.TaskInfo{
 		TaskID: taskID,

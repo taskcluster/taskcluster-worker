@@ -24,7 +24,7 @@ func TestImageManager(t *testing.T) {
 	gc := &gc.GarbageCollector{}
 	log := logrus.StandardLogger()
 	sentry, _ := raven.New("")
-	imageFolder := filepath.Join("/tmp", slugid.V4())
+	imageFolder := filepath.Join("/tmp", slugid.Nice())
 
 	fmt.Println(" - Create manager")
 	manager, err := NewManager(imageFolder, gc, log.WithField("subsystem", "image-manager"), sentry)

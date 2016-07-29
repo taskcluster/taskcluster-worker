@@ -44,7 +44,7 @@ func TestTaskManagerRunTask(t *testing.T) {
 	defer s.Close()
 
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
-	tempPath := filepath.Join(os.TempDir(), slugid.V4())
+	tempPath := filepath.Join(os.TempDir(), slugid.Nice())
 	tempStorage, err := runtime.NewTemporaryStorage(tempPath)
 	if err != nil {
 		t.Fatal(err)
@@ -116,7 +116,7 @@ func TestCancelTask(t *testing.T) {
 	defer s.Close()
 
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
-	tempPath := filepath.Join(os.TempDir(), slugid.V4())
+	tempPath := filepath.Join(os.TempDir(), slugid.Nice())
 	tempStorage, err := runtime.NewTemporaryStorage(tempPath)
 	if err != nil {
 		t.Fatal(err)
@@ -207,7 +207,7 @@ func TestWorkerShutdown(t *testing.T) {
 	defer s.Close()
 
 	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
-	tempPath := filepath.Join(os.TempDir(), slugid.V4())
+	tempPath := filepath.Join(os.TempDir(), slugid.Nice())
 	tempStorage, err := runtime.NewTemporaryStorage(tempPath)
 	if err != nil {
 		t.Fatal(err)

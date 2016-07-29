@@ -88,7 +88,7 @@ type taskPlugin struct {
 }
 
 func ensureEnvironment(t *testing.T) (*runtime.Environment, engines.Engine, plugins.Plugin) {
-	tempPath := filepath.Join(os.TempDir(), slugid.V4())
+	tempPath := filepath.Join(os.TempDir(), slugid.Nice())
 	tempStorage, err := runtime.NewTemporaryStorage(tempPath)
 	if err != nil {
 		t.Fatal(err)

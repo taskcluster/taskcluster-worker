@@ -117,7 +117,7 @@ func (s *LocalServer) AttachHook(handler http.Handler) (url string, detach func(
 	defer s.m.Unlock()
 
 	// Add hook
-	id := slugid.V4()
+	id := slugid.Nice()
 	s.hooks[id] = handler
 
 	// Create url and detach function

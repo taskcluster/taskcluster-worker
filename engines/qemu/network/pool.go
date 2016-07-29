@@ -105,15 +105,15 @@ func NewPool(N int) (*Pool, error) {
 	}
 	// Monitor dnsmasq and panic if it crashes unexpectedly
 	go (func(p *Pool, done chan<- struct{}) {
-		err := p.dnsmasq.Wait()
+		werr := p.dnsmasq.Wait()
 		close(done)
 		// Ignore errors if dnsmasqKill is true, otherwise this is a fatal issue
-		if err != nil && !p.dnsmasqKill.Get() {
+		if werr != nil && !p.dnsmasqKill.Get() {
 			// We could probably restart the dnsmasq, as long as we avoid an infinite
 			// loop that should be fine. But dnsmasq probably won't crash without a
 			// good reason.
-			// TODO: Repor to sentry
-			panic(fmt.Sprint("Fatal: dnsmasq died unexpectedly, error: ", err))
+			// TODO: Report to sentry
+			panic(fmt.Sprint("Fatal: dnsmasq died unexpectedly, error: ", werr))
 		}
 	})(p, dnsmasqDone)
 

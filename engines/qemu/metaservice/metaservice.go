@@ -230,12 +230,12 @@ func (s *MetaService) handlePoll(w http.ResponseWriter, r *http.Request) {
 	select {
 	case <-s.haltPolling:
 		reply(w, http.StatusOK, Action{
-			ID:   slugid.V4(),
+			ID:   slugid.Nice(),
 			Type: "none",
 		})
 	case <-time.After(PollTimeout):
 		reply(w, http.StatusOK, Action{
-			ID:   slugid.V4(),
+			ID:   slugid.Nice(),
 			Type: "none",
 		})
 	case action := <-s.actionOut:
@@ -261,7 +261,7 @@ func (s *MetaService) handlePoll(w http.ResponseWriter, r *http.Request) {
 // with matching id in querystring and forward this request to cb.
 func (s *MetaService) asyncRequest(action Action, cb asyncCallback) {
 	// Ensure the action has a unique id
-	action.ID = slugid.V4()
+	action.ID = slugid.Nice()
 
 	// Create channel to track when the callback has been called
 	isDone := make(chan struct{})

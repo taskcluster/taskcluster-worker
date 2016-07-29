@@ -187,7 +187,7 @@ func parseEnginePayload(t *testing.T, engine engines.Engine, payload string) int
 }
 
 func ensureEnvironment(t *testing.T) (*runtime.Environment, engines.Engine) {
-	tempPath := filepath.Join(os.TempDir(), slugid.V4())
+	tempPath := filepath.Join(os.TempDir(), slugid.Nice())
 	tempStorage, err := runtime.NewTemporaryStorage(tempPath)
 	assert.Nil(t, err, "Could not create temporary Storage, %s", err)
 
