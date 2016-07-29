@@ -7,6 +7,9 @@ import (
 	"sync"
 )
 
+// PingPath is the path that PingProxyPayload should hit on the proxy.
+const PingPath = "/v1/ping"
+
 // A ProxyTestCase holds information necessary to run tests that an engine
 // can attach proxies, call them and forward calls correctly
 type ProxyTestCase struct {
@@ -50,7 +53,7 @@ func (c *ProxyTestCase) TestPingProxyPayload() {
 	assert(pinged, "PingProxyPayload didn't call the attachedProxy, log: ", log)
 	assert(pingMethod == "GET" || pingMethod == "",
 		"PingProxyPayload pinged with method: ", pingMethod)
-	assert(pingPath == "/v1/ping", "PingProxyPayload pinged path: ", pingPath)
+	assert(pingPath == PingPath, "PingProxyPayload pinged path: ", pingPath)
 	assert(strings.Contains(log, "secret=42"),
 		"Didn't find secret=42 from ping response in log", log)
 }
@@ -80,7 +83,7 @@ func (c *ProxyTestCase) TestPing404IsUnsuccessful() {
 
 	assert(!result, "PingProxyPayload exited successfully, when we returned 404")
 	assert(pinged, "PingProxyPayload didn't call the attachedProxy")
-	assert(pingPath == "/v1/ping", "PingProxyPayload pinged path: ", pingPath)
+	assert(pingPath == PingPath, "PingProxyPayload pinged path: ", pingPath)
 	assert(strings.Contains(log, "secret=42"),
 		"Didn't find secret=42 from ping response in log", log)
 }
@@ -130,7 +133,7 @@ func (c *ProxyTestCase) TestLiveLogging() {
 
 	assert(result, "PingProxyPayload exited unsuccessfully")
 	assert(pinged, "PingProxyPayload didn't call the attachedProxy")
-	assert(pingPath == "/v1/ping", "PingProxyPayload pinged path: ", pingPath)
+	assert(pingPath == PingPath, "PingProxyPayload pinged path: ", pingPath)
 	assert(strings.Contains(log, "secret=42"),
 		"Didn't find 'secret=42' from ping response in log", log)
 	assert(strings.Contains(log, "Pinging"), "Didn't find 'Pinging' in log", log)

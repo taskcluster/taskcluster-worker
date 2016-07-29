@@ -79,16 +79,16 @@ func (cmd) Execute(arguments map[string]interface{}) {
 	var img *image.MutableImage
 	if fromNew {
 		// Read machine definition
-		machine, err := vm.LoadMachine(machineFile)
-		if err != nil {
-			log.Fatal("Failed to load machine file from ", machineFile, " error: ", err)
+		machine, err2 := vm.LoadMachine(machineFile)
+		if err2 != nil {
+			log.Fatal("Failed to load machine file from ", machineFile, " error: ", err2)
 		}
 
 		// Construct MutableImage
 		log.Info("Creating MutableImage")
-		img, err = image.NewMutableImage(tempFolder, int(size), machine)
-		if err != nil {
-			log.Fatal("Failed to create image, error: ", err)
+		img, err2 = image.NewMutableImage(tempFolder, int(size), machine)
+		if err2 != nil {
+			log.Fatal("Failed to create image, error: ", err2)
 		}
 	}
 	if fromImage {
@@ -114,7 +114,7 @@ func (cmd) Execute(arguments map[string]interface{}) {
 
 	// Create virtual machine
 	log.Info("Creating virtual machine")
-	vm := vm.NewVirtualMachine(img, net, socketFolder, boot, cdrom)
+	vm := vm.NewVirtualMachine(img, net, socketFolder, boot, cdrom, log.WithField("component", "vm"))
 
 	// Start the virtual machine
 	log.Info("Starting virtual machine")

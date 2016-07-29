@@ -17,7 +17,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
 
-const testImageFile = "./tinycore-worker.tar.lz4"
+const testImageFile = "../test-image/tinycore-worker.tar.lz4"
 
 func TestImageManager(t *testing.T) {
 	fmt.Println(" - Setup environment needed to test")

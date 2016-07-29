@@ -1,12 +1,15 @@
 package vm
 
 import (
+	"bufio"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sync"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/slugid-go/slugid"
 )
 
@@ -24,11 +27,13 @@ type VirtualMachine struct {
 	qemuDone  chan<- struct{}
 	Done      <-chan struct{} // Closed when the virtual machine is done
 	Error     error           // Error, to be read after Done is closed
+	log       *logrus.Entry
 }
 
 // NewVirtualMachine constructs a new virtual machine.
 func NewVirtualMachine(
 	image Image, network Network, socketFolder, cdrom1, cdrom2 string,
+	log *logrus.Entry,
 ) *VirtualMachine {
 	// Construct virtual machine
 	vm := &VirtualMachine{
@@ -36,6 +41,7 @@ func NewVirtualMachine(
 		qmpSocket: filepath.Join(socketFolder, slugid.V4()+".sock"),
 		network:   network,
 		image:     image,
+		log:       log,
 	}
 
 	// Construct options for QEMU
@@ -113,8 +119,8 @@ func NewVirtualMachine(
 			"file":   vm.image.DiskFile(),
 			"if":     "none",
 			"id":     "boot-disk",
-			"cache":  "unsafe", // TODO: Make this customizable for image building
-			"aio":    "native",
+			"cache":  "unsafe", // TODO: Reconsider 'native' w. cache not 'unsafe'
+			"aio":    "threads",
 			"format": vm.image.Format(),
 			"werror": "report",
 			"rerror": "report",
@@ -163,7 +169,7 @@ func NewVirtualMachine(
 				"if":     "none",
 				"id":     "cdrom1",
 				"cache":  "unsafe",
-				"aio":    "native",
+				"aio":    "threads", // TODO: Reconsider 'native' w. cache not 'unsafe'
 				"format": "raw",
 				"werror": "report",
 				"rerror": "report",
@@ -184,7 +190,7 @@ func NewVirtualMachine(
 				"if":     "none",
 				"id":     "cdrom2",
 				"cache":  "unsafe",
-				"aio":    "native",
+				"aio":    "threads", // TODO: Reconsider 'native' w. cache not 'unsafe'
 				"format": "raw",
 				"werror": "report",
 				"rerror": "report",
@@ -230,6 +236,11 @@ func (vm *VirtualMachine) Start() {
 	vm.started = true
 	vm.m.Unlock()
 
+	stdout, stdoutWriter := io.Pipe()
+	stderr, stderrWriter := io.Pipe()
+	vm.qemu.Stdout = stdoutWriter
+	vm.qemu.Stderr = stderrWriter
+
 	// Start QEMU
 	vm.Error = vm.qemu.Start()
 	if vm.Error != nil {
@@ -237,9 +248,34 @@ func (vm *VirtualMachine) Start() {
 		return
 	}
 
+	// Forward stdout to log
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			vm.log.Info("QEMU: ", scanner.Text())
+		}
+		if err := scanner.Err(); err != nil {
+			vm.log.Error("Error reading QEMU stdout, error: ", err)
+		}
+	}()
+
+	// Forward stderr to log
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			vm.log.Error("QEMU: ", scanner.Text())
+		}
+		if err := scanner.Err(); err != nil {
+			vm.log.Error("Error reading QEMU stderr, error: ", err)
+		}
+	}()
+
 	// Start QEMU and wait for it to finish before closing Done
 	go func(vm *VirtualMachine) {
 		vm.Error = vm.qemu.Wait()
+		// Close output pipes
+		stdoutWriter.Close()
+		stderrWriter.Close()
 
 		// Release network and image
 		vm.m.Lock()

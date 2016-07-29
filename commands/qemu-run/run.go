@@ -53,7 +53,7 @@ func (cmd) Execute(arguments map[string]interface{}) {
 
 	// Create a temporary folder
 	tempFolder := filepath.Join("/tmp", slugid.V4())
-	if err := os.Mkdir(tempFolder, 0777); err != nil {
+	if err = os.Mkdir(tempFolder, 0777); err != nil {
 		log.Fatal("Failed to create temporary folder in /tmp, error: ", err)
 	}
 
@@ -87,7 +87,7 @@ func (cmd) Execute(arguments map[string]interface{}) {
 
 	// Create virtual machine
 	log.Info("Creating virtual machine")
-	vm := vm.NewVirtualMachine(image, net, tempFolder, "", "")
+	vm := vm.NewVirtualMachine(image, net, tempFolder, "", "", logger.WithField("component", "vm"))
 
 	// Create meta-data service
 	log.Info("Creating meta-data service")

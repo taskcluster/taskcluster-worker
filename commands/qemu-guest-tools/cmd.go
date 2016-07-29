@@ -18,16 +18,14 @@ func (cmd) Summary() string {
 }
 
 func (cmd) Usage() string {
-	return `
-taskcluster-worker qemu-guest-tools start the guest tools that should run inside
-the virtual machines used with QEMU engine.
+	return `taskcluster-worker qemu-guest-tools start the guest tools that should
+run inside the virtual machines used with QEMU engine.
 
-usage: taskcluster-worker qemu-guest-tools [options]
+Usage: taskcluster-worker qemu-guest-tools [options]
 
-options:
-     --host <ip>  IP-address of meta-data server [default: 169.254.169.254].
-  -h --help      	Show this screen.
-`
+Options:
+      --host <ip>  IP-address of meta-data server [default: 169.254.169.254].
+  -h, --help       Show this screen.`
 }
 
 func (cmd) Execute(arguments map[string]interface{}) {

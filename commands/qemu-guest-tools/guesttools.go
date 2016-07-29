@@ -80,7 +80,7 @@ func (g *guestTools) Run() {
 	}
 
 	// Start sending task log
-	taskLog := g.createTaskLog()
+	taskLog, logSent := g.createTaskLog()
 
 	// Construct environment variables in golang format
 	env := os.Environ()
@@ -106,6 +106,10 @@ func (g *guestTools) Run() {
 		result = "failed"
 	}
 
+	// Wait for the log to be fully uploaded before reporting the result
+	<-logSent
+
+	// Report result
 	res, err := g.got.Put(g.url("engine/v1/"+result), nil).Send()
 	if err != nil {
 		g.log.Println("Failed to report result ", result, ", error: ", err)
@@ -114,13 +118,14 @@ func (g *guestTools) Run() {
 	}
 }
 
-func (g *guestTools) createTaskLog() io.WriteCloser {
-	reader, writer := nio.Pipe(buffer.New(5))
+func (g *guestTools) createTaskLog() (io.WriteCloser, <-chan struct{}) {
+	reader, writer := nio.Pipe(buffer.New(4 * 1024 * 1024))
 	req, err := http.NewRequest("POST", g.url("engine/v1/log"), reader)
 	if err != nil {
 		g.log.Panic("Failed to create request for log, error: ", err)
 	}
 
+	done := make(chan struct{})
 	go func() {
 		client := http.Client{Timeout: 0}
 		res, err := client.Do(req)
@@ -130,9 +135,10 @@ func (g *guestTools) createTaskLog() io.WriteCloser {
 		} else if res.StatusCode != http.StatusOK {
 			g.log.Println("Failed to send log, status: ", res.StatusCode)
 		}
+		close(done)
 	}()
 
-	return writer
+	return writer, done
 }
 
 func (g *guestTools) StartProcessingActions() {

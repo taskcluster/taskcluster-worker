@@ -12,7 +12,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines/enginetest"
 )
 
-const testImageFile = "./image/tinycore-worker.tar.lz4"
+const testImageFile = "./test-image/tinycore-worker.tar.lz4"
 
 // makeTestServer will setup a httptest.Server instance serving the
 // testImageFile from the source tree. This is necessary to use the test image

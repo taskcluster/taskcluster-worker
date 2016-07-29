@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
@@ -25,6 +26,7 @@ type sandbox struct {
 	resultSet   engines.ResultSet // ResultSet for WaitForResult
 	resultError error             // Error for WaitForResult
 	resultAbort error             // Error for Abort
+	log         *logrus.Entry     // System log
 }
 
 // newSandbox will create a new sandbox and start it.
@@ -37,12 +39,18 @@ func newSandbox(
 	c *runtime.TaskContext,
 	e *engine,
 ) *sandbox {
+	log := e.Log.WithField("taskId", c.TaskID).WithField("runId", c.RunID)
+
 	// Create sandbox
 	s := &sandbox{
-		vm:      vm.NewVirtualMachine(image, network, e.engineConfig.SocketFolder, "", ""),
+		vm: vm.NewVirtualMachine(
+			image, network, e.engineConfig.SocketFolder, "", "",
+			log.WithField("component", "vm"),
+		),
 		context: c,
 		engine:  e,
 		proxies: proxies,
+		log:     log,
 	}
 
 	// Setup meta-data service

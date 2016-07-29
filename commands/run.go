@@ -44,6 +44,11 @@ func Run(argv []string) {
 		os.Exit(1)
 	}
 
+	if cmd == "help" && len(arguments["<args>"].([]string)) == 0 {
+		fmt.Print(usage)
+		os.Exit(0)
+	}
+
 	// Parse args for command provider
 	subArguments, _ := docopt.Parse(
 		provider.Usage(), append([]string{cmd}, arguments["<args>"].([]string)...),
