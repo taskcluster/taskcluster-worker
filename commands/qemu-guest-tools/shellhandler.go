@@ -105,7 +105,7 @@ func (s *shellHandler) Terminated(success bool) {
 	s.streamingDone.Wait()
 
 	s.resolve.Do(func() {
-		s.log.Info("Resovling the shell using Terminated()")
+		s.log.Info("Resolving the shell using Terminated()")
 		s.success = success
 	})
 }
