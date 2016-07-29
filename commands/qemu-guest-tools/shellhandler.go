@@ -209,8 +209,10 @@ func (s *shellHandler) transmitStream(r io.Reader, streamID byte) {
 	m := make([]byte, 2+metaservice.ShellBlockSize)
 	m[0] = metaservice.MessageTypeData
 	m[1] = streamID
+	var size int64
 	for {
 		n, err := r.Read(m[2:])
+		size += int64(n)
 
 		// Send payload if more than zero (zero payload indicates end of stream)
 		if n > 0 {
@@ -219,7 +221,7 @@ func (s *shellHandler) transmitStream(r io.Reader, streamID byte) {
 
 		// If EOF, then we send an empty payload to signal this
 		if err == io.EOF {
-			s.log.Info("Reached EOF for streamID: ", streamID)
+			s.log.Info("Reached EOF for streamID: ", streamID, " size: ", size)
 			s.send(m[:2])
 			// We're done streaming, signal this so an Exit message can be sent.
 			s.streamingDone.Done()
@@ -315,16 +317,25 @@ func (s *shellHandler) sendAcks() {
 	ack := make([]byte, 2+4)
 	ack[0] = metaservice.MessageTypeAck
 	ack[1] = metaservice.StreamStdin
+	var size int64
 
-	for {
-		n := <-s.tellIn
-		if n == 0 {
-			s.log.Info("Final ack for stdin sent")
-			break // we've served all of the stream
+	for n := range s.tellIn {
+		// Merge in as many tell message as is pending
+		N := n
+		for n > 0 {
+			select {
+			case n = <-s.tellIn:
+				N += n
+			default:
+				n = 0
+			}
 		}
+		// Record the size for logging
+		size += int64(N)
 
 		// Send an acknowledgment message (this is for congestion control)
-		binary.BigEndian.PutUint32(ack[2:], uint32(n))
+		binary.BigEndian.PutUint32(ack[2:], uint32(N))
 		s.send(ack)
 	}
+	s.log.Info("Final ack for stdin sent, size: ", size)
 }

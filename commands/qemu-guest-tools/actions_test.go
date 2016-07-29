@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
@@ -193,6 +194,9 @@ func testShellCat(meta *metaservice.MetaService) {
 		} else {
 			shell.StdinPipe().Write([]byte("exec cat -\n"))
 		}
+		// Give cat - some time to start, bash/busybox/dash won't work otherwise
+		// Or they will work, but only intermittently!!!
+		time.Sleep(250 * time.Millisecond)
 		shell.StdinPipe().Write(input)
 		shell.StdinPipe().Close()
 		debug("Closed stdin")
@@ -231,6 +235,9 @@ func testShellCatStdErr(meta *metaservice.MetaService) {
 		} else {
 			shell.StdinPipe().Write([]byte("exec cat -  1>&2\n"))
 		}
+		// Give cat - some time to start, bash/busybox/dash won't work otherwise
+		// Or they will work, but only intermittently!!!
+		time.Sleep(250 * time.Millisecond)
 		shell.StdinPipe().Write(input)
 		shell.StdinPipe().Close()
 		debug("Closed stdin")

@@ -131,19 +131,28 @@ func (s *shell) sendAck(streamID byte, tell <-chan int) {
 	// reserve a buffer for sending acknowledgments
 	ack := make([]byte, 2+4)
 	ack[0] = MessageTypeAck
+	var size int64
 
-	for {
-		n := <-tell
-		if n == 0 {
-			debug("Final ack for streamID sent: %d", streamID)
-			break // we've served all of the stream
+	for n := range tell {
+		// Merge in as many tell message as is pending
+		N := n
+		for n > 0 {
+			select {
+			case n = <-tell:
+				N += n
+			default:
+				n = 0
+			}
 		}
+		// Record the size for logging
+		size += int64(N)
 
 		// Send an acknowledgment message (this is for congestion control)
 		ack[1] = streamID
-		binary.BigEndian.PutUint32(ack[2:], uint32(n))
+		binary.BigEndian.PutUint32(ack[2:], uint32(N))
 		s.send(ack)
 	}
+	debug("Final ack for streamID: %d sent, size: %d", streamID, size)
 }
 
 func (s *shell) pongHandler(string) error {
@@ -156,8 +165,11 @@ func (s *shell) writeMessages() {
 	m := make([]byte, 2+ShellBlockSize)
 	m[0] = MessageTypeData
 	m[1] = StreamStdin
+	var size int64
+
 	for {
 		n, err := s.stdinReader.Read(m[2:])
+		size += int64(n)
 
 		// Send payload if more than zero (zero payload indicates end of stream)
 		if n > 0 {
@@ -166,7 +178,7 @@ func (s *shell) writeMessages() {
 
 		// If EOF, then we send an empty payload to signal this
 		if err == io.EOF {
-			debug("Reached EOF of stdin")
+			debug("Reached EOF of stdin, size: %d", size)
 			s.send(m[:2])
 			return
 		}
