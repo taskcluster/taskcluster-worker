@@ -13,12 +13,20 @@ import (
 )
 
 const (
-	pongTimeout         = 30 * time.Second
-	writeTimeout        = pongTimeout * 3 / 2
-	pingInterval        = 10 * time.Second
-	readBlockSize       = 64 * 1024
-	maxMessageSize      = readBlockSize + 4*1024
-	maxOutstandingBytes = 2 * readBlockSize
+	// ShellHandshakeTimeout is the maximum allowed time for websocket handshake
+	ShellHandshakeTimeout = 3 * time.Second
+	// ShellPingInterval is the time between sending pings
+	ShellPingInterval = 5 * time.Second
+	// ShellWriteTimeout is the maximum time between successful writes
+	ShellWriteTimeout = ShellPingInterval * 2
+	// ShellPongTimeout is the maximum time between successful reads
+	ShellPongTimeout = ShellPingInterval * 3
+	// ShellBlockSize is the maximum number of bytes to send in a single block
+	ShellBlockSize = 16 * 1024
+	// ShellMaxMessageSize is the maximum message size we will read
+	ShellMaxMessageSize = ShellBlockSize + 4*1024
+	// ShellMaxPendingBytes is the maximum number of bytes allowed in-flight
+	ShellMaxPendingBytes = 4 * ShellBlockSize
 )
 
 type shell struct {
@@ -39,11 +47,11 @@ type shell struct {
 // engines.Shell interface.
 func newShell(ws *websocket.Conn) *shell {
 	stdinReader, stdin := ioext.BlockedPipe()
-	tellOut := make(chan int, 5)
-	tellErr := make(chan int, 5)
-	stdout, stdoutWriter := ioext.AsyncPipe(2*maxOutstandingBytes, tellOut)
-	stderr, stderrWriter := ioext.AsyncPipe(2*maxOutstandingBytes, tellErr)
-	stdinReader.Unblock(maxOutstandingBytes)
+	tellOut := make(chan int, 10)
+	tellErr := make(chan int, 10)
+	stdout, stdoutWriter := ioext.AsyncPipe(ShellMaxPendingBytes, tellOut)
+	stderr, stderrWriter := ioext.AsyncPipe(ShellMaxPendingBytes, tellErr)
+	stdinReader.Unblock(ShellMaxPendingBytes)
 
 	s := &shell{
 		ws:           ws,
@@ -55,8 +63,8 @@ func newShell(ws *websocket.Conn) *shell {
 		stderrWriter: stderrWriter,
 	}
 
-	ws.SetReadLimit(maxMessageSize)
-	ws.SetReadDeadline(time.Now().Add(pongTimeout))
+	ws.SetReadLimit(ShellMaxMessageSize)
+	ws.SetReadDeadline(time.Now().Add(ShellPongTimeout))
 	ws.SetPongHandler(s.pongHandler)
 
 	go s.writeMessages()
@@ -81,7 +89,7 @@ func (s *shell) dispose() {
 func (s *shell) send(message []byte) {
 	// Write message and ensure we reset the write deadline
 	s.mWrite.Lock()
-	s.ws.SetWriteDeadline(time.Now().Add(writeTimeout))
+	s.ws.SetWriteDeadline(time.Now().Add(ShellWriteTimeout))
 	err := s.ws.WriteMessage(websocket.BinaryMessage, message)
 	s.mWrite.Unlock()
 
@@ -98,11 +106,11 @@ func (s *shell) send(message []byte) {
 func (s *shell) sendPings() {
 	for {
 		// Sleep for ping interval time
-		time.Sleep(pingInterval)
+		time.Sleep(ShellPingInterval)
 
 		// Write a ping message, and reset the write deadline
 		s.mWrite.Lock()
-		s.ws.SetWriteDeadline(time.Now().Add(writeTimeout))
+		s.ws.SetWriteDeadline(time.Now().Add(ShellWriteTimeout))
 		err := s.ws.WriteMessage(websocket.PingMessage, []byte{})
 		s.mWrite.Unlock()
 
@@ -140,12 +148,12 @@ func (s *shell) sendAck(streamID byte, tell <-chan int) {
 
 func (s *shell) pongHandler(string) error {
 	// Reset the read deadline
-	s.ws.SetReadDeadline(time.Now().Add(pongTimeout))
+	s.ws.SetReadDeadline(time.Now().Add(ShellPongTimeout))
 	return nil
 }
 
 func (s *shell) writeMessages() {
-	m := make([]byte, 2+readBlockSize)
+	m := make([]byte, 2+ShellBlockSize)
 	m[0] = MessageTypeData
 	m[1] = StreamStdin
 	for {

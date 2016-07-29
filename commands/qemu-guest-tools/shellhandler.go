@@ -13,15 +13,6 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
-const (
-	pongTimeout         = 30 * time.Second
-	writeTimeout        = pongTimeout * 3 / 2
-	pingInterval        = 10 * time.Second
-	readBlockSize       = 64 * 1024
-	maxMessageSize      = readBlockSize + 4*1024
-	maxOutstandingBytes = 2 * readBlockSize
-)
-
 type shellHandler struct {
 	log           *logrus.Entry
 	ws            *websocket.Conn
@@ -42,12 +33,12 @@ type shellHandler struct {
 // newShellHandler returns a new shellHandler structure for that can
 // serve/expose a shell over a websocket.
 func newShellHandler(ws *websocket.Conn, log *logrus.Entry) *shellHandler {
-	tellIn := make(chan int, 5)
-	stdin, stdinWriter := ioext.AsyncPipe(2*maxOutstandingBytes, tellIn)
+	tellIn := make(chan int, 10)
+	stdin, stdinWriter := ioext.AsyncPipe(metaservice.ShellMaxPendingBytes, tellIn)
 	stdoutReader, stdout := ioext.BlockedPipe()
 	stderrReader, stderr := ioext.BlockedPipe()
-	stdoutReader.Unblock(maxOutstandingBytes)
-	stderrReader.Unblock(maxOutstandingBytes)
+	stdoutReader.Unblock(metaservice.ShellMaxPendingBytes)
+	stderrReader.Unblock(metaservice.ShellMaxPendingBytes)
 
 	s := &shellHandler{
 		log:          log,
@@ -61,7 +52,7 @@ func newShellHandler(ws *websocket.Conn, log *logrus.Entry) *shellHandler {
 		tellIn:       tellIn,
 	}
 
-	ws.SetReadLimit(maxMessageSize)
+	ws.SetReadLimit(metaservice.ShellMaxMessageSize)
 
 	return s
 }
@@ -71,7 +62,7 @@ func newShellHandler(ws *websocket.Conn, log *logrus.Entry) *shellHandler {
 func (s *shellHandler) Communicate(abortFunc func()) {
 	s.abortFunc = abortFunc
 
-	s.ws.SetReadDeadline(time.Now().Add(pongTimeout))
+	s.ws.SetReadDeadline(time.Now().Add(metaservice.ShellPongTimeout))
 	s.ws.SetPongHandler(s.pongHandler)
 
 	go s.sendPings()
@@ -133,7 +124,7 @@ func (s *shellHandler) abort() {
 func (s *shellHandler) send(message []byte) {
 	// Write message and ensure we reset the write deadline
 	s.mWrite.Lock()
-	s.ws.SetWriteDeadline(time.Now().Add(writeTimeout))
+	s.ws.SetWriteDeadline(time.Now().Add(metaservice.ShellWriteTimeout))
 	err := s.ws.WriteMessage(websocket.BinaryMessage, message)
 	s.mWrite.Unlock()
 
@@ -146,12 +137,12 @@ func (s *shellHandler) send(message []byte) {
 func (s *shellHandler) sendPings() {
 	for {
 		// Sleep for ping interval time
-		time.Sleep(pingInterval)
+		time.Sleep(metaservice.ShellPingInterval)
 
 		// Write a ping message, and reset the write deadline
 		s.mWrite.Lock()
 		s.log.Info("Sending ping")
-		s.ws.SetWriteDeadline(time.Now().Add(writeTimeout))
+		s.ws.SetWriteDeadline(time.Now().Add(metaservice.ShellWriteTimeout))
 		err := s.ws.WriteMessage(websocket.PingMessage, []byte{})
 		s.mWrite.Unlock()
 
@@ -172,7 +163,7 @@ func (s *shellHandler) sendPings() {
 
 func (s *shellHandler) pongHandler(string) error {
 	// Reset the read deadline
-	s.ws.SetReadDeadline(time.Now().Add(pongTimeout))
+	s.ws.SetReadDeadline(time.Now().Add(metaservice.ShellPongTimeout))
 	return nil
 }
 
@@ -193,7 +184,7 @@ func (s *shellHandler) waitForSuccess() {
 	s.mWrite.Lock()
 	defer s.mWrite.Unlock()
 
-	s.ws.SetWriteDeadline(time.Now().Add(writeTimeout))
+	s.ws.SetWriteDeadline(time.Now().Add(metaservice.ShellWriteTimeout))
 	err := s.ws.WriteMessage(websocket.BinaryMessage, []byte{
 		metaservice.MessageTypeExit, result,
 	})
@@ -215,7 +206,7 @@ func (s *shellHandler) waitForSuccess() {
 }
 
 func (s *shellHandler) transmitStream(r io.Reader, streamID byte) {
-	m := make([]byte, 2+readBlockSize)
+	m := make([]byte, 2+metaservice.ShellBlockSize)
 	m[0] = metaservice.MessageTypeData
 	m[1] = streamID
 	for {

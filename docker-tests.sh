@@ -4,6 +4,9 @@ ARGS="--tty --interactive --rm --privileged -e DEBUG -v `pwd`:/src taskcluster/t
 
 if [[ "$@" == go\ * ]]; then
   docker run $ARGS $@;
+elif [[ "$1" == -- ]]; then
+  shift;
+  docker run $ARGS $@;
 elif [[ "$@" == bash ]]; then
   docker run $ARGS bash --login;
 elif [[ "$@" == goconvey ]]; then

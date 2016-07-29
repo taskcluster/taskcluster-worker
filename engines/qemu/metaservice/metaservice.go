@@ -476,9 +476,9 @@ func (s *MetaService) ListFolder(path string) ([]string, error) {
 }
 
 var upgrader = websocket.Upgrader{
-	HandshakeTimeout: 30 * time.Second,
-	ReadBufferSize:   maxMessageSize,
-	WriteBufferSize:  maxMessageSize,
+	HandshakeTimeout: ShellHandshakeTimeout,
+	ReadBufferSize:   ShellMaxMessageSize,
+	WriteBufferSize:  ShellMaxMessageSize,
 }
 
 // ExecShell will send an action to guest-tools to execute a shell, then wait

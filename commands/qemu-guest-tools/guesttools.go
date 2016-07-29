@@ -296,9 +296,9 @@ func (g *guestTools) doListFolder(ID, path string) {
 }
 
 var dialer = websocket.Dialer{
-	HandshakeTimeout: 30 * time.Second,
-	ReadBufferSize:   maxMessageSize,
-	WriteBufferSize:  maxMessageSize,
+	HandshakeTimeout: metaservice.ShellHandshakeTimeout,
+	ReadBufferSize:   metaservice.ShellMaxMessageSize,
+	WriteBufferSize:  metaservice.ShellMaxMessageSize,
 }
 
 func (g *guestTools) doExecShell(ID string) {
