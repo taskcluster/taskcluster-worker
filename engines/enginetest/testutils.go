@@ -53,6 +53,21 @@ type EngineProvider struct {
 	Setup func() func()
 }
 
+// SetupEngine will initialize the engine and hold reference to it.
+// This allows the same engine instance to be reused between tests.
+// TearDownEngine must be called later to ensure the engine is destroyed.
+//
+// This is not necessary, but can be used to improve test efficiency and
+// reliability in cases where engine setup/teardown is flaky/slow.
+func (p *EngineProvider) SetupEngine() {
+	p.ensureEngine()
+}
+
+// TearDownEngine the opposite of SetupEngine.
+func (p *EngineProvider) TearDownEngine() {
+	p.releaseEngine()
+}
+
 func (p *EngineProvider) ensureEngine() {
 	p.m.Lock()
 	defer p.m.Unlock()

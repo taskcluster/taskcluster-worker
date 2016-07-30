@@ -3,10 +3,13 @@
 package qemuengine
 
 import (
+	"flag"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"testing"
 
 	"github.com/taskcluster/taskcluster-worker/engines/enginetest"
@@ -33,6 +36,20 @@ func makeTestServer() *httptest.Server {
 	return httptest.NewServer(handler)
 }
 
+var s *httptest.Server
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	s = makeTestServer()
+	defer func() {
+		s.CloseClientConnections()
+		s.Close()
+		out, _ := exec.Command("ip", "tuntap").Output()
+		fmt.Printf("ip tuntap: '%s'\n", string(out))
+	}()
+	os.Exit(m.Run())
+}
+
 var provider = enginetest.EngineProvider{
 	Engine: "qemu",
 	Config: `{
@@ -45,11 +62,6 @@ var provider = enginetest.EngineProvider{
 }
 
 func TestLogging(t *testing.T) {
-	s := makeTestServer()
-	defer func() {
-		s.CloseClientConnections()
-		s.Close()
-	}()
 
 	c := enginetest.LoggingTestCase{
 		EngineProvider: provider,
@@ -81,11 +93,6 @@ func TestLogging(t *testing.T) {
 }
 
 func TestEnvironmentVariables(t *testing.T) {
-	s := makeTestServer()
-	defer func() {
-		s.CloseClientConnections()
-		s.Close()
-	}()
 
 	c := enginetest.EnvVarTestCase{
 		EngineProvider: provider,
@@ -108,11 +115,6 @@ func TestEnvironmentVariables(t *testing.T) {
 }
 
 func TestAttachProxy(t *testing.T) {
-	s := makeTestServer()
-	defer func() {
-		s.CloseClientConnections()
-		s.Close()
-	}()
 
 	c := enginetest.ProxyTestCase{
 		EngineProvider: provider,

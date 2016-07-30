@@ -69,7 +69,7 @@ func NewPool(N int) (*Pool, error) {
 	// Enable IPv4 forwarding
 	err := script([][]string{
 		{"sysctl", "-w", "net.ipv4.ip_forward=1"},
-	})
+	}, true)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to enable ipv4 forwarding: %s", err)
 	}
@@ -120,7 +120,7 @@ func NewPool(N int) (*Pool, error) {
 	// Add meta-data IP to loopback device
 	err = script([][]string{
 		{"ip", "addr", "add", metaDataIP, "dev", "lo"},
-	})
+	}, true)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to add: %s to the loopback device: %s", metaDataIP, err)
 	}
@@ -296,7 +296,7 @@ func (p *Pool) Dispose() error {
 	// Remove meta-data IP from loopback device
 	err := script([][]string{
 		{"ip", "addr", "del", metaDataIP, "dev", "lo"},
-	})
+	}, true)
 
 	return err
 }
@@ -319,13 +319,13 @@ func createNetwork(index int, parent *Pool) (*entry, error) {
 		{"ip", "link", "set", "dev", tapDevice, "up"},
 		// Add route for the network subnet, routing it to the tap device
 		{"ip", "route", "add", ipPrefix + ".0/24", "dev", tapDevice},
-	})
+	}, true)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to setup tap device: %s, error: %s", tapDevice, err)
 	}
 
 	// Create iptables rules and chains
-	err = script(ipTableRules(tapDevice, ipPrefix, false))
+	err = script(ipTableRules(tapDevice, ipPrefix, false), false)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to setup ip-tables for tap device: %s error: %s", tapDevice, err)
 	}
@@ -348,7 +348,7 @@ func destroyNetwork(n *entry) error {
 	}
 
 	// Delete iptables rules and chains
-	err := script(ipTableRules(n.tapDevice, n.ipPrefix, true))
+	err := script(ipTableRules(n.tapDevice, n.ipPrefix, true), false)
 	if err != nil {
 		return fmt.Errorf("Failed to remove ip-tables for tap device: %s, error: %s", n.tapDevice, err)
 	}
@@ -362,8 +362,9 @@ func destroyNetwork(n *entry) error {
 		{"ip", "addr", "del", n.ipPrefix + ".1", "dev", n.tapDevice},
 		// Delete tap device
 		{"ip", "tuntap", "del", "dev", n.tapDevice, "mode", "tap"},
-	})
+	}, true)
 	if err != nil {
+		debug("Failed to destory tap device: %s, error: %s", n.tapDevice, err)
 		return fmt.Errorf("Failed to remove tap device: %s, error: %s", n.tapDevice, err)
 	}
 

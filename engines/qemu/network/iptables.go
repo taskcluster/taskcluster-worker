@@ -1,5 +1,8 @@
 package network
 
+// Maximum time to wait for the xtables lock when using iptables
+const xtableLockWait = "3"
+
 // ipTableRules returns a list of commands to append rules for tapDevice.
 // If delete=false, this returns the commands to delete the rules.
 func ipTableRules(tapDevice string, ipPrefix string, delete bool) [][]string {
@@ -21,7 +24,7 @@ func ipTableRules(tapDevice string, ipPrefix string, delete bool) [][]string {
 	}
 
 	// Create/delete custom chains for this tap device
-	chains := prefixCommands([]string{"iptables", chainAction}, [][]string{
+	chains := prefixCommands([]string{"iptables", "-w", xtableLockWait, chainAction}, [][]string{
 		{"input_" + tapDevice},
 		{"output_" + tapDevice},
 		{"fwd_input_" + tapDevice},
@@ -29,7 +32,7 @@ func ipTableRules(tapDevice string, ipPrefix string, delete bool) [][]string {
 	})
 
 	// Rules for jumping to custom chains for this tap device
-	rules := prefixCommands([]string{"iptables", ruleAction}, [][]string{
+	rules := prefixCommands([]string{"iptables", "-w", xtableLockWait, ruleAction}, [][]string{
 		{"INPUT", "-i", tapDevice, "-j", "input_" + tapDevice},
 		{"OUTPUT", "-o", tapDevice, "-j", "output_" + tapDevice},
 		{"FORWARD", "-i", tapDevice, "-j", "fwd_input_" + tapDevice},
@@ -37,12 +40,12 @@ func ipTableRules(tapDevice string, ipPrefix string, delete bool) [][]string {
 	})
 
 	// Rules for nat from this subnet
-	nat := prefixCommands([]string{"iptables", "-t", "nat", ruleAction}, [][]string{
+	nat := prefixCommands([]string{"iptables", "-w", xtableLockWait, "-t", "nat", ruleAction}, [][]string{
 		{"POSTROUTING", "-o", "eth0", "-s", subnet, "-j", "MASQUERADE"},
 	})
 
 	// Rules for filtering INPUT from this tap device
-	inputRules := prefixCommands([]string{"iptables", ruleAction, "input_" + tapDevice}, [][]string{
+	inputRules := prefixCommands([]string{"iptables", "-w", xtableLockWait, ruleAction, "input_" + tapDevice}, [][]string{
 		// Allow requests to meta-data service (from subnet only)
 		{"-p", "tcp", "-s", subnet, "-d", metaDataIP, "-m", "tcp", "--dport", "80", "-m", "state", "--state", "NEW,ESTABLISHED", "-j", "ACCEPT"},
 		// Allow DNS requests
@@ -57,7 +60,7 @@ func ipTableRules(tapDevice string, ipPrefix string, delete bool) [][]string {
 	})
 
 	// Rules for filtering OUTPUT to this tap decice
-	outputRules := prefixCommands([]string{"iptables", ruleAction, "output_" + tapDevice}, [][]string{
+	outputRules := prefixCommands([]string{"iptables", "-w", xtableLockWait, ruleAction, "output_" + tapDevice}, [][]string{
 		// Allow meta-data replies (to subnet only)
 		{"-p", "tcp", "-s", metaDataIP, "-d", subnet, "-m", "tcp", "--sport", "80", "-m", "state", "--state", "ESTABLISHED", "-j", "ACCEPT"},
 		// Allow DNS replies from dnsmasq (to subnet only)
@@ -70,7 +73,7 @@ func ipTableRules(tapDevice string, ipPrefix string, delete bool) [][]string {
 	})
 
 	// Rules for filtering FORWARD from this tap device
-	forwardInputRules := prefixCommands([]string{"iptables", ruleAction, "fwd_input_" + tapDevice}, [][]string{
+	forwardInputRules := prefixCommands([]string{"iptables", "-w", xtableLockWait, ruleAction, "fwd_input_" + tapDevice}, [][]string{
 		// Reject out-going from tctap1 to private subnets
 		{"-d", "10.0.0.0/8", "-j", "REJECT", "--reject-with", "icmp-net-unreachable"},
 		{"-d", "172.16.0.0/12", "-j", "REJECT", "--reject-with", "icmp-net-unreachable"},
@@ -85,7 +88,7 @@ func ipTableRules(tapDevice string, ipPrefix string, delete bool) [][]string {
 	})
 
 	// Rules for filtering FORWARD to this tap device
-	forwardOutputRules := prefixCommands([]string{"iptables", ruleAction, "fwd_output_" + tapDevice}, [][]string{
+	forwardOutputRules := prefixCommands([]string{"iptables", "-w", xtableLockWait, ruleAction, "fwd_output_" + tapDevice}, [][]string{
 		// Reject incoming from private subnets to tctap1
 		{"-s", "10.0.0.0/8", "-j", "DROP"},
 		{"-s", "172.16.0.0/12", "-j", "DROP"},
