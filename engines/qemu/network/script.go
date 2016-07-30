@@ -33,6 +33,8 @@ func script(script [][]string, retry bool) error {
 			if err == nil || !retry {
 				break
 			}
+			debug("Retrying command: %v error: %s, stdout: '%s', stderr: '%s'",
+				args, err, stdout.String(), stderr.String())
 			time.Sleep(1 * time.Second)
 		}
 		if err != nil {
