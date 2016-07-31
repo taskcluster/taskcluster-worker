@@ -69,7 +69,7 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 	g := new(u.Host, log)
 
 	// start processing actions
-	g.StartProcessingActions()
+	go g.ProcessActions()
 	defer g.StopProcessingActions()
 
 	////////////////////

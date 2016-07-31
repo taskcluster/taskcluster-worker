@@ -29,6 +29,7 @@ type ShellTestCase struct {
 
 // TestCommand checks we can run Command in the shell
 func (c *ShellTestCase) TestCommand() {
+	debug("## TestCommand")
 	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
@@ -71,6 +72,7 @@ func (c *ShellTestCase) TestCommand() {
 
 // TestBadCommand checks we can run BadCommand in the shell
 func (c *ShellTestCase) TestBadCommand() {
+	debug("## TestBadCommand")
 	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
@@ -107,6 +109,7 @@ func (c *ShellTestCase) TestBadCommand() {
 
 // TestAbortSleepCommand checks we can Abort the sleep command
 func (c *ShellTestCase) TestAbortSleepCommand() {
+	debug("## TestAbortSleepCommand")
 	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)

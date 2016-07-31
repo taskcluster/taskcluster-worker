@@ -241,6 +241,8 @@ func (s *MetaService) handlePoll(w http.ResponseWriter, r *http.Request) {
 	case action := <-s.actionOut:
 		debug(" -> Sending action with id=%s", action.ID)
 		if reply(w, http.StatusOK, action) != nil {
+			debug("Failed to send action id=%s", action.ID)
+
 			// Take the asyncRecord record out of the dictionary
 			s.mPendingRecords.Lock()
 			rec := s.pendingRecords[action.ID]

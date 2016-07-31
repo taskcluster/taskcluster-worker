@@ -24,11 +24,12 @@ import (
 )
 
 type guestTools struct {
-	baseURL     string
-	got         *got.Got
-	log         *logrus.Entry
-	taskLog     io.Writer
-	stopPolling func()
+	baseURL       string
+	got           *got.Got
+	log           *logrus.Entry
+	taskLog       io.Writer
+	pollingCtx    context.Context
+	cancelPolling func()
 }
 
 var backOff = &got.BackOff{
@@ -45,10 +46,13 @@ func new(host string, log *logrus.Entry) *guestTools {
 	got.Retries = 15
 	got.BackOff = backOff
 
+	ctx, cancel := context.WithCancel(context.Background())
 	return &guestTools{
-		baseURL: "http://" + host + "/",
-		got:     got,
-		log:     log,
+		baseURL:       "http://" + host + "/",
+		got:           got,
+		log:           log,
+		pollingCtx:    ctx,
+		cancelPolling: cancel,
 	}
 }
 
@@ -141,24 +145,14 @@ func (g *guestTools) createTaskLog() (io.WriteCloser, <-chan struct{}) {
 	return writer, done
 }
 
-func (g *guestTools) StartProcessingActions() {
-	if g.stopPolling != nil {
-		panic("Already polling, you must call StopProcessingActions() first")
+func (g *guestTools) ProcessActions() {
+	for g.pollingCtx.Err() == nil {
+		g.poll(g.pollingCtx)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	g.stopPolling = cancel
-	go func() {
-		for ctx.Err() == nil {
-			g.poll(ctx)
-		}
-	}()
 }
 
 func (g *guestTools) StopProcessingActions() {
-	if g.stopPolling != nil {
-		g.stopPolling()
-	}
-	g.stopPolling = nil
+	g.cancelPolling()
 }
 
 const pollTimeout = metaservice.PollTimeout + 5*time.Second

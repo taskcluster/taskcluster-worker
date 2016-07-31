@@ -34,6 +34,7 @@ type ArtifactTestCase struct {
 
 // TestExtractTextFile checks that TextFilePath contains Text
 func (c *ArtifactTestCase) TestExtractTextFile() {
+	debug("## TestExtractTextFile")
 	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
@@ -51,6 +52,7 @@ func (c *ArtifactTestCase) TestExtractTextFile() {
 // TestExtractFileNotFound checks that FileNotFoundPath returns
 // ErrResourceNotFound
 func (c *ArtifactTestCase) TestExtractFileNotFound() {
+	debug("## TestExtractFileNotFound")
 	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
@@ -64,6 +66,7 @@ func (c *ArtifactTestCase) TestExtractFileNotFound() {
 // TestExtractFolderNotFound checks that FolderNotFoundPath returns
 // ErrResourceNotFound
 func (c *ArtifactTestCase) TestExtractFolderNotFound() {
+	debug("## TestExtractFolderNotFound")
 	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
@@ -81,6 +84,7 @@ func (c *ArtifactTestCase) TestExtractFolderNotFound() {
 // TestExtractNestedFolderPath checks FolderNotFoundPath contains files
 // NestedFolderFiles
 func (c *ArtifactTestCase) TestExtractNestedFolderPath() {
+	debug("## TestExtractNestedFolderPath")
 	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
@@ -131,6 +135,7 @@ func (c *ArtifactTestCase) TestExtractNestedFolderPath() {
 // TestExtractFolderHandlerInterrupt checks that errors in handler given to
 // ExtractFolder causes ErrHandlerInterrupt
 func (c *ArtifactTestCase) TestExtractFolderHandlerInterrupt() {
+	debug("## TestExtractFolderHandlerInterrupt")
 	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)

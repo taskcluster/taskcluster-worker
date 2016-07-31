@@ -195,6 +195,12 @@ func (s *sandbox) Abort() error {
 	return nil
 }
 
+func (s *sandbox) NewShell() (engines.Shell, error) {
+	return newShell(), nil
+}
+
+///////////////////////////// Implementation of ResultSet interface
+
 func (s *sandbox) ExtractFile(path string) (ioext.ReadSeekCloser, error) {
 	data := s.files[path]
 	if len(data) == 0 {
@@ -240,12 +246,6 @@ func (s *sandbox) ExtractFolder(folder string, handler engines.FileHandler) erro
 	}
 	return nil
 }
-
-func (s *sandbox) NewShell() (engines.Shell, error) {
-	return newShell(), nil
-}
-
-///////////////////////////// Implementation of ResultSet interface
 
 func (s *sandbox) Success() bool {
 	// No need to lock access as result is immutable

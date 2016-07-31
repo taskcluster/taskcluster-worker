@@ -133,3 +133,53 @@ func TestAttachProxy(t *testing.T) {
 	c.TestParallelPings()
 	c.Test()
 }
+
+func TestArtifacts(t *testing.T) {
+	c := enginetest.ArtifactTestCase{
+		EngineProvider:     provider,
+		Text:               "[hello-world]",
+		TextFilePath:       "/home/tc/folder/hello.txt",
+		FileNotFoundPath:   "/home/tc/no-such-file.txt",
+		FolderNotFoundPath: "/home/tc/no-such-folder/",
+		NestedFolderFiles: []string{
+			"/home/tc/folder/hello.txt",
+			"/home/tc/folder/sub-folder/hello2.txt",
+		},
+		NestedFolderPath: "/home/tc/folder/",
+		Payload: `{
+			"start": {
+				"image": "` + s.URL + `",
+				"command": ["sh", "-ec", "mkdir -p /home/tc/folder/sub-folder; echo '[hello-world]' > /home/tc/folder/hello.txt; echo '[hello-world]' > /home/tc/folder/sub-folder/hello2.txt"]
+			}
+		}`,
+	}
+
+	c.TestExtractTextFile()
+	c.TestExtractFileNotFound()
+	c.TestExtractFolderNotFound()
+	c.TestExtractNestedFolderPath()
+	c.TestExtractFolderHandlerInterrupt()
+	c.Test()
+}
+
+func TestShell(t *testing.T) {
+	c := enginetest.ShellTestCase{
+		EngineProvider: provider,
+		Command:        "echo '[hello-world]'; (>&2 echo '[hello-error]');",
+		Stdout:         "[hello-world]\n",
+		Stderr:         "[hello-error]\n",
+		BadCommand:     "exit 1;\n",
+		SleepCommand:   "sleep 30;\n",
+		Payload: `{
+	    "start": {
+	      "image": "` + s.URL + `",
+	      "command": ["sh", "-c", "true"]
+	    }
+	  }`,
+	}
+
+	c.TestCommand()
+	c.TestBadCommand()
+	c.TestAbortSleepCommand()
+	c.Test()
+}

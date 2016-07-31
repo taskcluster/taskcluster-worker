@@ -163,6 +163,8 @@ func (p *Pool) dispatchRequest(w http.ResponseWriter, r *http.Request) {
 	// Match remote address to find ipPrefix
 	match := remoteAddrPattern.FindStringSubmatch(r.RemoteAddr)
 	if len(match) != 2 {
+		debug("request from forbidden remote address: %s - %s %s",
+			r.RemoteAddr, r.Method, r.URL.String())
 		w.WriteHeader(403)
 		return
 	}
@@ -171,6 +173,8 @@ func (p *Pool) dispatchRequest(w http.ResponseWriter, r *http.Request) {
 	// Find network from the ipPrefix
 	n := p.networks[ipPrefix]
 	if n == nil {
+		debug("Request from ipPrefix: %s, not matching any network - %s %s",
+			ipPrefix, r.Method, r.URL.String())
 		w.WriteHeader(403)
 		return
 	}
@@ -184,6 +188,8 @@ func (p *Pool) dispatchRequest(w http.ResponseWriter, r *http.Request) {
 	if handler != nil {
 		handler.ServeHTTP(w, r)
 	} else {
+		debug("Request for network that doesn't have a handler - %s %s",
+			r.Method, r.URL.String())
 		w.WriteHeader(http.StatusNotFound)
 	}
 }

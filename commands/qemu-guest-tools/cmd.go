@@ -35,6 +35,8 @@ func (cmd) Execute(arguments map[string]interface{}) {
 	log := logger.WithField("component", "qemu-guest-tools")
 
 	g := new(host, log)
-	g.StartProcessingActions()
-	g.Run()
+	go g.Run()
+	// Process actions forever, this must run in the main thread as exiting the
+	// main thread will cause the go program to exit.
+	g.ProcessActions()
 }

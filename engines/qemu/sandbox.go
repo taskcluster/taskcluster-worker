@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-worker/engines"
@@ -17,16 +18,20 @@ import (
 
 type sandbox struct {
 	engines.SandboxBase
-	vm          *vm.VirtualMachine
-	context     *runtime.TaskContext
-	engine      *engine
-	proxies     map[string]http.Handler
-	metaService *metaservice.MetaService
-	resolve     atomics.Once      // Must wrap access mutation of resultXXX/done
-	resultSet   engines.ResultSet // ResultSet for WaitForResult
-	resultError error             // Error for WaitForResult
-	resultAbort error             // Error for Abort
-	log         *logrus.Entry     // System log
+	vm            *vm.VirtualMachine
+	context       *runtime.TaskContext
+	engine        *engine
+	proxies       map[string]http.Handler
+	metaService   *metaservice.MetaService
+	resolve       atomics.Once      // Must wrap access mutation of resultXXX/done
+	resultSet     engines.ResultSet // ResultSet for WaitForResult
+	resultError   error             // Error for WaitForResult
+	resultAbort   error             // Error for Abort
+	log           *logrus.Entry     // System log
+	mShells       sync.Mutex        // Must be held for newShellError and shells
+	shells        []engines.Shell   // List of active shells, guarded by mShells
+	newShellError error             // Error, if we're not allowing new shells
+	shellsDone    sync.Cond         // Condition to be signaled when shells are done
 }
 
 // newSandbox will create a new sandbox and start it.
@@ -52,6 +57,7 @@ func newSandbox(
 		proxies: proxies,
 		log:     log,
 	}
+	s.shellsDone.L = &s.mShells
 
 	// Setup meta-data service
 	s.metaService = metaservice.New(command, env, c.LogDrain(), s.result, e.Environment)
@@ -98,6 +104,15 @@ func (s *sandbox) handleRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *sandbox) result(success bool) {
+	// Wait for all shells to have finished
+	s.mShells.Lock()
+	for len(s.shells) > 0 {
+		s.shellsDone.Wait()
+	}
+	// Do now allow new shells
+	s.newShellError = engines.ErrSandboxTerminated
+	s.mShells.Unlock()
+
 	s.resolve.Do(func() {
 		s.resultSet = newResultSet(success, s.vm, s.metaService)
 		s.resultAbort = engines.ErrSandboxTerminated
@@ -110,6 +125,9 @@ func (s *sandbox) waitForCrash() {
 	<-s.vm.Done
 
 	s.resolve.Do(func() {
+		// Kill all shells
+		s.abortShells()
+
 		// TODO: Read s.vm.Error and handle the error
 		s.resultError = errors.New("QEMU crashed unexpected")
 		s.resultAbort = engines.ErrSandboxTerminated
@@ -123,6 +141,9 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 
 func (s *sandbox) Abort() error {
 	s.resolve.Do(func() {
+		// Kill all shells
+		s.abortShells()
+
 		// Abort the VM
 		s.vm.Kill()
 		s.resultError = engines.ErrSandboxAborted
@@ -130,4 +151,68 @@ func (s *sandbox) Abort() error {
 
 	s.resolve.Wait()
 	return s.resultAbort
+}
+
+func (s *sandbox) NewShell() (engines.Shell, error) {
+	s.mShells.Lock()
+	defer s.mShells.Unlock()
+
+	// Check that we still allow creation of new shells. We stop allowing new
+	// shells if:
+	//  A) We are aborting the sandbox, and is starting to abort all shells
+	//  B) Sandbox have returned, and we have waited for all existing shells to
+	//     finish.
+	// Note: In (B) that we do allow new shells while waiting for existing shells
+	//       to finish.
+	if s.newShellError != nil {
+		return nil, s.newShellError
+	}
+
+	// Create new shell
+	shell, err := s.metaService.ExecShell()
+	if err != nil {
+		// Track the shell while running
+		s.shells = append(s.shells, shell)
+		// Wait for shell to finish and remove it
+		go s.waitForShell(shell)
+	}
+
+	return shell, err
+}
+
+func (s *sandbox) abortShells() {
+	// Lock mShell
+	s.mShells.Lock()
+	defer s.mShells.Unlock()
+
+	// Stop allowing new shells
+	s.newShellError = engines.ErrSandboxAborted
+
+	// Call abort() on all shells
+	for _, sh := range s.shells {
+		sh.Abort()
+	}
+}
+
+func (s *sandbox) waitForShell(shell engines.Shell) {
+	// Wait for shell to finish
+	shell.Wait()
+
+	// Lock access to s.shells
+	s.mShells.Lock()
+	defer s.mShells.Unlock()
+
+	// Remove shell from s.shells
+	shells := s.shells[:0]
+	for _, sh := range s.shells {
+		if sh != shell {
+			shells = append(shells, sh)
+		}
+	}
+	s.shells = shells
+
+	// Notify threads waiting if all shells are done
+	if len(s.shells) == 0 {
+		s.shellsDone.Broadcast()
+	}
 }
