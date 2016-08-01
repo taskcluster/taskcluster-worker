@@ -3,6 +3,7 @@ package mockengine
 import (
 	"bytes"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -197,6 +198,24 @@ func (s *sandbox) Abort() error {
 
 func (s *sandbox) NewShell() (engines.Shell, error) {
 	return newShell(), nil
+}
+
+func (s *sandbox) ListDisplays() ([]engines.Display, error) {
+	return []engines.Display{
+		{
+			Name:        "MockDisplay",
+			Description: "Simple mock VNC display rendering a static test image",
+			Width:       mockDisplayWidth,
+			Height:      mockDisplayHeight,
+		},
+	}, nil
+}
+
+func (s *sandbox) OpenDisplay(name string) (io.ReadWriteCloser, error) {
+	if name != "MockDisplay" {
+		return nil, engines.ErrNoSuchDisplay
+	}
+	return newMockDisplay(), nil
 }
 
 ///////////////////////////// Implementation of ResultSet interface
