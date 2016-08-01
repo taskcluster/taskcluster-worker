@@ -2,32 +2,39 @@ package vm
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/fsnotify/fsnotify"
 	"github.com/taskcluster/slugid-go/slugid"
+)
+
+const (
+	vncSocketFile = "vnc.sock"
+	qmpSocketFile = "qmp.sock"
 )
 
 // VirtualMachine holds the QEMU process and associated resources.
 // This is useful as the VM remains alive in the ResultSet stage, as we use
 // guest tools to copy files from the virtual machine.
 type VirtualMachine struct {
-	m         sync.Mutex // Protect access to resources
-	started   bool
-	network   Network
-	image     Image
-	vncSocket string
-	qmpSocket string
-	qemu      *exec.Cmd
-	qemuDone  chan<- struct{}
-	Done      <-chan struct{} // Closed when the virtual machine is done
-	Error     error           // Error, to be read after Done is closed
-	log       *logrus.Entry
+	m            sync.Mutex // Protect access to resources
+	started      bool
+	network      Network
+	image        Image
+	socketFolder string
+	qemu         *exec.Cmd
+	qemuDone     chan<- struct{}
+	Done         <-chan struct{} // Closed when the virtual machine is done
+	Error        error           // Error, to be read after Done is closed
+	log          *logrus.Entry
 }
 
 // NewVirtualMachine constructs a new virtual machine.
@@ -35,14 +42,19 @@ func NewVirtualMachine(
 	image Image, network Network, socketFolder, cdrom1, cdrom2 string,
 	log *logrus.Entry,
 ) *VirtualMachine {
+	// Create a sub-folder in the socketFolder
+	socketFolder = filepath.Join(socketFolder, slugid.Nice())
+
 	// Construct virtual machine
 	vm := &VirtualMachine{
-		vncSocket: filepath.Join(socketFolder, slugid.Nice()+".sock"),
-		qmpSocket: filepath.Join(socketFolder, slugid.Nice()+".sock"),
-		network:   network,
-		image:     image,
-		log:       log,
+		socketFolder: socketFolder,
+		network:      network,
+		image:        image,
+		log:          log,
 	}
+
+	vncSocket := filepath.Join(vm.socketFolder, vncSocketFile)
+	qmpSocket := filepath.Join(vm.socketFolder, qmpSocketFile)
 
 	// Construct options for QEMU
 	type opts map[string]string
@@ -110,10 +122,10 @@ func NewVirtualMachine(
 			"bus":  "usb.0",
 			"port": "2",
 		}),
-		"-vnc", arg("unix:"+vm.vncSocket, opts{
+		"-vnc", arg("unix:"+vncSocket, opts{
 			"share": "force-shared",
 		}),
-		"-chardev", "socket,id=qmpsocket,path=" + vm.qmpSocket + ",nowait,server=on",
+		"-chardev", "socket,id=qmpsocket,path=" + qmpSocket + ",nowait,server=on",
 		"-mon", "chardev=qmpsocket,mode=control",
 		"-drive", arg("", opts{
 			"file":   vm.image.DiskFile(),
@@ -241,6 +253,15 @@ func (vm *VirtualMachine) Start() {
 	vm.qemu.Stdout = stdoutWriter
 	vm.qemu.Stderr = stderrWriter
 
+	// Start monitor socketFolder for vnc and qmp sockets
+	socketsReady, err := vm.waitForSockets()
+	if err != nil {
+		vm.log.Errorf("Error configuring socketFolder monitoring, error: %s", err)
+		vm.Error = err
+		close(vm.qemuDone)
+		return
+	}
+
 	// Start QEMU
 	vm.Error = vm.qemu.Start()
 	if vm.Error != nil {
@@ -272,32 +293,53 @@ func (vm *VirtualMachine) Start() {
 
 	// Start QEMU and wait for it to finish before closing Done
 	go func(vm *VirtualMachine) {
-		vm.Error = vm.qemu.Wait()
-		// Close output pipes
-		stdoutWriter.Close()
-		stderrWriter.Close()
+		// Wait for QEMU to be done
+		werr := vm.qemu.Wait()
 
 		// Release network and image
 		vm.m.Lock()
 		defer vm.m.Unlock()
+
+		// Set error, if any and not already set
+		if vm.Error == nil {
+			vm.Error = werr
+		}
+
+		// Close output pipes
+		stdoutWriter.Close()
+		stderrWriter.Close()
+
 		vm.network.Release()
 		vm.network = nil
 		vm.image.Release()
 		vm.image = nil
 
-		// Remove socket files
-		os.Remove(vm.vncSocket)
-		os.Remove(vm.qmpSocket)
-		vm.vncSocket = ""
-		vm.qmpSocket = ""
+		// Remove socket folder
+		os.RemoveAll(vm.socketFolder)
+		vm.socketFolder = ""
 
-		// Notify everybody that the VM is stooped
+		// Notify everybody that the VM is stopped
 		// Ensure resources are freed first, otherwise we'll race with resources
 		// against the next task. If the number of resources is limiting the
 		// number of concurrent tasks we can run.
 		// This is usually the case, so race would happen at full capacity.
 		close(vm.qemuDone)
 	}(vm)
+
+	// Wait for vncSocket and qmpSocket to appear, or qemu to crash
+	select {
+	case err := <-socketsReady:
+		if err != nil {
+			vm.log.Errorf("Error monitoring socketFolder, error: %s", err)
+			vm.m.Lock()
+			if vm.Error != nil {
+				vm.Error = err
+			}
+			vm.m.Unlock()
+			vm.Kill()
+		}
+	case <-vm.Done:
+	}
 }
 
 // Kill the virtual machine, can only be called after Start()
@@ -316,5 +358,61 @@ func (vm *VirtualMachine) VNCSocket() string {
 	vm.m.Lock()
 	defer vm.m.Unlock()
 
-	return vm.vncSocket
+	if vm.socketFolder == "" {
+		return ""
+	}
+
+	return filepath.Join(vm.socketFolder, vncSocketFile)
+}
+
+// waitForSockets will monitor socketFolder and return a channel that is closed
+// when vncSocketFile and qmpSocketFile have been created.
+func (vm *VirtualMachine) waitForSockets() (<-chan error, error) {
+	done := make(chan error)
+
+	// Setup file monitoring, if there is an error here we panic, this should
+	// always be reliable.
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to setup file system monitoring, error: %s", err)
+	}
+	err = w.Add(vm.socketFolder)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to monitor socket folder, error: %s", err)
+	}
+
+	// Handle events, and close the done channel when sockets are ready
+	go func() {
+		vncReady := false
+		qmpReady := false
+		for !vncReady || !qmpReady {
+			select {
+			case e := <-w.Events:
+				if e.Op == fsnotify.Create {
+					if e.Name == vncSocketFile {
+						vncReady = true
+					}
+					if e.Name == qmpSocketFile {
+						qmpReady = true
+					}
+				}
+			case <-vm.Done:
+				// Stop monitoring if QEMU has crashed
+				w.Close()
+				return
+			case <-time.After(90 * time.Second):
+				done <- fmt.Errorf("vnc and qmp sockets didn't show up in 90s")
+				w.Close()
+				return
+			case err := <-w.Errors:
+				done <- fmt.Errorf("Error monitoring file system, error: %s", err)
+				w.Close()
+				return
+			}
+		}
+		w.Close()
+		close(done)
+	}()
+
+	return done, nil
 }
