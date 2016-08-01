@@ -9,12 +9,18 @@ env:
   - "MY_GOOS=windows MY_GOARCH=amd64"
   - "MY_GOOS=windows MY_GOARCH=386"
 
+before_install:
+  - curl -o go.tar.gz -sL https://storage.googleapis.com/golang/go1.6.3.linux-amd64.tar.gz
+  - tar -C $HOME -xf go.tar.gz
+  - export GOROOT="${HOME}/go"
+  - export PATH="${GOROOT}/bin:${PATH}"
+  - export GOOS="${MY_GOOS}"
+  - export GOARCH="${MY_GOARCH}"
+
 install:
   - "echo No go get steps since we have vendored packages..."
 
 script:
-  - export GOOS="${MY_GOOS}"
-  - export GOARCH="${MY_GOARCH}"
 # note - below, || is used rather than && to ensure we only get zero exit code if all is ok
   - "test $GOOS.$GOARCH == linux.amd64 || make build"
   - "test $GOOS.$GOARCH != linux.amd64 || (go get github.com/axw/gocov/gocov github.com/mattn/goveralls golang.org/x/tools/cmd/cover github.com/pierrre/gotestcover && make rebuild check && ${GOPATH}/bin/gotestcover -v -coverprofile=coverage.report $(go list ./... | grep -v /vendor/) && go tool cover -func=coverage.report)"
