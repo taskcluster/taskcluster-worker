@@ -1,3 +1,5 @@
+// +build darwin
+
 package osxnative
 
 import (
@@ -5,40 +7,30 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strings"
 )
 
 type resultset struct {
 	engines.ResultSetBase
-	context *runtime.TaskContext
-	success bool
+	taskUser user
+	context  *runtime.TaskContext
+	success  bool
+	engine   *engine
 }
 
 var pathMatcher *regexp.Regexp
 
-func init() {
-	home := os.Getenv("HOME")
-	if strings.HasPrefix(home, "/") {
-		// remove trailing "/"
-		home = home[:len(home)]
-	}
-
-	pathMatcher = regexp.MustCompile("^(" + home + "|/tmp)(/.*)?$")
-}
-
-func newResultSet(context *runtime.TaskContext, success bool) resultset {
-	return resultset{
-		ResultSetBase: engines.ResultSetBase{},
-		context:       context,
-		success:       success,
-	}
-}
-
 // Check if the path is valid. The only valid paths are those
 // inside user's home directory and in /tmp/
-func (r resultset) validPath(pathName string) bool {
+func (r resultset) validPath(home string, pathName string) bool {
+	pathMatcher = regexp.MustCompile("^(" + home + "|/tmp)(/.*)?$")
+
+	if !filepath.IsAbs(pathName) {
+		pathName = filepath.Join(home, pathName)
+	}
+
 	absPath, err := filepath.Abs(pathName)
 
 	if err != nil {
@@ -56,8 +48,13 @@ func (r resultset) Success() bool {
 }
 
 func (r resultset) ExtractFile(path string) (ioext.ReadSeekCloser, error) {
-	if !r.validPath(path) {
+	cwd := getWorkingDir(r.taskUser, r.context)
+	if !r.validPath(cwd, path) {
 		return nil, engines.NewMalformedPayloadError(path + " is invalid")
+	}
+
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(cwd, path)
 	}
 
 	file, err := os.Open(path)
@@ -71,8 +68,13 @@ func (r resultset) ExtractFile(path string) (ioext.ReadSeekCloser, error) {
 }
 
 func (r resultset) ExtractFolder(path string, handler engines.FileHandler) error {
-	if !r.validPath(path) {
+	cwd := getWorkingDir(r.taskUser, r.context)
+	if !r.validPath(cwd, path) {
 		return engines.NewMalformedPayloadError(path + " is invalid")
+	}
+
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(cwd, path)
 	}
 
 	return filepath.Walk(path, func(p string, info os.FileInfo, e error) error {
@@ -96,4 +98,19 @@ func (r resultset) ExtractFolder(path string, handler engines.FileHandler) error
 
 		return nil
 	})
+}
+
+func (r resultset) Dispose() error {
+	err := r.taskUser.delete()
+	if err != nil {
+		r.engine.log.WithField("user", r.taskUser.name).WithError(err).Error("Error removing user")
+		exitError, ok := err.(*exec.ExitError)
+		if ok {
+			r.engine.log.Error(string(exitError.Stderr))
+		}
+
+		return engines.ErrNonFatalInternalError
+	}
+
+	return nil
 }

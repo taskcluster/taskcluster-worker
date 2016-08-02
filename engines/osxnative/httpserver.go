@@ -1,3 +1,5 @@
+// +build darwin
+
 package osxnative
 
 import (
@@ -39,7 +41,7 @@ func (s *httpServer) url() string {
 	return s.testServer.URL
 }
 
-func newHttpServer() *httpServer {
+func newHTTPServer() *httpServer {
 	m := make(map[string]string)
 	return &httpServer{
 		testServer: httptest.NewServer(handler{&m}),
