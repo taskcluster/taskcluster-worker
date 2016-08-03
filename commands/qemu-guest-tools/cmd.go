@@ -1,3 +1,14 @@
+// Package qemuguesttools implements the command that runs inside a QEMU VM.
+// These guest tools are reponsible for fetching and executing the task command,
+// as well as posting the log from the task command to the meta-data service.
+//
+// The guest tools are also responsible for polling the meta-data service for
+// actions to do like list-folder, get-artifact or execute a new shell.
+//
+// The guest tools is pretty much the only way taskcluster-worker can talk to
+// the guest virtual machine. As you can't execute processes inside a virtual
+// machine without SSH'ing into it or something. That something is these
+// guest tools.
 package qemuguesttools
 
 import (
