@@ -3,7 +3,8 @@ MAINTAINER Jonas Finnemann Jensen <jopsen@gmail.com>
 
 RUN apt-get update -y
 RUN apt-get upgrade -y
-RUN apt-get install -y qemu dnsmasq-base build-essential liblz4-tool iptables golang git curl screen nano
+RUN apt-get install -y qemu dnsmasq-base build-essential liblz4-tool iptables \
+                       golang git curl screen nano genisoimage
 
 ENV APP_PATH    github.com/taskcluster/taskcluster-worker
 ENV GOPATH      /go

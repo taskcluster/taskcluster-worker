@@ -263,7 +263,7 @@ func (vm *VirtualMachine) Start() {
 	socketFolder := vm.socketFolder
 
 	// Create socket folder
-	err := os.Mkdir(socketFolder, 0600)
+	err := os.Mkdir(socketFolder, 0700)
 	if err != nil {
 		vm.log.Errorf("Failed to create socketFolder, error: %s", err)
 		vm.Error = err

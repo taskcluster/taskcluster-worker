@@ -30,12 +30,12 @@ func TestBuildImage(t *testing.T) {
 	// Create ISO file to play with
 	datadir := filepath.Join(os.TempDir(), slugid.Nice())
 	defer os.RemoveAll(datadir)
-	err = os.Mkdir(datadir, 0600)
+	err = os.Mkdir(datadir, 0700)
 	if err != nil {
 		panic(err)
 	}
 	err = ioutil.WriteFile(filepath.Join(datadir, "setup.sh"),
-		[]byte("#!/bin/sh\necho 'started'\n"), 0755)
+		[]byte("#!/bin/sh\necho 'started';\nsudo poweroff;\n"), 0755)
 	if err != nil {
 		panic(err)
 	}

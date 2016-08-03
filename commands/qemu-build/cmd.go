@@ -56,9 +56,9 @@ func (cmd) Execute(arguments map[string]interface{}) {
 
 	var inputFile string
 	if !fromImage {
-		inputFile = arguments["<image.tar.lz4>"].(string)
-	} else {
 		inputFile = arguments["<machine.json>"].(string)
+	} else {
+		inputFile = arguments["<image.tar.lz4>"].(string)
 	}
 
 	buildImage(
