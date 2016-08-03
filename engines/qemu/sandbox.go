@@ -150,22 +150,34 @@ func (s *sandbox) NewShell() (engines.Shell, error) {
 	return s.sessions.NewShell()
 }
 
+const qemuDisplayName = "screen"
+
 func (s *sandbox) ListDisplays() ([]engines.Display, error) {
 	select {
 	case <-s.vm.Done:
 		return nil, engines.ErrSandboxTerminated
 	default:
+		img, _ := s.vm.Screenshot()
+		w := 0
+		h := 0
+		if img != nil {
+			w = img.Bounds().Size().X
+			h = img.Bounds().Size().Y
+		}
 		return []engines.Display{
 			{
-				Name:        "screen",
+				Name:        qemuDisplayName,
 				Description: "Primary screen attached to the virtual machine",
-				Width:       0,
-				Height:      0,
+				Width:       w,
+				Height:      h,
 			},
 		}, nil
 	}
 }
 
 func (s *sandbox) OpenDisplay(name string) (io.ReadWriteCloser, error) {
+	if name != qemuDisplayName {
+		return nil, engines.ErrNoSuchDisplay
+	}
 	return s.sessions.OpenDisplay()
 }

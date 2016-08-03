@@ -4,6 +4,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
@@ -133,7 +134,7 @@ func (s *sessionManager) OpenDisplay() (io.ReadWriteCloser, error) {
 	}
 
 	// Dial-up the socket
-	conn, err := net.Dial("unix", socket)
+	conn, err := net.DialTimeout("unix", socket, 15*time.Second)
 	if err != nil {
 		// TODO: Check if vm is still running, if so report an error
 		return nil, engines.ErrSandboxTerminated

@@ -165,7 +165,7 @@ func (p *Pool) dispatchRequest(w http.ResponseWriter, r *http.Request) {
 	if len(match) != 2 {
 		debug("request from forbidden remote address: %s - %s %s",
 			r.RemoteAddr, r.Method, r.URL.String())
-		w.WriteHeader(403)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 	ipPrefix := match[1]
@@ -175,7 +175,7 @@ func (p *Pool) dispatchRequest(w http.ResponseWriter, r *http.Request) {
 	if n == nil {
 		debug("Request from ipPrefix: %s, not matching any network - %s %s",
 			ipPrefix, r.Method, r.URL.String())
-		w.WriteHeader(403)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
@@ -243,6 +243,8 @@ func (n *Network) Release() {
 	n.entry.pool.m.Lock()
 	n.entry.inUse = false
 	n.entry.pool.m.Unlock()
+
+	debug("network released: %s (%s)", n.entry.tapDevice, n.entry.ipPrefix)
 
 	// Clear entry so we don't release twice
 	n.entry = nil
@@ -316,6 +318,11 @@ func createNetwork(index int, parent *Pool) (*entry, error) {
 	tapDevice := "tctap" + strconv.Itoa(index)
 	ipPrefix := "192.168." + strconv.Itoa(index+150)
 
+	//err := createTAPDevice(tapDevice)
+	//if err != nil {
+	//	return nil, fmt.Errorf("Failed to create tap device: %s, error: %s", tapDevice, err)
+	//}
+
 	err := script([][]string{
 		// Create tap device
 		{"ip", "tuntap", "add", "dev", tapDevice, "mode", "tap"},
@@ -373,6 +380,11 @@ func destroyNetwork(n *entry) error {
 		debug("Failed to destory tap device: %s, error: %s", n.tapDevice, err)
 		return fmt.Errorf("Failed to remove tap device: %s, error: %s", n.tapDevice, err)
 	}
+
+	//err = destroyTAPDevice(n.tapDevice)
+	//if err != nil {
+	//	return fmt.Errorf("Failed to destroy tap device: %s, error: %s", n.tapDevice, err)
+	//}
 
 	// Clear handler and tapDevice
 	n.handler = nil

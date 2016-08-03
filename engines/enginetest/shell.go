@@ -11,7 +11,7 @@ import (
 // The ShellTestCase contains information sufficient to test the interactive
 // shell provided by a Sandbox
 type ShellTestCase struct {
-	EngineProvider
+	*EngineProvider
 	// Command to pipe to the Shell over stdin
 	Command string
 	// Result to expect from the Shell on stdout when running Command

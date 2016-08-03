@@ -265,6 +265,10 @@ func (r *run) Dispose() {
 	}
 	if r.sandbox != nil {
 		err := r.sandbox.Abort()
+		// Ensure the ResultSet is disposed too
+		if err == engines.ErrSandboxTerminated && r.resultSet == nil {
+			r.resultSet, _ = r.sandbox.WaitForResult()
+		}
 		if err != nil && err != engines.ErrSandboxTerminated {
 			fmtPanic("Sandbox.Abort() failed, error: ", err)
 		}

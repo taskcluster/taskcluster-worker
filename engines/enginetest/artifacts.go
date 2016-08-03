@@ -14,7 +14,7 @@ import (
 // The ArtifactTestCase contains information sufficient to test artifact
 // extration from an engine.
 type ArtifactTestCase struct {
-	EngineProvider
+	*EngineProvider
 	// Text to search for in files
 	Text string
 	// Path of a file containing the Text string above

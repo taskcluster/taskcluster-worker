@@ -7,7 +7,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines/enginetest"
 )
 
-var provider = enginetest.EngineProvider{
+var provider = &enginetest.EngineProvider{
 	Engine: "mock",
 	Config: "{}",
 }
