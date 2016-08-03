@@ -71,16 +71,27 @@ git diff --cached                     # check changes look correct
 git commit -m "Froze jsonschema2go at revision fa5483ebd1cf3c73374e815f0befaba6184f3090"
 ```
 
-Updating Dependencies
+Adding Dependencies
 ---------------------
 
-The simplest is probably:
+```
+go get -u github.com/tools/godep      # install godep tool
+godep restore ./...                   # copy vendored dependencies into your GOPATH
+go get <my-dependency>                # go get your dependency
+godep save ./...                      # save dependencies (this won't update existing dependencies)
+git add Godeps/ vendor/               # add changes
+git diff --cached                     # check changes look correct
+git commit -m "Updated all go package dependencies to latest versions"
+```
+
+Updating Dependencies
+---------------------
 
 ```
 go get -u github.com/tools/godep      # install godep tool
 godep restore ./...                   # copy vendored dependencies into your GOPATH
 go get -u -t ./...                    # update versions
-godep save ./...                      # save changes
+godep update ./...                    # update dependencies
 git add Godeps/ vendor/               # add changes
 git diff --cached                     # check changes look correct
 git commit -m "Updated all go package dependencies to latest versions"
