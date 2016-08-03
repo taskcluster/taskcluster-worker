@@ -436,6 +436,7 @@ func (vm *VirtualMachine) Screenshot() (image.Image, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Error taking screendump, error: %s", err)
 	}
+	defer r.Close()
 	img, err := pnm.Decode(r)
 	if err != nil {
 		return nil, fmt.Errorf("Error decoding screendump, error: %s", err)

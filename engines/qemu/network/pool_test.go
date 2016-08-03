@@ -1,4 +1,11 @@
 // +build qemu
+// +build network
+
+// We only run these tests when network is activated, as the package can't run
+// in parallel with QEMU engine tests. It'll also be fully covered by QEMU
+// engine tests, so it's not like we strictly need to run this very often.
+// If running all tests use ^go test -p 1` to ensure that multiple packages
+// don't run in parallel.
 
 package network
 
