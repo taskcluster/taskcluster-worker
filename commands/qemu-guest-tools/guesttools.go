@@ -181,7 +181,7 @@ func (g *guestTools) poll(ctx context.Context) {
 
 	// Read the request body
 	defer res.Body.Close()
-	data, err := ioext.ReadAtmost(res.Body, 2*1024*1024)
+	data, err := ioext.ReadAtMost(res.Body, 2*1024*1024)
 	if err != nil {
 		g.log.Error("Failed to read poll request body, error: ", err)
 		return

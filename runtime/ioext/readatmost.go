@@ -40,14 +40,14 @@ func (l *limitedReader) ReachedEOF() bool {
 // was read and, hence, we stopped reading.
 var ErrMaxSizeExceeded = errors.New("MaxSize was exceeded before EOF was reached")
 
-// ReadAtmost will read at-most maxSize bytes from r and return an error if we
+// ReadAtMost will read at-most maxSize bytes from r and return an error if we
 // didn't reach EOF. Returns ErrMaxSizeExceeded if r contains more than maxSize
-// bytes. If maxSize is -1 ReadAtmost will read everything.
+// bytes. If maxSize is -1 ReadAtMost will read everything.
 //
 // This utility is useful when reading HTTP requests, in particular if reading
 // from untrusted sources. If using io.ReadAll it's easy to run the server out
 // of memory, a maxSize of 2MiB is usually sane and prevents such attacks.
-func ReadAtmost(r io.Reader, maxSize int64) ([]byte, error) {
+func ReadAtMost(r io.Reader, maxSize int64) ([]byte, error) {
 	if r == nil {
 		return nil, nil
 	}

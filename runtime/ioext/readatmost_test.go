@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-func TestReadAtmost(t *testing.T) {
+func TestReadAtMost(t *testing.T) {
 	r := bytes.NewBufferString("hello world")
-	b, err := ReadAtmost(r, 20)
+	b, err := ReadAtMost(r, 20)
 	if err != nil {
 		t.Error("maxSize > N, failed")
 	}
@@ -17,7 +17,7 @@ func TestReadAtmost(t *testing.T) {
 
 	// MaxSize == N
 	r = bytes.NewBufferString("hello world")
-	b, err = ReadAtmost(r, 11)
+	b, err = ReadAtMost(r, 11)
 	if err != nil {
 		t.Error("maxSize == N, failed")
 	}
@@ -27,7 +27,7 @@ func TestReadAtmost(t *testing.T) {
 
 	// MaxSize < N
 	r = bytes.NewBufferString("hello world")
-	b, err = ReadAtmost(r, 10)
+	b, err = ReadAtMost(r, 10)
 	if err != ErrMaxSizeExceeded {
 		t.Error("maxSize < N, didn't fail")
 	}
@@ -37,7 +37,7 @@ func TestReadAtmost(t *testing.T) {
 
 	// MaxSize < N
 	r = bytes.NewBufferString("hello world")
-	b, err = ReadAtmost(r, 4)
+	b, err = ReadAtMost(r, 4)
 	if err != ErrMaxSizeExceeded {
 		t.Error("maxSize < N, didn't fail (2)")
 	}
@@ -47,7 +47,7 @@ func TestReadAtmost(t *testing.T) {
 
 	// MaxSize == -1
 	r = bytes.NewBufferString("hello world")
-	b, err = ReadAtmost(r, -1)
+	b, err = ReadAtMost(r, -1)
 	if err != nil {
 		t.Error("maxSize == -1, failed")
 	}
