@@ -36,7 +36,7 @@ options:
 `
 }
 
-func (cmd) Execute(arguments map[string]interface{}) {
+func (cmd) Execute(arguments map[string]interface{}) bool {
 	// Read arguments
 	imageFile := arguments["<image>"].(string)
 	command := arguments["<command>"].([]string)
@@ -126,4 +126,5 @@ func (cmd) Execute(arguments map[string]interface{}) {
 
 	// Clean up anything left in the garbage collector
 	gc.CollectAll()
+	return true
 }

@@ -31,7 +31,7 @@ options:
 `
 }
 
-func (cmd) Execute(arguments map[string]interface{}) {
+func (cmd) Execute(arguments map[string]interface{}) bool {
 	// Setup logging
 	logger, _ := runtime.CreateLogger("info")
 	log := logger.WithField("component", "qemu-build")
@@ -61,8 +61,8 @@ func (cmd) Execute(arguments map[string]interface{}) {
 		inputFile = arguments["<image.tar.lz4>"].(string)
 	}
 
-	buildImage(
+	return buildImage(
 		log, inputFile, outputFile,
 		fromImage, novnc, boot, cdrom, int(size),
-	)
+	) == nil
 }
