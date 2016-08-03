@@ -1,4 +1,5 @@
 // +build qemu
+// +build linux
 
 package network
 
