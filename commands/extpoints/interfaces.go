@@ -10,6 +10,7 @@ type CommandProvider interface {
 	Summary() string
 	// Usage returns the docopt usage string, used to parse arguments.
 	Usage() string
-	// Execute is called with parsed docopt result
-	Execute(args map[string]interface{})
+	// Execute is called with parsed docopt result, return true/false if the
+	// utility should exit zero or non-zero.
+	Execute(args map[string]interface{}) bool
 }

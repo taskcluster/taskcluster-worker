@@ -1,3 +1,4 @@
 /taskcluster-worker
 /.vagrant
 coverage.out
+/.bash_history
