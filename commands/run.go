@@ -55,7 +55,10 @@ func Run(argv []string) {
 		true, "taskcluster-worker", false,
 	)
 	// Execute provider with parsed args
-	provider.Execute(subArguments)
+	if !provider.Execute(subArguments) {
+		os.Exit(1)
+	}
+	os.Exit(0)
 }
 
 func pad(s string, length int) string {

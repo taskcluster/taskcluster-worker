@@ -39,7 +39,7 @@ Options:
   -h, --help       Show this screen.`
 }
 
-func (cmd) Execute(arguments map[string]interface{}) {
+func (cmd) Execute(arguments map[string]interface{}) bool {
 	host := arguments["--host"].(string)
 
 	logger, _ := runtime.CreateLogger("info")
@@ -50,4 +50,6 @@ func (cmd) Execute(arguments map[string]interface{}) {
 	// Process actions forever, this must run in the main thread as exiting the
 	// main thread will cause the go program to exit.
 	g.ProcessActions()
+
+	return true
 }

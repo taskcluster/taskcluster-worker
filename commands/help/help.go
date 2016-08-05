@@ -22,7 +22,7 @@ func (cmd) Usage() string {
 	return "usage: taskcluster-worker help <command>"
 }
 
-func (cmd) Execute(arguments map[string]interface{}) {
+func (cmd) Execute(arguments map[string]interface{}) bool {
 	command := arguments["<command>"].(string)
 	provider := extpoints.CommandProviders.Lookup(command)
 	if provider == nil {
@@ -30,4 +30,5 @@ func (cmd) Execute(arguments map[string]interface{}) {
 		os.Exit(1)
 	}
 	fmt.Print(provider.Usage())
+	return true
 }
