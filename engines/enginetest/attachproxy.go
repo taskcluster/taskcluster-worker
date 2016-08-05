@@ -13,7 +13,7 @@ const PingPath = "/v1/ping"
 // A ProxyTestCase holds information necessary to run tests that an engine
 // can attach proxies, call them and forward calls correctly
 type ProxyTestCase struct {
-	EngineProvider
+	*EngineProvider
 	// A valid name for a proxy attachment
 	ProxyName string
 	// A task.payload as accepted by the engine, which will write "Pinging"

@@ -2,32 +2,44 @@ package vm
 
 import (
 	"bufio"
+	"fmt"
+	"image"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/digitalocean/go-qemu"
+	"github.com/digitalocean/go-qemu/qmp"
+	"github.com/fsnotify/fsnotify"
+	pnm "github.com/jbuchbinder/gopnm"
 	"github.com/taskcluster/slugid-go/slugid"
+)
+
+const (
+	vncSocketFile = "vnc.sock"
+	qmpSocketFile = "qmp.sock"
 )
 
 // VirtualMachine holds the QEMU process and associated resources.
 // This is useful as the VM remains alive in the ResultSet stage, as we use
 // guest tools to copy files from the virtual machine.
 type VirtualMachine struct {
-	m         sync.Mutex // Protect access to resources
-	started   bool
-	network   Network
-	image     Image
-	vncSocket string
-	qmpSocket string
-	qemu      *exec.Cmd
-	qemuDone  chan<- struct{}
-	Done      <-chan struct{} // Closed when the virtual machine is done
-	Error     error           // Error, to be read after Done is closed
-	log       *logrus.Entry
+	m            sync.Mutex // Protect access to resources
+	started      bool
+	network      Network
+	image        Image
+	socketFolder string
+	qemu         *exec.Cmd
+	qemuDone     chan<- struct{}
+	Done         <-chan struct{} // Closed when the virtual machine is done
+	Error        error           // Error, to be read after Done is closed
+	log          *logrus.Entry
+	domain       *qemu.Domain
 }
 
 // NewVirtualMachine constructs a new virtual machine.
@@ -35,14 +47,19 @@ func NewVirtualMachine(
 	image Image, network Network, socketFolder, cdrom1, cdrom2 string,
 	log *logrus.Entry,
 ) *VirtualMachine {
+	// Create a sub-folder in the socketFolder
+	socketFolder = filepath.Join(socketFolder, slugid.Nice())
+
 	// Construct virtual machine
 	vm := &VirtualMachine{
-		vncSocket: filepath.Join(socketFolder, slugid.Nice()+".sock"),
-		qmpSocket: filepath.Join(socketFolder, slugid.Nice()+".sock"),
-		network:   network,
-		image:     image,
-		log:       log,
+		socketFolder: socketFolder,
+		network:      network,
+		image:        image,
+		log:          log,
 	}
+
+	vncSocket := filepath.Join(vm.socketFolder, vncSocketFile)
+	qmpSocket := filepath.Join(vm.socketFolder, qmpSocketFile)
 
 	// Construct options for QEMU
 	type opts map[string]string
@@ -57,6 +74,7 @@ func NewVirtualMachine(
 		return result
 	}
 	options := []string{
+		"-S", // Wait for QMP command "continue" before starting execution
 		"-name", "qemu-guest",
 		// TODO: Add -enable-kvm (configurable so can be disabled in tests)
 		"-machine", arg("pc-i440fx-2.1", opts{
@@ -110,10 +128,10 @@ func NewVirtualMachine(
 			"bus":  "usb.0",
 			"port": "2",
 		}),
-		"-vnc", arg("unix:"+vm.vncSocket, opts{
+		"-vnc", arg("unix:"+vncSocket, opts{
 			"share": "force-shared",
 		}),
-		"-chardev", "socket,id=qmpsocket,path=" + vm.qmpSocket + ",nowait,server=on",
+		"-chardev", "socket,id=qmpsocket,path=" + qmpSocket + ",nowait,server=on",
 		"-mon", "chardev=qmpsocket,mode=control",
 		"-drive", arg("", opts{
 			"file":   vm.image.DiskFile(),
@@ -241,6 +259,27 @@ func (vm *VirtualMachine) Start() {
 	vm.qemu.Stdout = stdoutWriter
 	vm.qemu.Stderr = stderrWriter
 
+	// Local reference to socketFolder to avoid race condition
+	socketFolder := vm.socketFolder
+
+	// Create socket folder
+	err := os.Mkdir(socketFolder, 0600)
+	if err != nil {
+		vm.log.Errorf("Failed to create socketFolder, error: %s", err)
+		vm.Error = err
+		close(vm.qemuDone)
+		return
+	}
+
+	// Start monitor socketFolder for vnc and qmp sockets
+	socketsReady, err := vm.waitForSockets()
+	if err != nil {
+		vm.log.Errorf("Error configuring socketFolder monitoring, error: %s", err)
+		vm.Error = err
+		close(vm.qemuDone)
+		return
+	}
+
 	// Start QEMU
 	vm.Error = vm.qemu.Start()
 	if vm.Error != nil {
@@ -248,56 +287,123 @@ func (vm *VirtualMachine) Start() {
 		return
 	}
 
-	// Forward stdout to log
-	go func() {
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			vm.log.Info("QEMU: ", scanner.Text())
-		}
-		if err := scanner.Err(); err != nil {
-			vm.log.Error("Error reading QEMU stdout, error: ", err)
-		}
-	}()
+	// Forward stdout/err to log
+	// Normally QEMU won't write anything... So sending everything to log is
+	// probably a good thing. Usually, it's errors and deprecation notices.
+	go scanLog(stdout, vm.log.Info, vm.log.Error)
+	go scanLog(stderr, vm.log.Error, vm.log.Error)
 
-	// Forward stderr to log
+	// Wait for QEMU to finish and cleanup
 	go func() {
-		scanner := bufio.NewScanner(stderr)
-		for scanner.Scan() {
-			vm.log.Error("QEMU: ", scanner.Text())
-		}
-		if err := scanner.Err(); err != nil {
-			vm.log.Error("Error reading QEMU stderr, error: ", err)
-		}
-	}()
+		// Wait for QEMU to be done
+		werr := vm.qemu.Wait()
 
-	// Start QEMU and wait for it to finish before closing Done
-	go func(vm *VirtualMachine) {
-		vm.Error = vm.qemu.Wait()
+		// Acquire lock
+		vm.m.Lock()
+		defer vm.m.Unlock()
+
 		// Close output pipes
 		stdoutWriter.Close()
 		stderrWriter.Close()
 
+		// Set error, if any and not already set
+		if vm.Error == nil {
+			vm.Error = werr
+		}
+
+		// Close domain, if set
+		if vm.domain != nil {
+			vm.domain.Close()
+		}
+
 		// Release network and image
-		vm.m.Lock()
-		defer vm.m.Unlock()
 		vm.network.Release()
 		vm.network = nil
 		vm.image.Release()
 		vm.image = nil
 
-		// Remove socket files
-		os.Remove(vm.vncSocket)
-		os.Remove(vm.qmpSocket)
-		vm.vncSocket = ""
-		vm.qmpSocket = ""
+		// Remove socket folder
+		os.RemoveAll(vm.socketFolder)
+		vm.socketFolder = ""
 
-		// Notify everybody that the VM is stooped
+		// Notify everybody that the VM is stopped
 		// Ensure resources are freed first, otherwise we'll race with resources
 		// against the next task. If the number of resources is limiting the
 		// number of concurrent tasks we can run.
 		// This is usually the case, so race would happen at full capacity.
 		close(vm.qemuDone)
-	}(vm)
+	}()
+
+	// Wait for vncSocket and qmpSocket to appear, or qemu to crash
+	select {
+	case err = <-socketsReady:
+		if err != nil {
+			vm.abort(err)
+			return
+		}
+	case <-vm.Done:
+		return
+	}
+
+	// Create monitor
+	qmpSocket := filepath.Join(socketFolder, qmpSocketFile)
+	monitor, err := qmp.NewSocketMonitor("unix", qmpSocket, 5*time.Second)
+	if err != nil {
+		debug("Error opening QMP monitor, error: %s", err)
+		vm.abort(fmt.Errorf("Failed to open QMP monitor, error: %s", err))
+		return
+	}
+
+	if err = monitor.Connect(); err != nil {
+		debug("Error connecting QMP monitor, error: %s", err)
+		vm.abort(fmt.Errorf("Failed to connect to QMP monitor, error: %s", err))
+		monitor.Disconnect()
+		return
+	}
+
+	domain, err := qemu.NewDomain(monitor, slugid.Nice())
+	if err != nil {
+		debug("Error creating domain from QMP monitor, error: %s", err)
+		vm.abort(fmt.Errorf("Failed to create domain from QMP monitor, error: %s", err))
+		monitor.Disconnect()
+		return
+	}
+
+	// Acquire lock when we set domain, so we don't race with QEMU cleanup code
+	// above... This code will close domain, if it's non-nil, so after setting it
+	// just check that vm.Done isn't closed as that would indicate the code
+	// already ran, and we just have to cleanup.
+	vm.m.Lock()
+	vm.domain = domain
+	select {
+	case <-vm.Done:
+		vm.domain.Close()
+		vm.m.Unlock()
+		return
+	default:
+	}
+	vm.m.Unlock()
+
+	// Run QMP command continue to start execution
+	_, err = vm.domain.Run(qmp.Command{
+		Execute: "cont",
+	})
+	if err != nil {
+		debug("Error executing QMP command 'cont', error: %s", err)
+		vm.abort(fmt.Errorf("Failed QMP command 'cont', error: %s", err))
+	}
+}
+
+// abort kills the VM and sets the error, if it's not already dead with another
+// error. This ensure we don't accidentally overwrite vm.Error with an error
+// that was the result of the original error.
+func (vm *VirtualMachine) abort(err error) {
+	vm.m.Lock()
+	if vm.Error != nil {
+		vm.Error = err
+	}
+	vm.m.Unlock()
+	vm.Kill()
 }
 
 // Kill the virtual machine, can only be called after Start()
@@ -307,6 +413,7 @@ func (vm *VirtualMachine) Kill() {
 		return // We're obviously not running, so we must be done
 	default:
 		vm.qemu.Process.Kill()
+		<-vm.Done
 	}
 }
 
@@ -316,5 +423,88 @@ func (vm *VirtualMachine) VNCSocket() string {
 	vm.m.Lock()
 	defer vm.m.Unlock()
 
-	return vm.vncSocket
+	if vm.socketFolder == "" {
+		return ""
+	}
+
+	return filepath.Join(vm.socketFolder, vncSocketFile)
+}
+
+// Screenshot takes a screenshot of the virtual machine screen as is running.
+func (vm *VirtualMachine) Screenshot() (image.Image, error) {
+	r, err := vm.domain.ScreenDump()
+	if err != nil {
+		return nil, fmt.Errorf("Error taking screendump, error: %s", err)
+	}
+	img, err := pnm.Decode(r)
+	if err != nil {
+		return nil, fmt.Errorf("Error decoding screendump, error: %s", err)
+	}
+	return img, nil
+}
+
+// waitForSockets will monitor socketFolder and return a channel that is closed
+// when vncSocketFile and qmpSocketFile have been created.
+func (vm *VirtualMachine) waitForSockets() (<-chan error, error) {
+	done := make(chan error)
+
+	// Cache socket folder here to avoid race conditions
+	socketFolder := vm.socketFolder
+
+	// Setup file monitoring, if there is an error here we panic, this should
+	// always be reliable.
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to setup file system monitoring, error: %s", err)
+	}
+	err = w.Add(socketFolder)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to monitor socket folder, error: %s", err)
+	}
+
+	// Handle events, and close the done channel when sockets are ready
+	go func() {
+		vncReady := false
+		qmpReady := false
+		for !vncReady || !qmpReady {
+			select {
+			case e := <-w.Events:
+				debug("fs-event: %s", e)
+				if e.Op == fsnotify.Create {
+					if e.Name == filepath.Join(socketFolder, vncSocketFile) {
+						vncReady = true
+					}
+					if e.Name == filepath.Join(socketFolder, qmpSocketFile) {
+						qmpReady = true
+					}
+				}
+			case <-vm.Done:
+				// Stop monitoring if QEMU has crashed
+				w.Close()
+				return
+			case <-time.After(90 * time.Second):
+				done <- fmt.Errorf("vnc and qmp sockets didn't show up in 90s")
+				w.Close()
+				return
+			case err := <-w.Errors:
+				done <- fmt.Errorf("Error monitoring file system, error: %s", err)
+				w.Close()
+				return
+			}
+		}
+		w.Close()
+		close(done)
+	}()
+
+	return done, nil
+}
+
+func scanLog(log io.Reader, infoLog, errorLog func(...interface{})) {
+	scanner := bufio.NewScanner(log)
+	for scanner.Scan() {
+		infoLog("QEMU: ", scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		errorLog("Error reading QEMU log, error: ", err)
+	}
 }

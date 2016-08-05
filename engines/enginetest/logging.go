@@ -9,7 +9,7 @@ import (
 // A LoggingTestCase holds information necessary to run tests that an engine
 // can write things to the log.
 type LoggingTestCase struct {
-	EngineProvider
+	*EngineProvider
 	// String that we will look for in the log
 	Target string
 	// A task.payload as accepted by the engine, which will Target to the log and

@@ -54,6 +54,5 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 
 func (r *resultSet) Dispose() error {
 	r.vm.Kill()
-	<-r.vm.Done
 	return nil
 }

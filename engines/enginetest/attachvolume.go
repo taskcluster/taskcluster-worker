@@ -11,7 +11,7 @@ import (
 // A VolumeTestCase holds information necessary to run tests that an engine
 // can create volumes, mount and read/write to volumes.
 type VolumeTestCase struct {
-	EngineProvider
+	*EngineProvider
 	// A valid mountpoint
 	Mountpoint string
 	// A task.payload as accepted by the engine, which will write something to the

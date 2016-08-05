@@ -4,14 +4,13 @@ package qemuengine
 
 import (
 	"flag"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"testing"
 
+	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/enginetest"
 )
 
@@ -41,20 +40,24 @@ var s *httptest.Server
 func TestMain(m *testing.M) {
 	flag.Parse()
 	s = makeTestServer()
-	defer func() {
-		s.CloseClientConnections()
-		s.Close()
-		out, _ := exec.Command("ip", "tuntap").Output()
-		fmt.Printf("ip tuntap: '%s'\n", string(out))
+	provider.SetupEngine()
+	result := 1
+	func() {
+		defer func() {
+			provider.TearDownEngine()
+			s.CloseClientConnections()
+			s.Close()
+		}()
+		result = m.Run()
 	}()
-	os.Exit(m.Run())
+	os.Exit(result)
 }
 
-var provider = enginetest.EngineProvider{
+var provider = &enginetest.EngineProvider{
 	Engine: "qemu",
 	Config: `{
 		"qemu": {
-			"maxConcurrency":   6,
+			"maxConcurrency":   5,
 			"imageFolder":      "/tmp/images/",
 			"socketFolder":     "/tmp/"
 		}
@@ -181,5 +184,31 @@ func TestShell(t *testing.T) {
 	c.TestCommand()
 	c.TestBadCommand()
 	c.TestAbortSleepCommand()
+	c.Test()
+}
+
+func TestDisplay(t *testing.T) {
+	c := enginetest.DisplayTestCase{
+		EngineProvider: provider,
+		Displays: []engines.Display{
+			{
+				Name:        "screen",
+				Description: "Primary screen attached to the virtual machine",
+				Width:       0,
+				Height:      0,
+			},
+		},
+		InvalidDisplayName: "invalid-screen",
+		Payload: `{
+	    "start": {
+	      "image": "` + s.URL + `",
+	      "command": ["sh", "-c", "true"]
+	    }
+	  }`,
+	}
+
+	c.TestListDisplays()
+	c.TestDisplays()
+	c.TestInvalidDisplayName()
 	c.Test()
 }

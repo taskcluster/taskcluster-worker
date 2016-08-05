@@ -3,10 +3,11 @@ package mockengine
 import (
 	t "testing"
 
+	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/enginetest"
 )
 
-var provider = enginetest.EngineProvider{
+var provider = &enginetest.EngineProvider{
 	Engine: "mock",
 	Config: "{}",
 }
@@ -147,3 +148,28 @@ func TestCommand(t *t.T)           { shellTestCase.TestCommand() }
 func TestBadCommand(t *t.T)        { shellTestCase.TestBadCommand() }
 func TestAbortSleepCommand(t *t.T) { shellTestCase.TestAbortSleepCommand() }
 func Test(t *t.T)                  { shellTestCase.Test() }
+
+var displayTestCase = enginetest.DisplayTestCase{
+	EngineProvider: provider,
+	Displays: []engines.Display{
+		{
+			Name:        "MockDisplay",
+			Description: "Simple mock VNC display rendering a static test image",
+			Width:       mockDisplayWidth,
+			Height:      mockDisplayHeight,
+		},
+	},
+	InvalidDisplayName: "no-such-display",
+	Payload: `{
+		"start":{
+			"delay": 0,
+			"function": "true",
+			"argument": ""
+		}
+	}`,
+}
+
+func TestListDisplays(t *t.T)       { displayTestCase.TestListDisplays() }
+func TestDisplays(t *t.T)           { displayTestCase.TestDisplays() }
+func TestInvalidDisplayName(t *t.T) { displayTestCase.TestInvalidDisplayName() }
+func TestDisplayTestCase(t *t.T)    { displayTestCase.Test() }

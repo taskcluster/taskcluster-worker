@@ -9,7 +9,7 @@ import (
 // The EnvVarTestCase contains information sufficient to setting an environment
 // variable.
 type EnvVarTestCase struct {
-	EngineProvider
+	*EngineProvider
 	// Valid name for an environment variable.
 	VariableName string
 	// Invalid environment variable names.
