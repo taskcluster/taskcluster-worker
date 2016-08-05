@@ -45,13 +45,13 @@ func newShell() *shell {
 		// Execute command
 		switch string(data) {
 		case "print-hello":
-			_, err := stdoutWriter.Write([]byte("Hello World"))
-			if err != nil && resultError == nil {
-				resultError = fmt.Errorf("Error while writing stdout: %s", err)
+			_, werr := stdoutWriter.Write([]byte("Hello World"))
+			if werr != nil && resultError == nil {
+				resultError = fmt.Errorf("Error while writing stdout: %s", werr)
 			}
-			_, err = stderrWriter.Write([]byte("No error!"))
-			if err != nil && resultError == nil {
-				resultError = fmt.Errorf("Error while writing stderr: %s", err)
+			_, werr = stderrWriter.Write([]byte("No error!"))
+			if werr != nil && resultError == nil {
+				resultError = fmt.Errorf("Error while writing stderr: %s", werr)
 			}
 		case "exit-false":
 			resultValue = false

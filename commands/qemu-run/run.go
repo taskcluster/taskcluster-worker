@@ -36,15 +36,24 @@ options:
 `
 }
 
-func (cmd) Execute(arguments map[string]interface{}) {
+func (cmd) Execute(arguments map[string]interface{}) bool {
 	// Read arguments
 	imageFile := arguments["<image>"].(string)
 	command := arguments["<command>"].([]string)
 	vnc := arguments["--vnc"].(bool)
 
+	// Create temporary storage and environment
+	storage, err := runtime.NewTemporaryStorage(os.TempDir())
+	if err != nil {
+		panic("Failed to create TemporaryStorage")
+	}
+	environment := &runtime.Environment{
+		TemporaryStorage: storage,
+	}
+
 	// Create a temporary folder
-	tempFolder := filepath.Join("/tmp", slugid.V4())
-	if err := os.Mkdir(tempFolder, 0777); err != nil {
+	tempFolder := filepath.Join("/tmp", slugid.Nice())
+	if err = os.Mkdir(tempFolder, 0777); err != nil {
 		log.Fatal("Failed to create temporary folder in /tmp, error: ", err)
 	}
 
@@ -78,13 +87,13 @@ func (cmd) Execute(arguments map[string]interface{}) {
 
 	// Create virtual machine
 	log.Info("Creating virtual machine")
-	vm := vm.NewVirtualMachine(image, net, tempFolder, "", "")
+	vm := vm.NewVirtualMachine(image, net, tempFolder, "", "", logger.WithField("component", "vm"))
 
 	// Create meta-data service
 	log.Info("Creating meta-data service")
 	ms := metaservice.New(command, make(map[string]string), os.Stdout, func(result bool) {
 		fmt.Println("### Task Completed, result = ", result)
-	})
+	}, environment)
 
 	// Setup http handler
 	vm.SetHTTPHandler(ms)
@@ -117,4 +126,5 @@ func (cmd) Execute(arguments map[string]interface{}) {
 
 	// Clean up anything left in the garbage collector
 	gc.CollectAll()
+	return true
 }

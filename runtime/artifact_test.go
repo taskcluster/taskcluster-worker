@@ -16,7 +16,7 @@ import (
 
 func setupArtifactTest(name string, artifactResp queue.PostArtifactRequest) (*TaskContext, *client.MockQueue) {
 	resp := queue.PostArtifactResponse(artifactResp)
-	taskID := slugid.V4()
+	taskID := slugid.Nice()
 	context := &TaskContext{
 		TaskInfo: TaskInfo{
 			TaskID: taskID,

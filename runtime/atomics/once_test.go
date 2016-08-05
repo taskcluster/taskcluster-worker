@@ -143,3 +143,19 @@ func TestOnceDoConcurrent3(t *testing.T) { // Just moving code blocks
 		panic("Expected rCount == 1")
 	}
 }
+
+func TestOnceDoNestedDo(t *testing.T) {
+	var once Once
+	count := 0
+	once.Do(func() {
+		count++
+		once.Do(func() {
+			count++
+			panic("this shouldn't happen")
+		})
+	})
+	once.Wait()
+	if count != 1 {
+		panic("Expected count == 1")
+	}
+}

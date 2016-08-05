@@ -3,16 +3,18 @@
 package qemuengine
 
 import (
+	"flag"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 
+	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/enginetest"
 )
 
-const testImageFile = "./image/tinycore-worker.tar.lz4"
+const testImageFile = "./test-image/tinycore-worker.tar.lz4"
 
 // makeTestServer will setup a httptest.Server instance serving the
 // testImageFile from the source tree. This is necessary to use the test image
@@ -33,11 +35,29 @@ func makeTestServer() *httptest.Server {
 	return httptest.NewServer(handler)
 }
 
-var provider = enginetest.EngineProvider{
+var s *httptest.Server
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	s = makeTestServer()
+	provider.SetupEngine()
+	result := 1
+	func() {
+		defer func() {
+			provider.TearDownEngine()
+			s.CloseClientConnections()
+			s.Close()
+		}()
+		result = m.Run()
+	}()
+	os.Exit(result)
+}
+
+var provider = &enginetest.EngineProvider{
 	Engine: "qemu",
 	Config: `{
 		"qemu": {
-			"maxConcurrency":   6,
+			"maxConcurrency":   5,
 			"imageFolder":      "/tmp/images/",
 			"socketFolder":     "/tmp/"
 		}
@@ -45,11 +65,6 @@ var provider = enginetest.EngineProvider{
 }
 
 func TestLogging(t *testing.T) {
-	s := makeTestServer()
-	defer func() {
-		s.CloseClientConnections()
-		s.Close()
-	}()
 
 	c := enginetest.LoggingTestCase{
 		EngineProvider: provider,
@@ -81,11 +96,6 @@ func TestLogging(t *testing.T) {
 }
 
 func TestEnvironmentVariables(t *testing.T) {
-	s := makeTestServer()
-	defer func() {
-		s.CloseClientConnections()
-		s.Close()
-	}()
 
 	c := enginetest.EnvVarTestCase{
 		EngineProvider: provider,
@@ -108,11 +118,6 @@ func TestEnvironmentVariables(t *testing.T) {
 }
 
 func TestAttachProxy(t *testing.T) {
-	s := makeTestServer()
-	defer func() {
-		s.CloseClientConnections()
-		s.Close()
-	}()
 
 	c := enginetest.ProxyTestCase{
 		EngineProvider: provider,
@@ -129,5 +134,81 @@ func TestAttachProxy(t *testing.T) {
 	c.TestPing404IsUnsuccessful()
 	c.TestLiveLogging()
 	c.TestParallelPings()
+	c.Test()
+}
+
+func TestArtifacts(t *testing.T) {
+	c := enginetest.ArtifactTestCase{
+		EngineProvider:     provider,
+		Text:               "[hello-world]",
+		TextFilePath:       "/home/tc/folder/hello.txt",
+		FileNotFoundPath:   "/home/tc/no-such-file.txt",
+		FolderNotFoundPath: "/home/tc/no-such-folder/",
+		NestedFolderFiles: []string{
+			"/home/tc/folder/hello.txt",
+			"/home/tc/folder/sub-folder/hello2.txt",
+		},
+		NestedFolderPath: "/home/tc/folder/",
+		Payload: `{
+			"start": {
+				"image": "` + s.URL + `",
+				"command": ["sh", "-ec", "mkdir -p /home/tc/folder/sub-folder; echo '[hello-world]' > /home/tc/folder/hello.txt; echo '[hello-world]' > /home/tc/folder/sub-folder/hello2.txt"]
+			}
+		}`,
+	}
+
+	c.TestExtractTextFile()
+	c.TestExtractFileNotFound()
+	c.TestExtractFolderNotFound()
+	c.TestExtractNestedFolderPath()
+	c.TestExtractFolderHandlerInterrupt()
+	c.Test()
+}
+
+func TestShell(t *testing.T) {
+	c := enginetest.ShellTestCase{
+		EngineProvider: provider,
+		Command:        "echo '[hello-world]'; (>&2 echo '[hello-error]');",
+		Stdout:         "[hello-world]\n",
+		Stderr:         "[hello-error]\n",
+		BadCommand:     "exit 1;\n",
+		SleepCommand:   "sleep 30;\n",
+		Payload: `{
+	    "start": {
+	      "image": "` + s.URL + `",
+	      "command": ["sh", "-c", "true"]
+	    }
+	  }`,
+	}
+
+	c.TestCommand()
+	c.TestBadCommand()
+	c.TestAbortSleepCommand()
+	c.Test()
+}
+
+func TestDisplay(t *testing.T) {
+	c := enginetest.DisplayTestCase{
+		EngineProvider: provider,
+		Displays: []engines.Display{
+			{
+				Name:        "screen",
+				Description: "Primary screen attached to the virtual machine",
+				Width:       0,
+				Height:      0,
+			},
+		},
+		InvalidDisplayName: "invalid-screen",
+		Payload: `{
+	    "start": {
+	      "image": "` + s.URL + `",
+	      "command": ["sh", "-c", "true"]
+	    }
+	  }`,
+	}
+
+	c.TestListDisplays()
+	c.TestDisplays()
+	c.TestInvalidDisplayName()
 	c.Test()
 }

@@ -44,13 +44,21 @@ func Run(argv []string) {
 		os.Exit(1)
 	}
 
+	if cmd == "help" && len(arguments["<args>"].([]string)) == 0 {
+		fmt.Print(usage)
+		os.Exit(0)
+	}
+
 	// Parse args for command provider
 	subArguments, _ := docopt.Parse(
 		provider.Usage(), append([]string{cmd}, arguments["<args>"].([]string)...),
 		true, "taskcluster-worker", false,
 	)
 	// Execute provider with parsed args
-	provider.Execute(subArguments)
+	if !provider.Execute(subArguments) {
+		os.Exit(1)
+	}
+	os.Exit(0)
 }
 
 func pad(s string, length int) string {

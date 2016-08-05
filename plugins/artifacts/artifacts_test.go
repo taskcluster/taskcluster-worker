@@ -19,7 +19,7 @@ type artifactTestCase struct {
 }
 
 func (a artifactTestCase) Test() {
-	taskID := slugid.V4()
+	taskID := slugid.Nice()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "Hello, client.")
 	}))

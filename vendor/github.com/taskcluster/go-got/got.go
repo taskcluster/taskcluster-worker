@@ -83,6 +83,7 @@ func (g *Got) NewRequest(method string, url string, body []byte) *Request {
 		Got:    *g,
 		Method: method,
 		URL:    url,
+		Header: make(http.Header), // always create a header, to avoiding nil errors
 		Body:   body,
 	}
 }

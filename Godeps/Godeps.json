@@ -12,6 +12,10 @@
 			"Rev": "f3cfb454f4c209e6668c95216c4744b8fddb2356"
 		},
 		{
+			"ImportPath": "github.com/bradfitz/rfbgo/rfb",
+			"Rev": "360eea0d6d336ffc925dfef78af32c3983189dcf"
+		},
+		{
 			"ImportPath": "github.com/cenkalti/backoff",
 			"Comment": "v1.0.0-7-gcdf48bb",
 			"Rev": "cdf48bbc1eb78d1349cbda326a4a037f7ba565c6"
@@ -27,6 +31,34 @@
 		{
 			"ImportPath": "github.com/davecgh/go-spew/spew",
 			"Rev": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
+		},
+		{
+			"ImportPath": "github.com/davecgh/go-xdr/xdr2",
+			"Rev": "a829af976409261bb27af8bfebe356624dcb8bae"
+		},
+		{
+			"ImportPath": "github.com/digitalocean/go-libvirt",
+			"Rev": "a8acb825b1d6d8db8745599306af257c7096baf7"
+		},
+		{
+			"ImportPath": "github.com/digitalocean/go-libvirt/internal/constants",
+			"Rev": "a8acb825b1d6d8db8745599306af257c7096baf7"
+		},
+		{
+			"ImportPath": "github.com/digitalocean/go-qemu",
+			"Rev": "535b8a9880d5457b587e880106d551b61d924971"
+		},
+		{
+			"ImportPath": "github.com/digitalocean/go-qemu/internal/shellexec",
+			"Rev": "535b8a9880d5457b587e880106d551b61d924971"
+		},
+		{
+			"ImportPath": "github.com/digitalocean/go-qemu/internal/virsh",
+			"Rev": "535b8a9880d5457b587e880106d551b61d924971"
+		},
+		{
+			"ImportPath": "github.com/digitalocean/go-qemu/qmp",
+			"Rev": "535b8a9880d5457b587e880106d551b61d924971"
 		},
 		{
 			"ImportPath": "github.com/djherbis/buffer/limio",
@@ -46,6 +78,11 @@
 		{
 			"ImportPath": "github.com/fatih/camelcase",
 			"Rev": "f6a740d52f961c60348ebb109adde9f4635d7540"
+		},
+		{
+			"ImportPath": "github.com/fsnotify/fsnotify",
+			"Comment": "v1.3.1",
+			"Rev": "a8a77c9133d2d6fd8334f3260d06f60e8d80a5fb"
 		},
 		{
 			"ImportPath": "github.com/gedex/inflector",
@@ -68,24 +105,37 @@
 			"Rev": "c7bacac2b21ca01afa1dee0acf64df3ce047c28f"
 		},
 		{
+			"ImportPath": "github.com/gorilla/websocket",
+			"Comment": "v1.0.0-15-g54f9dec",
+			"Rev": "54f9decdbfb3fe254c5df3d5aa234480989f4af0"
+		},
+		{
+			"ImportPath": "github.com/jbuchbinder/gopnm",
+			"Rev": "5176c556b9ce7e87b54b92744dc86f058f520e86"
+		},
+		{
 			"ImportPath": "github.com/jonasfj/go-import-subtree",
-			"Rev": "6f76e76b5ae8291ce7b1e38c6e626ba03236bd0f"
+			"Rev": "4f2f57c342542c08bf6d9919bb799226e4de5774"
 		},
 		{
 			"ImportPath": "github.com/jonasfj/go-import-subtree/example",
-			"Rev": "6f76e76b5ae8291ce7b1e38c6e626ba03236bd0f"
+			"Rev": "4f2f57c342542c08bf6d9919bb799226e4de5774"
 		},
 		{
 			"ImportPath": "github.com/jonasfj/go-import-subtree/example/extpoints",
-			"Rev": "6f76e76b5ae8291ce7b1e38c6e626ba03236bd0f"
+			"Rev": "4f2f57c342542c08bf6d9919bb799226e4de5774"
 		},
 		{
 			"ImportPath": "github.com/jonasfj/go-import-subtree/example/plugins/hello",
-			"Rev": "6f76e76b5ae8291ce7b1e38c6e626ba03236bd0f"
+			"Rev": "4f2f57c342542c08bf6d9919bb799226e4de5774"
 		},
 		{
 			"ImportPath": "github.com/kr/text",
 			"Rev": "7cafcd837844e784b526369c9bce262804aebc60"
+		},
+		{
+			"ImportPath": "github.com/mitchellh/go-vnc",
+			"Rev": "723ed9867aed0f3209a81151e52ddc61681f0b01"
 		},
 		{
 			"ImportPath": "github.com/pborman/uuid",
@@ -147,7 +197,7 @@
 		},
 		{
 			"ImportPath": "github.com/taskcluster/go-got",
-			"Rev": "10e07044aea43d5559d1199a8da1b35d3d44e2c7"
+			"Rev": "871e77679d6708cd2eca0c0150428076aea27d4e"
 		},
 		{
 			"ImportPath": "github.com/taskcluster/httpbackoff",
@@ -198,6 +248,14 @@
 		{
 			"ImportPath": "github.com/xeipuuv/gojsonschema",
 			"Rev": "c539bca196be50ccdd1f0bcd9076de95f9081831"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "ef00b378c73f107bf44d5c9b69875255ce89b79a"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context/ctxhttp",
+			"Rev": "ef00b378c73f107bf44d5c9b69875255ce89b79a"
 		},
 		{
 			"ImportPath": "golang.org/x/net/netutil",

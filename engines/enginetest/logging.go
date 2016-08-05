@@ -1,11 +1,15 @@
 package enginetest
 
-import "sync"
+import (
+	"fmt"
+	"strings"
+	"sync"
+)
 
 // A LoggingTestCase holds information necessary to run tests that an engine
 // can write things to the log.
 type LoggingTestCase struct {
-	EngineProvider
+	*EngineProvider
 	// String that we will look for in the log
 	Target string
 	// A task.payload as accepted by the engine, which will Target to the log and
@@ -17,7 +21,7 @@ type LoggingTestCase struct {
 	SilentPayload string
 }
 
-func (c *LoggingTestCase) grepLogFromPayload(payload string, needle string, success bool) bool {
+func (c *LoggingTestCase) grepLogFromPayload(payload string, needle string, success, match bool) bool {
 	debug(" - New run")
 	r := c.newRun()
 	defer r.Dispose()
@@ -29,13 +33,20 @@ func (c *LoggingTestCase) grepLogFromPayload(payload string, needle string, succ
 	if s != success {
 		fmtPanic("Task with payload: ", payload, " had ResultSet.Success(): ", s)
 	}
-	return r.GrepLog(needle)
+	log := r.ReadLog()
+	retval := strings.Contains(log, needle)
+	if retval != match {
+		fmt.Println("--- Couldn't find: ", needle, " in log: ---")
+		fmt.Println(log)
+		fmt.Println("--- END OF LOG ---")
+	}
+	return retval
 }
 
 // TestLogTarget check that Target is logged by TargetPayload
 func (c *LoggingTestCase) TestLogTarget() {
 	debug("## TestLogTarget")
-	if !c.grepLogFromPayload(c.TargetPayload, c.Target, true) {
+	if !c.grepLogFromPayload(c.TargetPayload, c.Target, true, true) {
 		fmtPanic("Couldn't find target: ", c.Target, " in logs from TargetPayload")
 	}
 }
@@ -43,7 +54,7 @@ func (c *LoggingTestCase) TestLogTarget() {
 // TestLogTargetWhenFailing check that Target is logged by FailingPayload
 func (c *LoggingTestCase) TestLogTargetWhenFailing() {
 	debug("## TestLogTargetWhenFailing")
-	if !c.grepLogFromPayload(c.FailingPayload, c.Target, false) {
+	if !c.grepLogFromPayload(c.FailingPayload, c.Target, false, true) {
 		fmtPanic("Couldn't find target: ", c.Target, " in logs from FailingPayload")
 	}
 }
@@ -51,7 +62,7 @@ func (c *LoggingTestCase) TestLogTargetWhenFailing() {
 // TestSilentTask checks that Target isn't logged by SilentPayload
 func (c *LoggingTestCase) TestSilentTask() {
 	debug("## TestSilentTask")
-	if c.grepLogFromPayload(c.SilentPayload, c.Target, true) {
+	if c.grepLogFromPayload(c.SilentPayload, c.Target, true, false) {
 		fmtPanic("Found target: ", c.Target, " in logs from SilentPayload")
 	}
 }

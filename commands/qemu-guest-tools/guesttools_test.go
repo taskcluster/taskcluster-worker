@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -17,6 +18,15 @@ import (
 )
 
 func TestGuestToolsSuccess(t *testing.T) {
+	// Create temporary storage
+	storage, err := runtime.NewTemporaryStorage(os.TempDir())
+	if err != nil {
+		panic("Failed to create TemporaryStorage")
+	}
+	environment := &runtime.Environment{
+		TemporaryStorage: storage,
+	}
+
 	// Setup a new MetaService
 	logTask := bytes.NewBuffer(nil)
 	result := false
@@ -32,7 +42,7 @@ func TestGuestToolsSuccess(t *testing.T) {
 		}
 		resolved = true
 		result = r
-	})
+	}, environment)
 
 	// Create http server for testing
 	ts := httptest.NewServer(s)
@@ -63,6 +73,15 @@ func TestGuestToolsSuccess(t *testing.T) {
 }
 
 func TestGuestToolsFailed(t *testing.T) {
+	// Create temporary storage
+	storage, err := runtime.NewTemporaryStorage(os.TempDir())
+	if err != nil {
+		panic("Failed to create TemporaryStorage")
+	}
+	environment := &runtime.Environment{
+		TemporaryStorage: storage,
+	}
+
 	// Setup a new MetaService
 	logTask := bytes.NewBuffer(nil)
 	result := false
@@ -78,7 +97,7 @@ func TestGuestToolsFailed(t *testing.T) {
 		}
 		resolved = true
 		result = r
-	})
+	}, environment)
 
 	// Create http server for testing
 	ts := httptest.NewServer(s)
@@ -120,6 +139,15 @@ func TestGuestToolsLiveLog(t *testing.T) {
 		w.Write([]byte("request-ok"))
 	}))
 
+	// Create temporary storage
+	storage, err := runtime.NewTemporaryStorage(os.TempDir())
+	if err != nil {
+		panic("Failed to create TemporaryStorage")
+	}
+	environment := &runtime.Environment{
+		TemporaryStorage: storage,
+	}
+
 	// Setup a new MetaService
 	reader, writer := io.Pipe()
 	result := false
@@ -135,7 +163,7 @@ func TestGuestToolsLiveLog(t *testing.T) {
 		}
 		resolved = true
 		result = r
-	})
+	}, environment)
 
 	// Create http server for testing
 	ts := httptest.NewServer(s)
@@ -156,11 +184,11 @@ func TestGuestToolsLiveLog(t *testing.T) {
 	go func() {
 		b := make([]byte, 1)
 		for !strings.Contains(logTask.String(), "ready-now") {
-			_, err := reader.Read(b)
+			n, err := reader.Read(b)
+			logTask.Write(b[:n])
 			if err != nil {
 				panic("Unexpected error")
 			}
-			logTask.Write(b)
 		}
 		nowReady.Done()
 		io.Copy(logTask, reader)

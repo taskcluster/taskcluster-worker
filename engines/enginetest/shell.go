@@ -11,7 +11,7 @@ import (
 // The ShellTestCase contains information sufficient to test the interactive
 // shell provided by a Sandbox
 type ShellTestCase struct {
-	EngineProvider
+	*EngineProvider
 	// Command to pipe to the Shell over stdin
 	Command string
 	// Result to expect from the Shell on stdout when running Command
@@ -29,6 +29,7 @@ type ShellTestCase struct {
 
 // TestCommand checks we can run Command in the shell
 func (c *ShellTestCase) TestCommand() {
+	debug("## TestCommand")
 	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
@@ -40,21 +41,21 @@ func (c *ShellTestCase) TestCommand() {
 	wg := sync.WaitGroup{}
 	wg.Add(3)
 	go func() {
-		_, err := shell.StdinPipe().Write([]byte(c.Command))
-		nilOrPanic(err, "Failed to write command")
-		err = shell.StdinPipe().Close()
-		nilOrPanic(err, "Failed to close stdin")
+		_, err2 := shell.StdinPipe().Write([]byte(c.Command))
+		nilOrPanic(err2, "Failed to write command")
+		err2 = shell.StdinPipe().Close()
+		nilOrPanic(err2, "Failed to close stdin")
 		wg.Done()
 	}()
 	go func() {
-		stdout, err := ioutil.ReadAll(shell.StdoutPipe())
-		nilOrPanic(err, "Failed to read stdout")
+		stdout, err2 := ioutil.ReadAll(shell.StdoutPipe())
+		nilOrPanic(err2, "Failed to read stdout")
 		assert(string(stdout) == c.Stdout, "Wrong stdout result, got: ", string(stdout))
 		wg.Done()
 	}()
 	go func() {
-		stderr, err := ioutil.ReadAll(shell.StderrPipe())
-		nilOrPanic(err, "Failed to read stderr")
+		stderr, err2 := ioutil.ReadAll(shell.StderrPipe())
+		nilOrPanic(err2, "Failed to read stderr")
 		assert(string(stderr) == c.Stderr, "Wrong stderr result, got: ", string(stderr))
 		wg.Done()
 	}()
@@ -71,6 +72,7 @@ func (c *ShellTestCase) TestCommand() {
 
 // TestBadCommand checks we can run BadCommand in the shell
 func (c *ShellTestCase) TestBadCommand() {
+	debug("## TestBadCommand")
 	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
@@ -82,30 +84,32 @@ func (c *ShellTestCase) TestBadCommand() {
 	wg := sync.WaitGroup{}
 	wg.Add(3)
 	go func() {
-		_, err := shell.StdinPipe().Write([]byte(c.BadCommand))
-		nilOrPanic(err, "Failed to write command")
-		err = shell.StdinPipe().Close()
-		nilOrPanic(err, "Failed to close stdin")
+		_, err2 := shell.StdinPipe().Write([]byte(c.BadCommand))
+		nilOrPanic(err2, "Failed to write command")
+		err2 = shell.StdinPipe().Close()
+		nilOrPanic(err2, "Failed to close stdin")
 		wg.Done()
 	}()
 	go func() {
-		_, err := ioutil.ReadAll(shell.StdoutPipe())
-		nilOrPanic(err, "Failed to read stdout")
+		_, err2 := ioutil.ReadAll(shell.StdoutPipe())
+		nilOrPanic(err2, "Failed to read stdout")
 		wg.Done()
 	}()
 	go func() {
-		_, err := ioutil.ReadAll(shell.StderrPipe())
-		nilOrPanic(err, "Failed to read stderr")
+		_, err2 := ioutil.ReadAll(shell.StderrPipe())
+		nilOrPanic(err2, "Failed to read stderr")
 		wg.Done()
 	}()
 
 	result, err := shell.Wait()
+	nilOrPanic(err, "Shell returned, error: ", err)
 	assert(!result, "Shell returns successfully, expected BadCommand not to!")
 	wg.Wait()
 }
 
 // TestAbortSleepCommand checks we can Abort the sleep command
 func (c *ShellTestCase) TestAbortSleepCommand() {
+	debug("## TestAbortSleepCommand")
 	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
@@ -117,23 +121,23 @@ func (c *ShellTestCase) TestAbortSleepCommand() {
 	wg := sync.WaitGroup{}
 	wg.Add(3)
 	go func() {
-		_, err := shell.StdinPipe().Write([]byte(c.SleepCommand))
-		nilOrPanic(err, "Failed to write command")
-		err = shell.StdinPipe().Close()
-		nilOrPanic(err, "Failed to close stdin")
+		_, err2 := shell.StdinPipe().Write([]byte(c.SleepCommand))
+		nilOrPanic(err2, "Failed to write command")
+		err2 = shell.StdinPipe().Close()
+		nilOrPanic(err2, "Failed to close stdin")
 		time.Sleep(1 * time.Millisecond)
-		err = shell.Abort()
-		nilOrPanic(err, "Failed abort the shell")
+		err2 = shell.Abort()
+		nilOrPanic(err2, "Failed abort the shell")
 		wg.Done()
 	}()
 	go func() {
-		_, err := ioutil.ReadAll(shell.StdoutPipe())
-		nilOrPanic(err, "Failed to read stdout")
+		_, err2 := ioutil.ReadAll(shell.StdoutPipe())
+		nilOrPanic(err2, "Failed to read stdout")
 		wg.Done()
 	}()
 	go func() {
-		_, err := ioutil.ReadAll(shell.StderrPipe())
-		nilOrPanic(err, "Failed to read stderr")
+		_, err2 := ioutil.ReadAll(shell.StderrPipe())
+		nilOrPanic(err2, "Failed to read stderr")
 		wg.Done()
 	}()
 

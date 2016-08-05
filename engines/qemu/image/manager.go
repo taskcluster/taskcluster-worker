@@ -84,7 +84,7 @@ func (m *Manager) Instance(imageID string, download Downloader) (*Instance, erro
 		imageDone := make(chan struct{})
 		img = &image{
 			imageID: imageID,
-			folder:  filepath.Join(m.imageFolder, slugid.V4()),
+			folder:  filepath.Join(m.imageFolder, slugid.Nice()),
 			done:    imageDone,
 			manager: m,
 		}
@@ -109,7 +109,7 @@ func (m *Manager) Instance(imageID string, download Downloader) (*Instance, erro
 }
 
 func (img *image) loadImage(download Downloader, done chan<- struct{}) {
-	imageFile := filepath.Join(img.manager.imageFolder, slugid.V4()+".tar.lz4")
+	imageFile := filepath.Join(img.manager.imageFolder, slugid.Nice()+".tar.lz4")
 
 	// Create image folder
 	err := os.Mkdir(img.folder, 0777)
@@ -187,7 +187,7 @@ func (img *image) Dispose() error {
 // You must have called image.Acquire() first to prevent garbage collection.
 func (img *image) instance() (*Instance, error) {
 	// Create a copy of layer.qcow2
-	diskFile := filepath.Join(img.folder, slugid.V4()+".qcow2")
+	diskFile := filepath.Join(img.folder, slugid.Nice()+".qcow2")
 	err := copyFile(filepath.Join(img.folder, "layer.qcow2"), diskFile)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to make copy of layer.qcow2, error: %s", err)

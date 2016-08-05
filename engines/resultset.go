@@ -53,11 +53,11 @@ type ResultSet interface {
 	//
 	// For each file found under the given path the handler(path, stream) is
 	// called. Implementor may call this function sequentially or in parallel.
-	// If a handler(path, stream) call returns an error the error should passed
-	// through as return value from the ExtractFolder call.
+	// If a handler(path, stream) call returns an error then ErrHandlerInterrupt
+	// should be passed as return value from the ExtractFolder call.
 	//
 	// If an error occurs during iteration, iteration is halted, and when all
-	// calls to handler(path, stream) have returned ExtractFolder should return
+	// calls to handler(path, stream) have returned, ExtractFolder should return
 	// with ErrHandlerInterrupt.
 	//
 	// The only non-fatal error is ErrNonFatalInternalError, indicating that

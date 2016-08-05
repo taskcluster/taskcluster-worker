@@ -32,7 +32,7 @@ Options:
 `
 }
 
-func (cmd) Execute(args map[string]interface{}) {
+func (cmd) Execute(args map[string]interface{}) bool {
 	// Setup logger
 	var level string
 	if l := args["--logging-level"]; l != nil {
@@ -53,7 +53,7 @@ func (cmd) Execute(args map[string]interface{}) {
 	}
 
 	// Create a temporary folder
-	tempPath := filepath.Join(os.TempDir(), slugid.V4())
+	tempPath := filepath.Join(os.TempDir(), slugid.Nice())
 	tempStorage, err := runtime.NewTemporaryStorage(tempPath)
 	runtimeEnvironment := &runtime.Environment{
 		Log:              logger,
@@ -117,4 +117,5 @@ func (cmd) Execute(args map[string]interface{}) {
 	}
 
 	w.Start()
+	return true
 }

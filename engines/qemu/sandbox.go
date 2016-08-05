@@ -2,9 +2,11 @@ package qemuengine
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
@@ -25,6 +27,8 @@ type sandbox struct {
 	resultSet   engines.ResultSet // ResultSet for WaitForResult
 	resultError error             // Error for WaitForResult
 	resultAbort error             // Error for Abort
+	log         *logrus.Entry     // System log
+	sessions    *sessionManager
 }
 
 // newSandbox will create a new sandbox and start it.
@@ -37,16 +41,25 @@ func newSandbox(
 	c *runtime.TaskContext,
 	e *engine,
 ) *sandbox {
+	log := e.Log.WithField("taskId", c.TaskID).WithField("runId", c.RunID)
+
 	// Create sandbox
 	s := &sandbox{
-		vm:      vm.NewVirtualMachine(image, network, e.engineConfig.SocketFolder, "", ""),
+		vm: vm.NewVirtualMachine(
+			image, network, e.engineConfig.SocketFolder, "", "",
+			log.WithField("component", "vm"),
+		),
 		context: c,
 		engine:  e,
 		proxies: proxies,
+		log:     log,
 	}
 
 	// Setup meta-data service
-	s.metaService = metaservice.New(command, env, c.LogDrain(), s.result)
+	s.metaService = metaservice.New(command, env, c.LogDrain(), s.result, e.Environment)
+
+	// Create session manager
+	s.sessions = newSessionManager(s.metaService, s.vm)
 
 	// Setup network handler
 	s.vm.SetHTTPHandler(http.HandlerFunc(s.handleRequest))
@@ -90,8 +103,11 @@ func (s *sandbox) handleRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *sandbox) result(success bool) {
+	// Wait for all sessions to be finished and stop issuing new sessions
+	s.sessions.WaitAndTerminate()
+
 	s.resolve.Do(func() {
-		s.resultSet = newResultSet(success, s.vm)
+		s.resultSet = newResultSet(success, s.vm, s.metaService)
 		s.resultAbort = engines.ErrSandboxTerminated
 	})
 }
@@ -102,6 +118,9 @@ func (s *sandbox) waitForCrash() {
 	<-s.vm.Done
 
 	s.resolve.Do(func() {
+		// Kill all sessions
+		s.sessions.AbortSessions()
+
 		// TODO: Read s.vm.Error and handle the error
 		s.resultError = errors.New("QEMU crashed unexpected")
 		s.resultAbort = engines.ErrSandboxTerminated
@@ -115,6 +134,9 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 
 func (s *sandbox) Abort() error {
 	s.resolve.Do(func() {
+		// Kill all shells
+		s.sessions.AbortSessions()
+
 		// Abort the VM
 		s.vm.Kill()
 		s.resultError = engines.ErrSandboxAborted
@@ -122,4 +144,40 @@ func (s *sandbox) Abort() error {
 
 	s.resolve.Wait()
 	return s.resultAbort
+}
+
+func (s *sandbox) NewShell() (engines.Shell, error) {
+	return s.sessions.NewShell()
+}
+
+const qemuDisplayName = "screen"
+
+func (s *sandbox) ListDisplays() ([]engines.Display, error) {
+	select {
+	case <-s.vm.Done:
+		return nil, engines.ErrSandboxTerminated
+	default:
+		img, _ := s.vm.Screenshot()
+		w := 0
+		h := 0
+		if img != nil {
+			w = img.Bounds().Size().X
+			h = img.Bounds().Size().Y
+		}
+		return []engines.Display{
+			{
+				Name:        qemuDisplayName,
+				Description: "Primary screen attached to the virtual machine",
+				Width:       w,
+				Height:      h,
+			},
+		}, nil
+	}
+}
+
+func (s *sandbox) OpenDisplay(name string) (io.ReadWriteCloser, error) {
+	if name != qemuDisplayName {
+		return nil, engines.ErrNoSuchDisplay
+	}
+	return s.sessions.OpenDisplay()
 }

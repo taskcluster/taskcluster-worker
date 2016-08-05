@@ -69,7 +69,7 @@ func NewPool(N int) (*Pool, error) {
 	// Enable IPv4 forwarding
 	err := script([][]string{
 		{"sysctl", "-w", "net.ipv4.ip_forward=1"},
-	})
+	}, true)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to enable ipv4 forwarding: %s", err)
 	}
@@ -105,22 +105,22 @@ func NewPool(N int) (*Pool, error) {
 	}
 	// Monitor dnsmasq and panic if it crashes unexpectedly
 	go (func(p *Pool, done chan<- struct{}) {
-		err := p.dnsmasq.Wait()
+		werr := p.dnsmasq.Wait()
 		close(done)
 		// Ignore errors if dnsmasqKill is true, otherwise this is a fatal issue
-		if err != nil && !p.dnsmasqKill.Get() {
+		if werr != nil && !p.dnsmasqKill.Get() {
 			// We could probably restart the dnsmasq, as long as we avoid an infinite
 			// loop that should be fine. But dnsmasq probably won't crash without a
 			// good reason.
-			// TODO: Repor to sentry
-			panic(fmt.Sprint("Fatal: dnsmasq died unexpectedly, error: ", err))
+			// TODO: Report to sentry
+			panic(fmt.Sprint("Fatal: dnsmasq died unexpectedly, error: ", werr))
 		}
 	})(p, dnsmasqDone)
 
 	// Add meta-data IP to loopback device
 	err = script([][]string{
 		{"ip", "addr", "add", metaDataIP, "dev", "lo"},
-	})
+	}, true)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to add: %s to the loopback device: %s", metaDataIP, err)
 	}
@@ -163,7 +163,9 @@ func (p *Pool) dispatchRequest(w http.ResponseWriter, r *http.Request) {
 	// Match remote address to find ipPrefix
 	match := remoteAddrPattern.FindStringSubmatch(r.RemoteAddr)
 	if len(match) != 2 {
-		w.WriteHeader(403)
+		debug("request from forbidden remote address: %s - %s %s",
+			r.RemoteAddr, r.Method, r.URL.String())
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 	ipPrefix := match[1]
@@ -171,7 +173,9 @@ func (p *Pool) dispatchRequest(w http.ResponseWriter, r *http.Request) {
 	// Find network from the ipPrefix
 	n := p.networks[ipPrefix]
 	if n == nil {
-		w.WriteHeader(403)
+		debug("Request from ipPrefix: %s, not matching any network - %s %s",
+			ipPrefix, r.Method, r.URL.String())
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
@@ -184,6 +188,8 @@ func (p *Pool) dispatchRequest(w http.ResponseWriter, r *http.Request) {
 	if handler != nil {
 		handler.ServeHTTP(w, r)
 	} else {
+		debug("Request for network that doesn't have a handler - %s %s",
+			r.Method, r.URL.String())
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
@@ -237,6 +243,8 @@ func (n *Network) Release() {
 	n.entry.pool.m.Lock()
 	n.entry.inUse = false
 	n.entry.pool.m.Unlock()
+
+	debug("network released: %s (%s)", n.entry.tapDevice, n.entry.ipPrefix)
 
 	// Clear entry so we don't release twice
 	n.entry = nil
@@ -296,7 +304,7 @@ func (p *Pool) Dispose() error {
 	// Remove meta-data IP from loopback device
 	err := script([][]string{
 		{"ip", "addr", "del", metaDataIP, "dev", "lo"},
-	})
+	}, true)
 
 	return err
 }
@@ -310,6 +318,11 @@ func createNetwork(index int, parent *Pool) (*entry, error) {
 	tapDevice := "tctap" + strconv.Itoa(index)
 	ipPrefix := "192.168." + strconv.Itoa(index+150)
 
+	//err := createTAPDevice(tapDevice)
+	//if err != nil {
+	//	return nil, fmt.Errorf("Failed to create tap device: %s, error: %s", tapDevice, err)
+	//}
+
 	err := script([][]string{
 		// Create tap device
 		{"ip", "tuntap", "add", "dev", tapDevice, "mode", "tap"},
@@ -319,13 +332,13 @@ func createNetwork(index int, parent *Pool) (*entry, error) {
 		{"ip", "link", "set", "dev", tapDevice, "up"},
 		// Add route for the network subnet, routing it to the tap device
 		{"ip", "route", "add", ipPrefix + ".0/24", "dev", tapDevice},
-	})
+	}, true)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to setup tap device: %s, error: %s", tapDevice, err)
 	}
 
 	// Create iptables rules and chains
-	err = script(ipTableRules(tapDevice, ipPrefix, false))
+	err = script(ipTableRules(tapDevice, ipPrefix, false), false)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to setup ip-tables for tap device: %s error: %s", tapDevice, err)
 	}
@@ -348,7 +361,7 @@ func destroyNetwork(n *entry) error {
 	}
 
 	// Delete iptables rules and chains
-	err := script(ipTableRules(n.tapDevice, n.ipPrefix, true))
+	err := script(ipTableRules(n.tapDevice, n.ipPrefix, true), false)
 	if err != nil {
 		return fmt.Errorf("Failed to remove ip-tables for tap device: %s, error: %s", n.tapDevice, err)
 	}
@@ -362,10 +375,16 @@ func destroyNetwork(n *entry) error {
 		{"ip", "addr", "del", n.ipPrefix + ".1", "dev", n.tapDevice},
 		// Delete tap device
 		{"ip", "tuntap", "del", "dev", n.tapDevice, "mode", "tap"},
-	})
+	}, true)
 	if err != nil {
+		debug("Failed to destory tap device: %s, error: %s", n.tapDevice, err)
 		return fmt.Errorf("Failed to remove tap device: %s, error: %s", n.tapDevice, err)
 	}
+
+	//err = destroyTAPDevice(n.tapDevice)
+	//if err != nil {
+	//	return fmt.Errorf("Failed to destroy tap device: %s, error: %s", n.tapDevice, err)
+	//}
 
 	// Clear handler and tapDevice
 	n.handler = nil

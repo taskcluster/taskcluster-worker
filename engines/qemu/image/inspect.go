@@ -39,15 +39,17 @@ func inspectImageFile(imageFile string, format imageFormat) *information {
 	if format == imageQCOW2Format {
 		f = "qcow2"
 	}
-	p := exec.Command("qemu-img", "info", "-f", f, "--output", "json", filepath.Base(imageFile))
+	p := exec.Command("qemu-img", "info", "-f", f, "--output", "json", "--", filepath.Base(imageFile))
 	p.Dir = filepath.Dir(imageFile)
 	data, err := p.Output()
 	if err != nil {
+		debug("qemu-img failed, error: %s, output: %s", err, string(data))
 		return nil
 	}
 	info := &information{}
 	err = json.Unmarshal(data, info)
 	if err != nil {
+		debug("inspectImageFile unmarshal json failed, error: %s, data: %s", err, string(data))
 		return nil
 	}
 	return info

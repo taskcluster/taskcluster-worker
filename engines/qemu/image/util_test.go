@@ -38,7 +38,7 @@ func TestDownloadImageOK(t *testing.T) {
 	defer s.Close()
 
 	// Create temporary file
-	targetFile := filepath.Join(os.TempDir(), slugid.V4())
+	targetFile := filepath.Join(os.TempDir(), slugid.Nice())
 	defer os.Remove(targetFile)
 
 	// Download test url to the target file
@@ -65,7 +65,7 @@ func TestDownloadImageRetry(t *testing.T) {
 	defer s.Close()
 
 	// Create temporary file
-	targetFile := filepath.Join(os.TempDir(), slugid.V4())
+	targetFile := filepath.Join(os.TempDir(), slugid.Nice())
 	defer os.Remove(targetFile)
 
 	// Download test url to the target file

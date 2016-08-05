@@ -17,14 +17,14 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
 
-const testImageFile = "./tinycore-worker.tar.lz4"
+const testImageFile = "../test-image/tinycore-worker.tar.lz4"
 
 func TestImageManager(t *testing.T) {
 	fmt.Println(" - Setup environment needed to test")
 	gc := &gc.GarbageCollector{}
 	log := logrus.StandardLogger()
 	sentry, _ := raven.New("")
-	imageFolder := filepath.Join("/tmp", slugid.V4())
+	imageFolder := filepath.Join("/tmp", slugid.Nice())
 
 	fmt.Println(" - Create manager")
 	manager, err := NewManager(imageFolder, gc, log.WithField("subsystem", "image-manager"), sentry)

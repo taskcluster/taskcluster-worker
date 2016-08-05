@@ -65,7 +65,7 @@ func (s *temporaryFolder) NewFolder() (TemporaryFolder, error) {
 }
 
 func (s *temporaryFolder) NewFilePath() string {
-	return filepath.Join(s.path, slugid.V4())
+	return filepath.Join(s.path, slugid.Nice())
 }
 
 func (s temporaryFolder) NewFile() (TemporaryFile, error) {
