@@ -76,8 +76,8 @@ func NewVirtualMachine(
 	options := []string{
 		"-S", // Wait for QMP command "continue" before starting execution
 		"-name", "qemu-guest",
-		// TODO: Add -enable-kvm (configurable so can be disabled in tests)
-		"-machine", arg("pc-i440fx-2.1", opts{
+		"-cpu", "host", // Pass-through CPU from host
+		"-machine", arg("pc-i440fx-2.5", opts{
 			"accel": "kvm",
 			// TODO: Configure additional options")
 		}),
