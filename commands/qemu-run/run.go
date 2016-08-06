@@ -93,6 +93,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	log.Info("Creating meta-data service")
 	ms := metaservice.New(command, make(map[string]string), os.Stdout, func(result bool) {
 		fmt.Println("### Task Completed, result = ", result)
+		vm.Kill()
 	}, environment)
 
 	// Setup http handler
@@ -117,7 +118,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 		fmt.Println("### Terminating QEMU")
 		vm.Kill()
 	case <-vm.Done:
-		fmt.Println("### QEMU terminated, error: ", vm.Error)
+		fmt.Println("### QEMU terminated")
 	}
 	close(done)
 
