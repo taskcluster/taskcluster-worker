@@ -12,6 +12,9 @@
 package qemuguesttools
 
 import (
+	"io"
+	"os"
+
 	"github.com/taskcluster/taskcluster-worker/commands/extpoints"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
@@ -32,7 +35,18 @@ func (cmd) Usage() string {
 	return `taskcluster-worker qemu-guest-tools start the guest tools that should
 run inside the virtual machines used with QEMU engine.
 
-Usage: taskcluster-worker qemu-guest-tools [options]
+The "run" (default) command will fetch a command to execute from the meta-data
+service, upload the log and result as success/failed. The command will also
+continously poll the meta-data service for actions, such as put-artifact,
+list-folder or start an interactive shell.
+
+The "post-log" command will upload <log-file> to the meta-data service. If - is
+given it will read the log from standard input. This command is useful as
+meta-data can handle more than one log stream, granted they might get mangled.
+
+Usage:
+  taskcluster-worker qemu-guest-tools [options] [run]
+  taskcluster-worker qemu-guest-tools [options] post-log [--] <log-file>
 
 Options:
       --host <ip>  IP-address of meta-data server [default: 169.254.169.254].
@@ -46,6 +60,29 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	log := logger.WithField("component", "qemu-guest-tools")
 
 	g := new(host, log)
+
+	if arguments["post-log"].(bool) {
+		logFile := arguments["<log-file>"].(string)
+		var r io.Reader
+		if logFile == "-" {
+			r = os.Stdin
+		} else {
+			f, err := os.Open(logFile)
+			if err != nil {
+				return false
+			}
+			defer f.Close()
+			r = f
+		}
+		w, done := g.CreateTaskLog()
+		_, err := io.Copy(w, r)
+		if err != nil {
+			err = w.Close()
+			<-done
+		}
+		return err == nil
+	}
+
 	go g.Run()
 	// Process actions forever, this must run in the main thread as exiting the
 	// main thread will cause the go program to exit.

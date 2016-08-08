@@ -84,7 +84,7 @@ func (g *guestTools) Run() {
 	}
 
 	// Start sending task log
-	taskLog, logSent := g.createTaskLog()
+	taskLog, logSent := g.CreateTaskLog()
 
 	// Construct environment variables in golang format
 	env := os.Environ()
@@ -122,7 +122,7 @@ func (g *guestTools) Run() {
 	}
 }
 
-func (g *guestTools) createTaskLog() (io.WriteCloser, <-chan struct{}) {
+func (g *guestTools) CreateTaskLog() (io.WriteCloser, <-chan struct{}) {
 	reader, writer := nio.Pipe(buffer.New(4 * 1024 * 1024))
 	req, err := http.NewRequest("POST", g.url("engine/v1/log"), reader)
 	if err != nil {
