@@ -73,6 +73,7 @@ func New(
 	s.mux.HandleFunc("/engine/v1/failed", s.handleFailed)
 	s.mux.HandleFunc("/engine/v1/poll", s.handlePoll)
 	s.mux.HandleFunc("/engine/v1/reply", s.handleReply)
+	s.mux.HandleFunc("/engine/v1/ping", s.handlePing)
 	s.mux.HandleFunc("/", s.handleUnknown)
 
 	return s
@@ -199,6 +200,16 @@ func (s *MetaService) handleFailed(w http.ResponseWriter, r *http.Request) {
 			Message: "The task have already been resolved success, you must have a bug.",
 		})
 	}
+}
+
+// handlePing handles ping requests
+func (s *MetaService) handlePing(w http.ResponseWriter, r *http.Request) {
+	if !forceMethod(w, r, http.MethodGet) {
+		return
+	}
+
+	debug("GET /engine/v1/ping")
+	reply(w, http.StatusOK, nil)
 }
 
 // handleUnknown handles unhandled requests

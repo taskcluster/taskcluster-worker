@@ -12,16 +12,20 @@ type logService struct {
 }
 
 func (l *logService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost || r.URL.Path != "/engine/v1/log" {
-		w.WriteHeader(http.StatusForbidden)
+	if r.Method == http.MethodPost && r.URL.Path == "/engine/v1/log" {
+		_, err := io.Copy(l.Destination, r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	defer r.Body.Close()
-	_, err := io.Copy(l.Destination, r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+	if r.Method == http.MethodGet && r.URL.Path == "/engine/v1/ping" {
+		w.WriteHeader(http.StatusOK)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+
+	w.WriteHeader(http.StatusForbidden)
 }
