@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/go-got"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
+	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
@@ -304,7 +305,7 @@ func (g *guestTools) doExecShell(ID string) {
 	}
 
 	// Create a new shellHandler
-	handler := newShellHandler(ws, g.log.WithField("shell", ID))
+	handler := interactive.NewShellHandler(ws, g.log.WithField("shell", ID))
 
 	// Create a shell
 	shell := exec.Command("sh")
@@ -317,9 +318,7 @@ func (g *guestTools) doExecShell(ID string) {
 
 	// Start communication
 	handler.Communicate(func() {
-		if shell.Process != nil {
-			shell.Process.Kill()
-		}
+		shell.Process.Kill()
 	})
 
 	// If starting the shell didn't fail, then we wait for the shell to terminate

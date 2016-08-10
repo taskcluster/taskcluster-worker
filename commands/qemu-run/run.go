@@ -3,9 +3,13 @@ package qemurun
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"time"
+
+	graceful "gopkg.in/tylerb/graceful.v1"
 
 	"github.com/cespare/cp"
 	"github.com/taskcluster/slugid-go/slugid"
@@ -13,9 +17,12 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/network"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
+	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
+
+var debug = runtime.Debug("qemurun")
 
 type cmd struct{}
 
@@ -91,13 +98,30 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 
 	// Create meta-data service
 	log.Info("Creating meta-data service")
+	var shellServer *interactive.ShellServer
 	ms := metaservice.New(command, make(map[string]string), os.Stdout, func(result bool) {
 		fmt.Println("### Task Completed, result = ", result)
+		shellServer.WaitAndClose()
 		vm.Kill()
 	}, environment)
 
-	// Setup http handler
+	// Setup http handler for network
 	vm.SetHTTPHandler(ms)
+
+	// Create ShellServer
+	shellServer = interactive.NewShellServer(
+		ms.ExecShell, log.WithField("component", "shell-server"),
+	)
+
+	interactiveServer := graceful.Server{
+		Timeout: 30 * time.Second,
+		Server: &http.Server{
+			Addr:    "localhost:8080",
+			Handler: shellServer,
+		},
+		NoSignalHandling: true,
+	}
+	go interactiveServer.ListenAndServe()
 
 	// Start the virtual machine
 	log.Info("Start the virtual machine")
@@ -124,6 +148,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 
 	// Ensure that QEMU has terminated before we continue
 	<-vm.Done
+	interactiveServer.Stop(100 * time.Millisecond)
 
 	// Clean up anything left in the garbage collector
 	gc.CollectAll()

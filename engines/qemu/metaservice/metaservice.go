@@ -506,6 +506,7 @@ func (s *MetaService) ExecShell() (engines.Shell, error) {
 	}, func(w http.ResponseWriter, r *http.Request) {
 		ws, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
+			debug("Failed to upgrade request to websocket, error: %s", err)
 			Err = engines.ErrNonFatalInternalError
 			return
 		}
