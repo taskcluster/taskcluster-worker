@@ -1,4 +1,4 @@
-package metaservice
+package shellclient
 
 import (
 	"encoding/binary"
@@ -8,28 +8,14 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
-const (
-	// ShellHandshakeTimeout is the maximum allowed time for websocket handshake
-	ShellHandshakeTimeout = 3 * time.Second
-	// ShellPingInterval is the time between sending pings
-	ShellPingInterval = 5 * time.Second
-	// ShellWriteTimeout is the maximum time between successful writes
-	ShellWriteTimeout = ShellPingInterval * 2
-	// ShellPongTimeout is the maximum time between successful reads
-	ShellPongTimeout = ShellPingInterval * 3
-	// ShellBlockSize is the maximum number of bytes to send in a single block
-	ShellBlockSize = 16 * 1024
-	// ShellMaxMessageSize is the maximum message size we will read
-	ShellMaxMessageSize = ShellBlockSize + 4*1024
-	// ShellMaxPendingBytes is the maximum number of bytes allowed in-flight
-	ShellMaxPendingBytes = 4 * ShellBlockSize
-)
-
-type shell struct {
+// ShellClient exposes the client interface to a shell running remotely.
+// This object implements the engines.Shell interface.
+type ShellClient struct {
 	ws           *websocket.Conn
 	mWrite       sync.Mutex
 	stdin        io.WriteCloser
@@ -43,17 +29,17 @@ type shell struct {
 	err          error
 }
 
-// newShell takes a websocket and creates a shell object implementing the
+// New takes a websocket and creates a ShellClient object implementing the
 // engines.Shell interface.
-func newShell(ws *websocket.Conn) *shell {
+func New(ws *websocket.Conn) *ShellClient {
 	stdinReader, stdin := ioext.BlockedPipe()
 	tellOut := make(chan int, 10)
 	tellErr := make(chan int, 10)
-	stdout, stdoutWriter := ioext.AsyncPipe(ShellMaxPendingBytes, tellOut)
-	stderr, stderrWriter := ioext.AsyncPipe(ShellMaxPendingBytes, tellErr)
-	stdinReader.Unblock(ShellMaxPendingBytes)
+	stdout, stdoutWriter := ioext.AsyncPipe(interactive.ShellMaxPendingBytes, tellOut)
+	stderr, stderrWriter := ioext.AsyncPipe(interactive.ShellMaxPendingBytes, tellErr)
+	stdinReader.Unblock(interactive.ShellMaxPendingBytes)
 
-	s := &shell{
+	s := &ShellClient{
 		ws:           ws,
 		stdin:        stdin,
 		stdout:       stdout,
@@ -63,20 +49,20 @@ func newShell(ws *websocket.Conn) *shell {
 		stderrWriter: stderrWriter,
 	}
 
-	ws.SetReadLimit(ShellMaxMessageSize)
-	ws.SetReadDeadline(time.Now().Add(ShellPongTimeout))
+	ws.SetReadLimit(interactive.ShellMaxMessageSize)
+	ws.SetReadDeadline(time.Now().Add(interactive.ShellPongTimeout))
 	ws.SetPongHandler(s.pongHandler)
 
 	go s.writeMessages()
 	go s.readMessages()
 	go s.sendPings()
-	go s.sendAck(StreamStdout, tellOut)
-	go s.sendAck(StreamStderr, tellErr)
+	go s.sendAck(interactive.StreamStdout, tellOut)
+	go s.sendAck(interactive.StreamStderr, tellErr)
 
 	return s
 }
 
-func (s *shell) dispose() {
+func (s *ShellClient) dispose() {
 	// Close websocket
 	s.ws.Close()
 
@@ -86,10 +72,10 @@ func (s *shell) dispose() {
 	s.stderrWriter.Close()
 }
 
-func (s *shell) send(message []byte) {
+func (s *ShellClient) send(message []byte) {
 	// Write message and ensure we reset the write deadline
 	s.mWrite.Lock()
-	s.ws.SetWriteDeadline(time.Now().Add(ShellWriteTimeout))
+	s.ws.SetWriteDeadline(time.Now().Add(interactive.ShellWriteTimeout))
 	err := s.ws.WriteMessage(websocket.BinaryMessage, message)
 	s.mWrite.Unlock()
 
@@ -103,14 +89,14 @@ func (s *shell) send(message []byte) {
 	}
 }
 
-func (s *shell) sendPings() {
+func (s *ShellClient) sendPings() {
 	for {
 		// Sleep for ping interval time
-		time.Sleep(ShellPingInterval)
+		time.Sleep(interactive.ShellPingInterval)
 
 		// Write a ping message, and reset the write deadline
 		s.mWrite.Lock()
-		s.ws.SetWriteDeadline(time.Now().Add(ShellWriteTimeout))
+		s.ws.SetWriteDeadline(time.Now().Add(interactive.ShellWriteTimeout))
 		err := s.ws.WriteMessage(websocket.PingMessage, []byte{})
 		s.mWrite.Unlock()
 
@@ -127,10 +113,10 @@ func (s *shell) sendPings() {
 	}
 }
 
-func (s *shell) sendAck(streamID byte, tell <-chan int) {
+func (s *ShellClient) sendAck(streamID byte, tell <-chan int) {
 	// reserve a buffer for sending acknowledgments
 	ack := make([]byte, 2+4)
-	ack[0] = MessageTypeAck
+	ack[0] = interactive.MessageTypeAck
 	var size int64
 
 	for n := range tell {
@@ -155,16 +141,16 @@ func (s *shell) sendAck(streamID byte, tell <-chan int) {
 	debug("Final ack for streamID: %d sent, size: %d", streamID, size)
 }
 
-func (s *shell) pongHandler(string) error {
+func (s *ShellClient) pongHandler(string) error {
 	// Reset the read deadline
-	s.ws.SetReadDeadline(time.Now().Add(ShellPongTimeout))
+	s.ws.SetReadDeadline(time.Now().Add(interactive.ShellPongTimeout))
 	return nil
 }
 
-func (s *shell) writeMessages() {
-	m := make([]byte, 2+ShellBlockSize)
-	m[0] = MessageTypeData
-	m[1] = StreamStdin
+func (s *ShellClient) writeMessages() {
+	m := make([]byte, 2+interactive.ShellBlockSize)
+	m[0] = interactive.MessageTypeData
+	m[1] = interactive.StreamStdin
 	var size int64
 
 	for {
@@ -196,7 +182,7 @@ func (s *shell) writeMessages() {
 	}
 }
 
-func (s *shell) readMessages() {
+func (s *ShellClient) readMessages() {
 	for {
 		t, m, err := s.ws.ReadMessage()
 		if err != nil {
@@ -219,21 +205,21 @@ func (s *shell) readMessages() {
 		mData := m[1:]
 
 		// If we get a datatype
-		if mType == MessageTypeData && len(mData) > 0 {
+		if mType == interactive.MessageTypeData && len(mData) > 0 {
 			// Find [stream] and [payload]
 			mStream := mData[0]
 			mPayload := mData[1:]
 
 			// Write payload or close stream if payload is zero length
 			var err error
-			if mStream == StreamStdout {
+			if mStream == interactive.StreamStdout {
 				if len(mPayload) > 0 {
 					_, err = s.stdoutWriter.Write(mPayload)
 				} else {
 					err = s.stdoutWriter.Close()
 				}
 			}
-			if mStream == StreamStderr {
+			if mStream == interactive.StreamStderr {
 				if len(mPayload) > 0 {
 					_, err = s.stderrWriter.Write(mPayload)
 				} else {
@@ -254,15 +240,15 @@ func (s *shell) readMessages() {
 		}
 
 		// If bytes from stdin are acknowleged, then we unblock additional bytes
-		if mType == MessageTypeAck && len(mData) == 5 {
-			if mData[0] == StreamStdin {
+		if mType == interactive.MessageTypeAck && len(mData) == 5 {
+			if mData[0] == interactive.StreamStdin {
 				n := binary.BigEndian.Uint32(mData[1:])
 				s.stdinReader.Unblock(int64(n))
 			}
 		}
 
 		// If we get an exit message, we resolve and close the websocket
-		if mType == MessageTypeExit && len(mData) == 1 {
+		if mType == interactive.MessageTypeExit && len(mData) == 1 {
 			s.resolve.Do(func() {
 				s.success = (mData[0] == 0)
 				s.err = engines.ErrShellTerminated
@@ -278,25 +264,34 @@ func (s *shell) readMessages() {
 	}
 }
 
-func (s *shell) StdinPipe() io.WriteCloser {
+// StdinPipe returns a pipe to which stdin must be written.
+// It's important to close stdin, if you expect the remote shell to termiante.
+func (s *ShellClient) StdinPipe() io.WriteCloser {
 	return s.stdin
 }
 
-func (s *shell) StdoutPipe() io.ReadCloser {
+// StdoutPipe returns a pipe from which stdout must be read.
+// It's important to drain this pipe or the shell will block when the internal
+// buffer is full.
+func (s *ShellClient) StdoutPipe() io.ReadCloser {
 	return s.stdout
 }
 
-func (s *shell) StderrPipe() io.ReadCloser {
+// StderrPipe returns a pipe from which stderr must be read.
+// It's important to drain this pipe or the shell will block when the internal
+// buffer is full.
+func (s *ShellClient) StderrPipe() io.ReadCloser {
 	return s.stderr
 }
 
-func (s *shell) Abort() error {
+// Abort will tell the remote shell to abort and close the websocket.
+func (s *ShellClient) Abort() error {
 	s.resolve.Do(func() {
 		debug("Resolving by aborting shell")
 
 		// Write an abort message
 		m := make([]byte, 1)
-		m[0] = MessageTypeAbort
+		m[0] = interactive.MessageTypeAbort
 		s.send(m)
 
 		// Set success false, err to shell aborted
@@ -314,7 +309,8 @@ func (s *shell) Abort() error {
 	return s.err
 }
 
-func (s *shell) Wait() (bool, error) {
+// Wait will wait for remote shell to terminate and success, and error if any.
+func (s *ShellClient) Wait() (bool, error) {
 	s.resolve.Wait()
 	if s.err == engines.ErrShellTerminated {
 		return s.success, nil

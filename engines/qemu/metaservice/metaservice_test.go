@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
@@ -281,18 +282,18 @@ func TestMetaServiceShell(t *testing.T) {
 		t, m, err2 := ws.ReadMessage()
 		assert(t == websocket.BinaryMessage, "expected BinaryMessage")
 		assert(bytes.Compare(m, []byte{
-			MessageTypeData, StreamStdin, 'h', 'i',
+			interactive.MessageTypeData, interactive.StreamStdin, 'h', 'i',
 		}) == 0, "expected 'hi' on stdin")
 
 		debug("guest-tool: Ack: 'hi' from stdin")
 		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
-			MessageTypeAck, StreamStdin, 0, 0, 0, 2,
+			interactive.MessageTypeAck, interactive.StreamStdin, 0, 0, 0, 2,
 		})
 		nilOrPanic(err2, "Failed to send ack")
 
 		debug("guest-tool: Send: 'hello' on stdout")
 		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
-			MessageTypeData, StreamStdout, 'h', 'e', 'l', 'l', 'o',
+			interactive.MessageTypeData, interactive.StreamStdout, 'h', 'e', 'l', 'l', 'o',
 		})
 		nilOrPanic(err2, "Failed to send 'hello'")
 
@@ -300,12 +301,12 @@ func TestMetaServiceShell(t *testing.T) {
 		t, m, err2 = ws.ReadMessage()
 		assert(t == websocket.BinaryMessage, "expected BinaryMessage")
 		assert(bytes.Compare(m, []byte{
-			MessageTypeAck, StreamStdout, 0, 0, 0, 5,
+			interactive.MessageTypeAck, interactive.StreamStdout, 0, 0, 0, 5,
 		}) == 0, "expected ack for 5 on stdout")
 
 		debug("guest-tool: Send: close on stdout")
 		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
-			MessageTypeData, StreamStdout,
+			interactive.MessageTypeData, interactive.StreamStdout,
 		})
 		nilOrPanic(err2, "Failed to send close for stdout")
 
@@ -313,12 +314,12 @@ func TestMetaServiceShell(t *testing.T) {
 		t, m, err2 = ws.ReadMessage()
 		assert(t == websocket.BinaryMessage, "expected BinaryMessage")
 		assert(bytes.Compare(m, []byte{
-			MessageTypeData, StreamStdin,
+			interactive.MessageTypeData, interactive.StreamStdin,
 		}) == 0, "expected stdin to be closed")
 
 		debug("guest-tool: Send: exit success")
 		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
-			MessageTypeExit, 0,
+			interactive.MessageTypeExit, 0,
 		})
 		nilOrPanic(err2, "Failed to send 'exit' success")
 	}()
