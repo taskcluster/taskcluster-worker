@@ -228,7 +228,7 @@ func (s *ShellHandler) transmitStream(r io.Reader, streamID byte) {
 
 		// If EOF, then we send an empty payload to signal this
 		if err == io.EOF {
-			debug("Reached EOF for streamID: %s size: %d", streamID, size)
+			debug("Reached EOF for streamID: %d size: %d", streamID, size)
 			s.send(m[:2])
 			// We're done streaming, signal this so an Exit message can be sent.
 			s.streamingDone.Done()
