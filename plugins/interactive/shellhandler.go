@@ -26,9 +26,10 @@ type ShellHandler struct {
 	stderrReader  *ioext.PipeReader
 	streamingDone sync.WaitGroup // Done when stdout/stderr are done streaming
 	resolve       atomics.Once   // wrap calls to abortFunc and success
-	abortFunc     func()
+	abortFunc     func() error
 	success       bool
 	tellIn        <-chan int
+	setSizeFunc   SetSizeFunc
 }
 
 // NewShellHandler returns a new ShellHandler structure for that can
@@ -58,10 +59,15 @@ func NewShellHandler(ws *websocket.Conn, log *logrus.Entry) *ShellHandler {
 	return s
 }
 
+// A SetSizeFunc can set the set the TTY size of a ter
+type SetSizeFunc func(columns, rows uint16) error
+
 // Communicate starts receiving and sending data to/from the exposed pipes.
-// Caller provides an abortFunc to be called to abort/kill the underlying shell.
-func (s *ShellHandler) Communicate(abortFunc func()) {
-	s.abortFunc = abortFunc
+// Caller provides an optional function setSize for changing the terminal size,
+// and a function abort that will be called to kill the underlying shell.
+func (s *ShellHandler) Communicate(setSize SetSizeFunc, abort func() error) {
+	s.abortFunc = abort
+	s.setSizeFunc = setSize
 
 	s.ws.SetReadDeadline(time.Now().Add(ShellPongTimeout))
 	s.ws.SetPongHandler(s.pongHandler)
@@ -290,12 +296,22 @@ func (s *ShellHandler) readMessages() {
 		// If bytes from stdout/stderr are acknowleged, then we unblock
 		// additional bytes
 		if mType == MessageTypeAck && len(mData) == 5 {
+			mStream := mData[0]
 			n := binary.BigEndian.Uint32(mData[1:])
-			if mData[0] == StreamStdout {
+			if mStream == StreamStdout {
 				s.stdoutReader.Unblock(int64(n))
 			}
-			if mData[0] == StreamStderr {
+			if mStream == StreamStderr {
 				s.stderrReader.Unblock(int64(n))
+			}
+		}
+
+		// If we get a size message, we call the set size function
+		if mType == MessageTypeSize && len(mData) == 4 {
+			cols := binary.BigEndian.Uint16(mData[0:])
+			rows := binary.BigEndian.Uint16(mData[2:])
+			if s.setSizeFunc != nil {
+				s.setSizeFunc(cols, rows)
 			}
 		}
 

@@ -325,7 +325,7 @@ func TestMetaServiceShell(t *testing.T) {
 	}()
 
 	// Exec shell through metaservice
-	shell, err := meta.ExecShell()
+	shell, err := meta.ExecShell(nil, false)
 	assert(err == nil, "Unexpected error: ", err)
 
 	debug("server: Writing 'hi' on stdin")

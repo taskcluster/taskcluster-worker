@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	goruntime "runtime"
 	"time"
 
 	"gopkg.in/djherbis/buffer.v1"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/websocket"
+	"github.com/raggi/pty"
 	"github.com/taskcluster/go-got"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
@@ -208,7 +210,7 @@ func (g *guestTools) dispatchAction(action metaservice.Action) {
 	case "list-folder":
 		go g.doListFolder(action.ID, action.Path)
 	case "exec-shell":
-		go g.doExecShell(action.ID)
+		go g.doExecShell(action.ID, action.Command, action.TTY)
 	default:
 		g.log.Error("Unknown action type: ", action.Type, " ID = ", action.ID)
 	}
@@ -296,7 +298,7 @@ var dialer = websocket.Dialer{
 	WriteBufferSize:  interactive.ShellMaxMessageSize,
 }
 
-func (g *guestTools) doExecShell(ID string) {
+func (g *guestTools) doExecShell(ID string, command []string, tty bool) {
 	// Establish a websocket reply
 	ws, _, err := dialer.Dial("ws:"+g.url("engine/v1/reply?id=" + ID)[5:], nil)
 	if err != nil {
@@ -307,19 +309,43 @@ func (g *guestTools) doExecShell(ID string) {
 	// Create a new shellHandler
 	handler := interactive.NewShellHandler(ws, g.log.WithField("shell", ID))
 
-	// Create a shell
-	shell := exec.Command("sh")
-	shell.Stdin = handler.StdinPipe()
-	shell.Stdout = handler.StdoutPipe()
-	shell.Stderr = handler.StderrPipe()
+	// Set command to standard shell, if no command is given
+	if len(command) == 0 {
+		command = []string{"sh"}
+		if goruntime.GOOS == "windows" {
+			command = []string{"cmd.exe"}
+		}
+	}
 
-	// Start the shell, this must finished before we can call Kill()
-	err = shell.Start()
+	// Create a shell
+	shell := exec.Command(command[0], command[1:]...)
+
+	var setSize interactive.SetSizeFunc
+	if tty {
+		// Start the shell as TTY
+		var f *os.File
+		f, err = pty.Start(shell)
+
+		// Connect pipes (close stderr as tty only has two streams)
+		go ioext.CopyAndClose(f, handler.StdinPipe())
+		go ioext.CopyAndClose(handler.StdoutPipe(), f)
+		go handler.StderrPipe().Close()
+
+		setSize = func(cols, rows uint16) error {
+			return pty.Setsize(f, rows, cols)
+		}
+	} else {
+		// Set pipes
+		shell.Stdin = handler.StdinPipe()
+		shell.Stdout = handler.StdoutPipe()
+		shell.Stderr = handler.StderrPipe()
+
+		// Start the shell, this must finished before we can call Kill()
+		err = shell.Start()
+	}
 
 	// Start communication
-	handler.Communicate(func() {
-		shell.Process.Kill()
-	})
+	handler.Communicate(setSize, shell.Process.Kill)
 
 	// If starting the shell didn't fail, then we wait for the shell to terminate
 	if err == nil {

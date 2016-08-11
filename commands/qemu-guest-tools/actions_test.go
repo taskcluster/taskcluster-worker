@@ -142,7 +142,7 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 
 func testShellHello(meta *metaservice.MetaService) {
 	debug("### Test meta.Shell (using 'echo hello')")
-	shell, err := meta.ExecShell()
+	shell, err := meta.ExecShell(nil, false)
 	nilOrPanic(err, "Failed to call meta.ExecShell()")
 
 	readHello := sync.WaitGroup{}
@@ -180,7 +180,7 @@ func testShellHello(meta *metaservice.MetaService) {
 
 func testShellCat(meta *metaservice.MetaService) {
 	debug("### Test meta.Shell (using 'exec cat -')")
-	shell, err := meta.ExecShell()
+	shell, err := meta.ExecShell(nil, false)
 	nilOrPanic(err, "Failed to call meta.ExecShell()")
 
 	input := make([]byte, 42*1024*1024+7)
@@ -221,7 +221,7 @@ func testShellCat(meta *metaservice.MetaService) {
 
 func testShellCatStdErr(meta *metaservice.MetaService) {
 	debug("### Test meta.Shell (using 'exec cat - 1>&2')")
-	shell, err := meta.ExecShell()
+	shell, err := meta.ExecShell(nil, false)
 	nilOrPanic(err, "Failed to call meta.ExecShell()")
 
 	input := make([]byte, 4*1024*1024+37)

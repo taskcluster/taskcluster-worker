@@ -35,7 +35,7 @@ func (c *ShellTestCase) TestCommand() {
 	r.NewSandboxBuilder(c.Payload)
 	r.StartSandbox()
 
-	shell, err := r.sandbox.NewShell()
+	shell, err := r.sandbox.NewShell(nil, false)
 	nilOrPanic(err, "NewShell Failed")
 
 	wg := sync.WaitGroup{}
@@ -78,7 +78,7 @@ func (c *ShellTestCase) TestBadCommand() {
 	r.NewSandboxBuilder(c.Payload)
 	r.StartSandbox()
 
-	shell, err := r.sandbox.NewShell()
+	shell, err := r.sandbox.NewShell(nil, false)
 	nilOrPanic(err, "NewShell Failed")
 
 	wg := sync.WaitGroup{}
@@ -115,7 +115,7 @@ func (c *ShellTestCase) TestAbortSleepCommand() {
 	r.NewSandboxBuilder(c.Payload)
 	r.StartSandbox()
 
-	shell, err := r.sandbox.NewShell()
+	shell, err := r.sandbox.NewShell(nil, false)
 	nilOrPanic(err, "NewShell Failed")
 
 	wg := sync.WaitGroup{}

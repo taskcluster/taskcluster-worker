@@ -27,6 +27,7 @@ type ShellClient struct {
 	resolve      atomics.Once // Must wrap access to success/err
 	success      bool
 	err          error
+	done         chan struct{} // Closed when success/err is ready
 }
 
 // New takes a websocket and creates a ShellClient object implementing the
@@ -47,6 +48,7 @@ func New(ws *websocket.Conn) *ShellClient {
 		stdinReader:  stdinReader,
 		stdoutWriter: stdoutWriter,
 		stderrWriter: stderrWriter,
+		done:         make(chan struct{}),
 	}
 
 	ws.SetReadLimit(interactive.ShellMaxMessageSize)
@@ -63,6 +65,13 @@ func New(ws *websocket.Conn) *ShellClient {
 }
 
 func (s *ShellClient) dispose() {
+	// Signal that we're done
+	select {
+	case <-s.done:
+	default:
+		close(s.done)
+	}
+
 	// Close websocket
 	s.ws.Close()
 
@@ -72,7 +81,7 @@ func (s *ShellClient) dispose() {
 	s.stderrWriter.Close()
 }
 
-func (s *ShellClient) send(message []byte) {
+func (s *ShellClient) send(message []byte) bool {
 	// Write message and ensure we reset the write deadline
 	s.mWrite.Lock()
 	s.ws.SetWriteDeadline(time.Now().Add(interactive.ShellWriteTimeout))
@@ -86,7 +95,9 @@ func (s *ShellClient) send(message []byte) {
 			s.err = engines.ErrNonFatalInternalError
 			s.dispose()
 		})
+		return false
 	}
+	return true
 }
 
 func (s *ShellClient) sendPings() {
@@ -282,6 +293,30 @@ func (s *ShellClient) StdoutPipe() io.ReadCloser {
 // buffer is full.
 func (s *ShellClient) StderrPipe() io.ReadCloser {
 	return s.stderr
+}
+
+// SetSize will attempt to set the TTY width (columns) and height (rows) on the
+// remote shell.
+func (s *ShellClient) SetSize(columns, rows uint16) error {
+	// Write a size message
+	m := make([]byte, 5)
+	m[0] = interactive.MessageTypeSize
+	binary.BigEndian.PutUint16(m[1:], columns)
+	binary.BigEndian.PutUint16(m[3:], rows)
+	sent := s.send(m)
+
+	// If we failed to send it, we check if we're done and return resolution
+	// otherwise we have an internal error.
+	if !sent {
+		select {
+		case <-s.done:
+			return s.err
+		default:
+			return engines.ErrNonFatalInternalError
+		}
+	}
+
+	return nil
 }
 
 // Abort will tell the remote shell to abort and close the websocket.

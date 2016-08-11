@@ -68,7 +68,7 @@ func (s *sessionManager) WaitAndTerminate() {
 	s.m.Unlock()
 }
 
-func (s *sessionManager) NewShell() (engines.Shell, error) {
+func (s *sessionManager) NewShell(command []string, tty bool) (engines.Shell, error) {
 	s.m.Lock()
 	defer s.m.Unlock()
 
@@ -84,7 +84,7 @@ func (s *sessionManager) NewShell() (engines.Shell, error) {
 	}
 
 	// Create new shell
-	shell, err := s.meta.ExecShell()
+	shell, err := s.meta.ExecShell(command, tty)
 	if err != nil {
 		// Track the shell while running
 		s.shells = append(s.shells, shell)

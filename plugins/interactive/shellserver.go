@@ -2,6 +2,7 @@ package interactive
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,12 +29,15 @@ const (
 	ShellMaxPendingBytes = 4 * ShellBlockSize
 )
 
+// ShellFactory is a function that can make a shell
+type ShellFactory func(command []string, tty bool) (engines.Shell, error)
+
 // A ShellServer implements http.Handler and upgrades connections to websockets,
 // creates a shell and connects the websocket to the shell.
 type ShellServer struct {
 	m             sync.Mutex
 	c             sync.Cond
-	newShell      func() (engines.Shell, error)
+	makeShell     ShellFactory
 	done          chan struct{}
 	refCount      int
 	instanceCount int
@@ -41,12 +45,12 @@ type ShellServer struct {
 }
 
 // NewShellServer returns a new ShellServer which creates shells using the
-// newShell function.
-func NewShellServer(newShell func() (engines.Shell, error), log *logrus.Entry) *ShellServer {
+// makeShell function.
+func NewShellServer(makeShell ShellFactory, log *logrus.Entry) *ShellServer {
 	s := &ShellServer{
-		newShell: newShell,
-		done:     make(chan struct{}),
-		log:      log,
+		makeShell: makeShell,
+		done:      make(chan struct{}),
+		log:       log,
 	}
 	s.c.L = &s.m
 	return s
@@ -105,8 +109,13 @@ func (s *ShellServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 	}
 
+	// Get command and tty from query-string
+	qs := r.URL.Query()
+	command := qs["command"]
+	tty := strings.ToLower(qs.Get("tty")) == "true"
+
 	// Create a new shell, do this before we upgrade so we can return 410 on error
-	shell, err := s.newShell()
+	shell, err := s.makeShell(command, tty)
 	if err == engines.ErrSandboxTerminated || err == engines.ErrSandboxAborted {
 		w.WriteHeader(http.StatusGone)
 		return
@@ -136,9 +145,7 @@ func (s *ShellServer) handleShell(ws *websocket.Conn, shell engines.Shell) {
 	go ioext.CopyAndClose(handler.StderrPipe(), shell.StderrPipe())
 
 	// Start streaming
-	handler.Communicate(func() {
-		shell.Abort()
-	})
+	handler.Communicate(shell.SetSize, shell.Abort)
 
 	// Wait for call to abort all shells
 	go func() {

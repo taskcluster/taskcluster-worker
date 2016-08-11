@@ -146,8 +146,8 @@ func (s *sandbox) Abort() error {
 	return s.resultAbort
 }
 
-func (s *sandbox) NewShell() (engines.Shell, error) {
-	return s.sessions.NewShell()
+func (s *sandbox) NewShell(command []string, tty bool) (engines.Shell, error) {
+	return s.sessions.NewShell(command, tty)
 }
 
 const qemuDisplayName = "screen"

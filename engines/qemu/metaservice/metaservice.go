@@ -499,12 +499,14 @@ var upgrader = websocket.Upgrader{
 // ExecShell will send an action to guest-tools to execute a shell, then wait
 // for guest-tools to callback establish a websocket and connect to an
 // implementation of engines.Shell
-func (s *MetaService) ExecShell() (engines.Shell, error) {
+func (s *MetaService) ExecShell(command []string, tty bool) (engines.Shell, error) {
 	var Shell engines.Shell
 	var Err error
 
 	s.asyncRequest(Action{
-		Type: "exec-shell",
+		Type:    "exec-shell",
+		Command: command,
+		TTY:     tty,
 	}, func(w http.ResponseWriter, r *http.Request) {
 		ws, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {

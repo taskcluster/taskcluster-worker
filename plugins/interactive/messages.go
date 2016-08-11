@@ -27,11 +27,18 @@ package interactive
 // If [type] is MessageTypeExit then [data] = [exitCode], where exitCode is a
 // single byte 0 (success) or 1 (failed) indicating whether the command
 // terminated successfully.
+//
+// If [type] is MessageTypeSize then
+//   [data] = [colmns] [rows]
+// , where [colmns] and [rows] are big-endian 16 bit unsigned integers
+// specifying the width and height of the TTY. If not supported this message is
+// is ignored.
 const (
 	MessageTypeData  = 0
 	MessageTypeAck   = 1
-	MessageTypeAbort = 2
-	MessageTypeExit  = 3
+	MessageTypeSize  = 3
+	MessageTypeAbort = 4
+	MessageTypeExit  = 5
 	StreamStdin      = 0
 	StreamStdout     = 1
 	StreamStderr     = 2

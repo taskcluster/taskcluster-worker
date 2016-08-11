@@ -89,6 +89,10 @@ func newShell() *shell {
 	return s
 }
 
+func (s *shell) SetSize(columns, rows uint16) error {
+	return engines.ErrFeatureNotSupported
+}
+
 func (s *shell) StdinPipe() io.WriteCloser {
 	return s.stdin
 }

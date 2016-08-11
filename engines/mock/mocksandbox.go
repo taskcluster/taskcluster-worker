@@ -196,7 +196,10 @@ func (s *sandbox) Abort() error {
 	return nil
 }
 
-func (s *sandbox) NewShell() (engines.Shell, error) {
+func (s *sandbox) NewShell(command []string, tty bool) (engines.Shell, error) {
+	if len(command) > 0 || tty {
+		return nil, engines.ErrFeatureNotSupported
+	}
 	return newShell(), nil
 }
 
