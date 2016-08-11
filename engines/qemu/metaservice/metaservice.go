@@ -502,6 +502,7 @@ var upgrader = websocket.Upgrader{
 func (s *MetaService) ExecShell(command []string, tty bool) (engines.Shell, error) {
 	var Shell engines.Shell
 	var Err error
+	Err = engines.ErrNonFatalInternalError
 
 	s.asyncRequest(Action{
 		Type:    "exec-shell",
@@ -516,6 +517,7 @@ func (s *MetaService) ExecShell(command []string, tty bool) (engines.Shell, erro
 		}
 
 		Shell = shellclient.New(ws)
+		Err = nil
 	})
 
 	return Shell, Err

@@ -2,9 +2,16 @@ package shell
 
 import (
 	"fmt"
+	"io"
+	"net/url"
 	"os"
+	"os/signal"
+	"syscall"
+	"unsafe"
 
 	"github.com/gorilla/websocket"
+	isatty "github.com/mattn/go-isatty"
+	"github.com/pkg/term/termios"
 	"github.com/taskcluster/taskcluster-worker/commands/extpoints"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellclient"
@@ -26,7 +33,7 @@ func (cmd) Usage() string {
 taskcluster-worker shell will open a websocket to an interactive task, start
 a shell and expose it in your terminal. This is similar to using an SSH client.
 
-usage: taskcluster-worker shell [options] [--] <URL>
+usage: taskcluster-worker shell [options] <URL> [--] [<command>...]
 
 options:
   -h --help     Show this screen.
@@ -39,11 +46,53 @@ var dialer = websocket.Dialer{
 	WriteBufferSize:  interactive.ShellMaxMessageSize,
 }
 
+type winSize struct {
+	Rows    uint16
+	Columns uint16
+	XPixel  uint16 // unused
+	YPixel  uint16 // unused
+}
+
+func ttySize() (cols, rows uint16, err error) {
+	var size winSize
+	_, _, errno := syscall.Syscall(
+		syscall.SYS_IOCTL, uintptr(0),
+		uintptr(syscall.TIOCGWINSZ), uintptr(unsafe.Pointer(&size)),
+	)
+	if errno != 0 {
+		return 0, 0, errno
+	}
+	return size.Columns, size.Rows, nil
+}
+
 func (cmd) Execute(arguments map[string]interface{}) bool {
 	URL := arguments["<URL>"].(string)
+	command := arguments["<command>"].([]string)
+	tty := isatty.IsTerminal(os.Stdout.Fd())
+
+	// Parse URL
+	u, err := url.Parse(URL)
+	if err != nil {
+		fmt.Println("Failed to parse URL, error: ", err)
+		return false
+	}
+	qs := u.Query()
+
+	// Set the command, if we have one
+	if len(command) > 0 {
+		qs["command"] = command
+	}
+
+	// Set tty=true if we're in a tty
+	if tty {
+		qs.Set("tty", "true")
+	}
+
+	// Update query string
+	u.RawQuery = qs.Encode()
 
 	// Connect to remove websocket
-	ws, res, err := dialer.Dial(URL, nil)
+	ws, res, err := dialer.Dial(u.String(), nil)
 	if err == websocket.ErrBadHandshake {
 		fmt.Println("Failed to connect, status: ", res.StatusCode)
 		return false
@@ -56,13 +105,50 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	// Create shell client
 	shell := shellclient.New(ws)
 
+	// Switch terminal to raw mode
+	var state syscall.Termios
+	sigWinch := make(chan os.Signal, 1)
+	if tty {
+		termios.Tcgetattr(os.Stdout.Fd(), &state)
+		newState := state
+		termios.Cfmakeraw(&newState)
+		termios.Tcsetattr(os.Stdout.Fd(), termios.TCSANOW, &newState)
+
+		// Get TTY size
+		cols, rows, err := ttySize()
+		if err == nil {
+			shell.SetSize(cols, rows)
+		}
+
+		// Handle SIGWINCH signals (window resize signals from graphical terminals)
+		signal.Notify(sigWinch, syscall.SIGWINCH)
+		go func() {
+			for range sigWinch {
+				cols, rows, err := ttySize()
+				if err == nil {
+					shell.SetSize(cols, rows)
+				}
+			}
+		}()
+	}
+
 	// Connect pipes
 	go ioext.CopyAndClose(shell.StdinPipe(), os.Stdin)
-	go ioext.CopyAndClose(os.Stdout, shell.StdoutPipe())
-	go ioext.CopyAndClose(os.Stderr, shell.StderrPipe())
+	go io.Copy(os.Stdout, shell.StdoutPipe())
+	go io.Copy(os.Stderr, shell.StderrPipe())
 
 	// Wait for shell to be done
 	success, _ := shell.Wait()
+
+	// If we were in a tty we let's restore state
+	if tty {
+		// Stop handling SIGWINCH, and close channel to clean up go routine
+		signal.Stop(sigWinch)
+		close(sigWinch)
+
+		termios.Tcsetattr(os.Stdout.Fd(), termios.TCSANOW, &state)
+		fmt.Println("")
+	}
 
 	return success
 }

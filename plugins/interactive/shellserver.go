@@ -120,6 +120,11 @@ func (s *ShellServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusGone)
 		return
 	}
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		debug("Failed to create shell, error: %s", err)
+		return
+	}
 
 	// Upgrade request to a websocket, abort the shell if upgrade fails
 	ws, err := upgrader.Upgrade(w, r, nil)
