@@ -3,8 +3,6 @@
 package osxnative
 
 import (
-	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/runtime"
 	"io"
 	"mime"
 	"net/http"
@@ -15,6 +13,9 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 // white list of environment variables that must
@@ -56,6 +57,7 @@ func (w stderrLogWriter) Write(p []byte) (int, error) {
 }
 
 type sandbox struct {
+	engines.SandboxBase
 	context     *runtime.TaskContext
 	taskPayload *payload
 	env         []string
@@ -235,17 +237,4 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 func (s *sandbox) Abort() error {
 	s.aborted = true
 	return nil
-}
-
-func (*sandbox) NewShell() (engines.Shell, error) {
-	return nil, engines.ErrFeatureNotSupported
-}
-
-func (*sandbox) ListDisplays() ([]engines.Display, error) {
-
-	return nil, engines.ErrFeatureNotSupported
-}
-
-func (*sandbox) OpenDisplay(string) (io.ReadWriteCloser, error) {
-	return nil, engines.ErrFeatureNotSupported
 }
