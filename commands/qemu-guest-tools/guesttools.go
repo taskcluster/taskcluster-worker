@@ -17,7 +17,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/websocket"
-	"github.com/raggi/pty"
 	"github.com/taskcluster/go-got"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
@@ -320,32 +319,12 @@ func (g *guestTools) doExecShell(ID string, command []string, tty bool) {
 	// Create a shell
 	shell := exec.Command(command[0], command[1:]...)
 
-	var setSize interactive.SetSizeFunc
+	// Attempt to start with a pty, if asked to use TTY
 	if tty {
-		// Start the shell as TTY
-		var f *os.File
-		f, err = pty.Start(shell)
-
-		// Connect pipes (close stderr as tty only has two streams)
-		go ioext.CopyAndClose(f, handler.StdinPipe())
-		go ioext.CopyAndClose(handler.StdoutPipe(), f)
-		go handler.StderrPipe().Close()
-
-		setSize = func(cols, rows uint16) error {
-			return pty.Setsize(f, rows, cols)
-		}
+		err = pipePty(shell, handler)
 	} else {
-		// Set pipes
-		shell.Stdin = handler.StdinPipe()
-		shell.Stdout = handler.StdoutPipe()
-		shell.Stderr = handler.StderrPipe()
-
-		// Start the shell, this must finished before we can call Kill()
-		err = shell.Start()
+		err = pipeCommand(shell, handler)
 	}
-
-	// Start communication
-	handler.Communicate(setSize, shell.Process.Kill)
 
 	// If starting the shell didn't fail, then we wait for the shell to terminate
 	if err == nil {
@@ -354,4 +333,26 @@ func (g *guestTools) doExecShell(ID string, command []string, tty bool) {
 	// If we didn't any error starting or waiting for the shell, then it was a
 	// success.
 	handler.Terminated(err == nil)
+}
+
+func pipeCommand(cmd *exec.Cmd, handler *interactive.ShellHandler) error {
+	// Set pipes
+	cmd.Stdin = handler.StdinPipe()
+	cmd.Stdout = handler.StdoutPipe()
+	cmd.Stderr = handler.StderrPipe()
+
+	// Start the shell, this must finished before we can call Kill()
+	err := cmd.Start()
+
+	// Start communication
+	handler.Communicate(nil, func() error {
+		// If cmd.Start() failed, then we don't have a process, but we start
+		// the communication flow anyways.
+		if cmd.Process != nil {
+			return cmd.Process.Kill()
+		}
+		return nil
+	})
+
+	return err
 }

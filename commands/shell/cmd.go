@@ -5,13 +5,9 @@ import (
 	"io"
 	"net/url"
 	"os"
-	"os/signal"
-	"syscall"
-	"unsafe"
 
 	"github.com/gorilla/websocket"
 	isatty "github.com/mattn/go-isatty"
-	"github.com/pkg/term/termios"
 	"github.com/taskcluster/taskcluster-worker/commands/extpoints"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellclient"
@@ -51,18 +47,6 @@ type winSize struct {
 	Columns uint16
 	XPixel  uint16 // unused
 	YPixel  uint16 // unused
-}
-
-func ttySize() (cols, rows uint16, err error) {
-	var size winSize
-	_, _, errno := syscall.Syscall(
-		syscall.SYS_IOCTL, uintptr(0),
-		uintptr(syscall.TIOCGWINSZ), uintptr(unsafe.Pointer(&size)),
-	)
-	if errno != 0 {
-		return 0, 0, errno
-	}
-	return size.Columns, size.Rows, nil
 }
 
 func (cmd) Execute(arguments map[string]interface{}) bool {
@@ -106,30 +90,9 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	shell := shellclient.New(ws)
 
 	// Switch terminal to raw mode
-	var state syscall.Termios
-	sigWinch := make(chan os.Signal, 1)
+	cleanup := func() {}
 	if tty {
-		termios.Tcgetattr(os.Stdout.Fd(), &state)
-		newState := state
-		termios.Cfmakeraw(&newState)
-		termios.Tcsetattr(os.Stdout.Fd(), termios.TCSANOW, &newState)
-
-		// Get TTY size
-		cols, rows, err := ttySize()
-		if err == nil {
-			shell.SetSize(cols, rows)
-		}
-
-		// Handle SIGWINCH signals (window resize signals from graphical terminals)
-		signal.Notify(sigWinch, syscall.SIGWINCH)
-		go func() {
-			for range sigWinch {
-				cols, rows, err := ttySize()
-				if err == nil {
-					shell.SetSize(cols, rows)
-				}
-			}
-		}()
+		cleanup = SetupRawTerminal(shell.SetSize)
 	}
 
 	// Connect pipes
@@ -141,14 +104,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	success, _ := shell.Wait()
 
 	// If we were in a tty we let's restore state
-	if tty {
-		// Stop handling SIGWINCH, and close channel to clean up go routine
-		signal.Stop(sigWinch)
-		close(sigWinch)
-
-		termios.Tcsetattr(os.Stdout.Fd(), termios.TCSANOW, &state)
-		fmt.Println("")
-	}
+	cleanup()
 
 	return success
 }
