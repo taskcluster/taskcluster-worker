@@ -58,10 +58,3 @@ func grantpt(f *os.File) error {
 func unlockpt(f *os.File) error {
 	return ioctl(f.Fd(), syscall.TIOCPTYUNLK, 0)
 }
-
-func setsize(f *os.File, rows uint16, cols uint16) error {
-	var ws winsize
-	ws.ws_row = rows
-	ws.ws_col = cols
-	return ioctl(f.Fd(), syscall.TIOCSWINSZ, uintptr(unsafe.Pointer(&ws)))
-}

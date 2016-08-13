@@ -1,3 +1,5 @@
+// +build !windows
+
 package pty
 
 import (
@@ -12,10 +14,6 @@ func Getsize(t *os.File) (rows, cols int, err error) {
 	var ws winsize
 	err = windowrect(&ws, t.Fd())
 	return int(ws.ws_row), int(ws.ws_col), err
-}
-
-func Setsize(t *os.File, rows uint16, cols uint16) error {
-	return setsize(t, rows, cols)
 }
 
 type winsize struct {

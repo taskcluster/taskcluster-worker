@@ -1,6 +1,7 @@
 package pty
 
 import (
+	"errors"
 	"os"
 	"syscall"
 	"unsafe"
@@ -69,11 +70,4 @@ func ptsname(f *os.File) (string, error) {
 		}
 	}
 	return "", errors.New("FIODGNAME string not NUL-terminated")
-}
-
-func setsize(f *os.File, rows uint16, cols uint16) error {
-	var ws winsize
-	ws.ws_row = rows
-	ws.ws_col = cols
-	return ioctl(f.Fd(), syscall.TIOCSWINSZ, uintptr(unsafe.Pointer(&ws)))
 }
