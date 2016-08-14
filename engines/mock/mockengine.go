@@ -1,11 +1,10 @@
-//go:generate go-composite-schema --unexported --required start payload-schema.yml generated_payloadschema.go
-
 package mockengine
 
 import (
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
+	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -34,17 +33,22 @@ func (e engineProvider) ConfigSchema() runtime.CompositeSchema {
 	return runtime.NewEmptyCompositeSchema()
 }
 
-func (e engine) PayloadSchema() runtime.CompositeSchema {
+func (e engine) PayloadSchema() schematypes.Object {
 	return payloadSchema
 }
 
 func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {
-	// We know that payload was created with CompositeSchema.Parse() from the
-	// schema returned by PayloadSchema(), so here we type assert that it is
-	// indeed a pointer to such a thing.
 	e.Log.Debug("Building Sandbox")
-	p, valid := options.Payload.(*payload)
-	if !valid {
+
+	var p payloadType
+	err := e.PayloadSchema().Map(options.Payload, &p)
+	if err == schematypes.ErrTypeMismatch {
+		// This should pretty much either always happen or never happen.
+		// So while this runtime error is bad we're pretty sure it'll get caught
+		// during testing.
+		panic("TypeMismatch: PayloadSchema doesn't work with payloadType")
+	}
+	if err != nil {
 		// TODO: Write to some sort of log if the type assertion fails
 		return nil, engines.ErrContractViolation
 	}

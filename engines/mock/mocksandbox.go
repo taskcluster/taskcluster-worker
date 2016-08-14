@@ -30,7 +30,7 @@ type sandbox struct {
 	engines.SandboxBuilderBase
 	engines.SandboxBase
 	engines.ResultSetBase
-	payload *payload
+	payload payloadType
 	context *runtime.TaskContext
 	env     map[string]string
 	mounts  map[string]*mount
