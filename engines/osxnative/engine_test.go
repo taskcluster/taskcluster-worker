@@ -14,7 +14,7 @@ var provider = enginetest.EngineProvider{
 }
 
 var envVarTestCase = enginetest.EnvVarTestCase{
-	EngineProvider:       provider,
+	EngineProvider:       &provider,
 	VariableName:         "HELLO_WORLD",
 	InvalidVariableNames: []string{"bad d", "also bad", "can't have space"},
 	Payload: `{
@@ -30,7 +30,7 @@ func TestInvalidVariableNames(t *t.T) { envVarTestCase.TestInvalidVariableNames(
 func TestEnvVarTestCase(t *t.T)       { envVarTestCase.Test() }
 
 var loggingTestCase = enginetest.LoggingTestCase{
-	EngineProvider: provider,
+	EngineProvider: &provider,
 	Target:         "HOME",
 	TargetPayload: `{
 	"engine": {
