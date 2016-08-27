@@ -1,13 +1,17 @@
-//go:generate go-extpoints ./
-
-// Package extpoints provides methods that engine plugins can register their
-// implements with as an import side-effect.
-package extpoints
+package engines
 
 import (
+	"fmt"
+	"sync"
+
 	"github.com/Sirupsen/logrus"
-	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+)
+
+var (
+	mEngines = sync.Mutex{}
+	engines  = make(map[string]EngineProvider)
 )
 
 // EngineOptions is a wrapper for the set of options/arguments given to
@@ -26,7 +30,7 @@ type EngineOptions struct {
 }
 
 // EngineProvider is the interface engine implementors must implement and
-// register with extpoints.Register(provider, "EngineName")
+// register with engines.RegisterEngine("EngineName", provider)
 //
 // This function must return an Engine implementation, generally this will only
 // be called once in an application. But implementors should aim to write
@@ -36,11 +40,43 @@ type EngineOptions struct {
 // If an implementor can determine that the platform isn't supported at
 // compile-time it is recommended to not register the implementation.
 type EngineProvider interface {
-	NewEngine(options EngineOptions) (engines.Engine, error)
+	NewEngine(options EngineOptions) (Engine, error)
 
-	// ConfigSchema returns the CompositeSchema that represents the engine
-	// configuration
-	ConfigSchema() runtime.CompositeSchema
+	// ConfigSchema returns the schema for the engine configuration
+	ConfigSchema() schematypes.Schema
+}
+
+// RegisterEngine will register an EngineProvider, this is intended to be called
+// from func init() {}, to register engines as an import side-effect.
+//
+// If an engine with the given name is already registered this will panic.
+func RegisterEngine(name string, provider EngineProvider) {
+	mEngines.Lock()
+	defer mEngines.Unlock()
+
+	// Panic, if name is in use. This is okay as we always call this from init()
+	// so it'll happen before any tests or code runs.
+	if _, ok := engines[name]; ok {
+		panic(fmt.Sprintf(
+			"An engine with the name '%s' is already registered", name,
+		))
+	}
+
+	// Register the engine
+	engines[name] = provider
+}
+
+// Engines returns a map of registered EngineProviders.
+func Engines() map[string]EngineProvider {
+	mEngines.Lock()
+	defer mEngines.Unlock()
+
+	// Clone map before returning
+	m := make(map[string]EngineProvider)
+	for name, provider := range engines {
+		m[name] = provider
+	}
+	return m
 }
 
 // EngineProviderBase is a base struct that provides empty implementations of
@@ -50,7 +86,7 @@ type EngineProvider interface {
 // compatibility when we add new optional method to EngineProvider.
 type EngineProviderBase struct{}
 
-// ConfigSchema returns an empty composite schema.
-func (EngineProviderBase) ConfigSchema() runtime.CompositeSchema {
-	return runtime.NewEmptyCompositeSchema()
+// ConfigSchema returns an empty object schema.
+func (EngineProviderBase) ConfigSchema() schematypes.Schema {
+	return schematypes.Object{}
 }

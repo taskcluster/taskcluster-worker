@@ -134,12 +134,6 @@ func (EngineBase) PayloadSchema() schematypes.Object {
 	return schematypes.Object{}
 }
 
-// ConfigSchema returns an empty jsonschema indicating that no custom config is
-// required.
-func (EngineBase) ConfigSchema() runtime.CompositeSchema {
-	return runtime.NewEmptyCompositeSchema()
-}
-
 // Capabilities returns an zero value Capabilities struct indicating that
 // most features aren't supported.
 func (EngineBase) Capabilities() Capabilities {
