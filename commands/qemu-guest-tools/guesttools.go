@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	goruntime "runtime"
 	"time"
 
 	"gopkg.in/djherbis/buffer.v1"
@@ -18,6 +19,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/go-got"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
+	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
@@ -84,7 +86,7 @@ func (g *guestTools) Run() {
 	}
 
 	// Start sending task log
-	taskLog, logSent := g.createTaskLog()
+	taskLog, logSent := g.CreateTaskLog()
 
 	// Construct environment variables in golang format
 	env := os.Environ()
@@ -122,7 +124,7 @@ func (g *guestTools) Run() {
 	}
 }
 
-func (g *guestTools) createTaskLog() (io.WriteCloser, <-chan struct{}) {
+func (g *guestTools) CreateTaskLog() (io.WriteCloser, <-chan struct{}) {
 	reader, writer := nio.Pipe(buffer.New(4 * 1024 * 1024))
 	req, err := http.NewRequest("POST", g.url("engine/v1/log"), reader)
 	if err != nil {
@@ -207,7 +209,7 @@ func (g *guestTools) dispatchAction(action metaservice.Action) {
 	case "list-folder":
 		go g.doListFolder(action.ID, action.Path)
 	case "exec-shell":
-		go g.doExecShell(action.ID)
+		go g.doExecShell(action.ID, action.Command, action.TTY)
 	default:
 		g.log.Error("Unknown action type: ", action.Type, " ID = ", action.ID)
 	}
@@ -290,12 +292,12 @@ func (g *guestTools) doListFolder(ID, path string) {
 }
 
 var dialer = websocket.Dialer{
-	HandshakeTimeout: metaservice.ShellHandshakeTimeout,
-	ReadBufferSize:   metaservice.ShellMaxMessageSize,
-	WriteBufferSize:  metaservice.ShellMaxMessageSize,
+	HandshakeTimeout: interactive.ShellHandshakeTimeout,
+	ReadBufferSize:   interactive.ShellMaxMessageSize,
+	WriteBufferSize:  interactive.ShellMaxMessageSize,
 }
 
-func (g *guestTools) doExecShell(ID string) {
+func (g *guestTools) doExecShell(ID string, command []string, tty bool) {
 	// Establish a websocket reply
 	ws, _, err := dialer.Dial("ws:"+g.url("engine/v1/reply?id=" + ID)[5:], nil)
 	if err != nil {
@@ -304,23 +306,25 @@ func (g *guestTools) doExecShell(ID string) {
 	}
 
 	// Create a new shellHandler
-	handler := newShellHandler(ws, g.log.WithField("shell", ID))
+	handler := interactive.NewShellHandler(ws, g.log.WithField("shell", ID))
+
+	// Set command to standard shell, if no command is given
+	if len(command) == 0 {
+		command = []string{"sh"}
+		if goruntime.GOOS == "windows" {
+			command = []string{"cmd.exe"}
+		}
+	}
 
 	// Create a shell
-	shell := exec.Command("sh")
-	shell.Stdin = handler.StdinPipe()
-	shell.Stdout = handler.StdoutPipe()
-	shell.Stderr = handler.StderrPipe()
+	shell := exec.Command(command[0], command[1:]...)
 
-	// Start the shell, this must finished before we can call Kill()
-	err = shell.Start()
-
-	// Start communication
-	handler.Communicate(func() {
-		if shell.Process != nil {
-			shell.Process.Kill()
-		}
-	})
+	// Attempt to start with a pty, if asked to use TTY
+	if tty {
+		err = pipePty(shell, handler)
+	} else {
+		err = pipeCommand(shell, handler)
+	}
 
 	// If starting the shell didn't fail, then we wait for the shell to terminate
 	if err == nil {
@@ -329,4 +333,26 @@ func (g *guestTools) doExecShell(ID string) {
 	// If we didn't any error starting or waiting for the shell, then it was a
 	// success.
 	handler.Terminated(err == nil)
+}
+
+func pipeCommand(cmd *exec.Cmd, handler *interactive.ShellHandler) error {
+	// Set pipes
+	cmd.Stdin = handler.StdinPipe()
+	cmd.Stdout = handler.StdoutPipe()
+	cmd.Stderr = handler.StderrPipe()
+
+	// Start the shell, this must finished before we can call Kill()
+	err := cmd.Start()
+
+	// Start communication
+	handler.Communicate(nil, func() error {
+		// If cmd.Start() failed, then we don't have a process, but we start
+		// the communication flow anyways.
+		if cmd.Process != nil {
+			return cmd.Process.Kill()
+		}
+		return nil
+	})
+
+	return err
 }

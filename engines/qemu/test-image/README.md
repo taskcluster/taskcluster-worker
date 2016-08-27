@@ -1,9 +1,13 @@
 Test Image Build Process
 ========================
 
-This folder contains two binary images:
+This QEMU engine has two binary test images:
   * `tinycore-setup.tar.lz4`, an image for easily rebuilding the test image,
   * `tinycore-worker.tar.lz4`, a test image running qemu-guest-tools on boot.
+
+You can download these with `./download.sh`, and upload them again using
+`./upload.sh`. To keep git lean and fast we store these in an S3 bucket with
+versioning enabled, so old versions can be restored if need be.
 
 To the test the QEMU engine we need a virtual machine image that obtains an
 IP using DHCP and runs `taskcluster-worker qemu-guest-tools` after boot.

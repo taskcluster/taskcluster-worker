@@ -52,7 +52,8 @@ func renderImports(b *bytes.Buffer, importPath string, folder string, recursive 
 	}
 
 	for _, f := range entries {
-		if f.IsDir() {
+		// Only consider directories not starting with dot
+		if f.IsDir() && f.Name()[0] != '.' {
 			subImportPath := path.Join(importPath, f.Name())
 			log.Println(subImportPath)
 			line := fmt.Sprintf("import _ \"%s\"\n", subImportPath)

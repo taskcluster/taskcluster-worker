@@ -31,7 +31,7 @@ func NewUserNetwork(socketFolder string) (*UserNetwork, error) {
 		socketFile: filepath.Join(socketFolder, "meta-"+slugid.Nice()+".sock"),
 	}
 	n.server = &graceful.Server{
-		Timeout: 30 * time.Second,
+		Timeout: 35 * time.Second,
 		Server: &http.Server{
 			Addr:    metaDataIP + ":80",
 			Handler: http.HandlerFunc(n.dispatchRequest),
@@ -93,7 +93,7 @@ func (n *UserNetwork) SetHandler(handler http.Handler) {
 // Release frees all resources used by this network.
 func (n *UserNetwork) Release() {
 	// Gracefully stop the server
-	n.server.Stop(30 * time.Second)
+	n.server.Stop(100 * time.Millisecond)
 	<-n.serverDone
 
 	// Lock network, ensure we don't release twice

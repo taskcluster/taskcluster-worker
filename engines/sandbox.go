@@ -7,6 +7,12 @@ type Shell interface {
 	StdinPipe() io.WriteCloser
 	StdoutPipe() io.ReadCloser
 	StderrPipe() io.ReadCloser
+	// SetSize will set the TTY size, returns ErrFeatureNotSupported, if the
+	// shell wasn't launched as a TTY, or platform doesn't support size options.
+	//
+	// non-fatal errors: ErrShellTerminated, ErrShellAborted,
+	// ErrFeatureNotSupported
+	SetSize(columns, rows uint16) error
 	// Aborts a shell, causing Wait() to return ErrShellAborted. If the shell has
 	// already terminated Abort() returns ErrShellTerminated.
 	//
@@ -57,8 +63,10 @@ type Sandbox interface {
 	// Non-fatal errors: ErrNonFatalInternalError, ErrSandboxAborted.
 	WaitForResult() (ResultSet, error)
 
-	// NewShell creates a new Shell for interaction with the sandbox. This is
-	// useful for debugging and other purposes.
+	// NewShell creates a new Shell for interaction with the sandbox. The shell
+	// and arguments to be launched can be specified with command, if no command
+	// arguments are given the sandbox should create a shell of the platforms
+	// default type.
 	//
 	// If the engine doesn't support interactive shells it may return
 	// ErrFeatureNotSupported. This should not interrupt/abort the execution of
@@ -69,7 +77,7 @@ type Sandbox interface {
 	// can't interact with the sandbox anymore.
 	//
 	// Non-fatal errors: ErrFeatureNotSupported, ErrSandboxTerminated.
-	NewShell() (Shell, error)
+	NewShell(command []string, tty bool) (Shell, error)
 
 	// ListDisplays returns a list of Display objects that describes displays
 	// that exists inside the Sandbox while it's running.
@@ -111,7 +119,7 @@ type SandboxBase struct{}
 
 // NewShell returns ErrFeatureNotSupported indicating that the feature isn't
 // supported.
-func (SandboxBase) NewShell() (Shell, error) {
+func (SandboxBase) NewShell(command []string, tty bool) (Shell, error) {
 	return nil, ErrFeatureNotSupported
 }
 

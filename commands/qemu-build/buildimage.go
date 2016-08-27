@@ -78,6 +78,10 @@ func buildImage(
 		return err
 	}
 
+	// Setup logService so that logs can be posted to meta-service at:
+	// http://169.254.169.254/v1/log
+	net.SetHandler(&logService{Destination: os.Stdout})
+
 	// Create virtual machine
 	log.Info("Creating virtual machine")
 	vm := vm.NewVirtualMachine(img, net, socketFolder, boot, cdrom, log.WithField("component", "vm"))

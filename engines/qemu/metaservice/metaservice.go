@@ -12,6 +12,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
+	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellclient"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
@@ -73,6 +75,7 @@ func New(
 	s.mux.HandleFunc("/engine/v1/failed", s.handleFailed)
 	s.mux.HandleFunc("/engine/v1/poll", s.handlePoll)
 	s.mux.HandleFunc("/engine/v1/reply", s.handleReply)
+	s.mux.HandleFunc("/engine/v1/ping", s.handlePing)
 	s.mux.HandleFunc("/", s.handleUnknown)
 
 	return s
@@ -199,6 +202,16 @@ func (s *MetaService) handleFailed(w http.ResponseWriter, r *http.Request) {
 			Message: "The task have already been resolved success, you must have a bug.",
 		})
 	}
+}
+
+// handlePing handles ping requests
+func (s *MetaService) handlePing(w http.ResponseWriter, r *http.Request) {
+	if !forceMethod(w, r, http.MethodGet) {
+		return
+	}
+
+	debug("GET /engine/v1/ping")
+	reply(w, http.StatusOK, nil)
 }
 
 // handleUnknown handles unhandled requests
@@ -478,28 +491,33 @@ func (s *MetaService) ListFolder(path string) ([]string, error) {
 }
 
 var upgrader = websocket.Upgrader{
-	HandshakeTimeout: ShellHandshakeTimeout,
-	ReadBufferSize:   ShellMaxMessageSize,
-	WriteBufferSize:  ShellMaxMessageSize,
+	HandshakeTimeout: interactive.ShellHandshakeTimeout,
+	ReadBufferSize:   interactive.ShellMaxMessageSize,
+	WriteBufferSize:  interactive.ShellMaxMessageSize,
 }
 
 // ExecShell will send an action to guest-tools to execute a shell, then wait
 // for guest-tools to callback establish a websocket and connect to an
 // implementation of engines.Shell
-func (s *MetaService) ExecShell() (engines.Shell, error) {
+func (s *MetaService) ExecShell(command []string, tty bool) (engines.Shell, error) {
 	var Shell engines.Shell
 	var Err error
+	Err = engines.ErrNonFatalInternalError
 
 	s.asyncRequest(Action{
-		Type: "exec-shell",
+		Type:    "exec-shell",
+		Command: command,
+		TTY:     tty,
 	}, func(w http.ResponseWriter, r *http.Request) {
 		ws, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
+			debug("Failed to upgrade request to websocket, error: %s", err)
 			Err = engines.ErrNonFatalInternalError
 			return
 		}
 
-		Shell = newShell(ws)
+		Shell = shellclient.New(ws)
+		Err = nil
 	})
 
 	return Shell, Err
