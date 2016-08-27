@@ -124,6 +124,7 @@ func (s *schemaEntry) Parse(data map[string]json.RawMessage) (interface{}, error
 			// Err implements the ResultError interface
 			message += err.Description() + "\n"
 		}
+		message += string(value) + "\n"
 		return nil, errors.New(message)
 	}
 

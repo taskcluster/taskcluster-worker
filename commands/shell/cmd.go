@@ -42,13 +42,6 @@ var dialer = websocket.Dialer{
 	WriteBufferSize:  interactive.ShellMaxMessageSize,
 }
 
-type winSize struct {
-	Rows    uint16
-	Columns uint16
-	XPixel  uint16 // unused
-	YPixel  uint16 // unused
-}
-
 func (cmd) Execute(arguments map[string]interface{}) bool {
 	URL := arguments["<URL>"].(string)
 	command := arguments["<command>"].([]string)

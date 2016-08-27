@@ -59,7 +59,7 @@ func NewShellHandler(ws *websocket.Conn, log *logrus.Entry) *ShellHandler {
 	return s
 }
 
-// A SetSizeFunc can set the set the TTY size of a ter
+// A SetSizeFunc can set the TTY size of a terminal.
 type SetSizeFunc func(columns, rows uint16) error
 
 // Communicate starts receiving and sending data to/from the exposed pipes.

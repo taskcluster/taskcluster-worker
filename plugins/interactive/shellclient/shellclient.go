@@ -276,7 +276,7 @@ func (s *ShellClient) readMessages() {
 }
 
 // StdinPipe returns a pipe to which stdin must be written.
-// It's important to close stdin, if you expect the remote shell to termiante.
+// It's important to close stdin, if you expect the remote shell to terminate.
 func (s *ShellClient) StdinPipe() io.WriteCloser {
 	return s.stdin
 }
@@ -344,7 +344,8 @@ func (s *ShellClient) Abort() error {
 	return s.err
 }
 
-// Wait will wait for remote shell to terminate and success, and error if any.
+// Wait will wait for the remote shell to finish, by either succeeding or
+// returning an error.
 func (s *ShellClient) Wait() (bool, error) {
 	s.resolve.Wait()
 	if s.err == engines.ErrShellTerminated {
