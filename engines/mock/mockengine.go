@@ -6,8 +6,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
-	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 type engine struct {
@@ -16,21 +14,21 @@ type engine struct {
 }
 
 type engineProvider struct {
-	extpoints.EngineProviderBase
+	engines.EngineProviderBase
 }
 
 func init() {
 	// Register the mock engine as an import side-effect
-	extpoints.EngineProviders.Register(engineProvider{}, "mock")
+	engines.RegisterEngine("mock", engineProvider{})
 }
 
-func (e engineProvider) NewEngine(options extpoints.EngineOptions) (engines.Engine, error) {
+func (e engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine, error) {
 	return engine{Log: options.Log}, nil
 }
 
 // mock config contains no fields
-func (e engineProvider) ConfigSchema() runtime.CompositeSchema {
-	return runtime.NewEmptyCompositeSchema()
+func (e engineProvider) ConfigSchema() schematypes.Schema {
+	return schematypes.Object{}
 }
 
 func (e engine) PayloadSchema() schematypes.Object {
