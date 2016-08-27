@@ -69,6 +69,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 		} else {
 			f, err := os.Open(logFile)
 			if err != nil {
+				log.Error("Failed to open log-file, error: ", err)
 				return false
 			}
 			defer f.Close()
@@ -77,6 +78,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 		w, done := g.CreateTaskLog()
 		_, err := io.Copy(w, r)
 		if err != nil {
+			log.Error("Failed to post entire log, error: ", err)
 			err = w.Close()
 			<-done
 		}
