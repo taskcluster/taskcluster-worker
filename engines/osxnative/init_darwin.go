@@ -1,8 +1,8 @@
 package osxnative
 
-import "github.com/taskcluster/taskcluster-worker/engines/extpoints"
+import "github.com/taskcluster/taskcluster-worker/engines"
 
 func init() {
 	// Register the mac engine as an import side-effect
-	extpoints.EngineProviders.Register(engineProvider{}, "macosx")
+	engines.RegisterEngine("macosx", engineProvider{})
 }

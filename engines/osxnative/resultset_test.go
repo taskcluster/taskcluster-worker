@@ -4,16 +4,17 @@ package osxnative
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	assert "github.com/stretchr/testify/require"
-	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/runtime"
-	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"io/ioutil"
 	"os"
 	osuser "os/user"
 	"path"
 	"testing"
+
+	"github.com/Sirupsen/logrus"
+	assert "github.com/stretchr/testify/require"
+	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
 type testCase struct {
@@ -32,7 +33,7 @@ func makeResultSet(t *testing.T) resultset {
 		t.Fatal(err)
 	}
 
-	engine := engine{
+	e := engine{
 		EngineBase: engines.EngineBase{},
 		log:        logrus.New().WithField("component", "test"),
 	}
@@ -42,7 +43,7 @@ func makeResultSet(t *testing.T) resultset {
 		taskUser:      user{},
 		context:       context,
 		success:       true,
-		engine:        &engine,
+		engine:        &e,
 	}
 }
 

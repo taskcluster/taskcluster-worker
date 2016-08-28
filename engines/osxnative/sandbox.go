@@ -59,13 +59,13 @@ func (w stderrLogWriter) Write(p []byte) (int, error) {
 type sandbox struct {
 	engines.SandboxBase
 	context     *runtime.TaskContext
-	taskPayload *payload
+	taskPayload *payloadType
 	env         []string
 	aborted     bool
 	engine      *engine
 }
 
-func newSandbox(context *runtime.TaskContext, taskPayload *payload, env []string, engine *engine) *sandbox {
+func newSandbox(context *runtime.TaskContext, taskPayload *payloadType, env []string, engine *engine) *sandbox {
 	return &sandbox{
 		context:     context,
 		taskPayload: taskPayload,
