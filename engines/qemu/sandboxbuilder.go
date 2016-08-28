@@ -28,7 +28,7 @@ type sandboxBuilder struct {
 
 // newSandboxBuilder creates a new sandboxBuilder, the network and command
 // properties must be set manually after calling this method.
-func newSandboxBuilder(payload *qemuPayload, network *network.Network, c *runtime.TaskContext, e *engine) *sandboxBuilder {
+func newSandboxBuilder(payload *payloadType, network *network.Network, c *runtime.TaskContext, e *engine) *sandboxBuilder {
 	imageDone := make(chan struct{})
 	sb := &sandboxBuilder{
 		network:   network,

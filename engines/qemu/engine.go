@@ -5,8 +5,8 @@ package qemuengine
 
 import (
 	"github.com/Sirupsen/logrus"
+	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/network"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -14,7 +14,7 @@ import (
 
 type engine struct {
 	engines.EngineBase
-	engineConfig *engineConfig
+	engineConfig configType
 	Log          *logrus.Entry
 	imageManager *image.Manager
 	networkPool  *network.Pool
@@ -22,17 +22,54 @@ type engine struct {
 }
 
 type engineProvider struct {
-	extpoints.EngineProviderBase
+	engines.EngineProviderBase
 }
 
-func (p engineProvider) ConfigSchema() runtime.CompositeSchema {
-	return engineConfigSchema
+type configType struct {
+	MaxConcurrency int    `json:"maxConcurrency"`
+	ImageFolder    string `json:"imageFolder"`
+	SocketFolder   string `json:"socketFolder"`
 }
 
-func (p engineProvider) NewEngine(options extpoints.EngineOptions) (engines.Engine, error) {
-	// Cast config to engineConfig
-	c, ok := options.Config.(*engineConfig)
-	if !ok {
+var configSchema = schematypes.Object{
+	Properties: schematypes.Properties{
+		"maxConcurrency": schematypes.Integer{
+			MetaData: schematypes.MetaData{
+				Title: "Image Folder",
+				Description: `Path to folder to be used for image storage and cache.
+											Please ensure this has lots of space.`,
+			},
+			Minimum: 1,
+			Maximum: 64,
+		},
+		"imageFolder": schematypes.String{
+			MetaData: schematypes.MetaData{
+				Title: "Image Folder",
+				Description: `Path to folder to be used for image storage and cache.
+											Please ensure this has lots of space.`,
+			},
+		},
+		"socketFolder": schematypes.String{
+			MetaData: schematypes.MetaData{
+				Title: "Socket Folder",
+				Description: `Path to folder to be used for internal unix-domain sockets.
+											Ideally, this shouldn't be readable by anyone else.`,
+			},
+		},
+	},
+	Required: []string{"imageFolder", "maxConcurrency", "socketFolder"},
+}
+
+func (p engineProvider) ConfigSchema() schematypes.Schema {
+	return configSchema
+}
+
+func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine, error) {
+	var c configType
+	err := configSchema.Map(options.Config, &c)
+	if err == schematypes.ErrTypeMismatch {
+		panic("Type mismatch")
+	} else if err != nil {
 		return nil, engines.ErrContractViolation
 	}
 
@@ -69,14 +106,43 @@ func (e *engine) Capabilities() engines.Capabilities {
 	}
 }
 
-func (e *engine) PayloadSchema() runtime.CompositeSchema {
-	return qemuPayloadSchema
+type payloadType struct {
+	Image   string   `json:"image"`
+	Command []string `json:"command"`
+}
+
+var payloadSchema = schematypes.Object{
+	Properties: schematypes.Properties{
+		"image": schematypes.URI{
+			MetaData: schematypes.MetaData{
+				Title: "Image to download",
+				Description: "URL to an image file. This is a lz4 compressed " +
+					"tar-archive containing a raw disk image `disk.img`, a qcow2 " +
+					"overlay `layer.qcow2` and a machine definition file " +
+					"`machine.json`. Refer to engine documentation for more details.",
+			},
+		},
+		"command": schematypes.Array{
+			MetaData: schematypes.MetaData{
+				Title:       "Command to run",
+				Description: `Command and arguments to execute on the guest.`,
+			},
+			Items: schematypes.String{},
+		},
+	},
+	Required: []string{"command", "image"},
+}
+
+func (e *engine) PayloadSchema() schematypes.Object {
+	return payloadSchema
 }
 
 func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {
-	// Cast payload to qemuPayload
-	p, ok := options.Payload.(*qemuPayload)
-	if !ok {
+	var p payloadType
+	err := payloadSchema.Map(options.Payload, &p)
+	if err == schematypes.ErrTypeMismatch {
+		panic("Type mismatch")
+	} else if err != nil {
 		return nil, engines.ErrContractViolation
 	}
 
@@ -90,7 +156,7 @@ func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sand
 	}
 
 	// Create sandboxBuilder, it'll handle image downloading
-	return newSandboxBuilder(p, net, options.TaskContext, e), nil
+	return newSandboxBuilder(&p, net, options.TaskContext, e), nil
 }
 
 func (e *engine) Dispose() error {

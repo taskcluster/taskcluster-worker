@@ -1,7 +1,7 @@
 package qemuengine
 
-import "github.com/taskcluster/taskcluster-worker/engines/extpoints"
+import "github.com/taskcluster/taskcluster-worker/engines"
 
 func init() {
-	extpoints.EngineProviders.Register(engineProvider{}, "qemu")
+	engines.RegisterEngine("qemu", engineProvider{})
 }
