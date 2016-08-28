@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
@@ -78,22 +77,22 @@ func (p *EngineProvider) ensureEngine() {
 	// Create a runtime environment
 	p.environment = newTestEnvironment()
 	// Find EngineProvider
-	engineProvider := extpoints.EngineProviders.Lookup(p.Engine)
+	engineProvider := engines.Engines()[p.Engine]
 	if engineProvider == nil {
 		fmtPanic("Couldn't find EngineProvider: ", p.Engine)
 	}
 
-	jsonConfig := map[string]json.RawMessage{}
+	var jsonConfig interface{}
 	err := json.Unmarshal([]byte(p.Config), &jsonConfig)
 	nilOrPanic(err, "Config parsing failed: ", p.Config)
-	config, err := engineProvider.ConfigSchema().Parse(jsonConfig)
-	nilOrPanic(err, "Config validation failed: ", p.Config)
+	err = engineProvider.ConfigSchema().Validate(jsonConfig)
+	nilOrPanic(err, "Config validation failed: ", p.Config, "\nError: ", err)
 
 	// Create Engine instance
-	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
+	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: p.environment,
 		Log:         p.environment.Log.WithField("engine", p.Engine),
-		Config:      config,
+		Config:      jsonConfig,
 	})
 	nilOrPanic(err, "Failed to create Engine")
 	p.engine = engine
@@ -154,13 +153,13 @@ func newTestEnvironment() *runtime.Environment {
 	}
 }
 
-func parseTestPayload(engine engines.Engine, payload string) interface{} {
-	jsonPayload := map[string]json.RawMessage{}
+func parseTestPayload(engine engines.Engine, payload string) map[string]interface{} {
+	var jsonPayload map[string]interface{}
 	err := json.Unmarshal([]byte(payload), &jsonPayload)
 	nilOrPanic(err, "Payload parsing failed: ", payload)
-	p, err := engine.PayloadSchema().Parse(jsonPayload)
-	nilOrPanic(err, "Payload validation failed: ", payload)
-	return p
+	err = engine.PayloadSchema().Validate(jsonPayload)
+	nilOrPanic(err, "Payload validation failed: ", payload, "\nError: ", err)
+	return jsonPayload
 }
 
 func buildRunSandbox(b engines.SandboxBuilder) bool {
