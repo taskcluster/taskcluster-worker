@@ -49,11 +49,9 @@ func TestArtifactsNone(t *testing.T) {
 	artifactTestCase{
 		Case: plugintest.Case{
 			Payload: `{
-				"start": {
-					"delay": 0,
-					"function": "true",
-					"argument": "whatever"
-				}
+				"delay": 0,
+				"function": "true",
+				"argument": "whatever"
 			}`,
 			Plugin:        "artifacts",
 			TestStruct:    t,
@@ -67,11 +65,9 @@ func TestArtifactsEmpty(t *testing.T) {
 	artifactTestCase{
 		Case: plugintest.Case{
 			Payload: `{
-				"start": {
-					"delay": 0,
-					"function": "true",
-					"argument": "whatever"
-				},
+				"delay": 0,
+				"function": "true",
+				"argument": "whatever",
 				"artifacts": []
 			}`,
 			Plugin:        "artifacts",
@@ -87,11 +83,9 @@ func TestArtifactsFile(t *testing.T) {
 		Artifacts: []string{"public/blah.txt"},
 		Case: plugintest.Case{
 			Payload: `{
-				"start": {
-					"delay": 0,
-					"function": "write-files",
-					"argument": "/artifacts/blah.txt"
-				},
+				"delay": 0,
+				"function": "write-files",
+				"argument": "/artifacts/blah.txt",
 				"artifacts": [
 					{
 						"type": "file",
@@ -113,11 +107,9 @@ func TestArtifactsDirectory(t *testing.T) {
 		Artifacts: []string{"public/blah.txt", "public/foo.txt", "public/bar.json"},
 		Case: plugintest.Case{
 			Payload: `{
-				"start": {
-					"delay": 0,
-					"function": "write-files",
-					"argument": "/artifacts/blah.txt /artifacts/foo.txt /artifacts/bar.json"
-				},
+				"delay": 0,
+				"function": "write-files",
+				"argument": "/artifacts/blah.txt /artifacts/foo.txt /artifacts/bar.json",
 				"artifacts": [
 					{
 						"type": "directory",
