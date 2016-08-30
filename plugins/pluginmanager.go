@@ -1,21 +1,23 @@
-package extpoints
+package plugins
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
+	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 )
 
 type pluginManager struct {
-	plugins []plugins.Plugin
+	payloadSchema schematypes.Object
+	plugins       []Plugin
 }
 
 type taskPluginManager struct {
-	taskPlugins []plugins.TaskPlugin
+	taskPlugins []TaskPlugin
 	working     atomics.Bool
 }
 
@@ -57,62 +59,159 @@ func waitForErrors(errors <-chan error, count int) error {
 	return mergeErrors(errs...)
 }
 
-// NewPluginManager loads the list of plugins it is given and returns a single
-// Plugin implementation that wraps all of the plugins.
-func NewPluginManager(pluginsToLoad []string, options PluginOptions) (plugins.Plugin, error) {
-	// Initialize all the requested plugins
-	pluginObjects := []plugins.Plugin{}
-	for _, p := range pluginsToLoad {
-		//TODO: Do this plugin initialization in parallel for better performance
-		pluginProvider := PluginProviders.Lookup(p)
-		if pluginProvider == nil {
-			return nil, errors.New("Missing plugin")
-		}
-		plugin, err := pluginProvider.NewPlugin(PluginOptions{
-			Environment: options.Environment,
-			Engine:      options.Engine,
-			Log:         options.Log.WithField("plugin", p),
-		})
-		if err != nil {
-			return nil, err
-		}
-		pluginObjects = append(pluginObjects, plugin)
+// PluginManagerConfigSchema returns configuration for PluginOptions.Config for
+// NewPluginManager.
+func PluginManagerConfigSchema() schematypes.Object {
+	plugins := Plugins()
+
+	pluginNames := []string{}
+	for name := range plugins {
+		pluginNames = append(pluginNames, name)
 	}
-	return &pluginManager{plugins: pluginObjects}, nil
-}
 
-// Currently no config required for plugin manager
-func (m *pluginManager) ConfigSchema() runtime.CompositeSchema {
-	return runtime.NewEmptyCompositeSchema()
-}
-
-func (m *pluginManager) PayloadSchema() (runtime.CompositeSchema, error) {
-	schemas := []runtime.CompositeSchema{}
-	for _, plugin := range m.plugins {
-		schema, err := plugin.PayloadSchema()
-		if err != nil {
-			return nil, err
-		}
-		schemas = append(schemas, schema)
+	s := schematypes.Object{
+		MetaData: schematypes.MetaData{
+			Title: "Plugin Configuration",
+			Description: `Mapping from plugin name to plugin configuration.
+                    The 'disabled' key is special and lists plugins that are
+                    disabled. Plugins that are disabled do not require
+                    configuration.`,
+		},
+		Properties: schematypes.Properties{
+			"disabled": schematypes.Array{
+				MetaData: schematypes.MetaData{
+					Title: "Disabled Plugins",
+					Description: `List of disabled plugins. If a plugin then its
+                        configuration key must be specified, unless it doesn't
+                        take any configuration.`,
+				},
+				Items: schematypes.StringEnum{
+					Options: pluginNames,
+				},
+			},
+		},
+		Required: []string{"disabled"},
 	}
-	return runtime.MergeCompositeSchemas(schemas...)
+	for name, provider := range plugins {
+		cs := provider.ConfigSchema()
+		if cs != nil {
+			s.Properties[name] = cs
+		}
+	}
+	return s
 }
 
-func (m *pluginManager) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
-	// Since this plugin uses MergeCompositeSchemas to return a CompositeSchema
-	// we know from MergeCompositeSchemas that the Payload must be an array
-	payload := options.Payload.([]interface{})
+// stringContains returns true if list contains element
+func stringContains(list []string, element string) bool {
+	for _, s := range list {
+		if s == element {
+			return true
+		}
+	}
+	return false
+}
+
+// NewPluginManager loads all plugins not disabled in configuration and
+// returns a Plugin implementation that wraps all of the plugins.
+//
+// This expects options.Config satisfying schema from
+// PluginManagerConfigSchema().
+func NewPluginManager(options PluginOptions) (Plugin, error) {
+	pluginProviders := Plugins()
+
+	// Construct config schema
+	configSchema := PluginManagerConfigSchema()
+
+	// Ensure the config is valid
+	if err := configSchema.Validate(options.Config); err != nil {
+		return nil, fmt.Errorf("Invalid config, error: %s", err)
+	}
+	config := options.Config.(map[string]interface{})
+
+	// Find plugins to load
+	var enabled []string
+	var disabled []string
+	if configSchema.Properties["disabled"].Map(config["disabled"], &disabled) != nil {
+		panic("internal error -- shouldn't be possible")
+	}
+
+	// Find list of enabled plugins and ensure that config is present if required
+	for name, plugin := range pluginProviders {
+		// Skip disabled plugins
+		if stringContains(disabled, name) {
+			continue
+		}
+		// Check that configuration is given if required
+		if plugin.ConfigSchema() != nil {
+			if _, ok := config[name]; !ok {
+				return nil, fmt.Errorf("Missing configuration for plugin: '%s'", name)
+			}
+		}
+		// List plugin as enabled
+		enabled = append(enabled, name)
+	}
+
+	// Initialize all the plugins
+	wg := sync.WaitGroup{}
+	plugins := make([]Plugin, len(enabled))
+	errors := make([]error, len(enabled))
+	wg.Add(len(enabled))
+	for index, name := range enabled {
+		go func(index int, name string) {
+			plugins[index], errors[index] = pluginProviders[name].NewPlugin(PluginOptions{
+				Environment: options.Environment,
+				Engine:      options.Engine,
+				Log:         options.Log.WithField("plugin", name),
+				Config:      config[name],
+			})
+			wg.Done()
+		}(index, name) // needed to capture values not variables
+	}
+	wg.Wait()
+
+	// Return the first error, if any
+	for _, e := range errors {
+		if e != nil {
+			return nil, e
+		}
+	}
+
+	// Construct payload schema
+	schemas := []schematypes.Object{}
+	for _, plugin := range plugins {
+		schemas = append(schemas, plugin.PayloadSchema())
+	}
+	schema, err := schematypes.Merge(schemas...)
+	if err != nil {
+		return nil, fmt.Errorf("Conflicting payload schema types, error: %s", err)
+	}
+
+	return &pluginManager{
+		plugins:       plugins,
+		payloadSchema: schema,
+	}, nil
+}
+
+func (m *pluginManager) PayloadSchema() schematypes.Object {
+	return m.payloadSchema
+}
+
+func (m *pluginManager) NewTaskPlugin(options TaskPluginOptions) (TaskPlugin, error) {
+	// Input must be valid
+	if m.payloadSchema.Validate(options.Payload) != nil {
+		return nil, engines.ErrContractViolation
+	}
 
 	// Create a list of TaskPlugins and a mutex to guard access
-	taskPlugins := []plugins.TaskPlugin{}
+	taskPlugins := []TaskPlugin{}
 	mu := sync.Mutex{}
 
 	errors := make(chan error)
-	for i, p := range m.plugins {
-		go func(i int, p plugins.Plugin) {
-			taskPlugin, err := p.NewTaskPlugin(plugins.TaskPluginOptions{
+	for _, p := range m.plugins {
+		go func(p Plugin) {
+			taskPlugin, err := p.NewTaskPlugin(TaskPluginOptions{
 				TaskInfo: options.TaskInfo,
-				Payload:  payload[i],
+				Payload:  p.PayloadSchema().Filter(options.Payload),
 			})
 			if taskPlugin != nil {
 				mu.Lock()
@@ -120,7 +219,7 @@ func (m *pluginManager) NewTaskPlugin(options plugins.TaskPluginOptions) (plugin
 				mu.Unlock()
 			}
 			errors <- err
-		}(i, p)
+		}(p)
 	}
 
 	// Wait for errors, if any we dispose and return a merged error
@@ -145,7 +244,7 @@ func (m *taskPluginManager) Prepare(c *runtime.TaskContext) error {
 	// Run method on plugins in parallel
 	errors := make(chan error)
 	for _, p := range m.taskPlugins {
-		go func(p plugins.TaskPlugin) { errors <- p.Prepare(c) }(p)
+		go func(p TaskPlugin) { errors <- p.Prepare(c) }(p)
 	}
 	return waitForErrors(errors, len(m.taskPlugins))
 }
@@ -162,7 +261,7 @@ func (m *taskPluginManager) BuildSandbox(b engines.SandboxBuilder) error {
 	// Run method on plugins in parallel
 	errors := make(chan error)
 	for _, p := range m.taskPlugins {
-		go func(p plugins.TaskPlugin) { errors <- p.BuildSandbox(b) }(p)
+		go func(p TaskPlugin) { errors <- p.BuildSandbox(b) }(p)
 	}
 	return waitForErrors(errors, len(m.taskPlugins))
 }
@@ -179,7 +278,7 @@ func (m *taskPluginManager) Started(s engines.Sandbox) error {
 	// Run method on plugins in parallel
 	errors := make(chan error)
 	for _, p := range m.taskPlugins {
-		go func(p plugins.TaskPlugin) { errors <- p.Started(s) }(p)
+		go func(p TaskPlugin) { errors <- p.Started(s) }(p)
 	}
 	return waitForErrors(errors, len(m.taskPlugins))
 }
@@ -199,7 +298,7 @@ func (m *taskPluginManager) Stopped(r engines.ResultSet) (bool, error) {
 	// Run method on plugins in parallel
 	errors := make(chan error)
 	for _, p := range m.taskPlugins {
-		go func(p plugins.TaskPlugin) {
+		go func(p TaskPlugin) {
 			success, err := p.Stopped(r)
 			if !success {
 				result.Set(false)
@@ -222,7 +321,7 @@ func (m *taskPluginManager) Finished(s bool) error {
 	// Run method on plugins in parallel
 	errors := make(chan error)
 	for _, p := range m.taskPlugins {
-		go func(p plugins.TaskPlugin) { errors <- p.Finished(s) }(p)
+		go func(p TaskPlugin) { errors <- p.Finished(s) }(p)
 	}
 	return waitForErrors(errors, len(m.taskPlugins))
 }
@@ -239,7 +338,7 @@ func (m *taskPluginManager) Exception(r runtime.ExceptionReason) error {
 	// Run method on plugins in parallel
 	errors := make(chan error)
 	for _, p := range m.taskPlugins {
-		go func(p plugins.TaskPlugin) { errors <- p.Exception(r) }(p)
+		go func(p TaskPlugin) { errors <- p.Exception(r) }(p)
 	}
 	return waitForErrors(errors, len(m.taskPlugins))
 }
@@ -255,7 +354,7 @@ func (m *taskPluginManager) Dispose() error {
 	// Run method on plugins in parallel
 	errors := make(chan error)
 	for _, p := range m.taskPlugins {
-		go func(p plugins.TaskPlugin) { errors <- p.Dispose() }(p)
+		go func(p TaskPlugin) { errors <- p.Dispose() }(p)
 	}
 	return waitForErrors(errors, len(m.taskPlugins))
 }

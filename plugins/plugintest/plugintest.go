@@ -12,7 +12,6 @@ import (
 	"github.com/taskcluster/slugid-go/slugid"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	// Ensure we load the mock engine
 	_ "github.com/taskcluster/taskcluster-worker/engines/mock"
 	"github.com/taskcluster/taskcluster-worker/plugins"
