@@ -6,37 +6,57 @@
 package env
 
 import (
+	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
-	"github.com/taskcluster/taskcluster-worker/plugins/extpoints"
-	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 type plugin struct {
 	plugins.PluginBase
 }
 
-func (plugin) PayloadSchema() (runtime.CompositeSchema, error) {
-	return envPayloadSchema, nil
+type payloadType struct {
+	Env map[string]string `json:"env"`
+}
+
+var payloadSchema = schematypes.Object{
+	Properties: schematypes.Properties{
+		"env": schematypes.Map{
+			MetaData: schematypes.MetaData{
+				Title:       "Environment Variables",
+				Description: "Mapping from environment variables to values",
+			},
+			Values: schematypes.String{},
+		},
+	},
+}
+
+func (plugin) PayloadSchema() schematypes.Object {
+	return payloadSchema
 }
 
 func (plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
-	if options.Payload == nil {
-		return plugins.TaskPluginBase{}, nil
+	var p payloadType
+	err := payloadSchema.Map(options.Payload, &p)
+	if err == schematypes.ErrTypeMismatch {
+		panic("internal error -- type mismatch")
+	} else if err != nil {
+		return nil, engines.ErrContractViolation
 	}
+
 	return taskPlugin{
 		TaskPluginBase: plugins.TaskPluginBase{},
-		payload:        *(options.Payload.(*envPayload)),
+		variables:      p.Env,
 	}, nil
 }
 
 type taskPlugin struct {
 	plugins.TaskPluginBase
-	payload envPayload
+	variables map[string]string
 }
 
-func (self taskPlugin) BuildSandbox(sandboxBuilder engines.SandboxBuilder) error {
-	for k, v := range self.payload {
+func (p taskPlugin) BuildSandbox(sandboxBuilder engines.SandboxBuilder) error {
+	for k, v := range p.variables {
 		err := sandboxBuilder.SetEnvironmentVariable(k, v)
 
 		// We can only return MalFormedPayloadError
@@ -59,16 +79,13 @@ func (self taskPlugin) BuildSandbox(sandboxBuilder engines.SandboxBuilder) error
 }
 
 type pluginProvider struct {
+	plugins.PluginProviderBase
 }
 
-func (pluginProvider) NewPlugin(extpoints.PluginOptions) (plugins.Plugin, error) {
+func (pluginProvider) NewPlugin(plugins.PluginOptions) (plugins.Plugin, error) {
 	return plugin{}, nil
 }
 
-func (pluginProvider) ConfigSchema() runtime.CompositeSchema {
-	return runtime.NewEmptyCompositeSchema()
-}
-
 func init() {
-	extpoints.PluginProviders.Register(new(pluginProvider), "env")
+	plugins.RegisterPlugin("env", pluginProvider{})
 }

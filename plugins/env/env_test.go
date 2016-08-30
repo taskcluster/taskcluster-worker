@@ -9,11 +9,9 @@ import (
 func TestEnvNone(*testing.T) {
 	plugintest.Case{
 		Payload: `{
-			"start": {
-				"delay": 0,
-				"function": "true",
-				"argument": "whatever"
-			}
+			"delay": 0,
+			"function": "true",
+			"argument": "whatever"
 		}`,
 		Plugin:        "env",
 		PluginSuccess: true,
@@ -24,11 +22,9 @@ func TestEnvNone(*testing.T) {
 func TestEnvDefinition(*testing.T) {
 	plugintest.Case{
 		Payload: `{
-			"start": {
-				"delay": 0,
-				"function": "print-env-var",
-				"argument": "ENV1"
-			},
+			"delay": 0,
+			"function": "print-env-var",
+			"argument": "ENV1",
 			"env": {
 				"ENV1": "env1"
 			}
@@ -43,11 +39,9 @@ func TestEnvDefinition(*testing.T) {
 func TestEnvUnDefinition(*testing.T) {
 	plugintest.Case{
 		Payload: `{
-			"start": {
-				"delay": 0,
-				"function": "print-env-var",
-				"argument": "ENV1"
-			},
+			"delay": 0,
+			"function": "print-env-var",
+			"argument": "ENV1",
 			"env": {
 				"ENV2": "env2"
 			}
