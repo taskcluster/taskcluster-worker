@@ -6,15 +6,15 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/slugid-go/slugid"
-	cmd_ep "github.com/taskcluster/taskcluster-worker/commands/extpoints"
+	"github.com/taskcluster/taskcluster-worker/commands"
 	"github.com/taskcluster/taskcluster-worker/config"
-	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
+	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/worker"
 )
 
 func init() {
-	cmd_ep.CommandProviders.Register(cmd{}, "work")
+	commands.Register("work", cmd{})
 }
 
 type cmd struct{}
@@ -46,9 +46,12 @@ func (cmd) Execute(args map[string]interface{}) bool {
 
 	// Find engine provider
 	engineName := args["<engine>"].(string)
-	engineProvider := extpoints.EngineProviders.Lookup(engineName)
+	engineProvider := engines.Engines()[engineName]
 	if engineProvider == nil {
-		engineNames := extpoints.EngineProviders.Names()
+		engineNames := []string{} // find engine names
+		for name := range engines.Engines() {
+			engineNames = append(engineNames, name)
+		}
 		logger.Fatalf("Must supply a valid engine.  Supported Engines %v", engineNames)
 	}
 
@@ -61,7 +64,7 @@ func (cmd) Execute(args map[string]interface{}) bool {
 	}
 
 	// Initialize the engine
-	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
+	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: runtimeEnvironment,
 		Log:         logger.WithField("engine", engineName),
 	})

@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/taskcluster/taskcluster-worker/commands/extpoints"
+	"github.com/taskcluster/taskcluster-worker/commands"
 )
 
 func init() {
-	extpoints.CommandProviders.Register(cmd{}, "help")
+	commands.Register("help", cmd{})
 }
 
 type cmd struct{}
@@ -24,7 +24,7 @@ func (cmd) Usage() string {
 
 func (cmd) Execute(arguments map[string]interface{}) bool {
 	command := arguments["<command>"].(string)
-	provider := extpoints.CommandProviders.Lookup(command)
+	provider := commands.Commands()[command]
 	if provider == nil {
 		fmt.Println("Unknown command: ", command)
 		os.Exit(1)

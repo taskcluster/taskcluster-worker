@@ -15,14 +15,14 @@ import (
 	"io"
 	"os"
 
-	"github.com/taskcluster/taskcluster-worker/commands/extpoints"
+	"github.com/taskcluster/taskcluster-worker/commands"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 var debug = runtime.Debug("guesttools")
 
 func init() {
-	extpoints.CommandProviders.Register(cmd{}, "qemu-guest-tools")
+	commands.Register("qemu-guest-tools", cmd{})
 }
 
 type cmd struct{}

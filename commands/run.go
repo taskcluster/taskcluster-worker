@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/docopt/docopt-go"
-	"github.com/taskcluster/taskcluster-worker/commands/extpoints"
 )
 
 // Run will parse command line arguments and run available commands.
@@ -17,8 +16,11 @@ func Run(argv []string) {
 	usage := "usage: taskcluster-worker <command> [<args>...]\n"
 	usage += "\n"
 	usage += "Commands available:\n"
-	providers := extpoints.CommandProviders.All()
-	names := extpoints.CommandProviders.Names()
+	providers := Commands()
+	names := []string{}
+	for name := range providers {
+		names = append(names, name)
+	}
 	sort.Strings(names)
 	maxNameLength := 0
 	for _, name := range names {
