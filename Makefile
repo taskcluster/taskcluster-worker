@@ -3,10 +3,24 @@
 # remember the right command. So let's keep this simple, just targets and
 # commands.
 
+# Ensure bash shell! Needed for checking go version...
+SHELL := /bin/bash
+
 # Ensure go-extpoints and go-import-subtree are available for go generate
 export PATH := $(GOPATH)/bin:$(PATH)
 
-all: build
+# For checking go compiler has a suitable version number
+GO_VERSION := $(shell go version 2>/dev/null | cut -f3 -d' ')
+GO_MAJ := $(shell echo "$(GO_VERSION)" | cut -f1 -d'.')
+GO_MIN := $(shell echo "$(GO_VERSION)" | cut -f2 -d'.')
+
+all: rebuild
+
+prechecks:
+	@test -n "$(GO_VERSION)" || (echo "Could not find go compiler, 'go version' returned no output" && false)
+	@test "$(GO_MAJ)" == "go1" || (echo "Require go version 1.x, where x >= 7; however found '$(GO_VERSION)'" && false)
+	@test "0$(GO_MIN)" -ge 7 || (echo "Require go version 1.x, where x>=7; however found '$(GO_VERSION)'" && false)
+
 build:
 	go fmt $$(go list ./... | grep -v /vendor/)
 	go install $$(go list ./... | grep -v /vendor/)
@@ -22,7 +36,7 @@ generate:
 	go generate $$(go list ./... | grep -v /vendor/)
 	go fmt $$(go list ./... | grep -v /vendor/)
 
-rebuild: generate build test
+rebuild: prechecks generate build test
 
 check: test
 	# tests should fail if go generate or go fmt results in uncommitted code
