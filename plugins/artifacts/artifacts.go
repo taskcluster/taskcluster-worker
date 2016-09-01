@@ -6,7 +6,6 @@ package artifacts
 import (
 	"mime"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/taskcluster/taskcluster-client-go/tcclient"
@@ -119,7 +118,7 @@ func (tp taskPlugin) errorHandled(name string, expires tcclient.Time, err error)
 
 func (tp taskPlugin) createUploadHandler(name, prefix string, expires tcclient.Time) func(string, ioext.ReadSeekCloser) error {
 	return func(path string, stream ioext.ReadSeekCloser) error {
-		return tp.attemptUpload(stream, path, strings.Replace(path, prefix, name, 1), expires)
+		return tp.attemptUpload(stream, path, filepath.Join(name, filepath.Base(path)), expires)
 	}
 }
 
