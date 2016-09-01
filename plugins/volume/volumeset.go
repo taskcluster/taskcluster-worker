@@ -16,10 +16,23 @@ type volume interface {
 }
 
 type volumeOptions struct {
-	taskID     string
-	runID      int
-	name       string
-	mountPoint string
+	taskID string
+	runID  int
+	spec   spec
+}
+
+type spec struct {
+	// Path to mount volume into task environment
+	MountPoint string `json:"mountPoint"`
+
+	// Identifier for the persisent volume to be reused between tasks.
+	Name string `json:"name,omitempty"`
+
+	// Type of volume to request from the engine
+	//
+	// Possible values:
+	//   * "persistent"
+	Type string `json:"type"`
 }
 
 // volumeSet acts as a single task plugin, but is a wrapper around each of the volume
@@ -38,28 +51,24 @@ type volumeSet struct {
 func (vs *volumeSet) Prepare(context *runtime.TaskContext) error {
 	vs.context = context
 
-	for volumeType, plugin := range vs.vm.plugins {
-		switch volumeType {
-		case "persistent":
-			for _, vol := range vs.payload.Persistent {
-				opts := &volumeOptions{
-					taskID:     context.TaskInfo.TaskID,
-					runID:      context.TaskInfo.RunID,
-					name:       vol.Name,
-					mountPoint: vol.MountPoint,
-				}
-				v, err := plugin.newVolume(opts)
-				if err != nil {
-					return err
-				}
-				vs.volumes = append(vs.volumes, v)
-			}
-		default:
+	for _, volume := range vs.payload {
+		plugin, exists := vs.vm.plugins[volume.Type]
+		if !exists {
 			panic(
 				"Unrecognized volume type. This should never happen and " +
 					"is considered a fatal error.",
 			)
 		}
+		opts := &volumeOptions{
+			taskID: context.TaskInfo.TaskID,
+			runID:  context.TaskInfo.RunID,
+			spec:   spec(volume),
+		}
+		v, err := plugin.newVolume(opts)
+		if err != nil {
+			return err
+		}
+		vs.volumes = append(vs.volumes, v)
 	}
 
 	return nil

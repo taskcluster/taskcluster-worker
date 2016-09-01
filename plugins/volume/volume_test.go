@@ -19,14 +19,13 @@ func TestVolumeValidType(t *testing.T) {
 					"function": "set-volume",
 					"argument": "/home/worker"
 				},
-				"volumes": {
-					"persistent": [
-						{
-							"mountPoint": "/home/worker",
-							"name": "test-workspace"
-						}
-					]
-				}
+				"volumes": [
+					{
+						"type": "persistent",
+						"mountPoint": "/home/worker",
+						"name": "test-workspace"
+					}
+				]
 			}`,
 			Plugin:        "volume",
 			TestStruct:    t,

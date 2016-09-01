@@ -30,14 +30,13 @@ func TestPersistentVolumeReuse(t *testing.T) {
 			"function": "set-volume",
 			"argument": "/home/worker"
 		},
-		"volumes": {
-			"persistent": [
-				{
-					"mountPoint": "/home/worker",
-					"name": "test-workspace"
-				}
-			]
-		}
+		"volumes": [
+			{
+				"type": "persistent",
+				"mountPoint": "/home/worker",
+				"name": "test-workspace"
+			}
+		]
 	}`
 
 	environment, engine := ensureEnvironment(t)
@@ -114,14 +113,13 @@ func TestPersistentVolumeReuse(t *testing.T) {
 			"function": "get-volume",
 			"argument": "/home/worker"
 		},
-		"volumes": {
-			"persistent": [
-				{
-					"mountPoint": "/home/worker",
-					"name": "test-workspace"
-				}
-			]
-		}
+		"volumes": [
+			{
+				"type": "persistent",
+				"mountPoint": "/home/worker",
+				"name": "test-workspace"
+			}
+		]
 	}`
 
 	taskID = slugid.Nice()

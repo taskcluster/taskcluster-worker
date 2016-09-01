@@ -52,7 +52,7 @@ func (pv *persistentVolumePlugin) newVolume(opts *volumeOptions) (volume, error)
 func (pv *persistentVolumePlugin) claimAvailableVolume(opts *volumeOptions) *persistentVolume {
 	pv.mutex.Lock()
 	defer pv.mutex.Unlock()
-	volumes, _ := pv.volumes[opts.name]
+	volumes, _ := pv.volumes[opts.spec.Name]
 	for _, v := range volumes {
 		if !v.isClaimed() {
 			v.claim(opts)
@@ -67,7 +67,7 @@ func (pv *persistentVolumePlugin) claimAvailableVolume(opts *volumeOptions) *per
 func (pv *persistentVolumePlugin) createVolume(opts *volumeOptions) (*persistentVolume, error) {
 	v := &persistentVolume{
 		id:   uuid.New(),
-		name: opts.name,
+		name: opts.spec.Name,
 	}
 
 	var err error
@@ -119,7 +119,7 @@ func (v *persistentVolume) claim(options *volumeOptions) {
 	defer v.mutex.Unlock()
 	v.claimed = true
 	v.volumeClaim = &claim{
-		mountPoint: options.mountPoint,
+		mountPoint: options.spec.MountPoint,
 		taskID:     options.taskID,
 		runID:      options.runID,
 	}
