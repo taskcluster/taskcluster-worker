@@ -8,8 +8,64 @@ type (
 	// Config applicable to windows native engine
 	config struct {
 
-		// Whether to use PSExec for executing processes
-		UsePsExec bool `json:"usePsExec"`
+		// Taskcluster access token used by taskcluster worker
+		// to talk to taskcluster queue.
+		AccessToken string `json:"accessToken"`
+
+		// Taskcluster certificate, when using temporary
+		// credentials only
+		Certificate string `json:"certificate"`
+
+		// Taskcluster client id used by taskcluster worker to
+		// talk to taskcluster queue.
+		ClientID string `json:"clientId"`
+
+		// SSL certificate to be used by livelog for hosting
+		// logs over https. If not set, http will be used.
+		LivelogCertificate string `json:"livelogCertificate"`
+
+		// SSL key to be used by livelog for hosting logs
+		// over https. If not set, http will be used.
+		LivelogKey string `json:"livelogKey"`
+
+		// This should match the secret used by the
+		// stateless dns server; see
+		// https://github.com/taskcluster/stateless-dns-server
+		LivelogSecret string `json:"livelogSecret"`
+
+		// The taskcluster provisioner which is taking care
+		// of provisioning environments with taskcluster worker
+		// running on them. [default: aws-provisioner-v1]
+		ProvisionerID string `json:"provisionerId"`
+
+		// The IP address for clients to be directed to
+		// for serving live logs; see
+		// https://github.com/taskcluster/livelog and
+		// https://github.com/taskcluster/stateless-dns-server
+		PublicIP string `json:"publicIP"`
+
+		// The number of seconds before azure urls expire,
+		// that the taskcluster worker should refresh them.
+		// [default: 310]
+		RefreshURLsPrematurelySecs int `json:"refreshURLsPrematurelySecs"`
+
+		// Subdomain to use in stateless dns name for live
+		// logs; see
+		// https://github.com/taskcluster/stateless-dns-server
+		// [default: taskcluster-worker.net]
+		Subdomain string `json:"subdomain"`
+
+		// Typically this would be an aws region - an
+		// identifier to uniquely identify which pool of
+		// workers this worker logically belongs to.
+		WorkerGroup string `json:"workerGroup"`
+
+		// A name to uniquely identify your worker.
+		WorkerID string `json:"workerId"`
+
+		// This should match a worker_type managed by the
+		// provisioner you have specified.
+		WorkerType string `json:"workerType"`
 	}
 )
 
@@ -22,14 +78,80 @@ var configSchema = func() runtime.CompositeSchema {
 		  "additionalProperties": false,
 		  "description": "Config applicable to windows native engine",
 		  "properties": {
-		    "usePsExec": {
-		      "description": "Whether to use PSExec for executing processes",
-		      "title": "Use PSExec",
-		      "type": "boolean"
+		    "accessToken": {
+		      "description": "Taskcluster access token used by taskcluster worker\nto talk to taskcluster queue.",
+		      "title": "Access Token",
+		      "type": "string"
+		    },
+		    "certificate": {
+		      "description": "Taskcluster certificate, when using temporary\ncredentials only",
+		      "title": "Certificate",
+		      "type": "string"
+		    },
+		    "clientId": {
+		      "description": "Taskcluster client id used by taskcluster worker to\ntalk to taskcluster queue.",
+		      "title": "Client ID",
+		      "type": "string"
+		    },
+		    "livelogCertificate": {
+		      "description": "SSL certificate to be used by livelog for hosting\nlogs over https. If not set, http will be used.",
+		      "title": "LiveLog Certificate",
+		      "type": "string"
+		    },
+		    "livelogKey": {
+		      "description": "SSL key to be used by livelog for hosting logs\nover https. If not set, http will be used.",
+		      "title": "LiveLog Key",
+		      "type": "string"
+		    },
+		    "livelogSecret": {
+		      "description": "This should match the secret used by the\nstateless dns server; see\nhttps://github.com/taskcluster/stateless-dns-server",
+		      "title": "LiveLog Secret",
+		      "type": "string"
+		    },
+		    "provisionerId": {
+		      "description": "The taskcluster provisioner which is taking care\nof provisioning environments with taskcluster worker\nrunning on them. [default: aws-provisioner-v1]",
+		      "title": "Provisioner ID",
+		      "type": "string"
+		    },
+		    "publicIP": {
+		      "description": "The IP address for clients to be directed to\nfor serving live logs; see\nhttps://github.com/taskcluster/livelog and\nhttps://github.com/taskcluster/stateless-dns-server",
+		      "title": "Public IP",
+		      "type": "string"
+		    },
+		    "refreshURLsPrematurelySecs": {
+		      "description": "The number of seconds before azure urls expire,\nthat the taskcluster worker should refresh them.\n[default: 310]",
+		      "title": "Refresh URLs Prematurely Secs",
+		      "type": "integer"
+		    },
+		    "subdomain": {
+		      "description": "Subdomain to use in stateless dns name for live\nlogs; see\nhttps://github.com/taskcluster/stateless-dns-server\n[default: taskcluster-worker.net]",
+		      "title": "Subdomain",
+		      "type": "string"
+		    },
+		    "workerGroup": {
+		      "description": "Typically this would be an aws region - an\nidentifier to uniquely identify which pool of\nworkers this worker logically belongs to.",
+		      "title": "Worker Group",
+		      "type": "string"
+		    },
+		    "workerId": {
+		      "description": "A name to uniquely identify your worker.",
+		      "title": "Worker ID",
+		      "type": "string"
+		    },
+		    "workerType": {
+		      "description": "This should match a worker_type managed by the\nprovisioner you have specified.",
+		      "title": "Worker Type",
+		      "type": "string"
 		    }
 		  },
 		  "required": [
-		    "usePsExec"
+		    "accessToken",
+		    "clientId",
+		    "workerGroup",
+		    "workerId",
+		    "workerType",
+		    "livelogSecret",
+		    "publicIP"
 		  ],
 		  "title": "Config",
 		  "type": "object"
