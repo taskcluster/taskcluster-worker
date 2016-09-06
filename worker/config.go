@@ -1,0 +1,180 @@
+package worker
+
+import (
+	schematypes "github.com/taskcluster/go-schematypes"
+	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/plugins"
+)
+
+type configType struct {
+	Engine          string                 `json:"engine"`
+	Engines         map[string]interface{} `json:"engines"`
+	Plugins         interface{}            `json:"plugins"`
+	Capacity        int                    `json:"capacity"`
+	Credentials     credentials            `json:"credentials"`
+	PollingInterval int                    `json:"pollingInterval"`
+	ReclaimOffset   int                    `json:"reclaimOffset"`
+	QueueBaseURL    string                 `json:"queueBaseUrl"`
+	ProvisionerID   string                 `json:"provisionerId"`
+	WorkerType      string                 `json:"workerType"`
+	WorkerGroup     string                 `json:"workerGroup"`
+	WorkerID        string                 `json:"workerId"`
+}
+
+type credentials struct {
+	ClientID    string `json:"clientId"`
+	AccessToken string `json:"accessToken"`
+	Certificate string `json:"certificate"`
+}
+
+// ConfigSchema returns the configuration schema for the worker.
+func ConfigSchema() schematypes.Object {
+	engineConfig := schematypes.Properties{}
+	engineNames := []string{}
+	for name, provider := range engines.Engines() {
+		engineNames = append(engineNames, name)
+		engineConfig[name] = provider.ConfigSchema()
+	}
+	return schematypes.Object{
+		MetaData: schematypes.MetaData{
+			Title:       "Worker Configuration",
+			Description: `This contains configuration for the worker process.`,
+		},
+		Properties: schematypes.Properties{
+			"engine": schematypes.StringEnum{
+				MetaData: schematypes.MetaData{
+					Title: "Worker Engine",
+					Description: `Selected worker engine to use, notice that the
+						configuration for this engine **must** be present under the
+						'engines.<engine>' configuration key.`,
+				},
+				Options: engineNames,
+			},
+			"engines": schematypes.Object{
+				MetaData: schematypes.MetaData{
+					Title: "Engine Configuration",
+					Description: `Mapping from engine name to engine configuration.
+						Even-though the worker will only use one engine at any given time,
+						the configuration file can hold configuration for all engines.
+						Hence, you need only update the 'engine' key to change which engine
+						should be used.`,
+				},
+				Properties: engineConfig,
+			},
+			"plugins": plugins.PluginManagerConfigSchema(),
+			"capacity": schematypes.Integer{
+				MetaData: schematypes.MetaData{
+					Title: "Capacity",
+					Description: `The number of tasks that this worker supports running in
+          parallel.`,
+				},
+				Minimum: 1,
+				Maximum: 1000,
+			},
+			"credentials": schematypes.Object{
+				MetaData: schematypes.MetaData{
+					Title: "TaskCluster Credentials",
+					Description: `The set of credentials that should be used by the worker
+          when authenticating against taskcluster endpoints. This needs scopes
+          for claiming tasks for the given workerType.`,
+				},
+				Properties: schematypes.Properties{
+					"clientId": schematypes.String{
+						MetaData: schematypes.MetaData{
+							Title:       "ClientId",
+							Description: `ClientId for credentials`,
+						},
+						Pattern: `^[A-Za-z0-9@/:._-]+$`,
+					},
+					"accessToken": schematypes.String{
+						MetaData: schematypes.MetaData{
+							Title:       "AccessToken",
+							Description: `The security-sensitive access token for the client.`,
+						},
+						Pattern: `^[a-zA-Z0-9_-]{22,66}$`,
+					},
+					"certificate": schematypes.String{
+						MetaData: schematypes.MetaData{
+							Title: "Certificate",
+							Description: `The certificate for the client, if using temporary
+              credentials.`,
+						},
+					},
+				},
+				Required: []string{"clientId", "accessToken"},
+			},
+			"pollingInterval": schematypes.Integer{
+				MetaData: schematypes.MetaData{
+					Title: "Task Polling Interval",
+					Description: `The amount of time to wait between task polling
+          iterations in seconds.`,
+				},
+				Minimum: 0,
+				Maximum: 10 * 60,
+			},
+			"reclaimOffset": schematypes.Integer{
+				MetaData: schematypes.MetaData{
+					Title: "Reclaim Offset",
+					Description: `The number of seconds priorty task claim expiration the
+          claim should be reclamed.`,
+				},
+				Minimum: 0,
+				Maximum: 10 * 60,
+			},
+			"queueBaseUrl": schematypes.URI{
+				MetaData: schematypes.MetaData{
+					Title: "Queue BaseUrl",
+					Description: `BaseUrl for taskcluster-queue, defaults to value from the
+          taskcluster client library.`,
+				},
+			},
+			"provisionerId": schematypes.String{
+				MetaData: schematypes.MetaData{
+					Title: "ProvisionerId",
+					Description: `ProvisionerId for workerType that tasks should be claimed
+          from. Note, a 'workerType' is only unique given the 'provisionerId'.`,
+				},
+				Pattern: `^[a-zA-Z0-9_-]{1,22}$`,
+			},
+			"workerType": schematypes.String{
+				MetaData: schematypes.MetaData{
+					Title: "WorkerType",
+					Description: `WorkerType to claim tasks for, combined with
+          'provisionerId' this identifies the pool of workers the machine
+          belongs to.`,
+				},
+				Pattern: `^[a-zA-Z0-9_-]{1,22}$`,
+			},
+			"workerGroup": schematypes.String{
+				MetaData: schematypes.MetaData{
+					Title: "WorkerGroup",
+					Description: `Group of workers this machine belongs to. This is any
+          identifier such that workerGroup and workerId uniquely identifies this
+          machine.`,
+				},
+				Pattern: `^[a-zA-Z0-9_-]{1,22}$`,
+			},
+			"workerId": schematypes.String{
+				MetaData: schematypes.MetaData{
+					Title: "WorkerId",
+					Description: `Identifier for this machine. This is any identifier such
+          that workerGroup and workerId uniquely identifies this machine.`,
+				},
+				Pattern: `^[a-zA-Z0-9_-]{1,22}$`,
+			},
+		},
+		Required: []string{
+			"engine",
+			"engines",
+			"plugins",
+			"capacity",
+			"credentials",
+			"pollingInterval",
+			"reclaimOffset",
+			"provisionerId",
+			"workerType",
+			"workerGroup",
+			"workerId",
+		},
+	}
+}

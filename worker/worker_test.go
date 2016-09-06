@@ -1,12 +1,9 @@
 package worker
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/taskcluster/taskcluster-worker/config"
-	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	_ "github.com/taskcluster/taskcluster-worker/engines/mock"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
@@ -34,32 +31,31 @@ func (mockedQueueService) Done() {
 	return
 }
 
-func newWorker(t *testing.T, c *config.Config) (*Worker, error) {
-	logger, err := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
+func TestStart(t *testing.T) {
 	e := &runtime.Environment{
 		GarbageCollector: &gc.GarbageCollector{},
 		Log:              logger,
 	}
-	engineProvider := extpoints.EngineProviders.Lookup("mock")
-	if engineProvider == nil {
-		t.Fatalf("Couldn't find EngineProvider: %s", "mock")
-	}
-	// Create Engine instance
-	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
-		Environment: e,
-		Log:         logger.WithField("component", "environment"),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return New(c, engine, e, logger.WithField("component", "worker"))
-}
-
-func TestStart(t *testing.T) {
-	c := &config.Config{
-		PollingInterval: 2,
-	}
-	w, err := newWorker(t, c)
+	w, err := New(map[string]interface{}{
+		"engine": "mock",
+		"engines": map[string]interface{}{
+			"mock": map[string]interface{}{},
+		},
+		"plugins": map[string]interface{}{
+			"disabled": []string{},
+		},
+		"capacity": 1,
+		"credentials": map[string]interface{}{
+			"clientId":    "no-client",
+			"accessToken": "absolutely-no-secret-here-mocked-it-out",
+		},
+		"pollingInterval": 2,
+		"reclaimOffset":   90,
+		"provisionerId":   "dummy-provisioner",
+		"workerType":      "dummy-test-worker",
+		"workerGroup":     "dummy-test-A",
+		"workerId":        "dummy-test-B",
+	}, e)
 	if err != nil {
 		t.Fatal(err)
 	}

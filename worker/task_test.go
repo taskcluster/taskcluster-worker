@@ -7,7 +7,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 	"time"
 
@@ -15,11 +14,8 @@ import (
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-client-go/tcclient"
-	"github.com/taskcluster/taskcluster-worker/config"
 	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	"github.com/taskcluster/taskcluster-worker/plugins"
-	pluginExtpoints "github.com/taskcluster/taskcluster-worker/plugins/extpoints"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 )
@@ -35,11 +31,11 @@ var taskDefinitions = map[string]struct {
 		success:    false,
 	},
 	"invalidEnginePayload": {
-		definition: `{"start": {"delay1": 10,"function": "write-log","argument": "Hello World"}}`,
+		definition: `{"delay1": 10,"function": "write-log","argument": "Hello World"}`,
 		success:    false,
 	},
 	"validEnginePayload": {
-		definition: `{"start": {"delay": 10,"function": "write-log","argument": "Hello World"}}`,
+		definition: `{"delay": 10,"function": "write-log","argument": "Hello World"}`,
 		success:    true,
 	},
 }
@@ -65,14 +61,9 @@ var claim = &taskClaim{
 }
 
 type mockedPluginManager struct {
-	payloadSchema      runtime.CompositeSchema
-	payloadSchemaError error
-	taskPlugin         plugins.TaskPlugin
-	taskPluginError    error
-}
-
-func (m mockedPluginManager) PayloadSchema() (runtime.CompositeSchema, error) {
-	return m.payloadSchema, m.payloadSchemaError
+	plugins.PluginBase
+	taskPlugin      plugins.TaskPlugin
+	taskPluginError error
 }
 
 func (m mockedPluginManager) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
@@ -97,8 +88,8 @@ func ensureEnvironment(t *testing.T) (*runtime.Environment, engines.Engine, plug
 	environment := &runtime.Environment{
 		TemporaryStorage: tempStorage,
 	}
-	engineProvider := extpoints.EngineProviders.Lookup("mock")
-	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
+	engineProvider := engines.Engines()["mock"]
+	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: environment,
 		Log:         logger.WithField("engine", "mock"),
 	})
@@ -106,13 +97,13 @@ func ensureEnvironment(t *testing.T) (*runtime.Environment, engines.Engine, plug
 		t.Fatal(err.Error())
 	}
 
-	pluginOptions := &pluginExtpoints.PluginOptions{
+	pluginOptions := plugins.PluginOptions{
 		Environment: environment,
 		Engine:      engine,
 		Log:         logger.WithField("component", "Plugin Manager"),
 	}
 
-	pm, err := pluginExtpoints.NewPluginManager([]string{"success"}, *pluginOptions)
+	pm, err := plugins.Plugins()["success"].NewPlugin(pluginOptions)
 	if err != nil {
 		t.Fatalf("Error creating task manager. Could not create plugin manager. %s", err)
 	}
@@ -120,77 +111,9 @@ func ensureEnvironment(t *testing.T) (*runtime.Environment, engines.Engine, plug
 	return environment, engine, pm
 }
 
-func TestParsePayload(t *testing.T) {
-	var err error
-	environment, engine, pluginManager := ensureEnvironment(t)
-
-	tr := &TaskRun{
-		TaskID:        "abc",
-		RunID:         1,
-		log:           logger.WithField("taskId", "abc"),
-		pluginManager: pluginManager,
-		engine:        engine,
-	}
-
-	tp := environment.TemporaryStorage.NewFilePath()
-	info := runtime.TaskInfo{
-		TaskID:   claim.taskClaim.Status.TaskID,
-		RunID:    claim.taskClaim.RunID,
-		Created:  claim.taskClaim.Task.Created,
-		Deadline: claim.taskClaim.Task.Deadline,
-		Expires:  claim.taskClaim.Task.Expires,
-	}
-	tr.context, tr.controller, err = runtime.NewTaskContext(tp, info)
-	defer func() {
-		tr.controller.CloseLog()
-		tr.controller.Dispose()
-	}()
-
-	for name, tc := range taskDefinitions {
-		tr.definition = &queue.TaskDefinitionResponse{
-			Payload: []byte(tc.definition),
-		}
-		err = tr.parsePayload()
-		assert.Equal(
-			t,
-			tc.success, err == nil,
-			fmt.Sprintf("Parsing task payload '%s' did not result in expected outcome.", name),
-		)
-	}
-}
-
-func TestCreateTaskPlugins(t *testing.T) {
-	var err error
-	environment, engine, pluginManager := ensureEnvironment(t)
-	tr, err := NewTaskRun(&config.Config{}, claim, environment, engine, pluginManager, logger.WithField("test", "TestRunTask"))
-	assert.Nil(t, err)
-
-	err = tr.parsePayload()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tr.pluginManager = mockedPluginManager{
-		taskPlugin: &taskPlugin{},
-	}
-
-	err = tr.createTaskPlugins()
-	assert.Nil(t, err, "Error should not have been returned when creating task plugins")
-
-	tr.pluginManager = mockedPluginManager{
-		taskPlugin:      nil,
-		taskPluginError: engines.NewMalformedPayloadError("bad payload"),
-	}
-
-	err = tr.createTaskPlugins()
-	close(tr.done)
-	assert.NotNil(t, err, "Error should have been returned when creating task plugins")
-	assert.Equal(t, "engines.MalformedPayloadError", reflect.TypeOf(err).String())
-}
-
 func TestRunTask(t *testing.T) {
 	environment, engine, pluginManager := ensureEnvironment(t)
-	tr, err := NewTaskRun(&config.Config{}, claim, environment, engine, pluginManager, logger.WithField("test", "TestRunTask"))
+	tr, err := newTaskRun(&configType{}, claim, environment, engine, pluginManager, logger.WithField("test", "TestRunTask"))
 	assert.Nil(t, err)
 
 	mockedQueue := &client.MockQueue{}
@@ -212,7 +135,7 @@ func TestRunMalformedEnginePayloadTask(t *testing.T) {
 	}
 
 	environment, engine, pluginManager := ensureEnvironment(t)
-	tr, err := NewTaskRun(&config.Config{}, claim, environment, engine, pluginManager, logger.WithField("test", "TestRunTask"))
+	tr, err := newTaskRun(&configType{}, claim, environment, engine, pluginManager, logger.WithField("test", "TestRunTask"))
 	assert.Nil(t, err)
 
 	mockedQueue := &client.MockQueue{}
@@ -262,21 +185,11 @@ func TestReclaimTask(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
 
-	cfg := &config.Config{
-		Taskcluster: struct {
-			Queue struct {
-				URL string `json:"url,omitempty"`
-			} `json:"queue,omitempty"`
-		}{
-			Queue: struct {
-				URL string `json:"url,omitempty"`
-			}{
-				URL: s.URL,
-			},
-		},
+	cfg := &configType{
+		QueueBaseURL: s.URL,
 	}
 
-	tr, err := NewTaskRun(cfg, claim, environment, engine, pluginManager, logger.WithField("test", "TestRunTask"))
+	tr, err := newTaskRun(cfg, claim, environment, engine, pluginManager, logger.WithField("test", "TestRunTask"))
 	assert.Nil(t, err)
 
 	oldClient := tr.context.Queue()

@@ -17,6 +17,8 @@ var payloadSchema = schematypes.Object{
 				end you can specify how long time the MockEngine should sleep before
 				reporting the execution as done.`,
 			},
+			Minimum: 0,
+			Maximum: 5 * 60 * 1000,
 		},
 		"function": schematypes.StringEnum{
 			MetaData: schematypes.MetaData{

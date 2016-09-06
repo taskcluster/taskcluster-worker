@@ -271,7 +271,6 @@ func TestPollTaskURLInvalidMessageTextEncoding(t *testing.T) {
 		<DequeueCount>1</DequeueCount>
 		<MessageText>invalid MessageText, not base64 encoded!</MessageText>
 	  </QueueMessage>
-
 	</QueueMessagesList>`
 
 	// When there is an error decoding, message should be deleted from Azure
