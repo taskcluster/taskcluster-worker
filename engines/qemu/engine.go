@@ -35,9 +35,8 @@ var configSchema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"maxConcurrency": schematypes.Integer{
 			MetaData: schematypes.MetaData{
-				Title: "Image Folder",
-				Description: `Path to folder to be used for image storage and cache.
-											Please ensure this has lots of space.`,
+				Title:       "Max Concurrency",
+				Description: `Maximum number of virtual machines to run concurrently.`,
 			},
 			Minimum: 1,
 			Maximum: 64,

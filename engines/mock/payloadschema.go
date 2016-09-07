@@ -41,7 +41,7 @@ var payloadSchema = schematypes.Object{
 			MetaData: schematypes.MetaData{
 				Title: "Argument to be given to function",
 				Description: `This argument will be passed to function, notice that
-				not all functions takes an argument and may just choose to ignore it.`,
+				not all functions take an argument and may just choose to ignore it.`,
 			},
 			MaximumLength: 255,
 		},

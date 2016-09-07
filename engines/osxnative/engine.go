@@ -35,7 +35,7 @@ var payloadSchema = schematypes.Object{
 			MetaData: schematypes.MetaData{
 				Title: "Executable to download",
 				Description: `Link to an script/executable to run. The file must still be
-		      explicitly be referenced by the command field.`,
+		      explicitly referenced by the command field.`,
 			},
 		},
 		"command": schematypes.Array{

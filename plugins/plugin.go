@@ -28,12 +28,12 @@ type TaskPluginOptions struct {
 //
 // All methods on this interface must be thread-safe.
 type Plugin interface {
-	// PayloadSchema returns the a schematypes.Object with the properties for
+	// PayloadSchema returns a schematypes.Object with the properties for
 	// for the TaskPluginOptions.Payload property.
 	//
 	// Note: this will be merged with payload schemas from engine and other
 	// plugins, thus, it cannot contain conflicting properties. Furthermore the
-	// metadata will be discarded and additionalProperties are not allowed.
+	// metadata will be discarded and additionalProperties will not be allowed.
 	PayloadSchema() schematypes.Object
 
 	// NewTaskPlugin method will be called once for each task. The TaskPlugin
@@ -148,7 +148,7 @@ type TaskPlugin interface {
 // new optional methods.
 type PluginBase struct{}
 
-// PayloadSchema returns schema for an empty object for plugins that doesn't
+// PayloadSchema returns a schema for an empty object for plugins that doesn't
 // take any payload.
 func (PluginBase) PayloadSchema() schematypes.Object {
 	return schematypes.Object{}

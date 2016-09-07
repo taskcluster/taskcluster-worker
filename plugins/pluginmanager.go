@@ -81,9 +81,9 @@ func PluginManagerConfigSchema() schematypes.Object {
 			"disabled": schematypes.Array{
 				MetaData: schematypes.MetaData{
 					Title: "Disabled Plugins",
-					Description: `List of disabled plugins. If a plugin then its
-                        configuration key must be specified, unless it doesn't
-                        take any configuration.`,
+					Description: `List of disabled plugins. If a plugin is not listed
+												as disabled here, then its configuration key must be
+												specified, unless it doesn't take any configuration.`,
 				},
 				Items: schematypes.StringEnum{
 					Options: pluginNames,
