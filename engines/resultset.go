@@ -47,7 +47,7 @@ type ResultSet interface {
 	// MalformedPayloadError
 	ExtractFile(path string) (ioext.ReadSeekCloser, error)
 
-	// Extract a folder from the sandbox.
+	// Extract all files under a folder (recursively) from the sandbox.
 	//
 	// Interpretation of the string path format is engine specific and must be
 	// documented by the engine implementor. The engine may impose restrictions on
