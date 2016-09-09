@@ -41,7 +41,7 @@ var ErrHandlerInterrupt = errors.New("Handler returned an error and interrupted 
 var ErrSandboxTerminated = errors.New("The Sandbox has terminated")
 
 // ErrSandboxAborted is used to indicate that a Sandbox has been aborted.
-var ErrSandboxAborted = errors.New("Exection of sandbox was aborted")
+var ErrSandboxAborted = errors.New("Execution of sandbox was aborted")
 
 // ErrShellTerminated is used to indicate that a shell has already terminated
 var ErrShellTerminated = errors.New("The shell has already terminated")

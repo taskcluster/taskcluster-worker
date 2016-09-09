@@ -175,7 +175,7 @@ func LoadMachine(machineFile string) (*Machine, error) {
 			"Invalid JSON in 'machine.json', error: ", err)
 	}
 
-	// Validate the defintion
+	// Validate the definition
 	if err := m.Validate(); err != nil {
 		return nil, err
 	}
@@ -194,7 +194,7 @@ func (m *Machine) Clone() *Machine {
 // valid and legal.
 func (m *Machine) Validate() error {
 	hasError := false
-	errs := "Invalid machine defintion in 'machine.json'"
+	errs := "Invalid machine definition in 'machine.json'"
 	msg := func(a ...interface{}) {
 		errs += "\n" + fmt.Sprint(a...)
 		hasError = true

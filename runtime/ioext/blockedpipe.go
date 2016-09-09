@@ -114,7 +114,7 @@ func (r *PipeReader) CloseWithError(err error) error {
 
 // Unblock allows n bytes to traverse through the pipe. Typically, this pipe is
 // used when implementing congestion control and r.Unblock(n) is then called
-// when the remote side have acknowleged n bytes. This way the network isn't
+// when the remote side have acknowledged n bytes. This way the network isn't
 // congested with lots of outstanding bytes.
 //
 // As a special case n = -1 permanently unblocks the pipe.

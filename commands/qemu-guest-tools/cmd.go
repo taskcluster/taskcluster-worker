@@ -1,6 +1,7 @@
 // Package qemuguesttools implements the command that runs inside a QEMU VM.
-// These guest tools are reponsible for fetching and executing the task command,
-// as well as posting the log from the task command to the meta-data service.
+// These guest tools are responsible for fetching and executing the task
+// command, as well as posting the log from the task command to the meta-data
+// service.
 //
 // The guest tools are also responsible for polling the meta-data service for
 // actions to do like list-folder, get-artifact or execute a new shell.
@@ -37,7 +38,7 @@ run inside the virtual machines used with QEMU engine.
 
 The "run" (default) command will fetch a command to execute from the meta-data
 service, upload the log and result as success/failed. The command will also
-continously poll the meta-data service for actions, such as put-artifact,
+continuously poll the meta-data service for actions, such as put-artifact,
 list-folder or start an interactive shell.
 
 The "post-log" command will upload <log-file> to the meta-data service. If - is

@@ -133,8 +133,8 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 	cmd.Stdout = stdoutLogWriter{s.context}
 	cmd.Stderr = stderrLogWriter{s.context}
 
-	// USER and HOME are treated seperately because their values
-	// depend on either we create the new user successfuly or not
+	// USER and HOME are treated separately because their values
+	// depend on either we create the new user successfully or not
 	processUser := os.Getenv("USER")
 	processHome := os.Getenv("HOME")
 

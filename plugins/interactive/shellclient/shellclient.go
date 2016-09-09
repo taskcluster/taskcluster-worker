@@ -250,7 +250,7 @@ func (s *ShellClient) readMessages() {
 			}
 		}
 
-		// If bytes from stdin are acknowleged, then we unblock additional bytes
+		// If bytes from stdin are acknowledged, then we unblock additional bytes
 		if mType == interactive.MessageTypeAck && len(mData) == 5 {
 			if mData[0] == interactive.StreamStdin {
 				n := binary.BigEndian.Uint32(mData[1:])

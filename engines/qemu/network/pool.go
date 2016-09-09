@@ -377,7 +377,7 @@ func destroyNetwork(n *entry) error {
 		{"ip", "tuntap", "del", "dev", n.tapDevice, "mode", "tap"},
 	}, true)
 	if err != nil {
-		debug("Failed to destory tap device: %s, error: %s", n.tapDevice, err)
+		debug("Failed to destoy tap device: %s, error: %s", n.tapDevice, err)
 		return fmt.Errorf("Failed to remove tap device: %s, error: %s", n.tapDevice, err)
 	}
 
