@@ -7,9 +7,16 @@ import (
 // FileHandler is given as callback when iterating through a list of files.
 //
 // ResultSet.ExtractFolder(path, handler) takes a FileHandler as the handler
-// parameter. This function maybe called sequentially or concurrently, but if
+// parameter. This function may be called sequentially or concurrently, but if
 // it returns an the ResultSet should stop calling it and pass the error through
 // as return value from ResultSet.ExtractFolder.
+//
+// The path argument is a relative path to the file, as in relative to the
+// path given to ResultSet.ExtraFolder(path, handler). The path does not start
+// with slash, but always uses slash as separator regardless of underlying OS.
+//
+// The stream argument is a read/seek/closer for the file, this can be the actual
+// file, or a copy of the file, or some seekable stream interface.
 type FileHandler func(path string, stream ioext.ReadSeekCloser) error
 
 // The ResultSet interface represents the results of a sandbox that has finished
@@ -40,7 +47,7 @@ type ResultSet interface {
 	// MalformedPayloadError
 	ExtractFile(path string) (ioext.ReadSeekCloser, error)
 
-	// Extract a folder from the sandbox.
+	// Extract all files under a folder (recursively) from the sandbox.
 	//
 	// Interpretation of the string path format is engine specific and must be
 	// documented by the engine implementor. The engine may impose restrictions on

@@ -12,6 +12,11 @@
 			"Rev": "f3cfb454f4c209e6668c95216c4744b8fddb2356"
 		},
 		{
+			"ImportPath": "github.com/Sirupsen/logrus/hooks/syslog",
+			"Comment": "v0.10.0-19-gf3cfb45",
+			"Rev": "f3cfb454f4c209e6668c95216c4744b8fddb2356"
+		},
+		{
 			"ImportPath": "github.com/bradfitz/rfbgo/rfb",
 			"Rev": "360eea0d6d336ffc925dfef78af32c3983189dcf"
 		},
@@ -157,6 +162,7 @@
 		},
 		{
 			"ImportPath": "github.com/pmezard/go-difflib/difflib",
+			"Comment": "v1.0.0",
 			"Rev": "792786c7400a136282c1664665ae0a8db921c6c2"
 		},
 		{
@@ -212,6 +218,11 @@
 			"ImportPath": "github.com/stretchr/testify/require",
 			"Comment": "v1.1.3-19-gd77da35",
 			"Rev": "d77da356e56a7428ad25149ca77381849a6a5232"
+		},
+		{
+			"ImportPath": "github.com/takama/daemon",
+			"Comment": "0.6.1",
+			"Rev": "f54dafb9aec997035cb71ecbc34f71fc9a8a2ba5"
 		},
 		{
 			"ImportPath": "github.com/taskcluster/go-got",
@@ -273,15 +284,15 @@
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
-			"Rev": "ef00b378c73f107bf44d5c9b69875255ce89b79a"
+			"Rev": "9bc2a3340c92c17a20edcd0080e93851ed58f5d5"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context/ctxhttp",
-			"Rev": "ef00b378c73f107bf44d5c9b69875255ce89b79a"
+			"Rev": "9bc2a3340c92c17a20edcd0080e93851ed58f5d5"
 		},
 		{
 			"ImportPath": "golang.org/x/net/netutil",
-			"Rev": "ef00b378c73f107bf44d5c9b69875255ce89b79a"
+			"Rev": "9bc2a3340c92c17a20edcd0080e93851ed58f5d5"
 		},
 		{
 			"ImportPath": "golang.org/x/sys/unix",
@@ -289,15 +300,15 @@
 		},
 		{
 			"ImportPath": "golang.org/x/tools/go/ast/astutil",
-			"Rev": "527b253f588776e5f72a0a0d1e93195cd3f82707"
+			"Rev": "9deed8c6c1c89e0b6d68d727f215de8e851d1064"
 		},
 		{
 			"ImportPath": "golang.org/x/tools/go/gcimporter15",
-			"Rev": "527b253f588776e5f72a0a0d1e93195cd3f82707"
+			"Rev": "9deed8c6c1c89e0b6d68d727f215de8e851d1064"
 		},
 		{
 			"ImportPath": "golang.org/x/tools/imports",
-			"Rev": "527b253f588776e5f72a0a0d1e93195cd3f82707"
+			"Rev": "9deed8c6c1c89e0b6d68d727f215de8e851d1064"
 		},
 		{
 			"ImportPath": "gopkg.in/djherbis/buffer.v1",

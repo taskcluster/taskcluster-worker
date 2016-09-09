@@ -4,7 +4,6 @@ package artifacts
 import (
 	"mime"
 	"path/filepath"
-	"strings"
 	"time"
 
 	schematypes "github.com/taskcluster/go-schematypes"
@@ -122,7 +121,7 @@ func (tp taskPlugin) errorHandled(name string, expires time.Time, err error) boo
 
 func (tp taskPlugin) createUploadHandler(name, prefix string, expires time.Time) func(string, ioext.ReadSeekCloser) error {
 	return func(path string, stream ioext.ReadSeekCloser) error {
-		return tp.attemptUpload(stream, path, strings.Replace(path, prefix, name, 1), expires)
+		return tp.attemptUpload(stream, path, filepath.Join(name, filepath.Base(path)), expires)
 	}
 }
 
