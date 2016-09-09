@@ -3,13 +3,14 @@
 package osxnative
 
 import (
-	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/runtime"
-	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+
+	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
 type resultset struct {
@@ -85,6 +86,12 @@ func (r resultset) ExtractFolder(path string, handler engines.FileHandler) error
 
 		if !info.IsDir() {
 			file, err := os.Open(p)
+			if err != nil {
+				r.context.LogError(err)
+				return engines.ErrResourceNotFound
+			}
+
+			p, err = filepath.Rel(path, p)
 			if err != nil {
 				r.context.LogError(err)
 				return engines.ErrResourceNotFound

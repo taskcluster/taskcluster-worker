@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -113,7 +114,11 @@ func (c *ArtifactTestCase) TestExtractNestedFolderPath() {
 	for _, f := range c.NestedFolderFiles {
 		found := false
 		for _, f2 := range files {
-			if f == f2 {
+			f3, err := filepath.Rel(c.NestedFolderPath, f)
+			if err != nil {
+				continue
+			}
+			if f3 == f2 {
 				found = true
 			}
 		}
@@ -124,7 +129,11 @@ func (c *ArtifactTestCase) TestExtractNestedFolderPath() {
 	for _, f := range files {
 		found := false
 		for _, f2 := range c.NestedFolderFiles {
-			if f == f2 {
+			f3, err := filepath.Rel(c.NestedFolderPath, f2)
+			if err != nil {
+				continue
+			}
+			if f == f3 {
 				found = true
 			}
 		}

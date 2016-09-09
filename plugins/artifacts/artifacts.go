@@ -3,6 +3,7 @@ package artifacts
 
 import (
 	"mime"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -66,7 +67,7 @@ func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
 		}
 		switch artifact.Type {
 		case "directory":
-			err := result.ExtractFolder(artifact.Path, tp.createUploadHandler(artifact.Name, artifact.Path, artifact.Expires))
+			err := result.ExtractFolder(artifact.Path, tp.createUploadHandler(artifact.Name, artifact.Expires))
 			if err != nil {
 				if tp.errorHandled(artifact.Name, artifact.Expires, err) {
 					nonFatalErrs = append(nonFatalErrs, engines.NewMalformedPayloadError(err.Error()))
@@ -119,9 +120,9 @@ func (tp taskPlugin) errorHandled(name string, expires time.Time, err error) boo
 	return false
 }
 
-func (tp taskPlugin) createUploadHandler(name, prefix string, expires time.Time) func(string, ioext.ReadSeekCloser) error {
-	return func(path string, stream ioext.ReadSeekCloser) error {
-		return tp.attemptUpload(stream, path, filepath.Join(name, filepath.Base(path)), expires)
+func (tp taskPlugin) createUploadHandler(name string, expires time.Time) func(string, ioext.ReadSeekCloser) error {
+	return func(artifactPath string, stream ioext.ReadSeekCloser) error {
+		return tp.attemptUpload(stream, artifactPath, path.Join(name, artifactPath), expires)
 	}
 }
 
