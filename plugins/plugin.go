@@ -1,5 +1,3 @@
-//go:generate go-extpoints
-
 package plugins
 
 import (

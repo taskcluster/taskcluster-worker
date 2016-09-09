@@ -1,6 +1,3 @@
-//go:generate go-composite-schema --unexported --required start payload-schema.yml generated_payloadschema.go
-//go:generate go-composite-schema --unexported --required qemu config-schema.yml generated_configschema.go
-
 package qemuengine
 
 import (
