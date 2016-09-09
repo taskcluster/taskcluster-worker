@@ -3,9 +3,10 @@
 package osxnative
 
 import (
-	"github.com/taskcluster/taskcluster-worker/runtime"
 	"os"
 	osuser "os/user"
+
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 // Get the child process working.
@@ -18,10 +19,10 @@ func getWorkingDir(u user, context *runtime.TaskContext) string {
 	// In case of error we panic here because error at this point means
 	// something is terribly wrong
 	if u.name != "" {
-		userInfo, err := osuser.Lookup(u.name)
-		if err != nil {
-			context.LogError("user.Lookup failed: ", err, "\n")
-			panic(err)
+		userInfo, err2 := osuser.Lookup(u.name)
+		if err2 != nil {
+			context.LogError("user.Lookup failed: ", err2, "\n")
+			panic(err2)
 		}
 		cwd = userInfo.HomeDir
 	} else {
