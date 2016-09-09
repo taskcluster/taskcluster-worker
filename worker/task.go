@@ -38,7 +38,8 @@ type TaskRun struct {
 	shutdown       bool
 	// Reclaim logic
 	queueURL     string
-	stopReclaims chan struct{}
+	stopReclaims chan struct{} // close to stop reclaiming task
+	reclaimsDone chan struct{} // closed when we have stopped reclaiming the task
 }
 
 func newTaskRun(
@@ -87,6 +88,7 @@ func newTaskRun(
 		plugin:       plugin,
 		queueURL:     config.QueueBaseURL,
 		stopReclaims: make(chan struct{}),
+		reclaimsDone: make(chan struct{}),
 	}
 
 	go t.reclaim(time.Time(claim.taskClaim.TakenUntil))
@@ -102,6 +104,7 @@ func (t *TaskRun) reclaim(until time.Time) {
 		nextReclaim := duration / 1.3
 		select {
 		case <-t.stopReclaims:
+			close(t.reclaimsDone)
 			return
 		case <-time.After(time.Duration(nextReclaim * 1e+9)):
 			client := t.controller.Queue()
@@ -109,6 +112,7 @@ func (t *TaskRun) reclaim(until time.Time) {
 			if err != nil {
 				t.log.WithError(err).Error("Error reclaiming task")
 				t.Abort()
+				close(t.reclaimsDone)
 				return
 			}
 
@@ -339,6 +343,7 @@ func (t *TaskRun) finishStage() error {
 // has already been resolved.
 func (t *TaskRun) exceptionStage(taskError error) {
 	close(t.stopReclaims)
+	<-t.reclaimsDone
 	var reason runtime.ExceptionReason
 	if t.shutdown {
 		reason = runtime.WorkerShutdown
@@ -379,6 +384,7 @@ func (t *TaskRun) exceptionStage(taskError error) {
 // of executing the task and finalizing the task plugins.
 func (t *TaskRun) resolveTask() error {
 	close(t.stopReclaims)
+	<-t.reclaimsDone
 	resolve := reportCompleted
 	if !t.success {
 		resolve = reportFailed
