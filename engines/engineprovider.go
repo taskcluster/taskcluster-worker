@@ -46,11 +46,11 @@ type EngineProvider interface {
 	ConfigSchema() schematypes.Schema
 }
 
-// RegisterEngine will register an EngineProvider, this is intended to be called
+// Register will register an EngineProvider, this is intended to be called
 // from func init() {}, to register engines as an import side-effect.
 //
 // If an engine with the given name is already registered this will panic.
-func RegisterEngine(name string, provider EngineProvider) {
+func Register(name string, provider EngineProvider) {
 	mEngines.Lock()
 	defer mEngines.Unlock()
 

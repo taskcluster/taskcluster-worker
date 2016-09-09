@@ -87,5 +87,5 @@ func (pluginProvider) NewPlugin(plugins.PluginOptions) (plugins.Plugin, error) {
 }
 
 func init() {
-	plugins.RegisterPlugin("env", pluginProvider{})
+	plugins.Register("env", pluginProvider{})
 }

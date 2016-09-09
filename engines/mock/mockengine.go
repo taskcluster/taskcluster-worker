@@ -19,7 +19,7 @@ type engineProvider struct {
 
 func init() {
 	// Register the mock engine as an import side-effect
-	engines.RegisterEngine("mock", engineProvider{})
+	engines.Register("mock", engineProvider{})
 }
 
 func (e engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine, error) {

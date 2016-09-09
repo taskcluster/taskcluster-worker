@@ -23,12 +23,12 @@ type CommandProvider interface {
 }
 
 // Register will register a CommandProvider, this is intended to be used during
-// static initializtion and will panic if name is already in use.
+// sstatic initializtion and will panic if name is already in use.
 func Register(name string, provider CommandProvider) {
 	mCommands.Lock()
 	defer mCommands.Unlock()
 
-	if _, ok := commands[name]; !ok {
+	if _, ok := commands[name]; ok {
 		panic(fmt.Sprintf("Command name: '%s' is already in use!", name))
 	}
 	commands[name] = provider

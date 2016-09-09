@@ -52,10 +52,10 @@ func (PluginProviderBase) ConfigSchema() schematypes.Schema {
 	return nil
 }
 
-// RegisterPlugin will register a PluginProvider.
+// Register will register a PluginProvider.
 // This is meant to be called from init(), and will panic if name is already
 // used by another plugin.
-func RegisterPlugin(name string, provider PluginProvider) {
+func Register(name string, provider PluginProvider) {
 	mPlugins.Lock()
 	defer mPlugins.Unlock()
 

@@ -140,5 +140,5 @@ func (tp taskPlugin) attemptUpload(fileReader ioext.ReadSeekCloser, path string,
 }
 
 func init() {
-	plugins.RegisterPlugin("artifacts", pluginProvider{})
+	plugins.Register("artifacts", pluginProvider{})
 }

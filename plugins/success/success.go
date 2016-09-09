@@ -34,7 +34,7 @@ type taskPlugin struct {
 }
 
 func init() {
-	plugins.RegisterPlugin("success", pluginProvider{})
+	plugins.Register("success", pluginProvider{})
 }
 
 func (plugin) NewTaskPlugin(plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
