@@ -1,6 +1,9 @@
 package engines
 
-import "github.com/taskcluster/taskcluster-worker/runtime"
+import (
+	schematypes "github.com/taskcluster/go-schematypes"
+	"github.com/taskcluster/taskcluster-worker/runtime"
+)
 
 // The SandboxOptions structure is a wrapper around the options/arguments for
 // creating a NewSandboxBuilder. This allows us to add new arguments without
@@ -9,9 +12,10 @@ type SandboxOptions struct {
 	// TaskContext contains information about the task we're starting a sandbox
 	// for.
 	TaskContext *runtime.TaskContext
-	// Result from PayloadSchema().Parse(). Implementors are safe to assert
-	// this back to their target type.
-	Payload interface{}
+	// Payload is the subset of keys from the payload that was declared in
+	// PayloadSchema(). Implementors can safely assume that it validates against
+	// this schema.
+	Payload map[string]interface{}
 }
 
 // An Engine implementation provides a backend upon which tasks can be
@@ -34,12 +38,9 @@ type SandboxOptions struct {
 // can be implemented on all platforms. See individual methods to see which are
 // required and which can be implemented by returning ErrFeatureNotSupported.
 type Engine interface {
-	// PayloadSchema returns the CompositeSchema that represents the payload.
-	//
-	// The Payload property on SandboxOptions given to NewSandboxBuilder will be
-	// the result from CompositeSchema.Parse() on the CompositeSchema returned
-	// from this method.
-	PayloadSchema() runtime.CompositeSchema
+	// PayloadSchema returns a JSON schema description of the payload options,
+	// accepted by this engine.
+	PayloadSchema() schematypes.Object
 
 	// Capabilities returns a structure declaring which features are supported,
 	// this is used for up-front feature checking. Unsupport methods must also
@@ -127,16 +128,10 @@ type Capabilities struct {
 // compatibility when we add more optional methods to Engine.
 type EngineBase struct{}
 
-// PayloadSchema returns an empty CompositeSchema indicating that a nil
-// payload is sufficient.
-func (EngineBase) PayloadSchema() runtime.CompositeSchema {
-	return runtime.NewEmptyCompositeSchema()
-}
-
-// ConfigSchema returns an empty jsonschema indicating that no custom config is
-// required.
-func (EngineBase) ConfigSchema() runtime.CompositeSchema {
-	return runtime.NewEmptyCompositeSchema()
+// PayloadSchema returns an empty schematypes.Object indicating no contraints
+// on keys of the payload object.
+func (EngineBase) PayloadSchema() schematypes.Object {
+	return schematypes.Object{}
 }
 
 // Capabilities returns an zero value Capabilities struct indicating that

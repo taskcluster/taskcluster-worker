@@ -8,14 +8,14 @@ import (
 
 	"github.com/gorilla/websocket"
 	isatty "github.com/mattn/go-isatty"
-	"github.com/taskcluster/taskcluster-worker/commands/extpoints"
+	"github.com/taskcluster/taskcluster-worker/commands"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellclient"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
 func init() {
-	extpoints.CommandProviders.Register(cmd{}, "shell")
+	commands.Register("shell", cmd{})
 }
 
 type cmd struct{}

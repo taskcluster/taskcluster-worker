@@ -1,20 +1,21 @@
 package work
 
 import (
+	"io/ioutil"
 	"os"
+	"os/signal"
 	"path/filepath"
 
-	"github.com/Sirupsen/logrus"
+	yaml "gopkg.in/yaml.v2"
+
 	"github.com/taskcluster/slugid-go/slugid"
-	cmd_ep "github.com/taskcluster/taskcluster-worker/commands/extpoints"
-	"github.com/taskcluster/taskcluster-worker/config"
-	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
+	"github.com/taskcluster/taskcluster-worker/commands"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/worker"
 )
 
 func init() {
-	cmd_ep.CommandProviders.Register(cmd{}, "work")
+	commands.Register("work", cmd{})
 }
 
 type cmd struct{}
@@ -25,7 +26,7 @@ func (cmd) Summary() string {
 
 func (cmd) Usage() string {
 	return `Usage:
-  taskcluster-worker work <engine> [--logging-level <level>]
+  taskcluster-worker work <config-file> [--logging-level <level>]
 
 Options:
   -l --logging-level <level>  	Set logging at <level>.
@@ -41,15 +42,19 @@ func (cmd) Execute(args map[string]interface{}) bool {
 	logger, err := runtime.CreateLogger(level)
 	if err != nil {
 		os.Stderr.WriteString(err.Error())
-		os.Exit(1)
+		return false
 	}
 
-	// Find engine provider
-	engineName := args["<engine>"].(string)
-	engineProvider := extpoints.EngineProviders.Lookup(engineName)
-	if engineProvider == nil {
-		engineNames := extpoints.EngineProviders.Names()
-		logger.Fatalf("Must supply a valid engine.  Supported Engines %v", engineNames)
+	configFile, err := ioutil.ReadFile(args["<config-file>"].(string))
+	if err != nil {
+		logger.Error("Failed to open configFile, error: ", err)
+		return false
+	}
+	var config interface{}
+	err = yaml.Unmarshal(configFile, &config)
+	if err != nil {
+		logger.Error("Failed to parse configFile, error: ", err)
+		return false
 	}
 
 	// Create a temporary folder
@@ -60,62 +65,25 @@ func (cmd) Execute(args map[string]interface{}) bool {
 		TemporaryStorage: tempStorage,
 	}
 
-	// Initialize the engine
-	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
-		Environment: runtimeEnvironment,
-		Log:         logger.WithField("engine", engineName),
-	})
-	if err != nil {
-		logger.Fatal(err.Error())
-	}
-
-	// TODO (garndt): Need to load up a real config in the future
-	config := &config.Config{
-		Credentials: struct {
-			AccessToken string `json:"accessToken"`
-			Certificate string `json:"certificate"`
-			ClientID    string `json:"clientId"`
-		}{
-			AccessToken: os.Getenv("TASKCLUSTER_ACCESS_TOKEN"),
-			Certificate: os.Getenv("TASKCLUSTER_CERTIFICATE"),
-			ClientID:    os.Getenv("TASKCLUSTER_CLIENT_ID"),
-		},
-		Taskcluster: struct {
-			Queue struct {
-				URL string `json:"url,omitempty"`
-			} `json:"queue,omitempty"`
-		}{
-			Queue: struct {
-				URL string `json:"url,omitempty"`
-			}{
-				URL: "https://queue.taskcluster.net/v1/",
-			},
-		},
-		Capacity:      5,
-		ProvisionerID: "test-dummy-provisioner",
-		WorkerType:    "dummy-worker-tc",
-		WorkerGroup:   "test-dummy-workers",
-		WorkerID:      "dummy-worker-tc",
-		QueueService: struct {
-			ExpirationOffset int `json:"expirationOffset"`
-		}{
-			ExpirationOffset: 300,
-		},
-		PollingInterval: 10,
-	}
-
-	l := logger.WithFields(logrus.Fields{
-		"workerID":      config.WorkerID,
-		"workerType":    config.WorkerType,
-		"workerGroup":   config.WorkerGroup,
-		"provisionerID": config.ProvisionerID,
-	})
-
-	w, err := worker.New(config, engine, runtimeEnvironment, l)
+	w, err := worker.New(config, runtimeEnvironment)
 	if err != nil {
 		logger.Fatalf("Could not create worker. %s", err)
 	}
 
-	w.Start()
+	done := make(chan struct{})
+	go func() {
+		w.Start()
+		close(done)
+	}()
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, os.Kill)
+	select {
+	case <-c:
+		signal.Stop(c)
+		w.Stop()
+		<-done
+	case <-done:
+	}
+
 	return true
 }

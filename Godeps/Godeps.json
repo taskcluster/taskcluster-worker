@@ -229,6 +229,10 @@
 			"Rev": "871e77679d6708cd2eca0c0150428076aea27d4e"
 		},
 		{
+			"ImportPath": "github.com/taskcluster/go-schematypes",
+			"Rev": "67b0283639de28acf8e54ed8da3e850c8a3a6103"
+		},
+		{
 			"ImportPath": "github.com/taskcluster/httpbackoff",
 			"Rev": "f9087afc98a375b390587243d2a854bd560d7be8"
 		},
@@ -327,19 +331,8 @@
 			"Rev": "9a3d4236b03bb5d26f7951134d248f9d5510d599"
 		},
 		{
-			"ImportPath": "github.com/stretchr/testify/vendor/github.com/davecgh/go-spew/spew",
-			"Comment": "v1.1.3-19-gd77da35",
-			"Rev": "d77da356e56a7428ad25149ca77381849a6a5232"
-		},
-		{
-			"ImportPath": "github.com/stretchr/testify/vendor/github.com/pmezard/go-difflib/difflib",
-			"Comment": "v1.1.3-19-gd77da35",
-			"Rev": "d77da356e56a7428ad25149ca77381849a6a5232"
-		},
-		{
-			"ImportPath": "github.com/stretchr/testify/vendor/github.com/stretchr/objx",
-			"Comment": "v1.1.3-19-gd77da35",
-			"Rev": "d77da356e56a7428ad25149ca77381849a6a5232"
+			"ImportPath": "gopkg.in/yaml.v2",
+			"Rev": "e4d366fc3c7938e2958e662b4258c7a89e1f0e3e"
 		}
 	]
 }

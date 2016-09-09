@@ -236,7 +236,7 @@ func (q *queueService) pollTaskURL(messageQueue *messageQueue, ntasks int) ([]*t
 	// ```
 	// We unmarshal the response into go objects, using the go xml decoder.
 	defer resp.Body.Close()
-	data, err := ioutil.ReadAll(resp.Body)
+	data, _ := ioutil.ReadAll(resp.Body)
 	if err := xml.Unmarshal(data, &r); err != nil {
 		//if err := xml.NewDecoder(resp.Body).Decode(&queueMessagesList); err != nil {
 		q.log.WithFields(logrus.Fields{
@@ -297,15 +297,15 @@ func (q *queueService) pollTaskURL(messageQueue *messageQueue, ntasks int) ([]*t
 			// not very serious - another worker will try to delete it
 			q.log.WithField("messageText", qm.MessageText).Errorf("Not able to base64 decode the Message Text in Azure message response.")
 			q.log.WithField("messageID", qm.MessageID).Info("Deleting from Azure queue as other workers will have the same problem.")
-			err := q.deleteFromAzure(signedDeleteURL)
-			if err != nil {
+			err2 := q.deleteFromAzure(signedDeleteURL)
+			if err2 != nil {
 				q.log.WithFields(logrus.Fields{
 					"messageID": qm.MessageID,
 					"url":       signedDeleteURL,
-					"error":     err,
+					"error":     err2,
 				}).Warn("Not able to call Azure delete URL")
 			}
-			return nil, err
+			return nil, err2
 		}
 
 		// initialise fields of TaskRun not contained in json string m

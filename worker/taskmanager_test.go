@@ -15,14 +15,21 @@ import (
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-client-go/tcclient"
-	"github.com/taskcluster/taskcluster-worker/config"
-	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
+	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/plugins"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/artifacts"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/env"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/success"
-	_ "github.com/taskcluster/taskcluster-worker/plugins/volume"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
+
+type MockPlugin struct {
+	plugins.PluginBase
+}
+
+func (MockPlugin) NewTaskPlugin(plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
+	return plugins.TaskPluginBase{}, nil
+}
 
 type MockQueueService struct {
 	tasks []*TaskRun
@@ -43,7 +50,6 @@ func TestTaskManagerRunTask(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
 
-	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	tempPath := filepath.Join(os.TempDir(), slugid.Nice())
 	tempStorage, err := runtime.NewTemporaryStorage(tempPath)
 	if err != nil {
@@ -53,8 +59,8 @@ func TestTaskManagerRunTask(t *testing.T) {
 	environment := &runtime.Environment{
 		TemporaryStorage: tempStorage,
 	}
-	engineProvider := extpoints.EngineProviders.Lookup("mock")
-	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
+	engineProvider := engines.Engines()["mock"]
+	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: environment,
 		Log:         logger.WithField("engine", "mock"),
 	})
@@ -62,21 +68,11 @@ func TestTaskManagerRunTask(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	cfg := &config.Config{
-		Taskcluster: struct {
-			Queue struct {
-				URL string `json:"url,omitempty"`
-			} `json:"queue,omitempty"`
-		}{
-			Queue: struct {
-				URL string `json:"url,omitempty"`
-			}{
-				URL: s.URL,
-			},
-		},
+	cfg := &configType{
+		QueueBaseURL: s.URL,
 	}
 
-	tm, err := newTaskManager(cfg, engine, environment, logger.WithField("test", "TestTaskManagerRunTask"))
+	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, logger.WithField("test", "TestTaskManagerRunTask"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +111,6 @@ func TestCancelTask(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
 
-	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	tempPath := filepath.Join(os.TempDir(), slugid.Nice())
 	tempStorage, err := runtime.NewTemporaryStorage(tempPath)
 	if err != nil {
@@ -125,8 +120,8 @@ func TestCancelTask(t *testing.T) {
 	environment := &runtime.Environment{
 		TemporaryStorage: tempStorage,
 	}
-	engineProvider := extpoints.EngineProviders.Lookup("mock")
-	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
+	engineProvider := engines.Engines()["mock"]
+	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: environment,
 		Log:         logger.WithField("engine", "mock"),
 	})
@@ -134,21 +129,11 @@ func TestCancelTask(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	cfg := &config.Config{
-		Taskcluster: struct {
-			Queue struct {
-				URL string `json:"url,omitempty"`
-			} `json:"queue,omitempty"`
-		}{
-			Queue: struct {
-				URL string `json:"url,omitempty"`
-			}{
-				URL: s.URL,
-			},
-		},
+	cfg := &configType{
+		QueueBaseURL: s.URL,
 	}
 
-	tm, err := newTaskManager(cfg, engine, environment, logger.WithField("test", "TestRunTask"))
+	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, logger.WithField("test", "TestRunTask"))
 	assert.Nil(t, err)
 
 	claim := &taskClaim{
@@ -167,7 +152,7 @@ func TestCancelTask(t *testing.T) {
 			TakenUntil: tcclient.Time(time.Now().Add(time.Minute * 5)),
 		},
 		definition: &queue.TaskDefinitionResponse{
-			Payload: []byte(`{"start": {"delay": 5000,"function": "write-log","argument": "Hello World"}}`),
+			Payload: []byte(`{"delay": 5000,"function": "write-log","argument": "Hello World"}`),
 		},
 	}
 	done := make(chan struct{})
@@ -206,7 +191,6 @@ func TestWorkerShutdown(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
 
-	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	tempPath := filepath.Join(os.TempDir(), slugid.Nice())
 	tempStorage, err := runtime.NewTemporaryStorage(tempPath)
 	if err != nil {
@@ -216,8 +200,8 @@ func TestWorkerShutdown(t *testing.T) {
 	environment := &runtime.Environment{
 		TemporaryStorage: tempStorage,
 	}
-	engineProvider := extpoints.EngineProviders.Lookup("mock")
-	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
+	engineProvider := engines.Engines()["mock"]
+	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: environment,
 		Log:         logger.WithField("engine", "mock"),
 	})
@@ -225,20 +209,10 @@ func TestWorkerShutdown(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	cfg := &config.Config{
-		Taskcluster: struct {
-			Queue struct {
-				URL string `json:"url,omitempty"`
-			} `json:"queue,omitempty"`
-		}{
-			Queue: struct {
-				URL string `json:"url,omitempty"`
-			}{
-				URL: s.URL,
-			},
-		},
+	cfg := &configType{
+		QueueBaseURL: s.URL,
 	}
-	tm, err := newTaskManager(cfg, engine, environment, logger.WithField("test", "TestRunTask"))
+	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, logger.WithField("test", "TestRunTask"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +222,7 @@ func TestWorkerShutdown(t *testing.T) {
 			taskID: "abc",
 			runID:  1,
 			definition: &queue.TaskDefinitionResponse{
-				Payload: []byte(`{"start": {"delay": 5000,"function": "write-log","argument": "Hello World"}}`),
+				Payload: []byte(`{"delay": 5000,"function": "write-log","argument": "Hello World"}`),
 			},
 			taskClaim: &queue.TaskClaimResponse{
 				Credentials: struct {
@@ -267,7 +241,7 @@ func TestWorkerShutdown(t *testing.T) {
 			taskID: "def",
 			runID:  0,
 			definition: &queue.TaskDefinitionResponse{
-				Payload: []byte(`{"start": {"delay": 5000,"function": "write-log","argument": "Hello World"}}`),
+				Payload: []byte(`{"delay": 5000,"function": "write-log","argument": "Hello World"}`),
 			},
 			taskClaim: &queue.TaskClaimResponse{
 				Credentials: struct {

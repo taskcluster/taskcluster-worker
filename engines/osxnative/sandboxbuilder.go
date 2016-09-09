@@ -3,15 +3,16 @@
 package osxnative
 
 import (
+	"sync"
+
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
-	"sync"
 )
 
 type sandboxbuilder struct {
 	engines.SandboxBuilderBase
 	env         map[string]string
-	taskPayload *payload
+	taskPayload *payloadType
 	context     *runtime.TaskContext
 	envMutex    *sync.Mutex
 	engine      *engine

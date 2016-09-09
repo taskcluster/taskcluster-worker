@@ -1,18 +1,17 @@
 package success
 
 import (
-	"github.com/taskcluster/taskcluster-worker/plugins/plugintest"
 	"testing"
+
+	"github.com/taskcluster/taskcluster-worker/plugins/plugintest"
 )
 
 func TestSuccessSuccessPlugin(*testing.T) {
 	plugintest.Case{
 		Payload: `{
-			"start": {
-				"delay": 0,
-				"function": "true",
-				"argument": "whatever"
-			}
+			"delay": 0,
+			"function": "true",
+			"argument": "whatever"
 		}`,
 		Plugin:        "success",
 		PluginSuccess: true,
@@ -23,11 +22,9 @@ func TestSuccessSuccessPlugin(*testing.T) {
 func TestSuccessFailurePlugin(*testing.T) {
 	plugintest.Case{
 		Payload: `{
-			"start": {
-				"delay": 0,
-				"function": "false",
-				"argument": "whatever"
-			}
+			"delay": 0,
+			"function": "false",
+			"argument": "whatever"
 		}`,
 		Plugin:        "success",
 		PluginSuccess: false,

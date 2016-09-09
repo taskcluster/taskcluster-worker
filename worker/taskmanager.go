@@ -7,10 +7,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	tcqueue "github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-client-go/tcclient"
-	"github.com/taskcluster/taskcluster-worker/config"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
-	"github.com/taskcluster/taskcluster-worker/plugins/extpoints"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
@@ -22,11 +20,11 @@ type Manager struct {
 	sync.RWMutex
 	wg            sync.WaitGroup
 	done          chan struct{}
-	config        *config.Config
+	config        *configType
 	engine        engines.Engine
 	environment   *runtime.Environment
 	pluginManager plugins.Plugin
-	pluginOptions *extpoints.PluginOptions
+	pluginOptions *plugins.PluginOptions
 	log           *logrus.Entry
 	queue         QueueService
 	provisionerID string
@@ -37,7 +35,10 @@ type Manager struct {
 
 // Create a new instance of the task manager that will be responsible for claiming,
 // executing, and resolving units of work (tasks).
-func newTaskManager(config *config.Config, engine engines.Engine, environment *runtime.Environment, log *logrus.Entry) (*Manager, error) {
+func newTaskManager(
+	config *configType, engine engines.Engine, pluginManager plugins.Plugin,
+	environment *runtime.Environment, log *logrus.Entry,
+) (*Manager, error) {
 	queue := tcqueue.New(
 		&tcclient.Credentials{
 			ClientID:    config.Credentials.ClientID,
@@ -46,7 +47,9 @@ func newTaskManager(config *config.Config, engine engines.Engine, environment *r
 		},
 	)
 
-	queue.BaseURL = config.Taskcluster.Queue.URL
+	if config.QueueBaseURL != "" {
+		queue.BaseURL = config.QueueBaseURL
+	}
 
 	service := &queueService{
 		capacity:         config.Capacity,
@@ -57,7 +60,7 @@ func newTaskManager(config *config.Config, engine engines.Engine, environment *r
 		workerID:         config.WorkerID,
 		workerType:       config.WorkerType,
 		log:              log.WithField("component", "Queue Service"),
-		expirationOffset: config.QueueService.ExpirationOffset,
+		expirationOffset: config.ReclaimOffset,
 	}
 
 	m := &Manager{
@@ -73,19 +76,7 @@ func newTaskManager(config *config.Config, engine engines.Engine, environment *r
 		workerID:      config.WorkerID,
 	}
 
-	m.pluginOptions = &extpoints.PluginOptions{
-		Environment: environment,
-		Engine:      engine,
-		Log:         log.WithField("component", "Plugin Manager"),
-	}
-
-	pm, err := extpoints.NewPluginManager([]string{"success", "artifacts", "env", "volume"}, *m.pluginOptions)
-	if err != nil {
-		log.WithField("error", err.Error()).Warn("Error creating task manager. Could not create plugin manager")
-		return nil, err
-	}
-
-	m.pluginManager = pm
+	m.pluginManager = pluginManager
 	return m, nil
 }
 
@@ -156,7 +147,7 @@ func (m *Manager) run(claim *taskClaim) {
 		"runID":  claim.runID,
 	})
 
-	task, err := NewTaskRun(m.config, claim, m.environment, m.engine, m.pluginManager, log)
+	task, err := newTaskRun(m.config, claim, m.environment, m.engine, m.pluginManager, log)
 	if err != nil {
 		// This is a fatal call because creating a task run should never fail.
 		log.WithField("error", err.Error()).Fatal("Could not successfully run the task")

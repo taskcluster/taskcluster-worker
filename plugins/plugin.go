@@ -1,8 +1,7 @@
-//go:generate go-extpoints
-
 package plugins
 
 import (
+	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
@@ -14,7 +13,7 @@ import (
 // when introducing additional arguments.
 type TaskPluginOptions struct {
 	TaskInfo *runtime.TaskInfo
-	Payload  interface{}
+	Payload  map[string]interface{}
 	// Note: This is passed by-value for efficiency (and to prohibit nil), if
 	// adding any large fields please consider adding them as pointers.
 	// Note: This is intended to be a simple argument wrapper, do not add methods
@@ -27,12 +26,13 @@ type TaskPluginOptions struct {
 //
 // All methods on this interface must be thread-safe.
 type Plugin interface {
-	// PayloadSchema returns the CompositeSchema that represents the payload.
+	// PayloadSchema returns a schematypes.Object with the properties for
+	// for the TaskPluginOptions.Payload property.
 	//
-	// The Payload property on TaskPluginOptions given to NewTaskPlugin will be
-	// the result from CompositeSchema.Parse() on the CompositeSchema returned
-	// from this method.
-	PayloadSchema() (runtime.CompositeSchema, error)
+	// Note: this will be merged with payload schemas from engine and other
+	// plugins, thus, it cannot contain conflicting properties. Furthermore the
+	// metadata will be discarded and additionalProperties will not be allowed.
+	PayloadSchema() schematypes.Object
 
 	// NewTaskPlugin method will be called once for each task. The TaskPlugin
 	// instance returned will be called for each stage in the task execution.
@@ -146,15 +146,10 @@ type TaskPlugin interface {
 // new optional methods.
 type PluginBase struct{}
 
-// PayloadSchema returns an empty composite schema for plugins that doesn't
+// PayloadSchema returns a schema for an empty object for plugins that doesn't
 // take any payload.
-func (PluginBase) PayloadSchema() (runtime.CompositeSchema, error) {
-	return runtime.NewEmptyCompositeSchema(), nil
-}
-
-// ConfigSchema will return a new empty composite schema.  PluginBase requires no custom config
-func (PluginBase) ConfigSchema() runtime.CompositeSchema {
-	return runtime.NewEmptyCompositeSchema()
+func (PluginBase) PayloadSchema() schematypes.Object {
+	return schematypes.Object{}
 }
 
 // NewTaskPlugin returns nil ignoring the request to create a TaskPlugin for

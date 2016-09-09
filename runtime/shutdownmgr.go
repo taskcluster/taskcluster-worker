@@ -1,5 +1,8 @@
 package runtime
 
+//TODO: Move shutdown manager into worker/shutdownmanager/ or something like that
+//TODO: Shutdown manager should expose a schema for configuration...
+
 // ShutdownManager implements a method for listening for shutdown events.  Consumers
 type ShutdownManager interface {
 	WaitForShutdown() <-chan struct{}
@@ -48,5 +51,5 @@ type localShutdownManager struct {
 
 // WaitForShutdown will listen for local events to signify a worker shutdown
 func (l *localShutdownManager) WaitForShutdown() <-chan struct{} {
-	return l.sc
+	return l.sc //TODO: localShutdownManager should listen for SIGHUB (just to do something)
 }

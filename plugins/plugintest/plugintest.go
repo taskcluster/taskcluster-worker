@@ -12,11 +12,9 @@ import (
 	"github.com/taskcluster/slugid-go/slugid"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
 	// Ensure we load the mock engine
 	_ "github.com/taskcluster/taskcluster-worker/engines/mock"
 	"github.com/taskcluster/taskcluster-worker/plugins"
-	pluginExtpoints "github.com/taskcluster/taskcluster-worker/plugins/extpoints"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
@@ -75,8 +73,8 @@ type Case struct {
 // Test is called to trigger a plugintest.Case to run
 func (c Case) Test() {
 	runtimeEnvironment := newTestEnvironment()
-	engineProvider := extpoints.EngineProviders.Lookup("mock")
-	engine, err := engineProvider.NewEngine(extpoints.EngineOptions{
+	engineProvider := engines.Engines()["mock"]
+	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: runtimeEnvironment,
 		Log:         runtimeEnvironment.Log.WithField("engine", "mock"),
 		// TODO: Add engine config
@@ -100,12 +98,13 @@ func (c Case) Test() {
 		Payload:     parseEnginePayload(engine, c.Payload),
 	})
 
-	provider := pluginExtpoints.PluginProviders.Lookup(c.Plugin)
+	provider := plugins.Plugins()[c.Plugin]
 	assert(provider != nil, "Plugin does not exist! You tried to load: ", c.Plugin)
-	p, err := provider.NewPlugin(pluginExtpoints.PluginOptions{
+	p, err := provider.NewPlugin(plugins.PluginOptions{
 		Environment: runtimeEnvironment,
 		Engine:      engine,
 		Log:         runtimeEnvironment.Log.WithField("engine", "mock"),
+		Config:      nil, // TODO: Support plugin configuration
 	})
 	tp, err := p.NewTaskPlugin(plugins.TaskPluginOptions{
 		TaskInfo: &context.TaskInfo,
@@ -211,24 +210,24 @@ func newTestEnvironment() *runtime.Environment {
 	}
 }
 
-func parseEnginePayload(engine engines.Engine, payload string) interface{} {
-	jsonPayload := map[string]json.RawMessage{}
+func parseEnginePayload(engine engines.Engine, payload string) map[string]interface{} {
+	var jsonPayload map[string]interface{}
 	err := json.Unmarshal([]byte(payload), &jsonPayload)
 	nilOrPanic(err, "Payload parsing failed: ", payload)
-	p, err := engine.PayloadSchema().Parse(jsonPayload)
+	jsonPayload = engine.PayloadSchema().Filter(jsonPayload)
+	err = engine.PayloadSchema().Validate(jsonPayload)
 	nilOrPanic(err, "Payload validation failed: ", payload)
-	return p
+	return jsonPayload
 }
 
-func parsePluginPayload(plugin plugins.Plugin, payload string) interface{} {
-	jsonPayload := map[string]json.RawMessage{}
+func parsePluginPayload(plugin plugins.Plugin, payload string) map[string]interface{} {
+	var jsonPayload map[string]interface{}
 	err := json.Unmarshal([]byte(payload), &jsonPayload)
 	nilOrPanic(err, "Payload parsing failed: ", payload)
-	s, err := plugin.PayloadSchema()
-	nilOrPanic(err, "Payload schema failed: ", payload)
-	p, err := s.Parse(jsonPayload)
+	jsonPayload = plugin.PayloadSchema().Filter(jsonPayload)
+	err = plugin.PayloadSchema().Validate(jsonPayload)
 	nilOrPanic(err, "Payload validation failed: ", payload)
-	return p
+	return jsonPayload
 }
 
 func fmtPanic(a ...interface{}) {

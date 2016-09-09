@@ -3,13 +3,14 @@
 package osxnative
 
 import (
+	"io/ioutil"
+	"os"
+	"testing"
+
 	"github.com/Sirupsen/logrus"
 	assert "github.com/stretchr/testify/require"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
-	"io/ioutil"
-	"os"
-	"testing"
 )
 
 func newTestSandbox(taskPayload *payload, env []string) (*sandbox, error) {
@@ -23,12 +24,12 @@ func newTestSandbox(taskPayload *payload, env []string) (*sandbox, error) {
 		return nil, err
 	}
 
-	engine := engine{
+	e := engine{
 		EngineBase: engines.EngineBase{},
 		log:        logrus.New().WithField("component", "test"),
 	}
 
-	return newSandbox(context, taskPayload, env, &engine), nil
+	return newSandbox(context, taskPayload, env, &e), nil
 }
 
 func TestWaitResult(t *testing.T) {

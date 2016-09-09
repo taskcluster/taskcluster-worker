@@ -16,18 +16,14 @@ var volumeTestCase = enginetest.VolumeTestCase{
 	EngineProvider: provider,
 	Mountpoint:     "/mock/volume",
 	WriteVolumePayload: `{
-    "start": {
-      "delay": 0,
-      "function": "set-volume",
-      "argument": "/mock/volume"
-    }
+    "delay": 0,
+    "function": "set-volume",
+    "argument": "/mock/volume"
   }`,
 	CheckVolumePayload: `{
-    "start": {
-      "delay": 0,
-      "function": "get-volume",
-      "argument": "/mock/volume"
-    }
+    "delay": 0,
+    "function": "get-volume",
+    "argument": "/mock/volume"
   }`,
 }
 
@@ -41,25 +37,19 @@ var loggingTestCase = enginetest.LoggingTestCase{
 	EngineProvider: provider,
 	Target:         "Hello World",
 	TargetPayload: `{
-    "start": {
-      "delay": 0,
-      "function": "write-log",
-      "argument": "Hello World"
-    }
+    "delay": 0,
+    "function": "write-log",
+    "argument": "Hello World"
   }`,
 	FailingPayload: `{
-    "start": {
-      "delay": 0,
-      "function": "write-error-log",
-      "argument": "Hello World"
-    }
+    "delay": 0,
+    "function": "write-error-log",
+    "argument": "Hello World"
   }`,
 	SilentPayload: `{
-    "start": {
-      "delay": 0,
-      "function": "write-log",
-      "argument": "Okay, let's try on Danish then: 'Hej Verden'"
-    }
+    "delay": 0,
+    "function": "write-log",
+    "argument": "Okay, let's try on Danish then: 'Hej Verden'"
   }`,
 }
 
@@ -72,11 +62,9 @@ var proxyTestCase = enginetest.ProxyTestCase{
 	EngineProvider: provider,
 	ProxyName:      "proxy.com",
 	PingProxyPayload: `{
-    "start": {
-      "delay": 0,
-      "function": "ping-proxy",
-      "argument": "http://proxy.com/v1/ping"
-    }
+    "delay": 0,
+    "function": "ping-proxy",
+    "argument": "http://proxy.com/v1/ping"
   }`,
 }
 
@@ -91,11 +79,9 @@ var envVarTestCase = enginetest.EnvVarTestCase{
 	VariableName:         "HELLO_WORLD",
 	InvalidVariableNames: []string{"bad d", "also bad", "can't have space"},
 	Payload: `{
-    "start": {
-      "delay": 0,
-      "function": "print-env-var",
-      "argument": "HELLO_WORLD"
-    }
+    "delay": 0,
+    "function": "print-env-var",
+    "argument": "HELLO_WORLD"
   }`,
 }
 
@@ -113,11 +99,9 @@ var artifactTestCase = enginetest.ArtifactTestCase{
 	NestedFolderFiles:  []string{"/folder/a.txt", "/folder/b.txt", "/folder/c/c.txt"},
 	NestedFolderPath:   "/folder/",
 	Payload: `{
-		"start":{
-			"delay": 0,
-			"function": "write-files",
-			"argument": "/folder/a.txt /folder/b.txt /folder/c/c.txt"
-		}
+		"delay": 0,
+		"function": "write-files",
+		"argument": "/folder/a.txt /folder/b.txt /folder/c/c.txt"
 	}`,
 }
 
@@ -136,11 +120,9 @@ var shellTestCase = enginetest.ShellTestCase{
 	BadCommand:     "exit-false",
 	SleepCommand:   "sleep",
 	Payload: `{
-		"start":{
-			"delay": 0,
-			"function": "true",
-			"argument": ""
-		}
+		"delay": 0,
+		"function": "true",
+		"argument": ""
 	}`,
 }
 
@@ -161,11 +143,9 @@ var displayTestCase = enginetest.DisplayTestCase{
 	},
 	InvalidDisplayName: "no-such-display",
 	Payload: `{
-		"start":{
-			"delay": 0,
-			"function": "true",
-			"argument": ""
-		}
+		"delay": 0,
+		"function": "true",
+		"argument": ""
 	}`,
 }
 

@@ -15,14 +15,13 @@ package success
 import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
-	"github.com/taskcluster/taskcluster-worker/plugins/extpoints"
 )
 
 type pluginProvider struct {
-	extpoints.PluginProviderBase
+	plugins.PluginProviderBase
 }
 
-func (pluginProvider) NewPlugin(extpoints.PluginOptions) (plugins.Plugin, error) {
+func (pluginProvider) NewPlugin(plugins.PluginOptions) (plugins.Plugin, error) {
 	return plugin{}, nil
 }
 
@@ -35,7 +34,7 @@ type taskPlugin struct {
 }
 
 func init() {
-	extpoints.PluginProviders.Register(new(pluginProvider), "success")
+	plugins.Register("success", pluginProvider{})
 }
 
 func (plugin) NewTaskPlugin(plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {

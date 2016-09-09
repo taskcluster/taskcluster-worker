@@ -1,16 +1,13 @@
 // +build darwin
-//go:generate go-composite-schema --unexported --required engine payload-schema.yml generated_payloadschema.go
 
-// Package osxnative implements the Mac OSX engine
 package osxnative
 
 import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/engines/extpoints"
-	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 type engine struct {
@@ -19,36 +16,57 @@ type engine struct {
 }
 
 type engineProvider struct {
-	extpoints.EngineProviderBase
+	engines.EngineProviderBase
 }
 
-func (e engineProvider) NewEngine(options extpoints.EngineOptions) (engines.Engine, error) {
+func (e engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine, error) {
 	return engine{log: options.Log}, nil
 }
 
-func (e engineProvider) ConfigSchema() runtime.CompositeSchema {
-	return runtime.NewEmptyCompositeSchema()
+type payloadType struct {
+	Link    string   `json:"link"`
+	Command []string `json:"command"`
 }
 
-func (e engine) PayloadSchema() runtime.CompositeSchema {
+var payloadSchema = schematypes.Object{
+	Properties: schematypes.Properties{
+		"link": schematypes.URI{
+			MetaData: schematypes.MetaData{
+				Title: "Executable to download",
+				Description: `Link to an script/executable to run. The file must still be
+		      explicitly referenced by the command field.`,
+			},
+		},
+		"command": schematypes.Array{
+			MetaData: schematypes.MetaData{
+				Title: "Command to run",
+				Description: `The first item is the executable to run, followed by command line
+					parameters.`,
+			},
+			Items: schematypes.String{},
+		},
+	},
+	Required: []string{"command"},
+}
+
+func (e engine) PayloadSchema() schematypes.Object {
 	return payloadSchema
 }
 
 func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {
-	taskPayload, ok := options.Payload.(*payload)
-	if !ok {
-		e.log.WithFields(logrus.Fields{
-			"payload": options.Payload,
-		}).Error("Invalid payload schema")
-
-		return nil, engines.NewMalformedPayloadError("Invalid payload schema")
+	var taskPayload payloadType
+	err := payloadSchema.Map(options.Payload, &taskPayload)
+	if err == schematypes.ErrTypeMismatch {
+		panic("Type mismatch")
+	} else if err != nil {
+		return nil, engines.NewMalformedPayloadError("Invalid payload: ", err)
 	}
 
 	var m sync.Mutex
 	return sandboxbuilder{
 		SandboxBuilderBase: engines.SandboxBuilderBase{},
 		env:                map[string]string{},
-		taskPayload:        taskPayload,
+		taskPayload:        &taskPayload,
 		context:            options.TaskContext,
 		envMutex:           &m,
 		engine:             &e,

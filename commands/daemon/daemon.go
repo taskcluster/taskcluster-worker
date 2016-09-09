@@ -5,7 +5,7 @@ import (
 	"os"
 
 	daemonize "github.com/takama/daemon"
-	cmd_ep "github.com/taskcluster/taskcluster-worker/commands/extpoints"
+	"github.com/taskcluster/taskcluster-worker/commands"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
@@ -18,7 +18,7 @@ const (
 var dependencies = []string{}
 
 func init() {
-	cmd_ep.CommandProviders.Register(cmd{}, "daemon")
+	commands.Register("daemon", cmd{})
 }
 
 type cmd struct{}
