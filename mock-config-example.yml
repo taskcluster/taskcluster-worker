@@ -1,0 +1,20 @@
+capacity:         1
+credentials:
+  # Create a client with the scope:
+  # assume:project:taskcluster:worker-test-scopes
+  clientId:       '...'
+  accessToken:    '...'
+provisionerId:    test-dummy-provisioner
+workerType:       dummy-worker-mock-33 # choose number to avoid conflicts
+workerGroup:      test-dummy-workers
+workerId:         dummy-worker-33
+engine:           mock
+engines:
+  mock: {}
+logLevel:         debug
+plugins:
+  disabled:       []
+pollingInterval:  1
+queueBaseUrl:     https://queue.taskcluster.net/v1
+reclaimOffset:    120
+temporaryFolder:  /tmp/tc-worker-tmp

@@ -54,7 +54,7 @@ func (cmd) Execute(args map[string]interface{}) bool {
 			fmt.Printf("Failed to initialize worker, error: %s\n", err)
 			return false
 		}
-		schema = w.PayloadSchema()
+		schema = w.PayloadSchema().Schema()
 	}
 
 	// Format schema to JSON or YAML
