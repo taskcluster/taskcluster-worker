@@ -11,10 +11,10 @@
 //
 // A plugin does not get any plugin specific task.payload space, instead the
 // options required by a plugin must be part of the task.payload. Hence, all
-// plugins must be available on all platforms. To faciliate this, plugins should
-// not use platform specific APIs, instead they should rely on interface offered
-// by the engine objects to do so, fail gracefully if an engine method is
-// not supported in a given configuration and returns ErrFeatureNotSupported.
+// plugins must be available on all platforms. To facilitate this, plugins
+// should not use platform specific APIs, instead they should rely on interface
+// offered by the engine objects to do so, fail gracefully if an engine method
+// is not supported in a given configuration and returns ErrFeatureNotSupported.
 //
 // When a plugin encounters an unsupported feature that it needs, it may either
 // return a MalformedPayloadError, or simply ignore the error and workaround it.

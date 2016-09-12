@@ -121,7 +121,7 @@ func TestShouldNotRefreshMessageQueueURLs(t *testing.T) {
 		log:              logger.WithField("component", "Queue Service"),
 	}
 
-	// Because the expiration is not close, adn the service already has queues,
+	// Because the expiration is not close, and the service already has queues,
 	// there should be no reason to refresh.  Because the service was not created
 	// with a taskcluster queue client, if it attempts to refresh, there will be
 	// a panic
@@ -305,7 +305,7 @@ func TestPollTaskURLInvalidMessageTextEncoding(t *testing.T) {
 
 func TestSuccessfullyDeleteFromAzureQueue(t *testing.T) {
 	// The method for deleting from the azure queue just makes sure that when
-	// calling a given URL that a 200 status reponse is received.
+	// calling a given URL that a 200 status response is received.
 	var handler = func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok"))
 	}

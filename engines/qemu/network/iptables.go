@@ -81,7 +81,7 @@ func ipTableRules(tapDevice string, ipPrefix string, delete bool) [][]string {
 		{"-d", "192.168.0.0/16", "-j", "REJECT", "--reject-with", "icmp-net-unreachable"},
 		// Allow out-going from tctap1 with correct source subnet
 		{"-o", "eth0", "-s", subnet, "-j", "ACCEPT"},
-		// Allow tctap1 -> tctap1 withing allowed subnet
+		// Allow tctap1 -> tctap1 within allowed subnet
 		{"-o", "tctap1", "-s", subnet, "-j", "ACCEPT"},
 		// Reject all other input for forwarding from tap-device
 		{"-j", "REJECT", "--reject-with", "icmp-net-prohibited"},
@@ -96,7 +96,7 @@ func ipTableRules(tapDevice string, ipPrefix string, delete bool) [][]string {
 		{"-s", "192.168.0.0/16", "-j", "DROP"},
 		// Allow incoming from tctap1 with correct destination (if already established)
 		{"-i", "eth0", "-d", subnet, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT"},
-		// Allow tctap1 -> tctap1 withing allowed subnet
+		// Allow tctap1 -> tctap1 within allowed subnet
 		{"-i", "tctap1", "-s", subnet, "-j", "ACCEPT"},
 		// Reject all other output from forwarding to tap-device
 		{"-j", "DROP"},

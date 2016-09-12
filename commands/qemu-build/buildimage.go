@@ -103,7 +103,7 @@ func buildImage(
 	select {
 	case <-interrupted:
 		vm.Kill()
-		err = errors.New("SIGINT recieved, aborting virtual machine")
+		err = errors.New("SIGINT received, aborting virtual machine")
 	case <-vm.Done:
 		err = vm.Error
 	}

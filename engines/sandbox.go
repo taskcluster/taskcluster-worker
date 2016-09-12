@@ -45,7 +45,7 @@ type Sandbox interface {
 	//
 	// When this method returns, all resources held by the Sandbox instance must
 	// have been released or transferred to the ResultSet instance returned. If an
-	// internal error occured, resources may be freed and WaitForResult() may
+	// internal error occurred, resources may be freed and WaitForResult() may
 	// return ErrNonFatalInternalError if the error didn't leak resources and we
 	// don't expect the error to be persistent.
 	//

@@ -106,11 +106,11 @@ func TestExtractFolder(t *testing.T) {
 
 	err = r.ExtractFolder("test-data", func(p string, stream ioext.ReadSeekCloser) error {
 		expected := path.Base(p) + "\n"
-		data, err := ioutil.ReadAll(stream)
+		data, err2 := ioutil.ReadAll(stream)
 		sdata := string(data)
 
-		if err != nil {
-			return err
+		if err2 != nil {
+			return err2
 		}
 
 		if sdata != expected {

@@ -293,7 +293,7 @@ func (s *ShellHandler) readMessages() {
 			}
 		}
 
-		// If bytes from stdout/stderr are acknowleged, then we unblock
+		// If bytes from stdout/stderr are acknowledged, then we unblock
 		// additional bytes
 		if mType == MessageTypeAck && len(mData) == 5 {
 			mStream := mData[0]

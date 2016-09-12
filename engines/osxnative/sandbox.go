@@ -133,8 +133,8 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 	cmd.Stdout = stdoutLogWriter{s.context}
 	cmd.Stderr = stderrLogWriter{s.context}
 
-	// USER and HOME are treated seperately because their values
-	// depend on either we create the new user successfuly or not
+	// USER and HOME are treated separately because their values
+	// depend on either we create the new user successfully or not
 	processUser := os.Getenv("USER")
 	processHome := os.Getenv("HOME")
 
@@ -162,17 +162,20 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 			}
 		}()
 
-		userInfo, err := osuser.Lookup(u.name)
+		var userInfo *osuser.User
+		userInfo, err = osuser.Lookup(u.name)
 		if err != nil {
 			s.context.LogError("Error looking up for user \""+u.name+"\": ", err, "\n")
 		} else {
-			uid, err := strconv.ParseUint(userInfo.Uid, 10, 32)
+			var uid uint64
+			uid, err = strconv.ParseUint(userInfo.Uid, 10, 32)
 			if err != nil {
 				s.context.LogError("ParseUint failed to convert ", userInfo.Uid, ": ", err, "\n")
 				return nil, engines.ErrNonFatalInternalError
 			}
 
-			gid, err := strconv.ParseUint(userInfo.Gid, 10, 32)
+			var gid uint64
+			gid, err = strconv.ParseUint(userInfo.Gid, 10, 32)
 			if err != nil {
 				s.context.LogError("ParseUint failed to convert ", userInfo.Gid, ": ", err, "\n")
 				return nil, engines.ErrNonFatalInternalError
@@ -196,7 +199,8 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 	cmd.Env = env
 
 	if s.taskPayload.Link != "" {
-		filename, err := downloadLink(getWorkingDir(u, s.context), s.taskPayload.Link)
+		var filename string
+		filename, err = downloadLink(getWorkingDir(u, s.context), s.taskPayload.Link)
 
 		if err != nil {
 			s.context.LogError(err)
