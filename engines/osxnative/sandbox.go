@@ -162,19 +162,22 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 			}
 		}()
 
-		userInfo, err2 := osuser.Lookup(u.name)
-		if err2 != nil {
+		var userInfo *osuser.User
+		userInfo, err = osuser.Lookup(u.name)
+		if err != nil {
 			s.context.LogError("Error looking up for user \""+u.name+"\": ", err, "\n")
 		} else {
-			uid, err2 := strconv.ParseUint(userInfo.Uid, 10, 32)
-			if err2 != nil {
-				s.context.LogError("ParseUint failed to convert ", userInfo.Uid, ": ", err2, "\n")
+			var uid uint64
+			uid, err = strconv.ParseUint(userInfo.Uid, 10, 32)
+			if err != nil {
+				s.context.LogError("ParseUint failed to convert ", userInfo.Uid, ": ", err, "\n")
 				return nil, engines.ErrNonFatalInternalError
 			}
 
-			gid, err2 := strconv.ParseUint(userInfo.Gid, 10, 32)
-			if err2 != nil {
-				s.context.LogError("ParseUint failed to convert ", userInfo.Gid, ": ", err2, "\n")
+			var gid uint64
+			gid, err = strconv.ParseUint(userInfo.Gid, 10, 32)
+			if err != nil {
+				s.context.LogError("ParseUint failed to convert ", userInfo.Gid, ": ", err, "\n")
 				return nil, engines.ErrNonFatalInternalError
 			}
 
@@ -196,17 +199,18 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 	cmd.Env = env
 
 	if s.taskPayload.Link != "" {
-		filename, err2 := downloadLink(getWorkingDir(u, s.context), s.taskPayload.Link)
+		var filename string
+		filename, err = downloadLink(getWorkingDir(u, s.context), s.taskPayload.Link)
 
-		if err2 != nil {
-			s.context.LogError(err2)
+		if err != nil {
+			s.context.LogError(err)
 			return nil, engines.ErrNonFatalInternalError
 		}
 
 		defer os.Remove(filename)
 
-		if err2 = os.Chmod(filename, 0777); err2 != nil {
-			s.context.LogError(err2, "\n")
+		if err = os.Chmod(filename, 0777); err != nil {
+			s.context.LogError(err, "\n")
 			return nil, engines.ErrNonFatalInternalError
 		}
 	}
