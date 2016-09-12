@@ -1,16 +1,11 @@
 package work
 
 import (
-	"io/ioutil"
+	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 
-	yaml "gopkg.in/yaml.v2"
-
-	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-worker/commands"
-	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/worker"
 )
 
@@ -26,48 +21,21 @@ func (cmd) Summary() string {
 
 func (cmd) Usage() string {
 	return `Usage:
-  taskcluster-worker work <config-file> [--logging-level <level>]
-
-Options:
-  -l --logging-level <level>  	Set logging at <level>.
+  taskcluster-worker work <config.yml>
 `
 }
 
 func (cmd) Execute(args map[string]interface{}) bool {
-	// Setup logger
-	var level string
-	if l := args["--logging-level"]; l != nil {
-		level = l.(string)
-	}
-	logger, err := runtime.CreateLogger(level)
+	config, err := worker.LoadConfigFile(args["<config.yml>"].(string))
 	if err != nil {
-		os.Stderr.WriteString(err.Error())
+		fmt.Println(err)
 		return false
 	}
 
-	configFile, err := ioutil.ReadFile(args["<config-file>"].(string))
+	w, err := worker.New(config, nil)
 	if err != nil {
-		logger.Error("Failed to open configFile, error: ", err)
+		fmt.Println(err)
 		return false
-	}
-	var config interface{}
-	err = yaml.Unmarshal(configFile, &config)
-	if err != nil {
-		logger.Error("Failed to parse configFile, error: ", err)
-		return false
-	}
-
-	// Create a temporary folder
-	tempPath := filepath.Join(os.TempDir(), slugid.Nice())
-	tempStorage, err := runtime.NewTemporaryStorage(tempPath)
-	runtimeEnvironment := &runtime.Environment{
-		Log:              logger,
-		TemporaryStorage: tempStorage,
-	}
-
-	w, err := worker.New(config, runtimeEnvironment)
-	if err != nil {
-		logger.Fatalf("Could not create worker. %s", err)
 	}
 
 	done := make(chan struct{})
