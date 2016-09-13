@@ -2,7 +2,9 @@ package worker
 
 import (
 	"fmt"
+	"net"
 	"os"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
@@ -10,16 +12,18 @@ import (
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
+	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 )
 
 // Worker is the center of taskcluster-worker and is responsible for managing resources, tasks,
 // and host level events.
 type Worker struct {
-	log  *logrus.Entry
-	done chan struct{}
-	tm   *Manager
-	sm   runtime.ShutdownManager
-	env  *runtime.Environment
+	log    *logrus.Entry
+	done   chan struct{}
+	tm     *Manager
+	sm     runtime.ShutdownManager
+	env    *runtime.Environment
+	server *webhookserver.LocalServer
 }
 
 // New will create a worker given configuration matching the schema from
@@ -49,10 +53,28 @@ func New(config interface{}, log *logrus.Logger) (*Worker, error) {
 	}
 	log.Level, _ = logrus.ParseLevel(c.LogLevel)
 
+	// Setup WebHookServer
+	localServer, err := webhookserver.NewLocalServer(
+		net.TCPAddr{
+			IP:   net.ParseIP(c.ServerIP),
+			Port: c.ServerPort,
+		},
+		c.DNSDomain,
+		c.DNSSecret,
+		c.TLSCertificate,
+		c.TLSKey,
+		time.Duration(c.MaxLifeCycle)*time.Second,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create environment
 	env := &runtime.Environment{
 		GarbageCollector: &gc.GarbageCollector{},
 		Log:              log,
 		TemporaryStorage: tempStorage,
+		WebHookServer:    localServer,
 	}
 
 	// Ensure that engine confiuguration was provided for the engine selected
@@ -92,11 +114,12 @@ func New(config interface{}, log *logrus.Logger) (*Worker, error) {
 	}
 
 	return &Worker{
-		log:  env.Log.WithField("component", "worker"),
-		tm:   tm,
-		sm:   runtime.NewShutdownManager("local"),
-		env:  env,
-		done: make(chan struct{}),
+		log:    env.Log.WithField("component", "worker"),
+		tm:     tm,
+		sm:     runtime.NewShutdownManager("local"),
+		env:    env,
+		server: localServer,
+		done:   make(chan struct{}),
 	}, nil
 }
 
@@ -106,6 +129,7 @@ func New(config interface{}, log *logrus.Logger) (*Worker, error) {
 func (w *Worker) Start() {
 	w.log.Info("worker starting up")
 
+	go w.server.ListenAndServe()
 	go w.tm.Start()
 
 	select {

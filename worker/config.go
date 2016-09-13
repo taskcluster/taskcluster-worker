@@ -26,6 +26,13 @@ type configType struct {
 	WorkerID        string                 `json:"workerId"`
 	TemporaryFolder string                 `json:"temporaryFolder"`
 	LogLevel        string                 `json:"logLevel"`
+	ServerIP        string                 `json:"serverIp"`
+	ServerPort      int                    `json:"serverPort"`
+	TLSCertificate  string                 `json:"tlsCertificiate"`
+	TLSKey          string                 `json:"tlsKey"`
+	DNSSecret       string                 `json:"statelessDNSSecret"`
+	DNSDomain       string                 `json:"statelessDNSDomain"`
+	MaxLifeCycle    int                    `json:"maxLifeCycle"`
 }
 
 type credentials struct {
@@ -187,6 +194,23 @@ func ConfigSchema() schematypes.Object {
 					logrus.PanicLevel.String(),
 				},
 			},
+			"serverIp": schematypes.String{},
+			"serverPort": schematypes.Integer{
+				Minimum: 0,
+				Maximum: 65535,
+			},
+			"tlsCertificiate":    schematypes.String{},
+			"tlsKey":             schematypes.String{},
+			"statelessDNSSecret": schematypes.String{},
+			"statelessDNSDomain": schematypes.String{},
+			"maxLifeCycle": schematypes.Integer{
+				MetaData: schematypes.MetaData{
+					Title:       "Max life cycle of worker",
+					Description: "Used to limit validity of hostname",
+				},
+				Minimum: 5 * 60,
+				Maximum: 31 * 24 * 60 * 60,
+			},
 		},
 		Required: []string{
 			"engine",
@@ -202,6 +226,11 @@ func ConfigSchema() schematypes.Object {
 			"workerId",
 			"temporaryFolder",
 			"logLevel",
+			"serverIp",
+			"serverPort",
+			"statelessDNSSecret",
+			"statelessDNSDomain",
+			"maxLifeCycle",
 		},
 	}
 }

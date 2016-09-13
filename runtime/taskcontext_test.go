@@ -21,7 +21,7 @@ func nilOrPanic(err error, a ...interface{}) {
 func TestTaskContextLogging(t *testing.T) {
 	t.Parallel()
 	path := filepath.Join(os.TempDir(), slugid.Nice())
-	context, control, err := NewTaskContext(path, TaskInfo{})
+	context, control, err := NewTaskContext(path, TaskInfo{}, nil)
 	nilOrPanic(err, "Failed to create context")
 
 	context.Log("Hello World")
@@ -44,7 +44,7 @@ func TestTaskContextLogging(t *testing.T) {
 func TestTaskContextConcurrentLogging(t *testing.T) {
 	t.Parallel()
 	path := filepath.Join(os.TempDir(), slugid.Nice())
-	context, control, err := NewTaskContext(path, TaskInfo{})
+	context, control, err := NewTaskContext(path, TaskInfo{}, nil)
 	nilOrPanic(err, "Failed to create context")
 
 	wg := sync.WaitGroup{}
