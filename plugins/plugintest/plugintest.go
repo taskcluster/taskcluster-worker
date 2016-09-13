@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"regexp"
 	rt "runtime"
 	"testing"
+	"time"
 
 	"github.com/taskcluster/slugid-go/slugid"
 
@@ -18,6 +20,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
+	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 )
 
 // The Options contains options available to any of the
@@ -84,10 +87,24 @@ func (c Case) Test() {
 	if taskID == "" {
 		taskID = slugid.Nice()
 	}
+
+	localServer, err := webhookserver.NewLocalServer(
+		net.TCPAddr{
+			IP:   []byte{127, 0, 0, 1},
+			Port: 60000,
+		},
+		"example.com",
+		"",
+		"",
+		"",
+		10*time.Minute,
+	)
+	nilOrPanic(err)
+
 	context, controller, err := runtime.NewTaskContext(runtimeEnvironment.TemporaryStorage.NewFilePath(), runtime.TaskInfo{
 		TaskID: taskID,
 		RunID:  c.RunID,
-	})
+	}, localServer)
 
 	if c.QueueMock != nil {
 		controller.SetQueueClient(c.QueueMock)
@@ -97,6 +114,7 @@ func (c Case) Test() {
 		TaskContext: context,
 		Payload:     parseEnginePayload(engine, c.Payload),
 	})
+	nilOrPanic(err)
 
 	provider := plugins.Plugins()[c.Plugin]
 	assert(provider != nil, "Plugin does not exist! You tried to load: ", c.Plugin)
@@ -106,10 +124,13 @@ func (c Case) Test() {
 		Log:         runtimeEnvironment.Log.WithField("engine", "mock"),
 		Config:      nil, // TODO: Support plugin configuration
 	})
+	nilOrPanic(err)
+
 	tp, err := p.NewTaskPlugin(plugins.TaskPluginOptions{
 		TaskInfo: &context.TaskInfo,
 		Payload:  parsePluginPayload(p, c.Payload),
 	})
+	nilOrPanic(err)
 
 	options := Options{
 		Environment:    runtimeEnvironment,
