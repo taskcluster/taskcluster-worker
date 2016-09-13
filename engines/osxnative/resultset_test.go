@@ -29,7 +29,7 @@ func makeResultSet(t *testing.T) resultset {
 		t.Fatal(err)
 	}
 
-	context, _, err := runtime.NewTaskContext(temp.NewFilePath(), runtime.TaskInfo{})
+	context, _, err := runtime.NewTaskContext(temp.NewFilePath(), runtime.TaskInfo{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

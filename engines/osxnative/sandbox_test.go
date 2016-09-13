@@ -19,7 +19,7 @@ func newTestSandbox(taskPayload *payloadType, env []string) (*sandbox, error) {
 		return nil, err
 	}
 
-	context, _, err := runtime.NewTaskContext(temp.NewFilePath(), runtime.TaskInfo{})
+	context, _, err := runtime.NewTaskContext(temp.NewFilePath(), runtime.TaskInfo{}, nil)
 	if err != nil {
 		return nil, err
 	}
