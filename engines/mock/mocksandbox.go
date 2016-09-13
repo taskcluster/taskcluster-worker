@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -248,6 +249,11 @@ func (s *sandbox) ExtractFolder(folder string, handler engines.FileHandler) erro
 				continue
 			}
 			wg.Add(1)
+			relpath, err := filepath.Rel(folder, path)
+			if err != nil {
+				s.context.Log(err)
+				return engines.ErrResourceNotFound
+			}
 			go func(path string, data []byte) {
 				err := handler(path, ioext.NopCloser(bytes.NewReader(data)))
 				if err != nil {
@@ -256,7 +262,7 @@ func (s *sandbox) ExtractFolder(folder string, handler engines.FileHandler) erro
 					m.Unlock()
 				}
 				wg.Done()
-			}(path, data)
+			}(relpath, data)
 		}
 	}
 	wg.Wait()
