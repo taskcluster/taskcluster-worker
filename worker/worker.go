@@ -2,12 +2,14 @@ package worker
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
 
 // Worker is the center of taskcluster-worker and is responsible for managing resources, tasks,
@@ -17,15 +19,40 @@ type Worker struct {
 	done chan struct{}
 	tm   *Manager
 	sm   runtime.ShutdownManager
+	env  *runtime.Environment
 }
 
 // New will create a worker given configuration matching the schema from
-// ConfigSchema()
-func New(config interface{}, environment *runtime.Environment) (*Worker, error) {
+// ConfigSchema(). The log parameter is optional and if nil is given a default
+// logrus logger will be used.
+func New(config interface{}, log *logrus.Logger) (*Worker, error) {
 	// Validate and map configuration to c
 	var c configType
 	if err := schematypes.MustMap(ConfigSchema(), config, &c); err != nil {
 		return nil, fmt.Errorf("Invalid configuration: %s", err)
+	}
+
+	// Create temporary folder
+	err := os.RemoveAll(c.TemporaryFolder)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to remove temporaryFolder: %s, error: %s",
+			c.TemporaryFolder, err)
+	}
+	tempStorage, err := runtime.NewTemporaryStorage(c.TemporaryFolder)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create temporary folder, error: %s", err)
+	}
+
+	// Create logger
+	if log == nil {
+		log = logrus.New()
+	}
+	log.Level, _ = logrus.ParseLevel(c.LogLevel)
+
+	env := &runtime.Environment{
+		GarbageCollector: &gc.GarbageCollector{},
+		Log:              log,
+		TemporaryStorage: tempStorage,
 	}
 
 	// Ensure that engine confiuguration was provided for the engine selected
@@ -37,8 +64,8 @@ func New(config interface{}, environment *runtime.Environment) (*Worker, error) 
 	// Find engine provider (schema should ensure it exists)
 	provider := engines.Engines()[c.Engine]
 	engine, err := provider.NewEngine(engines.EngineOptions{
-		Environment: environment,
-		Log:         environment.Log.WithField("engine", c.Engine),
+		Environment: env,
+		Log:         env.Log.WithField("engine", c.Engine),
 		Config:      c.Engines[c.Engine],
 	})
 	if err != nil {
@@ -47,9 +74,9 @@ func New(config interface{}, environment *runtime.Environment) (*Worker, error) 
 
 	// Initialize plugin manager
 	pm, err := plugins.NewPluginManager(plugins.PluginOptions{
-		Environment: environment,
+		Environment: env,
 		Engine:      engine,
-		Log:         environment.Log.WithField("plugin", "plugin-manager"),
+		Log:         env.Log.WithField("plugin", "plugin-manager"),
 		Config:      c.Plugins,
 	})
 	if err != nil {
@@ -57,17 +84,18 @@ func New(config interface{}, environment *runtime.Environment) (*Worker, error) 
 	}
 
 	tm, err := newTaskManager(
-		&c, engine, pm, environment,
-		environment.Log.WithField("component", "task-manager"),
+		&c, engine, pm, env,
+		env.Log.WithField("component", "task-manager"),
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Worker{
-		log:  environment.Log.WithField("component", "worker"),
+		log:  env.Log.WithField("component", "worker"),
 		tm:   tm,
 		sm:   runtime.NewShutdownManager("local"),
+		env:  env,
 		done: make(chan struct{}),
 	}, nil
 }
@@ -93,4 +121,18 @@ func (w *Worker) Start() {
 // stopped this way, but rather will listen for a shutdown event.
 func (w *Worker) Stop() {
 	close(w.done)
+}
+
+// PayloadSchema returns the payload schema for this worker.
+func (w *Worker) PayloadSchema() schematypes.Object {
+	payloadSchema, err := schematypes.Merge(
+		w.tm.engine.PayloadSchema(),
+		w.tm.pluginManager.PayloadSchema(),
+	)
+	if err != nil {
+		panic(fmt.Sprintf(
+			"Conflicting plugin and engine payload properties, error: %s", err,
+		))
+	}
+	return payloadSchema
 }

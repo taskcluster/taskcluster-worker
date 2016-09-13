@@ -5,8 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	_ "github.com/taskcluster/taskcluster-worker/engines/mock"
-	"github.com/taskcluster/taskcluster-worker/runtime"
-	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
 
 type mockedQueueService struct {
@@ -32,10 +30,6 @@ func (mockedQueueService) Done() {
 }
 
 func TestStart(t *testing.T) {
-	e := &runtime.Environment{
-		GarbageCollector: &gc.GarbageCollector{},
-		Log:              logger,
-	}
 	w, err := New(map[string]interface{}{
 		"engine": "mock",
 		"engines": map[string]interface{}{
@@ -55,7 +49,9 @@ func TestStart(t *testing.T) {
 		"workerType":      "dummy-test-worker",
 		"workerGroup":     "dummy-test-A",
 		"workerId":        "dummy-test-B",
-	}, e)
+		"temporaryFolder": "/tmp/tc-worker-tmp-test-folder",
+		"logLevel":        "info",
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,9 +1,14 @@
 package worker
 
 import (
+	"fmt"
+	"io/ioutil"
+
+	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
+	yaml "gopkg.in/yaml.v2"
 )
 
 type configType struct {
@@ -19,6 +24,8 @@ type configType struct {
 	WorkerType      string                 `json:"workerType"`
 	WorkerGroup     string                 `json:"workerGroup"`
 	WorkerID        string                 `json:"workerId"`
+	TemporaryFolder string                 `json:"temporaryFolder"`
+	LogLevel        string                 `json:"logLevel"`
 }
 
 type credentials struct {
@@ -162,6 +169,24 @@ func ConfigSchema() schematypes.Object {
 				},
 				Pattern: `^[a-zA-Z0-9_-]{1,22}$`,
 			},
+			"temporaryFolder": schematypes.String{
+				MetaData: schematypes.MetaData{
+					Title: "Temporary Folder",
+					Description: `Path to folder that can be used for temporary files and
+							folders, if folder doesn't exist it will be created, it will be
+							overwritten.`,
+				},
+			},
+			"logLevel": schematypes.StringEnum{
+				Options: []string{
+					logrus.DebugLevel.String(),
+					logrus.InfoLevel.String(),
+					logrus.WarnLevel.String(),
+					logrus.ErrorLevel.String(),
+					logrus.FatalLevel.String(),
+					logrus.PanicLevel.String(),
+				},
+			},
 		},
 		Required: []string{
 			"engine",
@@ -175,6 +200,60 @@ func ConfigSchema() schematypes.Object {
 			"workerType",
 			"workerGroup",
 			"workerId",
+			"temporaryFolder",
+			"logLevel",
 		},
+	}
+}
+
+// LoadConfigFile will load configuration options from a YAML file and validate
+// against the config file schema, returning an error message explaining what
+// went wrong if unsuccessful.
+func LoadConfigFile(filename string) (interface{}, error) {
+	// Read config file
+	configFile, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to read config file: '%s' error: %s\n",
+			filename, err)
+	}
+	// Parse config file
+	var config interface{}
+	err = yaml.Unmarshal(configFile, &config)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse YAML from config file: '%s', error: %s\n",
+			filename, err)
+	}
+	// This fixes obscurities in yaml.Unmarshal where it generates
+	// map[interface{}]interface{} instead of map[string]interface{}
+	// credits: https://github.com/go-yaml/yaml/issues/139#issuecomment-220072190
+	config = convertToMapStr(config)
+	// Validate configuration file against schema
+	err = ConfigSchema().Validate(config)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid configuration options, error: %s\n", err)
+	}
+	return config, nil
+}
+
+func convertToMapStr(val interface{}) interface{} {
+	switch val := val.(type) {
+	case []interface{}:
+		r := make([]interface{}, len(val))
+		for i, v := range val {
+			r[i] = convertToMapStr(v)
+		}
+		return r
+	case map[interface{}]interface{}:
+		r := make(map[string]interface{})
+		for k, v := range val {
+			s, ok := k.(string)
+			if !ok {
+				s = fmt.Sprintf("%v", k)
+			}
+			r[s] = convertToMapStr(v)
+		}
+		return r
+	default:
+		return val
 	}
 }

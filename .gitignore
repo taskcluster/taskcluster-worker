@@ -4,3 +4,4 @@ coverage.out
 /.bash_history
 /engines/qemu/test-image/tinycore-setup.tar.lz4
 /engines/qemu/test-image/tinycore-worker.tar.lz4
+/mock-config.yml
