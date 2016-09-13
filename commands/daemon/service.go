@@ -1,18 +1,12 @@
 package daemon
 
 import (
-	"io/ioutil"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
-
-	yaml "gopkg.in/yaml.v2"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/takama/daemon"
-	"github.com/taskcluster/slugid-go/slugid"
-	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/worker"
 )
 
@@ -31,25 +25,12 @@ func (svc *service) Run() (string, error) {
 	}
 
 	// load configuration file
-	configFile, err := ioutil.ReadFile(svc.args["<config-file>"].(string))
+	config, err := worker.LoadConfigFile(svc.args["<config-file>"].(string))
 	if err != nil {
 		return "Failed to open configFile", err
 	}
-	var config interface{}
-	err = yaml.Unmarshal(configFile, &config)
-	if err != nil {
-		return "Failed to parse configFile", err
-	}
 
-	// Create a temporary folder
-	tempPath := filepath.Join(os.TempDir(), slugid.Nice())
-	tempStorage, err := runtime.NewTemporaryStorage(tempPath)
-	runtimeEnvironment := &runtime.Environment{
-		Log:              logger,
-		TemporaryStorage: tempStorage,
-	}
-
-	w, err := worker.New(config, runtimeEnvironment)
+	w, err := worker.New(config, logger)
 	if err != nil {
 		return "Could not create worker", err
 	}
