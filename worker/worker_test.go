@@ -43,14 +43,19 @@ func TestStart(t *testing.T) {
 			"clientId":    "no-client",
 			"accessToken": "absolutely-no-secret-here-mocked-it-out",
 		},
-		"pollingInterval": 2,
-		"reclaimOffset":   90,
-		"provisionerId":   "dummy-provisioner",
-		"workerType":      "dummy-test-worker",
-		"workerGroup":     "dummy-test-A",
-		"workerId":        "dummy-test-B",
-		"temporaryFolder": "/tmp/tc-worker-tmp-test-folder",
-		"logLevel":        "info",
+		"pollingInterval":    2,
+		"reclaimOffset":      90,
+		"provisionerId":      "dummy-provisioner",
+		"workerType":         "dummy-test-worker",
+		"workerGroup":        "dummy-test-A",
+		"workerId":           "dummy-test-B",
+		"temporaryFolder":    "/tmp/tc-worker-tmp-test-folder",
+		"logLevel":           "info",
+		"serverIp":           "127.0.0.1",
+		"serverPort":         60000,
+		"statelessDNSSecret": "fake-secret",
+		"statelessDNSDomain": "example.com",
+		"maxLifeCycle":       10 * 60, // 10 min
 	}, nil)
 	if err != nil {
 		t.Fatal(err)

@@ -129,7 +129,7 @@ func TestTaskManagerRunTask(t *testing.T) {
 			TakenUntil: tcclient.Time(time.Now().Add(time.Minute * 5)),
 		},
 		definition: &queue.TaskDefinitionResponse{
-			Payload: []byte(`{"start": {"delay": 1,"function": "write-log","argument": "Hello World"}}`),
+			Payload: []byte(`{"delay": 1,"function": "write-log","argument": "Hello World"}`),
 		},
 	}
 	tm.run(claim)
