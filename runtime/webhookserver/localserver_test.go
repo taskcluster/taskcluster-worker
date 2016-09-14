@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"sync"
 	"testing"
 	"time"
@@ -105,7 +104,7 @@ func TestLocalServer(*testing.T) {
 func TestLocalServerStop(*testing.T) {
 	s, err := NewLocalServer(net.TCPAddr{
 		IP:   []byte{127, 0, 0, 1},
-		Port: 60172, // random port...
+		Port: 0, // random port...
 	}, "example.com", "no-secret", "", "", 10*time.Minute)
 	nilOrPanic(err)
 
@@ -114,31 +113,6 @@ func TestLocalServerStop(*testing.T) {
 		s.ListenAndServe()
 		close(done)
 	}()
-
-	link, detach := s.AttachHook(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		w.Write([]byte("Hello World"))
-	}))
-
-	u, err := url.Parse(link)
-	nilOrPanic(err)
-
-	// Try a request
-	r, err := http.NewRequest("GET", "http://127.0.0.1:60172"+u.Path, nil)
-	nilOrPanic(err)
-
-	res, err := http.DefaultClient.Do(r)
-	nilOrPanic(err)
-	assert(res.StatusCode == 200, "Wrong status")
-
-	// Try again after detaching
-	detach()
-	r, err = http.NewRequest("GET", "http://127.0.0.1:60172"+u.Path, nil)
-	nilOrPanic(err)
-
-	res, err = http.DefaultClient.Do(r)
-	nilOrPanic(err)
-	assert(res.StatusCode == 404, "Wrong status")
 
 	// Stop server, and wait for it to be done
 	s.Stop()
