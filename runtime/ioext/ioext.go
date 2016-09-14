@@ -14,6 +14,7 @@ type ReadSeekCloser interface {
 // NopCloser is useful in testing where something that implements ReadSeekCloser is needed
 // If something that implements io.ReadSeeker is passed in, it will give it a noop close function.
 func NopCloser(r io.Reader) ReadSeekCloser {
+	//TODO: Require this cast be done outside of NopCloser!!!!
 	return readSeekNopCloser{r.(io.ReadSeeker)}
 }
 

@@ -76,7 +76,8 @@ type Sandbox interface {
 	// anymore this method must return ErrSandboxTerminated, signaling that you
 	// can't interact with the sandbox anymore.
 	//
-	// Non-fatal errors: ErrFeatureNotSupported, ErrSandboxTerminated.
+	// Non-fatal errors: ErrFeatureNotSupported, ErrSandboxTerminated,
+	// ErrSandboxAborted.
 	NewShell(command []string, tty bool) (Shell, error)
 
 	// ListDisplays returns a list of Display objects that describes displays
@@ -92,7 +93,7 @@ type Sandbox interface {
 	// ErrNoSuchDisplay.
 	//
 	// Non-fatal errors: ErrFeatureNotSupported, ErrNoSuchDisplay,
-	// ErrSandboxTerminated.
+	// ErrSandboxTerminated, ErrSandboxAborted.
 	OpenDisplay(name string) (io.ReadWriteCloser, error)
 
 	// Abort the sandbox. This means killing the task execution as well as all
