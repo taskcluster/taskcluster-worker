@@ -1,0 +1,26 @@
+capacity:         1
+credentials:
+  # Create a client with the scope:
+  # assume:project:taskcluster:worker-test-scopes
+  clientId:       'abcdefghijklmnopqrstuvwxyz'
+  accessToken:    'abcdefghijklmnopqrstuvwxyz'
+provisionerId:    tc-worker-provisioner
+workerType:       gecko-test-macosx64
+workerGroup:      macosx-tc-worker
+workerId:         tc-worker-01 
+engine:           macosx
+engines:
+  mock: {}
+  macosx: {}
+logLevel:         debug
+plugins:
+  disabled:       ['success']
+pollingInterval:  1
+queueBaseUrl:     https://queue.taskcluster.net/v1
+reclaimOffset:    120
+temporaryFolder:  /tmp/tc-worker-tmp
+serverIp:           127.0.0.1
+serverPort:         60000
+statelessDNSSecret: fake-secret
+statelessDNSDomain: example.com
+maxLifeCycle:       600
