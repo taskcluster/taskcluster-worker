@@ -14,7 +14,7 @@ import (
 	"github.com/taskcluster/stateless-dns-go/hostname"
 )
 
-// LocalServer is a WebHookServer implemenation that exposes webhooks on a
+// LocalServer is a WebHookServer implementation that exposes webhooks on a
 // local port directly exposed to the internet.
 type LocalServer struct {
 	m      sync.RWMutex
@@ -30,7 +30,7 @@ func NewLocalServer(
 	subdomain, dnsSecret, tlsCert, tlsKey string,
 	expiration time.Duration,
 ) (*LocalServer, error) {
-	s := LocalServer{
+	s := &LocalServer{
 		hooks: make(map[string]http.Handler),
 	}
 
@@ -82,7 +82,7 @@ func NewLocalServer(
 	}
 	s.url = proto + "://" + host + port + "/"
 
-	return &s, nil
+	return s, nil
 }
 
 // ListenAndServe starts the local server listening
