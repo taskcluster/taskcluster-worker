@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"gopkg.in/tylerb/graceful.v1"
+
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/stateless-dns-go/hostname"
 )
@@ -16,7 +18,7 @@ import (
 // local port directly exposed to the internet.
 type LocalServer struct {
 	m      sync.RWMutex
-	server http.Server
+	server *graceful.Server
 	hooks  map[string]http.Handler
 	url    string
 }
@@ -32,11 +34,15 @@ func NewLocalServer(
 		hooks: make(map[string]http.Handler),
 	}
 
-	// Set port for server to listen on
-	s.server.Addr = fmt.Sprintf(":%d", publicAddress.Port)
-
-	// Setup server handler
-	s.server.Handler = http.HandlerFunc(s.handle)
+	// Setup server
+	s.server = &graceful.Server{
+		Timeout: 35 * time.Second,
+		Server: &http.Server{
+			Addr:    publicAddress.String(),
+			Handler: http.HandlerFunc(s.handle),
+		},
+		NoSignalHandling: true,
+	}
 
 	// Setup server TLS configuration
 	if tlsCert != "" && tlsKey != "" {
@@ -85,6 +91,11 @@ func (s *LocalServer) ListenAndServe() error {
 		return s.server.ListenAndServeTLS("", "")
 	}
 	return s.server.ListenAndServe()
+}
+
+// Stop will stop serving requests
+func (s *LocalServer) Stop() {
+	s.server.Stop(100 * time.Millisecond)
 }
 
 func (s *LocalServer) handle(w http.ResponseWriter, r *http.Request) {
