@@ -49,4 +49,4 @@ test:
 	go list ./... | grep -v /vendor/ | xargs -n1 golint
 
 dev-test:
-	go test -race $$(go list ./... | grep -v /vendor/)
+	go test -v -race $$(go list ./... | grep -v /vendor/)

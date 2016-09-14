@@ -5,11 +5,11 @@ import (
 	"sync"
 	"time"
 
-	nio "gopkg.in/djherbis/nio.v2"
+	"gopkg.in/djherbis/nio.v2"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/djherbis/buffer"
 	"github.com/gorilla/websocket"
+	"gopkg.in/djherbis/buffer.v1"
 )
 
 const displayPongTimeout = 30 * time.Second

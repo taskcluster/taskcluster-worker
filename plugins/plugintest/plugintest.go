@@ -43,6 +43,8 @@ type Case struct {
 	Payload string
 	// The plugin under test. This should be the name that is registered
 	Plugin string
+	// JSON configuration for the plugin
+	PluginConfig string
 	// Whether or not plugin.Stopped() should return true
 	PluginSuccess bool
 	// Whether or not engine.ResultSet.Success() should return true
@@ -82,6 +84,7 @@ func (c Case) Test() {
 		Log:         runtimeEnvironment.Log.WithField("engine", "mock"),
 		// TODO: Add engine config
 	})
+	nilOrPanic(err)
 
 	taskID := c.TaskID
 	if taskID == "" {
@@ -105,6 +108,7 @@ func (c Case) Test() {
 		TaskID: taskID,
 		RunID:  c.RunID,
 	}, localServer)
+	nilOrPanic(err)
 
 	if c.QueueMock != nil {
 		controller.SetQueueClient(c.QueueMock)
@@ -122,7 +126,7 @@ func (c Case) Test() {
 		Environment: runtimeEnvironment,
 		Engine:      engine,
 		Log:         runtimeEnvironment.Log.WithField("engine", "mock"),
-		Config:      nil, // TODO: Support plugin configuration
+		Config:      parsePluginConfig(provider, c.PluginConfig),
 	})
 	nilOrPanic(err)
 
@@ -131,6 +135,10 @@ func (c Case) Test() {
 		Payload:  parsePluginPayload(p, c.Payload),
 	})
 	nilOrPanic(err)
+	// taskPlugin can be nil, if the plugin doesn't want any hooks
+	if tp == nil {
+		tp = plugins.TaskPluginBase{}
+	}
 
 	options := Options{
 		Environment:    runtimeEnvironment,
@@ -152,6 +160,7 @@ func (c Case) Test() {
 	sandbox, err := sandboxBuilder.StartSandbox()
 	nilOrPanic(err)
 	err = tp.Started(sandbox)
+	nilOrPanic(err)
 	c.maybeRun(c.AfterStarted, options)
 
 	c.maybeRun(c.BeforeStopped, options)
@@ -229,6 +238,18 @@ func newTestEnvironment() *runtime.Environment {
 		TemporaryStorage: folder,
 		Log:              logger,
 	}
+}
+
+func parsePluginConfig(provider plugins.PluginProvider, data string) interface{} {
+	if data == "" {
+		return nil
+	}
+	var j interface{}
+	err := json.Unmarshal([]byte(data), &j)
+	nilOrPanic(err, "Failed to parse: ", data)
+	err = provider.ConfigSchema().Validate(j)
+	nilOrPanic(err, "Failed to validate against schema")
+	return j
 }
 
 func parseEnginePayload(engine engines.Engine, payload string) map[string]interface{} {
