@@ -4,12 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"regexp"
 	rt "runtime"
 	"testing"
-	"time"
 
 	"github.com/taskcluster/slugid-go/slugid"
 
@@ -78,6 +76,12 @@ type Case struct {
 // Test is called to trigger a plugintest.Case to run
 func (c Case) Test() {
 	runtimeEnvironment := newTestEnvironment()
+
+	testServer, err := webhookserver.NewTestServer()
+	nilOrPanic(err)
+	defer testServer.Stop()
+	runtimeEnvironment.WebHookServer = testServer
+
 	engineProvider := engines.Engines()["mock"]
 	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: runtimeEnvironment,
@@ -91,23 +95,10 @@ func (c Case) Test() {
 		taskID = slugid.Nice()
 	}
 
-	localServer, err := webhookserver.NewLocalServer(
-		net.TCPAddr{
-			IP:   []byte{127, 0, 0, 1},
-			Port: 60000,
-		},
-		"example.com",
-		"",
-		"",
-		"",
-		10*time.Minute,
-	)
-	nilOrPanic(err)
-
 	context, controller, err := runtime.NewTaskContext(runtimeEnvironment.TemporaryStorage.NewFilePath(), runtime.TaskInfo{
 		TaskID: taskID,
 		RunID:  c.RunID,
-	}, localServer)
+	}, testServer)
 	nilOrPanic(err)
 
 	if c.QueueMock != nil {
