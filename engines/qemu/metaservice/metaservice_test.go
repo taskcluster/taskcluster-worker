@@ -12,7 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
+	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellconsts"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
@@ -109,6 +109,7 @@ func TestMetaService(t *testing.T) {
 	nilOrPanic(err, "Failed to get artifact")
 	defer f.Close()
 	b, err := ioutil.ReadAll(f)
+	nilOrPanic(err, "Error reading from file")
 	assert(string(b) == "hello-world", "Expected hello-world artifact")
 
 	debug("### Test polling and get-artifact for non-existing file")
@@ -280,46 +281,49 @@ func TestMetaServiceShell(t *testing.T) {
 
 		debug("guest-tool: Read: 'hi' on stdin")
 		t, m, err2 := ws.ReadMessage()
+		nilOrPanic(err2, "ReadMessage failed")
 		assert(t == websocket.BinaryMessage, "expected BinaryMessage")
 		assert(bytes.Compare(m, []byte{
-			interactive.MessageTypeData, interactive.StreamStdin, 'h', 'i',
+			shellconsts.MessageTypeData, shellconsts.StreamStdin, 'h', 'i',
 		}) == 0, "expected 'hi' on stdin")
 
 		debug("guest-tool: Ack: 'hi' from stdin")
 		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
-			interactive.MessageTypeAck, interactive.StreamStdin, 0, 0, 0, 2,
+			shellconsts.MessageTypeAck, shellconsts.StreamStdin, 0, 0, 0, 2,
 		})
 		nilOrPanic(err2, "Failed to send ack")
 
 		debug("guest-tool: Send: 'hello' on stdout")
 		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
-			interactive.MessageTypeData, interactive.StreamStdout, 'h', 'e', 'l', 'l', 'o',
+			shellconsts.MessageTypeData, shellconsts.StreamStdout, 'h', 'e', 'l', 'l', 'o',
 		})
 		nilOrPanic(err2, "Failed to send 'hello'")
 
 		debug("guest-tool: Read: ack for the 'hello'")
 		t, m, err2 = ws.ReadMessage()
+		nilOrPanic(err2, "Failed to ReadMessage")
 		assert(t == websocket.BinaryMessage, "expected BinaryMessage")
 		assert(bytes.Compare(m, []byte{
-			interactive.MessageTypeAck, interactive.StreamStdout, 0, 0, 0, 5,
+			shellconsts.MessageTypeAck, shellconsts.StreamStdout, 0, 0, 0, 5,
 		}) == 0, "expected ack for 5 on stdout")
 
 		debug("guest-tool: Send: close on stdout")
 		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
-			interactive.MessageTypeData, interactive.StreamStdout,
+			shellconsts.MessageTypeData, shellconsts.StreamStdout,
 		})
 		nilOrPanic(err2, "Failed to send close for stdout")
 
 		debug("guest-tool: Read: close for stdin")
 		t, m, err2 = ws.ReadMessage()
+		nilOrPanic(err2, "Failed to ReadMessage")
 		assert(t == websocket.BinaryMessage, "expected BinaryMessage")
 		assert(bytes.Compare(m, []byte{
-			interactive.MessageTypeData, interactive.StreamStdin,
+			shellconsts.MessageTypeData, shellconsts.StreamStdin,
 		}) == 0, "expected stdin to be closed")
 
 		debug("guest-tool: Send: exit success")
 		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
-			interactive.MessageTypeExit, 0,
+			shellconsts.MessageTypeExit, 0,
 		})
 		nilOrPanic(err2, "Failed to send 'exit' success")
 	}()

@@ -9,8 +9,8 @@ import (
 	"github.com/gorilla/websocket"
 	isatty "github.com/mattn/go-isatty"
 	"github.com/taskcluster/taskcluster-worker/commands"
-	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellclient"
+	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellconsts"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
@@ -37,9 +37,9 @@ options:
 }
 
 var dialer = websocket.Dialer{
-	HandshakeTimeout: interactive.ShellHandshakeTimeout,
-	ReadBufferSize:   interactive.ShellMaxMessageSize,
-	WriteBufferSize:  interactive.ShellMaxMessageSize,
+	HandshakeTimeout: shellconsts.ShellHandshakeTimeout,
+	ReadBufferSize:   shellconsts.ShellMaxMessageSize,
+	WriteBufferSize:  shellconsts.ShellMaxMessageSize,
 }
 
 func (cmd) Execute(arguments map[string]interface{}) bool {

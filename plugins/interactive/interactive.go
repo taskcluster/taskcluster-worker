@@ -170,13 +170,23 @@ func (p *taskPlugin) Started(sandbox engines.Sandbox) error {
 }
 
 func (p *taskPlugin) Stopped(_ engines.ResultSet) (bool, error) {
-	p.shellServer.Abort()
+	if p.shellServer != nil {
+		p.shellServer.Abort()
+	}
+	if p.displayServer != nil {
+		p.displayServer.Abort()
+	}
 	return true, nil
 }
 
 func (p *taskPlugin) Dispose() error {
-	p.shellServer.Abort()
-	p.shellServer.Wait()
+	if p.shellServer != nil {
+		p.shellServer.Abort()
+		p.shellServer.Wait()
+	}
+	if p.displayServer != nil {
+		p.displayServer.Abort()
+	}
 	return nil
 }
 

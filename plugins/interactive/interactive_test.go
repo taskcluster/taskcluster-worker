@@ -168,3 +168,42 @@ func TestInteractivePluginShell(t *testing.T) {
 		},
 	}.Test()
 }
+
+func TestInteractivePluginDisplay(t *testing.T) {
+	taskID := slugid.V4()
+	q := &client.MockQueue{}
+	display := expectRedirectArtifact(q, taskID, 0, "private/interactive/display.html")
+	sockets := expectS3Artifact(q, taskID, 0, "private/interactive/sockets.json")
+	plugintest.Case{
+		Payload: `{
+			"delay": 250,
+			"function": "true",
+			"argument": "whatever",
+			"interactive": {
+				"disableShell": true
+			}
+		}`,
+		Plugin:        "interactive",
+		PluginConfig:  `{}`,
+		PluginSuccess: true,
+		EngineSuccess: true,
+		QueueMock:     q,
+		TaskID:        taskID,
+		AfterStarted: func(plugintest.Options) {
+			displayToolURL := <-display
+			u, _ := url.Parse(displayToolURL)
+			displaysURL := u.Query().Get("displaysUrl")
+			socketURL := u.Query().Get("socketUrl")
+
+			// Check that socket.json contains the socket url too
+			var s map[string]string
+			json.Unmarshal(<-sockets, &s)
+			if socketURL != s["displaySocketUrl"] {
+				panic("Expected displaySocketUrl to match redirect artifact target")
+			}
+			if displaysURL != s["displaysUrl"] {
+				panic("Expected displaySocketUrl to match redirect artifact target")
+			}
+		},
+	}.Test()
+}
