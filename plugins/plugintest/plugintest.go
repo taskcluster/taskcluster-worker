@@ -88,7 +88,7 @@ func (c Case) Test() {
 		Log:         runtimeEnvironment.Log.WithField("engine", "mock"),
 		// TODO: Add engine config
 	})
-	nilOrPanic(err)
+	nilOrPanic(err, "engineProvider.NewEngine failed")
 
 	taskID := c.TaskID
 	if taskID == "" {
@@ -109,7 +109,7 @@ func (c Case) Test() {
 		TaskContext: context,
 		Payload:     parseEnginePayload(engine, c.Payload),
 	})
-	nilOrPanic(err)
+	nilOrPanic(err, "engine.NewSandboxBuilder failed")
 
 	provider := plugins.Plugins()[c.Plugin]
 	assert(provider != nil, "Plugin does not exist! You tried to load: ", c.Plugin)
@@ -119,14 +119,14 @@ func (c Case) Test() {
 		Log:         runtimeEnvironment.Log.WithField("plugin", c.Plugin),
 		Config:      parsePluginConfig(provider, c.PluginConfig),
 	})
-	nilOrPanic(err)
+	nilOrPanic(err, "pluginProvider.NewPlugin failed")
 
 	tp, err := p.NewTaskPlugin(plugins.TaskPluginOptions{
 		TaskInfo: &context.TaskInfo,
 		Payload:  parsePluginPayload(p, c.Payload),
 		Log:      runtimeEnvironment.Log.WithField("plugin", c.Plugin).WithField("taskId", taskID),
 	})
-	nilOrPanic(err)
+	nilOrPanic(err, "plugin.NewTaskPlugin failed")
 	// taskPlugin can be nil, if the plugin doesn't want any hooks
 	if tp == nil {
 		tp = plugins.TaskPluginBase{}
@@ -141,50 +141,50 @@ func (c Case) Test() {
 	}
 
 	err = tp.Prepare(context)
-	nilOrPanic(err)
+	nilOrPanic(err, "taskPlugin.Prepare failed")
 
 	c.maybeRun(c.BeforeBuildSandbox, options)
 	err = tp.BuildSandbox(sandboxBuilder)
-	nilOrPanic(err)
+	nilOrPanic(err, "taskPlugin.BuildSandbox failed")
 	c.maybeRun(c.AfterBuildSandbox, options)
 
 	c.maybeRun(c.BeforeStarted, options)
 	sandbox, err := sandboxBuilder.StartSandbox()
-	nilOrPanic(err)
+	nilOrPanic(err, "sandboxBuilder.StartSandbox failed")
 	err = tp.Started(sandbox)
-	nilOrPanic(err)
+	nilOrPanic(err, "taskPlugin.Started failed")
 	c.maybeRun(c.AfterStarted, options)
 
 	c.maybeRun(c.BeforeStopped, options)
 	resultSet, err := sandbox.WaitForResult()
-	nilOrPanic(err)
+	nilOrPanic(err, "sandbox.WaitForResult failed")
 	assert(resultSet.Success() == c.EngineSuccess)
 	success, err := tp.Stopped(resultSet)
-	nilOrPanic(err)
+	nilOrPanic(err, "taskPlugin.Stopped failed")
 	assert(success == c.PluginSuccess)
 	c.maybeRun(c.AfterStopped, options)
 
 	c.maybeRun(c.BeforeFinished, options)
 	controller.CloseLog()
 	err = tp.Finished(success)
-	nilOrPanic(err)
+	nilOrPanic(err, "taskPlugin.Finished failed")
 	c.grepLog(context)
 	c.maybeRun(c.AfterFinished, options)
 
 	c.maybeRun(c.BeforeDisposed, options)
 	controller.Dispose()
 	err = tp.Dispose()
-	nilOrPanic(err)
+	nilOrPanic(err, "taskPlugin.Dispose failed")
 	c.maybeRun(c.AfterDisposed, options)
 }
 
-func (c Case) maybeRun(f func(Options), o Options) {
+func (c *Case) maybeRun(f func(Options), o Options) {
 	if f != nil {
 		f(o)
 	}
 }
 
-func (c Case) grepLog(context *runtime.TaskContext) {
+func (c *Case) grepLog(context *runtime.TaskContext) {
 	reader, err := context.NewLogReader()
 	defer reader.Close()
 	nilOrPanic(err, "Failed to open log reader")
