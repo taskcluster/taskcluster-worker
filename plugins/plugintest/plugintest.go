@@ -116,7 +116,7 @@ func (c Case) Test() {
 	p, err := provider.NewPlugin(plugins.PluginOptions{
 		Environment: runtimeEnvironment,
 		Engine:      engine,
-		Log:         runtimeEnvironment.Log.WithField("engine", "mock"),
+		Log:         runtimeEnvironment.Log.WithField("plugin", c.Plugin),
 		Config:      parsePluginConfig(provider, c.PluginConfig),
 	})
 	nilOrPanic(err)
@@ -124,6 +124,7 @@ func (c Case) Test() {
 	tp, err := p.NewTaskPlugin(plugins.TaskPluginOptions{
 		TaskInfo: &context.TaskInfo,
 		Payload:  parsePluginPayload(p, c.Payload),
+		Log:      runtimeEnvironment.Log.WithField("plugin", c.Plugin).WithField("taskId", taskID),
 	})
 	nilOrPanic(err)
 	// taskPlugin can be nil, if the plugin doesn't want any hooks

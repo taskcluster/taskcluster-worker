@@ -4,29 +4,12 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellconsts"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
-)
-
-const (
-	// ShellHandshakeTimeout is the maximum allowed time for websocket handshake
-	ShellHandshakeTimeout = 30 * time.Second
-	// ShellPingInterval is the time between sending pings
-	ShellPingInterval = 15 * time.Second
-	// ShellWriteTimeout is the maximum time between successful writes
-	ShellWriteTimeout = ShellPingInterval * 2
-	// ShellPongTimeout is the maximum time between successful reads
-	ShellPongTimeout = ShellPingInterval * 3
-	// ShellBlockSize is the maximum number of bytes to send in a single block
-	ShellBlockSize = 16 * 1024
-	// ShellMaxMessageSize is the maximum message size we will read
-	ShellMaxMessageSize = ShellBlockSize + 4*1024
-	// ShellMaxPendingBytes is the maximum number of bytes allowed in-flight
-	ShellMaxPendingBytes = 4 * ShellBlockSize
 )
 
 // ShellFactory is a function that can make a shell
@@ -95,9 +78,9 @@ func (s *ShellServer) Abort() {
 }
 
 var upgrader = websocket.Upgrader{
-	HandshakeTimeout: ShellHandshakeTimeout,
-	ReadBufferSize:   ShellMaxMessageSize,
-	WriteBufferSize:  ShellMaxMessageSize,
+	HandshakeTimeout: shellconsts.ShellHandshakeTimeout,
+	ReadBufferSize:   shellconsts.ShellMaxMessageSize,
+	WriteBufferSize:  shellconsts.ShellMaxMessageSize,
 }
 
 func (s *ShellServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {

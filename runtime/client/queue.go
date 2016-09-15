@@ -61,6 +61,11 @@ func (m *MockQueue) ReportException(taskID, runID string, payload *queue.TaskExc
 }
 
 func (m *MockQueue) CreateArtifact(taskID, runID, name string, payload *queue.PostArtifactRequest) (*queue.PostArtifactResponse, error) {
-	args := m.Called(taskID, runID, name)
+	args := m.Called(taskID, runID, name, payload)
 	return args.Get(0).(*queue.PostArtifactResponse), args.Error(1)
 }
+
+var AnyPostArtifactRequest = mock.MatchedBy(func(i interface{}) bool {
+	_, ok := i.(*queue.PostArtifactRequest)
+	return ok
+})

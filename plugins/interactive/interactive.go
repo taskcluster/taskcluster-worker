@@ -185,6 +185,7 @@ func (p *taskPlugin) setupShell() error {
 	if p.opts.DisableShell {
 		return nil
 	}
+	debug("Setting up interactive shell")
 
 	// Create shell server and get a URL to reach it
 	p.shellServer = NewShellServer(
@@ -212,6 +213,7 @@ func (p *taskPlugin) setupDisplay() error {
 	if p.opts.DisableDisplay {
 		return nil
 	}
+	debug("Setting up interactive display")
 
 	// Create display server
 	p.displayServer = newDisplayServer(
@@ -237,6 +239,7 @@ func (p *taskPlugin) setupDisplay() error {
 }
 
 func (p *taskPlugin) createSocketsFile() error {
+	debug("Uploading sockets.json")
 	// Create sockets.json
 	sockets := map[string]interface{}{
 		"version": 2,
@@ -255,7 +258,7 @@ func (p *taskPlugin) createSocketsFile() error {
 		Name:     p.opts.ArtifactPrefix + "sockets.json",
 		Mimetype: "application/json",
 		Expires:  p.context.Deadline,
-		Stream:   ioext.NopCloser(bytes.NewBuffer(data)),
+		Stream:   ioext.NopCloser(bytes.NewReader(data)),
 	}, p.context)
 }
 

@@ -1,4 +1,4 @@
-package interactive
+package shellconsts
 
 // Message type codes for websocket messages implementing interactive shell.
 //
