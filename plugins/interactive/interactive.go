@@ -160,13 +160,17 @@ func (p *taskPlugin) Started(sandbox engines.Sandbox) error {
 
 	// Return any of the two errors
 	if err1 != nil {
-		return err1
+		return fmt.Errorf("Setting up interactive shell failed, error: %s", err1)
 	}
 	if err2 != nil {
-		return err2
+		return fmt.Errorf("Setting up interactive display failed, error: %s", err2)
 	}
 
-	return p.createSocketsFile()
+	err := p.createSocketsFile()
+	if err != nil {
+		return fmt.Errorf("Failed to create sockets.json file, error: %s", err)
+	}
+	return nil
 }
 
 func (p *taskPlugin) Stopped(_ engines.ResultSet) (bool, error) {

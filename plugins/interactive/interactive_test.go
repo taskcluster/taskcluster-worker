@@ -36,10 +36,7 @@ func expectS3Artifact(q *client.MockQueue, taskID string, runID int, name string
 		}
 		w.WriteHeader(200)
 		c <- d
-		go func() {
-			s.CloseClientConnections()
-			s.Close()
-		}()
+		go s.Close() // Close when all requests are done (don't block the request)
 	}))
 	data, _ := json.Marshal(queue.S3ArtifactResponse{
 		StorageType: "s3",
