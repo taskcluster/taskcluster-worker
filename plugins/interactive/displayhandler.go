@@ -9,13 +9,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/websocket"
+	"github.com/taskcluster/taskcluster-worker/plugins/interactive/displayconsts"
 	"gopkg.in/djherbis/buffer.v1"
 )
-
-const displayPongTimeout = 30 * time.Second
-const displayPingInterval = 5 * time.Second
-const displayWriteTimeout = 10 * time.Second
-const displayBufferSize = 32 * 1024
 
 // DisplayHandler handles serving a VNC display socket over a websocket,
 // avoiding huge buffers and disposing all resources.
@@ -34,9 +30,10 @@ func NewDisplayHandler(ws *websocket.Conn, display io.ReadWriteCloser, log *logr
 		ws:      ws,
 		display: display,
 		log:     log,
-		in:      nio.NewReader(display, buffer.New(displayBufferSize)),
+		in:      nio.NewReader(display, buffer.New(displayconsts.DisplayBufferSize)),
 	}
-	d.ws.SetReadDeadline(time.Now().Add(displayPongTimeout))
+	d.ws.SetReadLimit(displayconsts.DisplayMaxMessageSize)
+	d.ws.SetReadDeadline(time.Now().Add(displayconsts.DisplayPongTimeout))
 	d.ws.SetPongHandler(d.pongHandler)
 
 	go d.sendPings()
@@ -55,12 +52,12 @@ func (d *DisplayHandler) Abort() {
 func (d *DisplayHandler) sendPings() {
 	for {
 		// Sleep for ping interval time
-		time.Sleep(displayPingInterval)
+		time.Sleep(displayconsts.DisplayPingInterval)
 
 		// Write a ping message, and reset the write deadline
 		d.mWrite.Lock()
 		debug("Sending ping")
-		d.ws.SetWriteDeadline(time.Now().Add(displayWriteTimeout))
+		d.ws.SetWriteDeadline(time.Now().Add(displayconsts.DisplayWriteTimeout))
 		err := d.ws.WriteMessage(websocket.PingMessage, []byte{})
 		d.mWrite.Unlock()
 
@@ -80,18 +77,18 @@ func (d *DisplayHandler) sendPings() {
 }
 
 func (d *DisplayHandler) pongHandler(string) error {
-	d.ws.SetReadDeadline(time.Now().Add(displayPongTimeout))
+	d.ws.SetReadDeadline(time.Now().Add(displayconsts.DisplayPongTimeout))
 	return nil
 }
 
 func (d *DisplayHandler) sendData() {
-	data := make([]byte, displayBufferSize)
+	data := make([]byte, displayconsts.DisplayBufferSize)
 	for {
 		n, rerr := d.in.Read(data)
 
 		d.mWrite.Lock()
 		debug("Sending %d bytes", n)
-		d.ws.SetWriteDeadline(time.Now().Add(displayWriteTimeout))
+		d.ws.SetWriteDeadline(time.Now().Add(displayconsts.DisplayWriteTimeout))
 		werr := d.ws.WriteMessage(websocket.BinaryMessage, data[:n])
 		d.mWrite.Unlock()
 

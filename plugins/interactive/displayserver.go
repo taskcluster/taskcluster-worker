@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/plugins/interactive/displayconsts"
 )
 
 type displayServer struct {
@@ -46,16 +46,16 @@ func (s *displayServer) Abort() {
 }
 
 var displayUpgrader = websocket.Upgrader{
-	HandshakeTimeout: 30 * time.Second,
-	ReadBufferSize:   displayBufferSize,
-	WriteBufferSize:  displayBufferSize,
+	HandshakeTimeout: displayconsts.DisplayHandshakeTimeout,
+	ReadBufferSize:   displayconsts.DisplayBufferSize,
+	WriteBufferSize:  displayconsts.DisplayBufferSize,
 }
 
 func (s *displayServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	select {
 	case <-s.done:
-		reply(w, http.StatusGone, errorMessage{
-			Code:    "ExecutionTerminated",
+		reply(w, http.StatusGone, displayconsts.ErrorMessage{
+			Code:    displayconsts.ErrorCodeExecutionTerminated,
 			Message: "Task execution has halted, displays are not available anymore.",
 		})
 		return
@@ -70,15 +70,15 @@ func (s *displayServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	displayName := r.URL.Query().Get("display")
 	if displayName == "" {
-		reply(w, http.StatusBadRequest, errorMessage{
-			Code:    "InvalidParameters",
+		reply(w, http.StatusBadRequest, displayconsts.ErrorMessage{
+			Code:    displayconsts.ErrorCodeInvalidParameters,
 			Message: "Querystring parameter 'display' must given!",
 		})
 	}
 	display, err := s.sandbox.OpenDisplay(displayName)
 	if err == engines.ErrNoSuchDisplay {
-		reply(w, http.StatusNotFound, errorMessage{
-			Code:    "DisplayNotFound",
+		reply(w, http.StatusNotFound, displayconsts.ErrorMessage{
+			Code:    displayconsts.ErrorCodeDisplayNotFound,
 			Message: fmt.Sprintf("Display: '%s' couldn't be found", displayName),
 		})
 		return
@@ -138,7 +138,7 @@ func (s *displayServer) listDisplays(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert to JSON...
-	result := make([]displayEntry, len(displays))
+	result := make([]displayconsts.DisplayEntry, len(displays))
 	for i, d := range displays {
 		result[i].Description = d.Description
 		result[i].Display = d.Name
@@ -161,29 +161,17 @@ func reply(w http.ResponseWriter, status int, payload interface{}) {
 	w.Write(data)
 }
 
-type errorMessage struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-type displayEntry struct {
-	Display     string `json:"display"`
-	Description string `json:"description"`
-	Width       int    `json:"width,omitempty"`
-	Height      int    `json:"height,omitempty"`
-}
-
-var errorMessageDisplayNotSupported = errorMessage{
-	Code:    "DisplayNotFound",
+var errorMessageDisplayNotSupported = displayconsts.ErrorMessage{
+	Code:    displayconsts.ErrorCodeDisplayNotFound,
 	Message: "Task execution environment doesn't support display interaction",
 }
 
-var errorMessageExecutionHalted = errorMessage{
-	Code:    "ExecutionTerminated",
+var errorMessageExecutionHalted = displayconsts.ErrorMessage{
+	Code:    displayconsts.ErrorCodeExecutionTerminated,
 	Message: "Task execution has halted, displays are not available anymore.",
 }
 
-var errorMessageInternalError = errorMessage{
-	Code:    "InternalError",
+var errorMessageInternalError = displayconsts.ErrorMessage{
+	Code:    displayconsts.ErrorCodeInternalError,
 	Message: "Worker encountered an internal error",
 }
