@@ -1,4 +1,4 @@
-package shellclient
+package displayclient
 
 import (
 	"encoding/json"
@@ -54,10 +54,10 @@ func Dial(socketURL string, display string) (*DisplayClient, error) {
 		var errorMsg displayconsts.ErrorMessage
 		perr := json.Unmarshal(data, &errorMsg)
 		if perr == nil {
-			return &errorMsg
+			return nil, &errorMsg
 		}
 		// return a generic error message if body parsing failed
-		return nil, fmt.Errrof("Failed to connect to display, statusCode: %d",
+		return nil, fmt.Errorf("Failed to connect to display, statusCode: %d",
 			res.StatusCode)
 	}
 	if err != nil {

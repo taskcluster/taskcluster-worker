@@ -81,7 +81,20 @@ func (c *DisplayClient) Write(p []byte) (int, error) {
 // Close will close the underlying websocket and release all resources held by
 // the DisplayClient.
 func (c *DisplayClient) Close() error {
-	return c.ws.Close()
+	// Attempt a graceful close
+	c.mWrite.Lock()
+	err := c.ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	c.mWrite.Unlock()
+
+	// Always make sure we close properly
+	cerr := c.ws.Close()
+
+	// Prefer error sending the close message over any error from closing the
+	// websocket.
+	if err != nil {
+		return err
+	}
+	return cerr
 }
 
 func (c *DisplayClient) sendPings() {

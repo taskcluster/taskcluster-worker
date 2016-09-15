@@ -3,6 +3,7 @@ package interactive
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -10,15 +11,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/websocket"
+	vnc "github.com/mitchellh/go-vnc"
 	"github.com/stretchr/testify/mock"
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-client-go/tcclient"
+	"github.com/taskcluster/taskcluster-worker/plugins/interactive/displayclient"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellclient"
-	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellconsts"
 	"github.com/taskcluster/taskcluster-worker/plugins/plugintest"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
+	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
 // expectS3Artifact will setup queue to expect an S3 artifact with given
@@ -79,6 +81,23 @@ func expectRedirectArtifact(q *client.MockQueue, taskID string, runID int, name 
 	return c
 }
 
+type resolution struct {
+	width  int
+	height int
+}
+
+func getDisplayResolution(c io.ReadWriteCloser) (resolution, error) {
+	client, err := vnc.Client(ioext.NopConn(c), &vnc.ClientConfig{})
+	if err != nil {
+		return resolution{}, err
+	}
+	client.Close()
+	return resolution{
+		width:  int(client.FrameBufferWidth),
+		height: int(client.FrameBufferHeight),
+	}, nil
+}
+
 func TestInteractivePluginDoingNothing(*testing.T) {
 	plugintest.Case{
 		Payload: `{
@@ -91,12 +110,6 @@ func TestInteractivePluginDoingNothing(*testing.T) {
 		PluginSuccess: true,
 		EngineSuccess: true,
 	}.Test()
-}
-
-var testDialer = websocket.Dialer{
-	HandshakeTimeout: shellconsts.ShellHandshakeTimeout,
-	ReadBufferSize:   shellconsts.ShellMaxMessageSize,
-	WriteBufferSize:  shellconsts.ShellMaxMessageSize,
 }
 
 func TestInteractivePluginShell(t *testing.T) {
@@ -131,13 +144,11 @@ func TestInteractivePluginShell(t *testing.T) {
 				panic("Expected shellSocketUrl to match redirect artifact target")
 			}
 
-			ws, _, err := testDialer.Dial(shellSocketURL, nil)
+			debug("Opening a new shell")
+			sh, err := shellclient.Dial(shellSocketURL, nil, false)
 			if err != nil {
-				panic(fmt.Sprintf("Failed to dial shell, err: %s", err))
+				panic(fmt.Sprintf("Failed to open shell, error: %s", err))
 			}
-
-			debug("Open a new shell")
-			sh := shellclient.New(ws)
 
 			debug("Write print-hello to shell")
 			go func() {
@@ -200,6 +211,36 @@ func TestInteractivePluginDisplay(t *testing.T) {
 			}
 			if displaysURL != s["displaysUrl"] {
 				panic("Expected displaySocketUrl to match redirect artifact target")
+			}
+
+			debug("List displays")
+			displays, err := displayclient.ListDisplays(displaysURL)
+			if err != nil {
+				panic(fmt.Sprintf("ListDisplays failed, error: %s", err))
+			}
+			if len(displays) != 1 {
+				panic("Expected ListDisplays to return at-least one display")
+			}
+
+			debug("OpenDisplay")
+			d, err := displays[0].OpenDisplay()
+			if err != nil {
+				panic(fmt.Sprintf("Failed to OpenDisplay, error: %s", err))
+			}
+
+			debug("Get resolution")
+			res, err := getDisplayResolution(d)
+			if err != nil {
+				panic(fmt.Sprintf("Failed connect to VNC display, error: %s", err))
+			}
+
+			// Some simple sanity tests, we can rely on the fact that resolution
+			// doesn't change because we're testing against mock engine.
+			if res.height != displays[0].Height {
+				panic("height mismatch")
+			}
+			if res.width != displays[0].Width {
+				panic("width mismatch")
 			}
 		},
 	}.Test()

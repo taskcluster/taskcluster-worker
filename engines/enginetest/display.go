@@ -3,12 +3,11 @@ package enginetest
 import (
 	"fmt"
 	"io"
-	"net"
 	"sync"
-	"time"
 
 	vnc "github.com/mitchellh/go-vnc"
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
 // The DisplayTestCase contains information sufficient to test the interactive
@@ -137,38 +136,13 @@ func (c *DisplayTestCase) Test() {
 	wg.Wait()
 }
 
-// nopConn wraps io.ReadWriteCloser as net.Conn
-type nopConn struct {
-	io.ReadWriteCloser
-}
-
-func (c nopConn) LocalAddr() net.Addr {
-	return nil
-}
-
-func (c nopConn) RemoteAddr() net.Addr {
-	return nil
-}
-
-func (c nopConn) SetDeadline(time.Time) error {
-	return nil
-}
-
-func (c nopConn) SetReadDeadline(time.Time) error {
-	return nil
-}
-
-func (c nopConn) SetWriteDeadline(time.Time) error {
-	return nil
-}
-
 type resolution struct {
 	width  int
 	height int
 }
 
 func getDisplayResolution(c io.ReadWriteCloser) (resolution, error) {
-	client, err := vnc.Client(nopConn{c}, &vnc.ClientConfig{})
+	client, err := vnc.Client(ioext.NopConn(c), &vnc.ClientConfig{})
 	if err != nil {
 		return resolution{}, err
 	}
