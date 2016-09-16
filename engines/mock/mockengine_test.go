@@ -96,7 +96,7 @@ var artifactTestCase = enginetest.ArtifactTestCase{
 	TextFilePath:       "/folder/a.txt",
 	FileNotFoundPath:   "/not-found.txt",
 	FolderNotFoundPath: "/no-folder/",
-	NestedFolderFiles:  []string{"/folder/a.txt", "/folder/b.txt", "/folder/c/c.txt"},
+	NestedFolderFiles:  []string{"a.txt", "b.txt", "c/c.txt"},
 	NestedFolderPath:   "/folder/",
 	Payload: `{
 		"delay": 0,

@@ -1,6 +1,8 @@
 package qemuengine
 
 import (
+	"strings"
+
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
@@ -43,6 +45,12 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 		f, err := r.metaService.GetArtifact(p)
 		if err != nil {
 			return err
+		}
+		// If guest uses backslashes our input paths should have that, but the ones
+		// we return should be intepreted as names.
+		p = strings.Replace(p[len(path):], "\\", "/", 0)
+		if len(p) > 0 && p[0] == '\\' {
+			p = p[1:]
 		}
 		if handler(p, f) != nil {
 			return engines.ErrHandlerInterrupt

@@ -18,7 +18,7 @@ type Manager struct {
 	m           sync.Mutex
 	images      map[string]*image
 	imageFolder string
-	gc          *gc.GarbageCollector
+	gc          gc.ResourceTracker
 	log         *logrus.Entry
 	sentry      *raven.Client
 }
@@ -48,7 +48,7 @@ type Instance struct {
 
 // NewManager creates a new image manager using the imageFolder for storing
 // images and instances of images.
-func NewManager(imageFolder string, gc *gc.GarbageCollector, log *logrus.Entry, sentry *raven.Client) (*Manager, error) {
+func NewManager(imageFolder string, gc gc.ResourceTracker, log *logrus.Entry, sentry *raven.Client) (*Manager, error) {
 	// Ensure the image folder is created
 	err := os.MkdirAll(imageFolder, 0777)
 	if err != nil {
@@ -221,7 +221,7 @@ func (i *Instance) DiskFile() string {
 
 // Format returns the image format: 'qcow2'
 func (i *Instance) Format() string {
-	return "qcow2"
+	return formatQCOW2
 }
 
 // Release frees the resources held by an instance.

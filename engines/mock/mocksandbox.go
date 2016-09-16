@@ -239,24 +239,20 @@ func (s *sandbox) ExtractFolder(folder string, handler engines.FileHandler) erro
 	m := sync.Mutex{}
 	handlerError := false
 	foundFolder := false
-	for path, data := range s.files {
-		if strings.HasPrefix(path, folder) {
+	for p, data := range s.files {
+		if strings.HasPrefix(p, folder) {
 			foundFolder = true
-			if path == folder {
-				// In this engine a filename ending with / is a folder, and its content
-				// is ignored, it's only used as indicator of folder existence
-				continue
-			}
 			wg.Add(1)
-			go func(path string, data []byte) {
-				err := handler(path, ioext.NopCloser(bytes.NewReader(data)))
+			go func(p string, data []byte) {
+				p = p[len(folder):] // Note: folder always ends with slash
+				err := handler(p, ioext.NopCloser(bytes.NewReader(data)))
 				if err != nil {
 					m.Lock()
 					handlerError = true
 					m.Unlock()
 				}
 				wg.Done()
-			}(path, data)
+			}(p, data)
 		}
 	}
 	wg.Wait()

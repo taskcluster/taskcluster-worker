@@ -23,7 +23,7 @@ type ArtifactTestCase struct {
 	FileNotFoundPath string
 	// Path to a folder that doesn't exist, and will return ErrResourceNotFound
 	FolderNotFoundPath string
-	// Files to expect in NestedFolderPath
+	// Files to expect in NestedFolderPath (must be relative and slash separated)
 	NestedFolderFiles []string
 	// Path to a folder that contains files NestedFolderFiles each containing
 	// Text
@@ -85,6 +85,12 @@ func (c *ArtifactTestCase) TestExtractFolderNotFound() {
 // NestedFolderFiles
 func (c *ArtifactTestCase) TestExtractNestedFolderPath() {
 	debug("## TestExtractNestedFolderPath")
+	for _, f := range c.NestedFolderFiles {
+		assert(f[0] != '/', "NestedFolderFiles must be relative paths")
+		assert(!strings.Contains(f, "\\"),
+			"NestedFolderFiles must be slash separated")
+	}
+
 	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
