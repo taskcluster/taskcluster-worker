@@ -56,11 +56,9 @@ func TestMain(m *testing.M) {
 var provider = &enginetest.EngineProvider{
 	Engine: "qemu",
 	Config: `{
-		"qemu": {
-			"maxConcurrency":   5,
-			"imageFolder":      "/tmp/images/",
-			"socketFolder":     "/tmp/"
-		}
+		"maxConcurrency":   5,
+		"imageFolder":      "/tmp/images/",
+		"socketFolder":     "/tmp/"
   }`,
 }
 
@@ -70,22 +68,16 @@ func TestLogging(t *testing.T) {
 		EngineProvider: provider,
 		Target:         "hello-world",
 		TargetPayload: `{
-	    "start": {
-	      "image": "` + s.URL + `",
-	      "command": ["sh", "-c", "echo 'hello-world' && true"]
-	    }
+      "image": "` + s.URL + `",
+      "command": ["sh", "-c", "echo 'hello-world' && true"]
 	  }`,
 		FailingPayload: `{
-	    "start": {
-		    "image": "` + s.URL + `",
-		    "command": ["sh", "-c", "echo 'hello-world' && false"]
-	    }
+	    "image": "` + s.URL + `",
+	    "command": ["sh", "-c", "echo 'hello-world' && false"]
 	  }`,
 		SilentPayload: `{
-	    "start": {
-		    "image": "` + s.URL + `",
-		    "command": ["sh", "-c", "echo 'no hello' && true"]
-	    }
+	    "image": "` + s.URL + `",
+	    "command": ["sh", "-c", "echo 'no hello' && true"]
 	  }`,
 	}
 
@@ -104,10 +96,8 @@ func TestEnvironmentVariables(t *testing.T) {
 			"#=#",
 		},
 		Payload: `{
-	    "start": {
-	      "image": "` + s.URL + `",
-	      "command": ["sh", "-c", "echo $TEST_ENV_VAR && true"]
-	    }
+      "image": "` + s.URL + `",
+      "command": ["sh", "-c", "echo $TEST_ENV_VAR && true"]
 	  }`,
 	}
 
@@ -123,10 +113,8 @@ func TestAttachProxy(t *testing.T) {
 		EngineProvider: provider,
 		ProxyName:      "test-proxy",
 		PingProxyPayload: `{
-			"start": {
-				"image": "` + s.URL + `",
-				"command": ["sh", "-ec", "echo 'Pinging'; STATUS=$(curl -s -o /tmp/output -w '%{http_code}' http://taskcluster/test-proxy/v1/ping); cat /tmp/output; test $STATUS -eq 200;"]
-			}
+			"image": "` + s.URL + `",
+			"command": ["sh", "-ec", "echo 'Pinging'; STATUS=$(curl -s -o /tmp/output -w '%{http_code}' http://taskcluster/test-proxy/v1/ping); cat /tmp/output; test $STATUS -eq 200;"]
 		}`,
 	}
 
@@ -150,10 +138,8 @@ func TestArtifacts(t *testing.T) {
 		},
 		NestedFolderPath: "/home/tc/folder/",
 		Payload: `{
-			"start": {
-				"image": "` + s.URL + `",
-				"command": ["sh", "-ec", "mkdir -p /home/tc/folder/sub-folder; echo '[hello-world]' > /home/tc/folder/hello.txt; echo '[hello-world]' > /home/tc/folder/sub-folder/hello2.txt"]
-			}
+			"image": "` + s.URL + `",
+			"command": ["sh", "-ec", "mkdir -p /home/tc/folder/sub-folder; echo '[hello-world]' > /home/tc/folder/hello.txt; echo '[hello-world]' > /home/tc/folder/sub-folder/hello2.txt"]
 		}`,
 	}
 
@@ -174,10 +160,8 @@ func TestShell(t *testing.T) {
 		BadCommand:     "exit 1;\n",
 		SleepCommand:   "sleep 30;\n",
 		Payload: `{
-	    "start": {
-	      "image": "` + s.URL + `",
-	      "command": ["sh", "-c", "true"]
-	    }
+      "image": "` + s.URL + `",
+      "command": ["sh", "-c", "true"]
 	  }`,
 	}
 
@@ -200,11 +184,9 @@ func TestDisplay(t *testing.T) {
 		},
 		InvalidDisplayName: "invalid-screen",
 		Payload: `{
-	    "start": {
-	      "image": "` + s.URL + `",
-	      "command": ["sh", "-c", "true"]
-	    }
-	  }`,
+      "image": "` + s.URL + `",
+      "command": ["sh", "-c", "true"]
+    }`,
 	}
 
 	c.TestListDisplays()
