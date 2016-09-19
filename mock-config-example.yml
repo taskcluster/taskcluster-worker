@@ -23,3 +23,5 @@ serverPort:         60000
 statelessDNSSecret: fake-secret
 statelessDNSDomain: example.com
 maxLifeCycle:       10 * 60 # 10 min
+minimumDiskSpace:   0
+minimumMemory:      0

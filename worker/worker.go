@@ -70,8 +70,9 @@ func New(config interface{}, log *logrus.Logger) (*Worker, error) {
 	}
 
 	// Create environment
+	gc := gc.New(c.TemporaryFolder, c.MinimumDiskSpace, c.MinimumMemory)
 	env := &runtime.Environment{
-		GarbageCollector: &gc.GarbageCollector{},
+		GarbageCollector: gc,
 		Log:              log,
 		TemporaryStorage: tempStorage,
 		WebHookServer:    localServer,
@@ -107,7 +108,7 @@ func New(config interface{}, log *logrus.Logger) (*Worker, error) {
 
 	tm, err := newTaskManager(
 		&c, engine, pm, env,
-		env.Log.WithField("component", "task-manager"),
+		env.Log.WithField("component", "task-manager"), gc,
 	)
 	if err != nil {
 		return nil, err

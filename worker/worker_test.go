@@ -56,6 +56,8 @@ func TestStart(t *testing.T) {
 		"statelessDNSSecret": "fake-secret",
 		"statelessDNSDomain": "example.com",
 		"maxLifeCycle":       10 * 60, // 10 min
+		"minimumDiskSpace":   0,
+		"minimumMemory":      0,
 	}, nil)
 	if err != nil {
 		t.Fatal(err)

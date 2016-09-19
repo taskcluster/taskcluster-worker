@@ -10,6 +10,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
 
 // Manager is resonsible for managing the entire task lifecyle from claiming the
@@ -31,13 +32,14 @@ type Manager struct {
 	workerGroup   string
 	workerID      string
 	tasks         map[string]*TaskRun
+	gc            *gc.GarbageCollector
 }
 
 // Create a new instance of the task manager that will be responsible for claiming,
 // executing, and resolving units of work (tasks).
 func newTaskManager(
 	config *configType, engine engines.Engine, pluginManager plugins.Plugin,
-	environment *runtime.Environment, log *logrus.Entry,
+	environment *runtime.Environment, log *logrus.Entry, gc *gc.GarbageCollector,
 ) (*Manager, error) {
 	queue := tcqueue.New(
 		&tcclient.Credentials{
@@ -74,6 +76,7 @@ func newTaskManager(
 		provisionerID: config.ProvisionerID,
 		workerGroup:   config.WorkerGroup,
 		workerID:      config.WorkerID,
+		gc:            gc,
 	}
 
 	m.pluginManager = pluginManager
@@ -142,6 +145,11 @@ func (m *Manager) CancelTask(taskID string, runID int) {
 }
 
 func (m *Manager) run(claim *taskClaim) {
+	// Always do a best-effort GCing before we run a task
+	if err := m.gc.Collect(); err != nil {
+		m.log.Error("Failed to run garbage collector, error: ", err)
+	}
+
 	log := m.log.WithFields(logrus.Fields{
 		"taskID": claim.taskID,
 		"runID":  claim.runID,

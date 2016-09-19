@@ -3,6 +3,7 @@ package worker
 import (
 	"fmt"
 	"io/ioutil"
+	"math"
 
 	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
@@ -12,27 +13,29 @@ import (
 )
 
 type configType struct {
-	Engine          string                 `json:"engine"`
-	Engines         map[string]interface{} `json:"engines"`
-	Plugins         interface{}            `json:"plugins"`
-	Capacity        int                    `json:"capacity"`
-	Credentials     credentials            `json:"credentials"`
-	PollingInterval int                    `json:"pollingInterval"`
-	ReclaimOffset   int                    `json:"reclaimOffset"`
-	QueueBaseURL    string                 `json:"queueBaseUrl"`
-	ProvisionerID   string                 `json:"provisionerId"`
-	WorkerType      string                 `json:"workerType"`
-	WorkerGroup     string                 `json:"workerGroup"`
-	WorkerID        string                 `json:"workerId"`
-	TemporaryFolder string                 `json:"temporaryFolder"`
-	LogLevel        string                 `json:"logLevel"`
-	ServerIP        string                 `json:"serverIp"`
-	ServerPort      int                    `json:"serverPort"`
-	TLSCertificate  string                 `json:"tlsCertificiate"`
-	TLSKey          string                 `json:"tlsKey"`
-	DNSSecret       string                 `json:"statelessDNSSecret"`
-	DNSDomain       string                 `json:"statelessDNSDomain"`
-	MaxLifeCycle    int                    `json:"maxLifeCycle"`
+	Engine           string                 `json:"engine"`
+	Engines          map[string]interface{} `json:"engines"`
+	Plugins          interface{}            `json:"plugins"`
+	Capacity         int                    `json:"capacity"`
+	Credentials      credentials            `json:"credentials"`
+	PollingInterval  int                    `json:"pollingInterval"`
+	ReclaimOffset    int                    `json:"reclaimOffset"`
+	QueueBaseURL     string                 `json:"queueBaseUrl"`
+	ProvisionerID    string                 `json:"provisionerId"`
+	WorkerType       string                 `json:"workerType"`
+	WorkerGroup      string                 `json:"workerGroup"`
+	WorkerID         string                 `json:"workerId"`
+	TemporaryFolder  string                 `json:"temporaryFolder"`
+	LogLevel         string                 `json:"logLevel"`
+	ServerIP         string                 `json:"serverIp"`
+	ServerPort       int                    `json:"serverPort"`
+	TLSCertificate   string                 `json:"tlsCertificiate"`
+	TLSKey           string                 `json:"tlsKey"`
+	DNSSecret        string                 `json:"statelessDNSSecret"`
+	DNSDomain        string                 `json:"statelessDNSDomain"`
+	MaxLifeCycle     int                    `json:"maxLifeCycle"`
+	MinimumDiskSpace int64                  `json:"minimumDiskSpace"`
+	MinimumMemory    int64                  `json:"minimumMemory"`
 }
 
 type credentials struct {
@@ -211,6 +214,26 @@ func ConfigSchema() schematypes.Object {
 				Minimum: 5 * 60,
 				Maximum: 31 * 24 * 60 * 60,
 			},
+			"minimumDiskSpace": schematypes.Integer{
+				MetaData: schematypes.MetaData{
+					Title: "Minimum Disk Space",
+					Description: `The minimum amount of disk space to have available
+						before starting on the next task. Garbage collector will do a
+						best-effort attempt at releasing resources to satisfy this limit`,
+				},
+				Minimum: 0,
+				Maximum: math.MaxInt64,
+			},
+			"minimumMemory": schematypes.Integer{
+				MetaData: schematypes.MetaData{
+					Title: "Minimum Memory",
+					Description: `The minimum amount of memory to have available
+						before starting on the next task. Garbage collector will do a
+						best-effort attempt at releasing resources to satisfy this limit`,
+				},
+				Minimum: 0,
+				Maximum: math.MaxInt64,
+			},
 		},
 		Required: []string{
 			"engine",
@@ -231,6 +254,8 @@ func ConfigSchema() schematypes.Object {
 			"statelessDNSSecret",
 			"statelessDNSDomain",
 			"maxLifeCycle",
+			"minimumDiskSpace",
+			"minimumMemory",
 		},
 	}
 }
