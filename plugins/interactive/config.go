@@ -69,7 +69,7 @@ var configSchema = schematypes.Object{
 		"displayToolUrl": schematypes.URI{
 			MetaData: schematypes.MetaData{
 				Title: "Display Tool URL",
-				Description: `URL to a tool that can take display socket and list
+				Description: `URL to a tool that can take display socket, list
 					displays and render noVNC session. The URL will be given the
 					querystring options: 'v=1', 'socketUrl', 'displaysUrl', 'taskId' and
 					'runId'.`,
