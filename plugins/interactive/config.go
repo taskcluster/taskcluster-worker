@@ -62,7 +62,7 @@ var configSchema = schematypes.Object{
 			MetaData: schematypes.MetaData{
 				Title: "Shell Tool URL",
 				Description: `URL to a tool that can take shell socket URL and display
-					an interactive shell sessions. The URL will be given the querystring
+					an interactive shell session. The URL will be given the querystring
 					options: 'v=2', 'socketUrl', 'taskId', 'runId'.`,
 			},
 		},
