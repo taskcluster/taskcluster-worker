@@ -13,13 +13,13 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
-func newTestSandbox(taskPayload *payload, env []string) (*sandbox, error) {
+func newTestSandbox(taskPayload *payloadType, env []string) (*sandbox, error) {
 	temp, err := runtime.NewTemporaryStorage(os.TempDir())
 	if err != nil {
 		return nil, err
 	}
 
-	context, _, err := runtime.NewTaskContext(temp.NewFilePath(), runtime.TaskInfo{})
+	context, _, err := runtime.NewTaskContext(temp.NewFilePath(), runtime.TaskInfo{}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func newTestSandbox(taskPayload *payload, env []string) (*sandbox, error) {
 }
 
 func TestWaitResult(t *testing.T) {
-	testPayload := payload{
+	testPayload := payloadType{
 		Command: []string{"/bin/echo", "-n", "test"},
 	}
 
@@ -49,7 +49,7 @@ func TestWaitResult(t *testing.T) {
 }
 
 func TestInvalidCommand(t *testing.T) {
-	testPayload := payload{
+	testPayload := payloadType{
 		Command: []string{"Idontexist"},
 	}
 
@@ -62,7 +62,7 @@ func TestInvalidCommand(t *testing.T) {
 }
 
 func TestFailedCommand(t *testing.T) {
-	testPayload := payload{
+	testPayload := payloadType{
 		Command: []string{"/bin/ls", "/invalidpath"},
 	}
 
@@ -77,7 +77,7 @@ func TestFailedCommand(t *testing.T) {
 }
 
 func TestAbort(t *testing.T) {
-	testPayload := payload{
+	testPayload := payloadType{
 		Command: []string{"/bin/echo", "-n", "test"},
 	}
 
@@ -114,7 +114,7 @@ func TestExecDownloadedScript(t *testing.T) {
 	serv.addHandle("/test.sh", "#!/bin/sh\necho -n test\n")
 	defer serv.close()
 
-	testPayload := payload{
+	testPayload := payloadType{
 		Link:    serv.url() + "/test.sh",
 		Command: []string{"./test.sh"},
 	}

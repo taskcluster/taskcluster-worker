@@ -18,9 +18,7 @@ var envVarTestCase = enginetest.EnvVarTestCase{
 	VariableName:         "HELLO_WORLD",
 	InvalidVariableNames: []string{"bad d", "also bad", "can't have space"},
 	Payload: `{
-		"engine": {
-			"command": ["ls"]
-		}
+		"command": ["ls"]
 	}`,
 }
 
@@ -33,19 +31,13 @@ var loggingTestCase = enginetest.LoggingTestCase{
 	EngineProvider: &provider,
 	Target:         "HOME",
 	TargetPayload: `{
-	"engine": {
-			"command": ["/bin/bash", "-c", "env"]
-		}
+		"command": ["/bin/bash", "-c", "env"]
 	}`,
 	FailingPayload: `{
-	"engine": {
-			"command": ["/bin/bash", "-c", "env;exit 1"]
-		}
+		"command": ["/bin/bash", "-c", "env;exit 1"]
 	}`,
 	SilentPayload: `{
-	"engine": {
-			"command": ["/bin/echo", "test"]
-		}
+		"command": ["/bin/echo", "test"]
 	}`,
 }
 

@@ -6,7 +6,6 @@ import (
 
 	daemonize "github.com/takama/daemon"
 	"github.com/taskcluster/taskcluster-worker/commands"
-	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 const (
@@ -29,11 +28,8 @@ func (cmd) Summary() string {
 
 func usage() string {
 	return `Usage:
-  taskcluster-worker daemon (install | run) <engine> [--logging-level <level>]
+  taskcluster-worker daemon (install | run) <config-file>
   taskcluster-worker daemon (start | stop | remove)
-
-Options:
-  -l <level>, --logging-level=<level>   Logging level [default: info]
 `
 }
 
@@ -42,29 +38,19 @@ func (cmd) Usage() string {
 }
 
 func (cmd) Execute(args map[string]interface{}) bool {
-	// set up logger
-	var level string
-	if l := args["--logging-level"]; l != nil {
-		level = l.(string)
-	}
-	logger, err := runtime.CreateLogger(level)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
 	srv, err := daemonize.New(name, description, dependencies...)
 	if err != nil {
-		logger.Fatal("Error: ", err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		return false
 	}
 
-	svc := &service{srv, args, logger}
+	svc := &service{srv, args}
 	status, err := svc.Manage()
 
 	if err != nil {
-		logger.Fatalf("%s\n%v", status, err)
+		fmt.Fprintf(os.Stderr, "%s\n%v\n", status, err)
 	}
 
-	logger.Info(status)
+	fmt.Println(status)
 	return true
 }
