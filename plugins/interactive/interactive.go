@@ -65,13 +65,25 @@ func (p *plugin) PayloadSchema() schematypes.Object {
 	s := schematypes.Object{
 		MetaData: schematypes.MetaData{
 			Title: "Interactive Features",
-			Description: `Settings for interactive features, all options are optional
+			Description: `Settings for interactive features, all options are optional,
 				an empty object can be used to enable the interactive features with
 				default options.`,
 		},
 		Properties: schematypes.Properties{
-			"disableDisplay": schematypes.Boolean{},
-			"disableShell":   schematypes.Boolean{},
+			"disableDisplay": schematypes.Boolean{
+				MetaData: schematypes.MetaData{
+					Title: "Disable Display",
+					Description: "Disable the interactive display, defaults to enabled if " +
+						"any options is given for `interactive`, even an empty object.",
+				},
+			},
+			"disableShell": schematypes.Boolean{
+				MetaData: schematypes.MetaData{
+					Title: "Disable Shell",
+					Description: "Disable the interactive shell, defaults to enabled if " +
+						"any options is given for `interactive`, even an empty object.",
+				},
+			},
 		},
 	}
 	if !p.config.ForbidCustomArtifactPrefix {
@@ -174,23 +186,41 @@ func (p *taskPlugin) Started(sandbox engines.Sandbox) error {
 }
 
 func (p *taskPlugin) Stopped(_ engines.ResultSet) (bool, error) {
-	if p.shellServer != nil {
-		p.shellServer.Abort()
-	}
-	if p.displayServer != nil {
-		p.displayServer.Abort()
-	}
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		if p.shellServer != nil {
+			p.shellServer.Abort()
+		}
+		wg.Done()
+	}()
+	go func() {
+		if p.displayServer != nil {
+			p.displayServer.Abort()
+		}
+		wg.Done()
+	}()
+	wg.Wait()
 	return true, nil
 }
 
 func (p *taskPlugin) Dispose() error {
-	if p.shellServer != nil {
-		p.shellServer.Abort()
-		p.shellServer.Wait()
-	}
-	if p.displayServer != nil {
-		p.displayServer.Abort()
-	}
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		if p.shellServer != nil {
+			p.shellServer.Abort()
+			p.shellServer.Wait()
+		}
+		wg.Done()
+	}()
+	go func() {
+		if p.displayServer != nil {
+			p.displayServer.Abort()
+		}
+		wg.Done()
+	}()
+	wg.Wait()
 	return nil
 }
 

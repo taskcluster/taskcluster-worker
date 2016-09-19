@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -32,8 +33,9 @@ func (s *displayServer) Abort() {
 	s.m.Lock()
 	defer s.m.Unlock()
 
+	// Ensure the done channel is closed
 	select {
-	case <-s.done:
+	case <-s.done: // can't close twice
 	default:
 		close(s.done)
 	}
@@ -72,26 +74,25 @@ func (s *displayServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if displayName == "" {
 		reply(w, http.StatusBadRequest, displayconsts.ErrorMessage{
 			Code:    displayconsts.ErrorCodeInvalidParameters,
-			Message: "Querystring parameter 'display' must given!",
+			Message: "Querystring parameter 'display' must by given!",
 		})
 	}
 	display, err := s.sandbox.OpenDisplay(displayName)
-	if err == engines.ErrNoSuchDisplay {
+	switch err {
+	case engines.ErrNoSuchDisplay:
 		reply(w, http.StatusNotFound, displayconsts.ErrorMessage{
 			Code:    displayconsts.ErrorCodeDisplayNotFound,
 			Message: fmt.Sprintf("Display: '%s' couldn't be found", displayName),
 		})
 		return
-	}
-	if err == engines.ErrSandboxTerminated || err == engines.ErrSandboxAborted {
+	case engines.ErrSandboxTerminated, engines.ErrSandboxAborted:
 		reply(w, http.StatusGone, errorMessageExecutionHalted)
 		return
-	}
-	if err == engines.ErrFeatureNotSupported {
+	case engines.ErrFeatureNotSupported:
 		reply(w, http.StatusBadRequest, errorMessageDisplayNotSupported)
 		return
-	}
-	if err != nil {
+	case nil:
+	default:
 		//TODO: Send error to sentry
 		reply(w, http.StatusInternalServerError, errorMessageInternalError)
 		return
@@ -152,10 +153,15 @@ func (s *displayServer) listDisplays(w http.ResponseWriter, r *http.Request) {
 func reply(w http.ResponseWriter, status int, payload interface{}) {
 	var data []byte
 	if payload != nil {
-		data, _ = json.Marshal(payload)
+		var err error
+		data, err = json.Marshal(payload)
+		if err != nil {
+			panic(fmt.Sprintf("Failed to marshal JSON reply, error: %s", err))
+		}
 	}
 	if len(data) > 0 {
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 	}
 	w.WriteHeader(status)
 	w.Write(data)
