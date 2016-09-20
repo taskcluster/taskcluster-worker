@@ -49,7 +49,7 @@ func Dial(socketURL string, display string) (*DisplayClient, error) {
 
 	// Upgrade failed then we most likely got some error response
 	if err == websocket.ErrBadHandshake {
-		// Attempt to read and parse the body
+		// Attempt to read and parse the body (limit to 2MiB for sanity)
 		data, _ := ioext.ReadAtMost(res.Body, 2*1024*1024)
 		var errorMsg displayconsts.ErrorMessage
 		perr := json.Unmarshal(data, &errorMsg)

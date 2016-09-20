@@ -261,7 +261,7 @@ func ConfigSchema() schematypes.Object {
 }
 
 // LoadConfigFile will load configuration options from a YAML file and validate
-// against the config file schema, returning an error messages explaining what
+// against the config file schema, returning an error message explaining what
 // went wrong if unsuccessful.
 func LoadConfigFile(filename string) (interface{}, error) {
 	// Read config file

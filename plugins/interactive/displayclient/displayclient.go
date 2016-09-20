@@ -17,11 +17,11 @@ type DisplayClient struct {
 	buffer  []byte
 }
 
-// New returns a new display client implmenting the ioext.ReadWriteCloser
+// New returns a new display client implementing the ioext.ReadWriteCloser
 // interface using a websocket.
 //
 // The DisplayClient essentially takes care of sending and receiving ping/pongs
-// to keep the websocket alive. However, the DisplayClient does read/writes
+// to keep the websocket alive. However, the DisplayClient does read/write
 // directly on websocket without any buffering, hence, you must keep calling
 // Read() with a non-empty buffer to keep the connection alive.
 func New(ws *websocket.Conn) *DisplayClient {

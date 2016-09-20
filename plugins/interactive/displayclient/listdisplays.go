@@ -44,7 +44,7 @@ func ListDisplays(socketURL string) ([]Display, error) {
 	// Create a new got client
 	g := got.New()
 	g.Client = &http.Client{Timeout: 30 * time.Second}
-	g.MaxSize = 10 * 1024 * 1024
+	g.MaxSize = 10 * 1024 * 1024 // 10 MiB should be more than enough
 
 	// Send a request
 	res, err := g.Get(u.String()).Send()

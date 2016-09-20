@@ -8,6 +8,7 @@ import (
 	"os"
 	osuser "os/user"
 	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/Sirupsen/logrus"
@@ -28,7 +29,7 @@ func makeResultSet(t *testing.T) resultset {
 		t.Fatal(err)
 	}
 
-	context, _, err := runtime.NewTaskContext(temp.NewFilePath(), runtime.TaskInfo{})
+	context, _, err := runtime.NewTaskContext(temp.NewFilePath(), runtime.TaskInfo{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,6 +106,10 @@ func TestExtractFolder(t *testing.T) {
 	assert.Equal(t, err, engines.ErrResourceNotFound)
 
 	err = r.ExtractFolder("test-data", func(p string, stream ioext.ReadSeekCloser) error {
+		if _, err := os.Stat(filepath.Join("test-data", p)); err != nil {
+			return fmt.Errorf("%s should be a valid path relative to test-data directory: %v", p, err)
+		}
+
 		expected := path.Base(p) + "\n"
 		data, err2 := ioutil.ReadAll(stream)
 		sdata := string(data)

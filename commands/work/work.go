@@ -28,13 +28,13 @@ func (cmd) Usage() string {
 func (cmd) Execute(args map[string]interface{}) bool {
 	config, err := worker.LoadConfigFile(args["<config.yml>"].(string))
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		return false
 	}
 
 	w, err := worker.New(config, nil)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		return false
 	}
 
