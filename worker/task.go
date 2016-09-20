@@ -386,7 +386,7 @@ func (t *TaskRun) resolveTask() error {
 	close(t.stopReclaims)
 	<-t.reclaimsDone
 	resolve := reportCompleted
-	if !t.success {
+	if !t.resultSet.Success() {
 		resolve = reportFailed
 	}
 
