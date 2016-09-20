@@ -127,6 +127,10 @@
 			"Rev": "5176c556b9ce7e87b54b92744dc86f058f520e86"
 		},
 		{
+			"ImportPath": "github.com/jonasfj/go-import-subtree",
+			"Rev": "4f2f57c342542c08bf6d9919bb799226e4de5774"
+		},
+		{
 			"ImportPath": "github.com/kr/pty",
 			"Comment": "release.r56-35-gce7fa45",
 			"Rev": "ce7fa45920dc37a92de8377972e52bc55ffa8d57"
