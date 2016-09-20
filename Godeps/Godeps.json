@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/taskcluster/taskcluster-worker",
-	"GoVersion": "go1.6",
+	"GoVersion": "go1.7",
 	"GodepVersion": "v74",
 	"Packages": [
 		"./..."
@@ -8,13 +8,13 @@
 	"Deps": [
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
-			"Comment": "v0.10.0-19-gf3cfb45",
-			"Rev": "f3cfb454f4c209e6668c95216c4744b8fddb2356"
+			"Comment": "v0.10.0-38-g3ec0642",
+			"Rev": "3ec0642a7fb6488f65b06f9040adc67e3990296a"
 		},
 		{
 			"ImportPath": "github.com/Sirupsen/logrus/hooks/syslog",
-			"Comment": "v0.10.0-19-gf3cfb45",
-			"Rev": "f3cfb454f4c209e6668c95216c4744b8fddb2356"
+			"Comment": "v0.10.0-38-g3ec0642",
+			"Rev": "3ec0642a7fb6488f65b06f9040adc67e3990296a"
 		},
 		{
 			"ImportPath": "github.com/bradfitz/rfbgo/rfb",
@@ -26,8 +26,13 @@
 		},
 		{
 			"ImportPath": "github.com/cenkalti/backoff",
-			"Comment": "v1.0.0-7-gcdf48bb",
-			"Rev": "cdf48bbc1eb78d1349cbda326a4a037f7ba565c6"
+			"Comment": "v1.0.0-14-g8edc80b",
+			"Rev": "8edc80b07f38c27352fb186d971c628a6c32552b"
+		},
+		{
+			"ImportPath": "github.com/certifi/gocertifi",
+			"Comment": "2016.08.31",
+			"Rev": "ec89d50f00d39494f5b3ec5cf2fe75c53467a937"
 		},
 		{
 			"ImportPath": "github.com/cespare/cp",
@@ -38,8 +43,19 @@
 			"Rev": "99c3df83b51532e3615f851d8c2dbb638f5313bf"
 		},
 		{
+			"ImportPath": "github.com/cloudfoundry/gosigar",
+			"Comment": "scotty_09012012-30-gc32d31a",
+			"Rev": "c32d31af94b0e9d3b2877e49c1a581ad5a793343"
+		},
+		{
+			"ImportPath": "github.com/cloudfoundry/gosigar/fakes",
+			"Comment": "scotty_09012012-30-gc32d31a",
+			"Rev": "c32d31af94b0e9d3b2877e49c1a581ad5a793343"
+		},
+		{
 			"ImportPath": "github.com/davecgh/go-spew/spew",
-			"Rev": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
+			"Comment": "v1.0.0-3-g6d21280",
+			"Rev": "6d212800a42e8ab5c146b8ace3490ee17e5225f9"
 		},
 		{
 			"ImportPath": "github.com/davecgh/go-xdr/xdr2",
@@ -47,27 +63,27 @@
 		},
 		{
 			"ImportPath": "github.com/digitalocean/go-libvirt",
-			"Rev": "a8acb825b1d6d8db8745599306af257c7096baf7"
+			"Rev": "754c709cd3e8b44df38586b87d3bb13366380047"
 		},
 		{
 			"ImportPath": "github.com/digitalocean/go-libvirt/internal/constants",
-			"Rev": "a8acb825b1d6d8db8745599306af257c7096baf7"
+			"Rev": "754c709cd3e8b44df38586b87d3bb13366380047"
 		},
 		{
 			"ImportPath": "github.com/digitalocean/go-qemu",
-			"Rev": "535b8a9880d5457b587e880106d551b61d924971"
+			"Rev": "677e915e58d0e5dbfe767ce007a2be14932c6af6"
 		},
 		{
 			"ImportPath": "github.com/digitalocean/go-qemu/internal/shellexec",
-			"Rev": "535b8a9880d5457b587e880106d551b61d924971"
+			"Rev": "677e915e58d0e5dbfe767ce007a2be14932c6af6"
 		},
 		{
 			"ImportPath": "github.com/digitalocean/go-qemu/internal/virsh",
-			"Rev": "535b8a9880d5457b587e880106d551b61d924971"
+			"Rev": "677e915e58d0e5dbfe767ce007a2be14932c6af6"
 		},
 		{
 			"ImportPath": "github.com/digitalocean/go-qemu/qmp",
-			"Rev": "535b8a9880d5457b587e880106d551b61d924971"
+			"Rev": "677e915e58d0e5dbfe767ce007a2be14932c6af6"
 		},
 		{
 			"ImportPath": "github.com/djherbis/buffer/limio",
@@ -90,53 +106,25 @@
 		},
 		{
 			"ImportPath": "github.com/fsnotify/fsnotify",
-			"Comment": "v1.3.1",
-			"Rev": "a8a77c9133d2d6fd8334f3260d06f60e8d80a5fb"
-		},
-		{
-			"ImportPath": "github.com/gedex/inflector",
-			"Rev": "91797f1712fd58f224781be1080b8613d096187e"
+			"Comment": "v1.3.1-1-gf12c623",
+			"Rev": "f12c6236fe7b5cf6bcf30e5935d08cb079d78334"
 		},
 		{
 			"ImportPath": "github.com/getsentry/raven-go",
-			"Rev": "dffeb57df75d6a911f00232155194e43d79d38d7"
+			"Rev": "379f8d0a68ca237cf8893a1cdfd4f574125e2c51"
 		},
 		{
 			"ImportPath": "github.com/ghodss/yaml",
 			"Rev": "aa0c862057666179de291b67d9f093d12b5a8473"
 		},
 		{
-			"ImportPath": "github.com/golang/lint",
-			"Rev": "c7bacac2b21ca01afa1dee0acf64df3ce047c28f"
-		},
-		{
-			"ImportPath": "github.com/golang/lint/golint",
-			"Rev": "c7bacac2b21ca01afa1dee0acf64df3ce047c28f"
-		},
-		{
 			"ImportPath": "github.com/gorilla/websocket",
-			"Comment": "v1.0.0-15-g54f9dec",
-			"Rev": "54f9decdbfb3fe254c5df3d5aa234480989f4af0"
+			"Comment": "v1.0.0-21-g2d1e454",
+			"Rev": "2d1e4548da234d9cb742cc3628556fef86aafbac"
 		},
 		{
 			"ImportPath": "github.com/jbuchbinder/gopnm",
 			"Rev": "5176c556b9ce7e87b54b92744dc86f058f520e86"
-		},
-		{
-			"ImportPath": "github.com/jonasfj/go-import-subtree",
-			"Rev": "4f2f57c342542c08bf6d9919bb799226e4de5774"
-		},
-		{
-			"ImportPath": "github.com/jonasfj/go-import-subtree/example",
-			"Rev": "4f2f57c342542c08bf6d9919bb799226e4de5774"
-		},
-		{
-			"ImportPath": "github.com/jonasfj/go-import-subtree/example/extpoints",
-			"Rev": "4f2f57c342542c08bf6d9919bb799226e4de5774"
-		},
-		{
-			"ImportPath": "github.com/jonasfj/go-import-subtree/example/plugins/hello",
-			"Rev": "4f2f57c342542c08bf6d9919bb799226e4de5774"
 		},
 		{
 			"ImportPath": "github.com/kr/pty",
@@ -157,48 +145,13 @@
 		},
 		{
 			"ImportPath": "github.com/pborman/uuid",
-			"Comment": "v1.0-11-gc55201b",
-			"Rev": "c55201b036063326c5b1b89ccfe45a184973d073"
+			"Comment": "v1.0-15-gb984ec7",
+			"Rev": "b984ec7fa9ff9e428bd0cf0abf429384dfbe3e37"
 		},
 		{
 			"ImportPath": "github.com/pmezard/go-difflib/difflib",
 			"Comment": "v1.0.0",
 			"Rev": "792786c7400a136282c1664665ae0a8db921c6c2"
-		},
-		{
-			"ImportPath": "github.com/progrium/go-extpoints",
-			"Comment": "go-plugins-43-g529a176",
-			"Rev": "529a176f52394e48e8882dd70a01732f1bb480f3"
-		},
-		{
-			"ImportPath": "github.com/progrium/go-extpoints/examples/extensions/tool-example",
-			"Comment": "go-plugins-43-g529a176",
-			"Rev": "529a176f52394e48e8882dd70a01732f1bb480f3"
-		},
-		{
-			"ImportPath": "github.com/progrium/go-extpoints/examples/tool",
-			"Comment": "go-plugins-43-g529a176",
-			"Rev": "529a176f52394e48e8882dd70a01732f1bb480f3"
-		},
-		{
-			"ImportPath": "github.com/progrium/go-extpoints/examples/tool/extpoints",
-			"Comment": "go-plugins-43-g529a176",
-			"Rev": "529a176f52394e48e8882dd70a01732f1bb480f3"
-		},
-		{
-			"ImportPath": "github.com/progrium/go-extpoints/examples/tool/types",
-			"Comment": "go-plugins-43-g529a176",
-			"Rev": "529a176f52394e48e8882dd70a01732f1bb480f3"
-		},
-		{
-			"ImportPath": "github.com/progrium/go-extpoints/tests",
-			"Comment": "go-plugins-43-g529a176",
-			"Rev": "529a176f52394e48e8882dd70a01732f1bb480f3"
-		},
-		{
-			"ImportPath": "github.com/progrium/go-extpoints/tests/extpoints",
-			"Comment": "go-plugins-43-g529a176",
-			"Rev": "529a176f52394e48e8882dd70a01732f1bb480f3"
 		},
 		{
 			"ImportPath": "github.com/stretchr/objx",
@@ -221,8 +174,8 @@
 		},
 		{
 			"ImportPath": "github.com/takama/daemon",
-			"Comment": "0.6.1",
-			"Rev": "f54dafb9aec997035cb71ecbc34f71fc9a8a2ba5"
+			"Comment": "0.6.2",
+			"Rev": "2d1aaa3c3eb91f5e5e2a4ee754642f4a40fc4ede"
 		},
 		{
 			"ImportPath": "github.com/taskcluster/go-got",
@@ -238,37 +191,37 @@
 		},
 		{
 			"ImportPath": "github.com/taskcluster/jsonschema2go",
-			"Rev": "9f23800d3ab7d5f6cb64a21b80cf3871498f7e8c"
+			"Rev": "91b27eef252d8a07cf326374a4932be9df3b6be7"
 		},
 		{
 			"ImportPath": "github.com/taskcluster/jsonschema2go/text",
-			"Rev": "9f23800d3ab7d5f6cb64a21b80cf3871498f7e8c"
+			"Rev": "91b27eef252d8a07cf326374a4932be9df3b6be7"
 		},
 		{
 			"ImportPath": "github.com/taskcluster/slugid-go/slugid",
-			"Comment": "v1.0.0-15-gebb8c41",
-			"Rev": "ebb8c41c0720cfec64716a75678bea5bf5f7a835"
+			"Comment": "v1.0.0-18-ge8c90b0",
+			"Rev": "e8c90b092892ba53fc4d400aea043943997899be"
 		},
 		{
 			"ImportPath": "github.com/taskcluster/stateless-dns-go/hostname",
-			"Comment": "v1.0.3-9-g1d943d0",
-			"Rev": "1d943d09238cf2144e818f04a6e37f6161029fd3"
+			"Comment": "v1.0.3-15-gdceab83",
+			"Rev": "dceab83a80cf8a20ddcb1cf50087c7d72fcf23dc"
 		},
 		{
 			"ImportPath": "github.com/taskcluster/taskcluster-base-go/jsontest",
-			"Rev": "17117b6af097b2a13df9ce80d4a9ef7dffcbc1c1"
+			"Rev": "3e5fe97ee400d93aa8eab4eb4ba7e24e1e8df3ce"
+		},
+		{
+			"ImportPath": "github.com/taskcluster/taskcluster-client-go",
+			"Rev": "b64163235cb811029febf91f3c0d021adcaca7bf"
 		},
 		{
 			"ImportPath": "github.com/taskcluster/taskcluster-client-go/queue",
-			"Rev": "0e37a2b8b0e4b7989c691675c55b609d896d9f35"
-		},
-		{
-			"ImportPath": "github.com/taskcluster/taskcluster-client-go/tcclient",
-			"Rev": "0e37a2b8b0e4b7989c691675c55b609d896d9f35"
+			"Rev": "b64163235cb811029febf91f3c0d021adcaca7bf"
 		},
 		{
 			"ImportPath": "github.com/tent/hawk-go",
-			"Rev": "8bd4a9f3b4cf4a535303c3f5ce3811475764139c"
+			"Rev": "d4fa08268f573f25df477fedc813f26bfb833761"
 		},
 		{
 			"ImportPath": "github.com/xeipuuv/gojsonpointer",
@@ -280,35 +233,27 @@
 		},
 		{
 			"ImportPath": "github.com/xeipuuv/gojsonschema",
-			"Rev": "c539bca196be50ccdd1f0bcd9076de95f9081831"
+			"Rev": "00f9fafb54d2244d291b86ab63d12c38bd5c3886"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
-			"Rev": "9bc2a3340c92c17a20edcd0080e93851ed58f5d5"
+			"Rev": "71a035914f99bb58fe82eac0f1289f10963d876c"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context/ctxhttp",
-			"Rev": "9bc2a3340c92c17a20edcd0080e93851ed58f5d5"
-		},
-		{
-			"ImportPath": "golang.org/x/net/netutil",
-			"Rev": "9bc2a3340c92c17a20edcd0080e93851ed58f5d5"
+			"Rev": "71a035914f99bb58fe82eac0f1289f10963d876c"
 		},
 		{
 			"ImportPath": "golang.org/x/sys/unix",
-			"Rev": "d4feaf1a7e61e1d9e79e6c4e76c6349e9cab0a03"
+			"Rev": "8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9"
 		},
 		{
 			"ImportPath": "golang.org/x/tools/go/ast/astutil",
-			"Rev": "9deed8c6c1c89e0b6d68d727f215de8e851d1064"
-		},
-		{
-			"ImportPath": "golang.org/x/tools/go/gcimporter15",
-			"Rev": "9deed8c6c1c89e0b6d68d727f215de8e851d1064"
+			"Rev": "f1a397bba50dee815e8c73f3ec94ffc0e8df1a09"
 		},
 		{
 			"ImportPath": "golang.org/x/tools/imports",
-			"Rev": "9deed8c6c1c89e0b6d68d727f215de8e851d1064"
+			"Rev": "f1a397bba50dee815e8c73f3ec94ffc0e8df1a09"
 		},
 		{
 			"ImportPath": "gopkg.in/djherbis/buffer.v1",
@@ -322,17 +267,17 @@
 		},
 		{
 			"ImportPath": "gopkg.in/djherbis/stream.v1",
-			"Comment": "v1.0.1",
-			"Rev": "26a761059928627ca84837000dfb33447c66a146"
+			"Comment": "v1.1.0",
+			"Rev": "f0541db8ef04758adee7c69853244546e6c6e5cf"
 		},
 		{
 			"ImportPath": "gopkg.in/tylerb/graceful.v1",
-			"Comment": "v1.2.5",
-			"Rev": "9a3d4236b03bb5d26f7951134d248f9d5510d599"
+			"Comment": "v1.2.13",
+			"Rev": "50a48b6e73fcc75b45e22c05b79629a67c79e938"
 		},
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
-			"Rev": "e4d366fc3c7938e2958e662b4258c7a89e1f0e3e"
+			"Rev": "31c299268d302dd0aa9a0dcf765a3d58971ac83f"
 		}
 	]
 }

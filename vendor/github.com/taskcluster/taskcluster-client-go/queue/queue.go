@@ -38,7 +38,7 @@
 //
 // The source code of this go package was auto-generated from the API definition at
 // http://references.taskcluster.net/queue/v1/api.json together with the input and output schemas it references, downloaded on
-// Mon, 27 Jun 2016 at 20:28:00 UTC. The code was generated
+// Mon, 19 Sep 2016 at 21:23:00 UTC. The code was generated
 // by https://github.com/taskcluster/taskcluster-client-go/blob/master/build.sh.
 package queue
 
@@ -46,7 +46,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/taskcluster/taskcluster-client-go/tcclient"
+	tcclient "github.com/taskcluster/taskcluster-client-go"
 )
 
 type Queue tcclient.ConnectionData
@@ -80,8 +80,8 @@ func New(credentials *tcclient.Credentials) *Queue {
 }
 
 // This end-point will return the task-definition. Notice that the task
-// definition may have been modified by queue, if an optional property isn't
-// specified the queue may provide a default value.
+// definition may have been modified by queue, if an optional property is
+// not specified the queue may provide a default value.
 //
 // See https://docs.taskcluster.net/reference/platform/queue/api-docs#task
 func (myQueue *Queue) Task(taskId string) (*TaskDefinitionResponse, error) {
@@ -113,7 +113,7 @@ func (myQueue *Queue) Status(taskId string) (*TaskStatusResponse, error) {
 // keep calling `listTaskGroup` with the last `continuationToken` until you
 // get a result without a `continuationToken`.
 //
-// If you're not interested in listing all the members at once, you may
+// If you are not interested in listing all the members at once, you may
 // use the query-string option `limit` to return fewer.
 //
 // See https://docs.taskcluster.net/reference/platform/queue/api-docs#listTaskGroup
@@ -140,7 +140,7 @@ func (myQueue *Queue) ListTaskGroup(taskGroupId, continuationToken, limit string
 // keep calling `listDependentTasks` with the last `continuationToken` until
 // you get a result without a `continuationToken`.
 //
-// If you're not interested in listing all the tasks at once, you may
+// If you are not interested in listing all the tasks at once, you may
 // use the query-string option `limit` to return fewer.
 //
 // See https://docs.taskcluster.net/reference/platform/queue/api-docs#listDependentTasks
@@ -221,13 +221,19 @@ func (myQueue *Queue) DefineTask(taskId string, payload *TaskDefinitionRequest) 
 	return responseObject.(*TaskStatusResponse), err
 }
 
-// If you have define a task using `defineTask` API end-point, then you
-// can schedule the task to be scheduled using this method.
-// This will announce the task as pending and workers will be allowed, to
-// claim it and resolved the task.
+// scheduleTask will schedule a task to be executed, even if it has
+// unresolved dependencies. A task would otherwise only be scheduled if
+// its dependencies were resolved.
+//
+// This is useful if you have defined a task that depends on itself or on
+// some other task that has not been resolved, but you wish the task to be
+// scheduled immediately.
+//
+// This will announce the task as pending and workers will be allowed to
+// claim it and resolve the task.
 //
 // **Note** this operation is **idempotent** and will not fail or complain
-// if called with `taskId` that is already scheduled, or even resolved.
+// if called with a `taskId` that is already scheduled, or even resolved.
 // To reschedule a task previously resolved, use `rerunTask`.
 //
 // Required scopes:
@@ -253,8 +259,8 @@ func (myQueue *Queue) ScheduleTask(taskId string) (*TaskStatusResponse, error) {
 // because a spot node died.
 //
 // **Remark** this operation is idempotent, if you try to rerun a task that
-// isn't either `failed` or `completed`, this operation will just return the
-// current task status.
+// is not either `failed` or `completed`, this operation will just return
+// the current task status.
 //
 // Required scopes:
 //   * (queue:rerun-task and assume:scheduler-id:<schedulerId>/<taskGroupId>), or
@@ -318,6 +324,19 @@ func (myQueue *Queue) PollTaskUrls_SignedURL(provisionerId, workerType string, d
 	return (&cd).SignedURL("/poll-task-url/"+url.QueryEscape(provisionerId)+"/"+url.QueryEscape(workerType), nil, duration)
 }
 
+// Claim any task, more to be added later... long polling up to 20s.
+//
+// Required scopes:
+//   * queue:claim-work:<provisionerId>/<workerType>, and
+//   * queue:worker-id:<workerGroup>/<workerId>
+//
+// See https://docs.taskcluster.net/reference/platform/queue/api-docs#claimWork
+func (myQueue *Queue) ClaimWork(provisionerId, workerType string, payload *ClaimWorkRequest) (*ClaimWorkResponse, error) {
+	cd := tcclient.ConnectionData(*myQueue)
+	responseObject, _, err := (&cd).APICall(payload, "POST", "/claim-work/"+url.QueryEscape(provisionerId)+"/"+url.QueryEscape(workerType), new(ClaimWorkResponse), nil)
+	return responseObject.(*ClaimWorkResponse), err
+}
+
 // claim a task, more to be added later...
 //
 // Required scopes:
@@ -361,9 +380,9 @@ func (myQueue *Queue) ReportCompleted(taskId, runId string) (*TaskStatusResponse
 // a run that failed because the task specific code behaved unexpectedly.
 // For example the task exited non-zero, or didn't produce expected output.
 //
-// Don't use this if the task couldn't be run because if malformed payload,
-// or other unexpected condition. In these cases we have a task exception,
-// which should be reported with `reportException`.
+// Do not use this if the task couldn't be run because if malformed
+// payload, or other unexpected condition. In these cases we have a task
+// exception, which should be reported with `reportException`.
 //
 // Required scopes:
 //   * (queue:resolve-task and assume:worker-id:<workerGroup>/<workerId>), or
@@ -382,8 +401,9 @@ func (myQueue *Queue) ReportFailed(taskId, runId string) (*TaskStatusResponse, e
 //   * The `task.payload` is invalid,
 //   * Non-existent resources are referenced,
 //   * Declared actions cannot be executed due to unavailable resources,
-//   * The worker had to shutdown prematurely, or,
-//   * The worker experienced an unknown error.
+//   * The worker had to shutdown prematurely,
+//   * The worker experienced an unknown error, or,
+//   * The task explicitely requested a retry.
 //
 // Do not use this to signal that some user-specified code crashed for any
 // reason specific to this code. If user-specific code hits a resource that

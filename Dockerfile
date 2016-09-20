@@ -8,10 +8,17 @@ RUN apt-get upgrade -y
 RUN apt-get install -y qemu-system-x86 qemu-utils dnsmasq-base liblz4-tool iptables
 
 # Install build dependencies
-RUN apt-get install -y golang git curl screen nano genisoimage build-essential
+RUN apt-get install -y git curl screen nano genisoimage build-essential
 
-ENV APP_PATH    github.com/taskcluster/taskcluster-worker
+# Install golang 1.7
+RUN curl -L https://storage.googleapis.com/golang/go1.7.linux-amd64.tar.gz > /tmp/go.tar.gz \
+ && tar -xvf /tmp/go.tar.gz -C /usr/local \
+ && rm /tmp/go.tar.gz \
+ ;
+
 ENV GOPATH      /go
+ENV PATH        /usr/local/go/bin:$GOPATH/bin:$PATH
+ENV APP_PATH    github.com/taskcluster/taskcluster-worker
 ENV SHELL       bash
 
 RUN mkdir -p /go/src/$APP_PATH

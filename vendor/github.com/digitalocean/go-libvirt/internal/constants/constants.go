@@ -15,8 +15,7 @@
 // Package constants provides shared data for the libvirt package.
 package constants
 
-// magic program numbers
-// see: https://libvirt.org/git/?p=libvirt.git;a=blob_plain;f=src/remote/remote_protocol.x;hb=HEAD
+// protocol procedure numbers
 const (
 	ProgramVersion   = 1
 	ProgramRemote    = 0x20008086
@@ -25,13 +24,26 @@ const (
 )
 
 // libvirt procedure identifiers
+// These are libvirt procedure numbers which correspond to each respective
+// API call between remote_internal driver and libvirtd. Although stable.
+// Each call is identified by a unique number which *may change at any time*.
+//
+// Examples:
+//	REMOTE_PROC_CONNECT_OPEN = 1
+//	REMOTE_PROC_DOMAIN_DEFINE_XML = 11
+//	REMOTE_PROC_DOMAIN_MIGRATE_SET_MAX_SPEED = 207,
+//
+// See:
+// https://libvirt.org/git/?p=libvirt.git;a=blob_plain;f=src/remote/remote_protocol.x;hb=HEAD
 const (
-	ProcConnectOpen           = 1
-	ProcConnectClose          = 2
-	ProcDomainLookupByName    = 23
-	ProcAuthList              = 66
-	ProcConnectGetLibVersion  = 157
-	ProcConnectListAllDomains = 273
+	ProcConnectOpen              = 1
+	ProcConnectClose             = 2
+	ProcDomainLookupByName       = 23
+	ProcAuthList                 = 66
+	ProcConnectGetLibVersion     = 157
+	ProcDomainMigrateSetMaxSpeed = 207
+	ProcConnectListAllDomains    = 273
+	ProcMigratePerformParams     = 305
 )
 
 // qemu procedure identifiers

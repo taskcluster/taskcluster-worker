@@ -5,8 +5,8 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/taskcluster/taskcluster-client-go"
 	tcqueue "github.com/taskcluster/taskcluster-client-go/queue"
-	"github.com/taskcluster/taskcluster-client-go/tcclient"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
