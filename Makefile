@@ -42,7 +42,7 @@ check: test
 	git status --porcelain
 	/bin/bash -c 'test $$(git status --porcelain | wc -l) == 0'
 test:
-	go install github.com/taskcluster/taskcluster-worker/vendor/github.com/golang/lint/golint
+	go get github.com/golang/lint/golint
 	go test -v -race $$(go list ./... | grep -v /vendor/)
 	go vet $$(go list ./... | grep -v /vendor/)
 	go list ./... | grep -v /vendor/ | xargs -n1 golint
