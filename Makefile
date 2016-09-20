@@ -26,8 +26,7 @@ build:
 	go install $$(go list ./... | grep -v /vendor/)
 
 generate:
-	# these three tools are needed for go generate steps later...
-	go install github.com/taskcluster/taskcluster-worker/vendor/github.com/progrium/go-extpoints
+	# these two tools are needed for go generate steps later...
 	go install github.com/taskcluster/taskcluster-worker/vendor/github.com/jonasfj/go-import-subtree
 	go install github.com/taskcluster/taskcluster-worker/codegen/go-composite-schema
 	# now we have the code generation tools built, we can use them...
