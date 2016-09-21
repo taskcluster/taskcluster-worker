@@ -11,6 +11,12 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
+// Image formats
+const (
+	formatQCOW2 = "qcow2"
+	formatRaw   = "raw"
+)
+
 const maxImageSize = int64(30 * 1024 * 1024 * 1024) // Use int64 for i386 builds
 
 // RandomMAC generates a new random MAC with the local bit set.
@@ -83,7 +89,7 @@ func extractImage(imageFile, imageFolder string) (*vm.Machine, error) {
 	// Inspect the raw disk file
 	diskFile := filepath.Join(imageFolder, "disk.img")
 	diskInfo := inspectImageFile(diskFile, imageRawFormat)
-	if diskInfo == nil || diskInfo.Format != "raw" {
+	if diskInfo == nil || diskInfo.Format != formatRaw {
 		return nil, engines.NewMalformedPayloadError("Image file contains ",
 			"'disk.img' which is not a RAW image file")
 	}
@@ -103,7 +109,7 @@ func extractImage(imageFile, imageFolder string) (*vm.Machine, error) {
 	// Inspect the QCOW2 layer file
 	layerFile := filepath.Join(imageFolder, "layer.qcow2")
 	layerInfo := inspectImageFile(layerFile, imageQCOW2Format)
-	if layerInfo == nil || layerInfo.Format != "qcow2" {
+	if layerInfo == nil || layerInfo.Format != formatQCOW2 {
 		return nil, engines.NewMalformedPayloadError("Image file contains ",
 			"'layer.qcow2' which is not a QCOW2 file")
 	}
@@ -119,7 +125,7 @@ func extractImage(imageFile, imageFolder string) (*vm.Machine, error) {
 		return nil, engines.NewMalformedPayloadError("Image file contains ",
 			"'layer.qcow2' which has a backing file that isn't: 'disk.img'")
 	}
-	if layerInfo.BackingFormat != "raw" {
+	if layerInfo.BackingFormat != formatRaw {
 		return nil, engines.NewMalformedPayloadError("Image file contains ",
 			"'layer.qcow2' which has a backing file format that isn't 'raw'")
 	}

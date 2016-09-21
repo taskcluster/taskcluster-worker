@@ -30,6 +30,7 @@ func setupArtifactTest(name string, artifactResp queue.PostArtifactRequest) (*Ta
 		taskID,
 		"0",
 		name,
+		client.AnyPostArtifactRequest,
 	).Return(&resp, nil)
 	controller.SetQueueClient(mockedQueue)
 	return context, mockedQueue

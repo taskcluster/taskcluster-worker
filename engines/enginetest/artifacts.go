@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"path/filepath"
 	"strings"
 	"sync"
 
@@ -24,7 +23,7 @@ type ArtifactTestCase struct {
 	FileNotFoundPath string
 	// Path to a folder that doesn't exist, and will return ErrResourceNotFound
 	FolderNotFoundPath string
-	// Files to expect in NestedFolderPath
+	// Files to expect in NestedFolderPath (must be relative and slash separated)
 	NestedFolderFiles []string
 	// Path to a folder that contains files NestedFolderFiles each containing
 	// Text
@@ -86,6 +85,12 @@ func (c *ArtifactTestCase) TestExtractFolderNotFound() {
 // NestedFolderFiles
 func (c *ArtifactTestCase) TestExtractNestedFolderPath() {
 	debug("## TestExtractNestedFolderPath")
+	for _, f := range c.NestedFolderFiles {
+		assert(f[0] != '/', "NestedFolderFiles must be relative paths")
+		assert(!strings.Contains(f, "\\"),
+			"NestedFolderFiles must be slash separated")
+	}
+
 	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
@@ -114,11 +119,7 @@ func (c *ArtifactTestCase) TestExtractNestedFolderPath() {
 	for _, f := range c.NestedFolderFiles {
 		found := false
 		for _, f2 := range files {
-			f3, err := filepath.Rel(c.NestedFolderPath, f)
-			if err != nil {
-				continue
-			}
-			if f3 == f2 {
+			if f == f2 {
 				found = true
 			}
 		}
@@ -129,11 +130,7 @@ func (c *ArtifactTestCase) TestExtractNestedFolderPath() {
 	for _, f := range files {
 		found := false
 		for _, f2 := range c.NestedFolderFiles {
-			f3, err := filepath.Rel(c.NestedFolderPath, f2)
-			if err != nil {
-				continue
-			}
-			if f == f3 {
+			if f == f2 {
 				found = true
 			}
 		}

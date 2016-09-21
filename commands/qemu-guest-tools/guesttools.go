@@ -20,6 +20,7 @@ import (
 	"github.com/taskcluster/go-got"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
+	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellconsts"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
@@ -292,9 +293,9 @@ func (g *guestTools) doListFolder(ID, path string) {
 }
 
 var dialer = websocket.Dialer{
-	HandshakeTimeout: interactive.ShellHandshakeTimeout,
-	ReadBufferSize:   interactive.ShellMaxMessageSize,
-	WriteBufferSize:  interactive.ShellMaxMessageSize,
+	HandshakeTimeout: shellconsts.ShellHandshakeTimeout,
+	ReadBufferSize:   shellconsts.ShellMaxMessageSize,
+	WriteBufferSize:  shellconsts.ShellMaxMessageSize,
 }
 
 func (g *guestTools) doExecShell(ID string, command []string, tty bool) {

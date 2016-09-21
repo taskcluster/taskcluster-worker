@@ -6,6 +6,13 @@
 // code in small utilities.
 package interactive
 
-import "github.com/taskcluster/taskcluster-worker/runtime"
+import (
+	"github.com/taskcluster/taskcluster-worker/plugins"
+	"github.com/taskcluster/taskcluster-worker/runtime"
+)
 
 var debug = runtime.Debug("interactive")
+
+func init() {
+	plugins.Register("interactive", provider{})
+}

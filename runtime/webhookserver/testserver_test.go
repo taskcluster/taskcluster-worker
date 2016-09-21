@@ -2,30 +2,14 @@ package webhookserver
 
 import (
 	"bytes"
-	"fmt"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
-	"time"
 )
 
-func assert(condition bool, a ...interface{}) {
-	if !condition {
-		panic(fmt.Sprintln(a...))
-	}
-}
-
-func nilOrPanic(err error, a ...interface{}) {
-	assert(err == nil, append(a, err))
-}
-
-func TestLocalServer(*testing.T) {
-	s, err := NewLocalServer(net.TCPAddr{
-		IP:   []byte{127, 0, 0, 1},
-		Port: 80,
-	}, "example.com", "no-secret", "", "", 10*time.Minute)
+func TestTestServer(*testing.T) {
+	s, err := NewTestServer()
 	nilOrPanic(err)
 
 	path := ""
@@ -101,20 +85,32 @@ func TestLocalServer(*testing.T) {
 	assert(w.Code == 404, "Expected 404")
 }
 
-func TestLocalServerStop(*testing.T) {
-	s, err := NewLocalServer(net.TCPAddr{
-		IP:   []byte{127, 0, 0, 1},
-		Port: 0, // random port...
-	}, "example.com", "no-secret", "", "", 10*time.Minute)
+func TestTestServerStop(*testing.T) {
+	s, err := NewTestServer()
 	nilOrPanic(err)
 
-	done := make(chan struct{})
-	go func() {
-		s.ListenAndServe()
-		close(done)
-	}()
+	link, detach := s.AttachHook(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("Hello World"))
+	}))
+
+	// Try a request
+	r, err := http.NewRequest("GET", link, nil)
+	nilOrPanic(err)
+
+	res, err := http.DefaultClient.Do(r)
+	nilOrPanic(err)
+	assert(res.StatusCode == 200, "Wrong status")
+
+	// Try again after detaching
+	detach()
+	r, err = http.NewRequest("GET", link, nil)
+	nilOrPanic(err)
+
+	res, err = http.DefaultClient.Do(r)
+	nilOrPanic(err)
+	assert(res.StatusCode == 404, "Wrong status")
 
 	// Stop server, and wait for it to be done
 	s.Stop()
-	<-done
 }

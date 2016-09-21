@@ -4,12 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"regexp"
 	rt "runtime"
 	"testing"
-	"time"
 
 	"github.com/taskcluster/slugid-go/slugid"
 
@@ -43,6 +41,8 @@ type Case struct {
 	Payload string
 	// The plugin under test. This should be the name that is registered
 	Plugin string
+	// JSON configuration for the plugin
+	PluginConfig string
 	// Whether or not plugin.Stopped() should return true
 	PluginSuccess bool
 	// Whether or not engine.ResultSet.Success() should return true
@@ -76,35 +76,30 @@ type Case struct {
 // Test is called to trigger a plugintest.Case to run
 func (c Case) Test() {
 	runtimeEnvironment := newTestEnvironment()
+
+	testServer, err := webhookserver.NewTestServer()
+	nilOrPanic(err)
+	defer testServer.Stop()
+	runtimeEnvironment.WebHookServer = testServer
+
 	engineProvider := engines.Engines()["mock"]
 	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: runtimeEnvironment,
 		Log:         runtimeEnvironment.Log.WithField("engine", "mock"),
 		// TODO: Add engine config
 	})
+	nilOrPanic(err, "engineProvider.NewEngine failed")
 
 	taskID := c.TaskID
 	if taskID == "" {
 		taskID = slugid.Nice()
 	}
 
-	localServer, err := webhookserver.NewLocalServer(
-		net.TCPAddr{
-			IP:   []byte{127, 0, 0, 1},
-			Port: 60000,
-		},
-		"example.com",
-		"",
-		"",
-		"",
-		10*time.Minute,
-	)
-	nilOrPanic(err)
-
 	context, controller, err := runtime.NewTaskContext(runtimeEnvironment.TemporaryStorage.NewFilePath(), runtime.TaskInfo{
 		TaskID: taskID,
 		RunID:  c.RunID,
-	}, localServer)
+	}, testServer)
+	nilOrPanic(err)
 
 	if c.QueueMock != nil {
 		controller.SetQueueClient(c.QueueMock)
@@ -114,23 +109,28 @@ func (c Case) Test() {
 		TaskContext: context,
 		Payload:     parseEnginePayload(engine, c.Payload),
 	})
-	nilOrPanic(err)
+	nilOrPanic(err, "engine.NewSandboxBuilder failed")
 
 	provider := plugins.Plugins()[c.Plugin]
 	assert(provider != nil, "Plugin does not exist! You tried to load: ", c.Plugin)
 	p, err := provider.NewPlugin(plugins.PluginOptions{
 		Environment: runtimeEnvironment,
 		Engine:      engine,
-		Log:         runtimeEnvironment.Log.WithField("engine", "mock"),
-		Config:      nil, // TODO: Support plugin configuration
+		Log:         runtimeEnvironment.Log.WithField("plugin", c.Plugin),
+		Config:      parsePluginConfig(provider, c.PluginConfig),
 	})
-	nilOrPanic(err)
+	nilOrPanic(err, "pluginProvider.NewPlugin failed")
 
 	tp, err := p.NewTaskPlugin(plugins.TaskPluginOptions{
 		TaskInfo: &context.TaskInfo,
 		Payload:  parsePluginPayload(p, c.Payload),
+		Log:      runtimeEnvironment.Log.WithField("plugin", c.Plugin).WithField("taskId", taskID),
 	})
-	nilOrPanic(err)
+	nilOrPanic(err, "plugin.NewTaskPlugin failed")
+	// taskPlugin can be nil, if the plugin doesn't want any hooks
+	if tp == nil {
+		tp = plugins.TaskPluginBase{}
+	}
 
 	options := Options{
 		Environment:    runtimeEnvironment,
@@ -141,49 +141,50 @@ func (c Case) Test() {
 	}
 
 	err = tp.Prepare(context)
-	nilOrPanic(err)
+	nilOrPanic(err, "taskPlugin.Prepare failed")
 
 	c.maybeRun(c.BeforeBuildSandbox, options)
 	err = tp.BuildSandbox(sandboxBuilder)
-	nilOrPanic(err)
+	nilOrPanic(err, "taskPlugin.BuildSandbox failed")
 	c.maybeRun(c.AfterBuildSandbox, options)
 
 	c.maybeRun(c.BeforeStarted, options)
 	sandbox, err := sandboxBuilder.StartSandbox()
-	nilOrPanic(err)
+	nilOrPanic(err, "sandboxBuilder.StartSandbox failed")
 	err = tp.Started(sandbox)
+	nilOrPanic(err, "taskPlugin.Started failed")
 	c.maybeRun(c.AfterStarted, options)
 
 	c.maybeRun(c.BeforeStopped, options)
 	resultSet, err := sandbox.WaitForResult()
-	nilOrPanic(err)
+	nilOrPanic(err, "sandbox.WaitForResult failed")
 	assert(resultSet.Success() == c.EngineSuccess)
 	success, err := tp.Stopped(resultSet)
-	nilOrPanic(err)
+	nilOrPanic(err, "taskPlugin.Stopped failed")
 	assert(success == c.PluginSuccess)
 	c.maybeRun(c.AfterStopped, options)
 
 	c.maybeRun(c.BeforeFinished, options)
 	controller.CloseLog()
 	err = tp.Finished(success)
-	nilOrPanic(err)
+	nilOrPanic(err, "taskPlugin.Finished failed")
 	c.grepLog(context)
 	c.maybeRun(c.AfterFinished, options)
 
 	c.maybeRun(c.BeforeDisposed, options)
 	controller.Dispose()
 	err = tp.Dispose()
-	nilOrPanic(err)
+	nilOrPanic(err, "taskPlugin.Dispose failed")
 	c.maybeRun(c.AfterDisposed, options)
 }
 
-func (c Case) maybeRun(f func(Options), o Options) {
+func (c *Case) maybeRun(f func(Options), o Options) {
 	if f != nil {
 		f(o)
 	}
 }
 
-func (c Case) grepLog(context *runtime.TaskContext) {
+func (c *Case) grepLog(context *runtime.TaskContext) {
 	reader, err := context.NewLogReader()
 	defer reader.Close()
 	nilOrPanic(err, "Failed to open log reader")
@@ -229,6 +230,18 @@ func newTestEnvironment() *runtime.Environment {
 		TemporaryStorage: folder,
 		Log:              logger,
 	}
+}
+
+func parsePluginConfig(provider plugins.PluginProvider, data string) interface{} {
+	if data == "" {
+		return nil
+	}
+	var j interface{}
+	err := json.Unmarshal([]byte(data), &j)
+	nilOrPanic(err, "Failed to parse: ", data)
+	err = provider.ConfigSchema().Validate(j)
+	nilOrPanic(err, "Failed to validate against schema")
+	return j
 }
 
 func parseEnginePayload(engine engines.Engine, payload string) map[string]interface{} {

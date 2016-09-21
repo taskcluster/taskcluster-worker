@@ -12,8 +12,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellclient"
+	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellconsts"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
@@ -491,9 +491,9 @@ func (s *MetaService) ListFolder(path string) ([]string, error) {
 }
 
 var upgrader = websocket.Upgrader{
-	HandshakeTimeout: interactive.ShellHandshakeTimeout,
-	ReadBufferSize:   interactive.ShellMaxMessageSize,
-	WriteBufferSize:  interactive.ShellMaxMessageSize,
+	HandshakeTimeout: shellconsts.ShellHandshakeTimeout,
+	ReadBufferSize:   shellconsts.ShellMaxMessageSize,
+	WriteBufferSize:  shellconsts.ShellMaxMessageSize,
 }
 
 // ExecShell will send an action to guest-tools to execute a shell, then wait

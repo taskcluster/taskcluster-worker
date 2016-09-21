@@ -8,6 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/websocket"
+	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellconsts"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
@@ -36,11 +37,11 @@ type ShellHandler struct {
 // serve/expose a shell over a websocket.
 func NewShellHandler(ws *websocket.Conn, log *logrus.Entry) *ShellHandler {
 	tellIn := make(chan int, 10)
-	stdin, stdinWriter := ioext.AsyncPipe(ShellMaxPendingBytes, tellIn)
+	stdin, stdinWriter := ioext.AsyncPipe(shellconsts.ShellMaxPendingBytes, tellIn)
 	stdoutReader, stdout := ioext.BlockedPipe()
 	stderrReader, stderr := ioext.BlockedPipe()
-	stdoutReader.Unblock(ShellMaxPendingBytes)
-	stderrReader.Unblock(ShellMaxPendingBytes)
+	stdoutReader.Unblock(shellconsts.ShellMaxPendingBytes)
+	stderrReader.Unblock(shellconsts.ShellMaxPendingBytes)
 
 	s := &ShellHandler{
 		log:          log,
@@ -54,7 +55,7 @@ func NewShellHandler(ws *websocket.Conn, log *logrus.Entry) *ShellHandler {
 		tellIn:       tellIn,
 	}
 
-	ws.SetReadLimit(ShellMaxMessageSize)
+	ws.SetReadLimit(shellconsts.ShellMaxMessageSize)
 
 	return s
 }
@@ -69,15 +70,15 @@ func (s *ShellHandler) Communicate(setSize SetSizeFunc, abort func() error) {
 	s.abortFunc = abort
 	s.setSizeFunc = setSize
 
-	s.ws.SetReadDeadline(time.Now().Add(ShellPongTimeout))
+	s.ws.SetReadDeadline(time.Now().Add(shellconsts.ShellPongTimeout))
 	s.ws.SetPongHandler(s.pongHandler)
 
 	go s.sendPings()
 	go s.waitForSuccess()
 
 	s.streamingDone.Add(2)
-	go s.transmitStream(s.stdoutReader, StreamStdout)
-	go s.transmitStream(s.stderrReader, StreamStderr)
+	go s.transmitStream(s.stdoutReader, shellconsts.StreamStdout)
+	go s.transmitStream(s.stderrReader, shellconsts.StreamStderr)
 
 	go s.readMessages()
 	go s.sendAcks()
@@ -131,7 +132,7 @@ func (s *ShellHandler) abort() {
 func (s *ShellHandler) send(message []byte) {
 	// Write message and ensure we reset the write deadline
 	s.mWrite.Lock()
-	s.ws.SetWriteDeadline(time.Now().Add(ShellWriteTimeout))
+	s.ws.SetWriteDeadline(time.Now().Add(shellconsts.ShellWriteTimeout))
 	err := s.ws.WriteMessage(websocket.BinaryMessage, message)
 	s.mWrite.Unlock()
 
@@ -144,12 +145,12 @@ func (s *ShellHandler) send(message []byte) {
 func (s *ShellHandler) sendPings() {
 	for {
 		// Sleep for ping interval time
-		time.Sleep(ShellPingInterval)
+		time.Sleep(shellconsts.ShellPingInterval)
 
 		// Write a ping message, and reset the write deadline
 		s.mWrite.Lock()
 		debug("Sending ping")
-		s.ws.SetWriteDeadline(time.Now().Add(ShellWriteTimeout))
+		s.ws.SetWriteDeadline(time.Now().Add(shellconsts.ShellWriteTimeout))
 		err := s.ws.WriteMessage(websocket.PingMessage, []byte{})
 		s.mWrite.Unlock()
 
@@ -170,7 +171,7 @@ func (s *ShellHandler) sendPings() {
 
 func (s *ShellHandler) pongHandler(string) error {
 	// Reset the read deadline
-	s.ws.SetReadDeadline(time.Now().Add(ShellPongTimeout))
+	s.ws.SetReadDeadline(time.Now().Add(shellconsts.ShellPongTimeout))
 	return nil
 }
 
@@ -191,9 +192,9 @@ func (s *ShellHandler) waitForSuccess() {
 	s.mWrite.Lock()
 	defer s.mWrite.Unlock()
 
-	s.ws.SetWriteDeadline(time.Now().Add(ShellWriteTimeout))
+	s.ws.SetWriteDeadline(time.Now().Add(shellconsts.ShellWriteTimeout))
 	err := s.ws.WriteMessage(websocket.BinaryMessage, []byte{
-		MessageTypeExit, result,
+		shellconsts.MessageTypeExit, result,
 	})
 	if err != nil {
 		s.log.Error("Failed to send 'Exit' message, error: ", err)
@@ -213,8 +214,8 @@ func (s *ShellHandler) waitForSuccess() {
 }
 
 func (s *ShellHandler) transmitStream(r io.Reader, streamID byte) {
-	m := make([]byte, 2+ShellBlockSize)
-	m[0] = MessageTypeData
+	m := make([]byte, 2+shellconsts.ShellBlockSize)
+	m[0] = shellconsts.MessageTypeData
 	m[1] = streamID
 	var size int64
 	for {
@@ -250,7 +251,7 @@ func (s *ShellHandler) readMessages() {
 		if err != nil {
 			// This is expected to happen when the loop breaks
 			if e, ok := err.(*websocket.CloseError); ok && e.Code == websocket.CloseNormalClosure {
-				debug("Websocket closed normally error: ", err)
+				debug("Websocket closed normally error: %s", err)
 			} else {
 				s.log.Error("Failed to read message from websocket, error: ", err)
 			}
@@ -268,14 +269,14 @@ func (s *ShellHandler) readMessages() {
 		mData := m[1:]
 
 		// If we get a datatype
-		if mType == MessageTypeData && len(mData) > 0 {
+		if mType == shellconsts.MessageTypeData && len(mData) > 0 {
 			// Find [stream] and [payload]
 			mStream := mData[0]
 			mPayload := mData[1:]
 
 			// Write payload or close stream if payload is zero length
 			var err error
-			if mStream == StreamStdin {
+			if mStream == shellconsts.StreamStdin {
 				if len(mPayload) > 0 {
 					_, err = s.stdinWriter.Write(mPayload)
 				} else {
@@ -295,19 +296,19 @@ func (s *ShellHandler) readMessages() {
 
 		// If bytes from stdout/stderr are acknowledged, then we unblock
 		// additional bytes
-		if mType == MessageTypeAck && len(mData) == 5 {
+		if mType == shellconsts.MessageTypeAck && len(mData) == 5 {
 			mStream := mData[0]
 			n := binary.BigEndian.Uint32(mData[1:])
-			if mStream == StreamStdout {
+			if mStream == shellconsts.StreamStdout {
 				s.stdoutReader.Unblock(int64(n))
 			}
-			if mStream == StreamStderr {
+			if mStream == shellconsts.StreamStderr {
 				s.stderrReader.Unblock(int64(n))
 			}
 		}
 
 		// If we get a size message, we call the set size function
-		if mType == MessageTypeSize && len(mData) == 4 {
+		if mType == shellconsts.MessageTypeSize && len(mData) == 4 {
 			cols := binary.BigEndian.Uint16(mData[0:])
 			rows := binary.BigEndian.Uint16(mData[2:])
 			if s.setSizeFunc != nil {
@@ -316,7 +317,7 @@ func (s *ShellHandler) readMessages() {
 		}
 
 		// If we get an abort message, we call the abort function
-		if mType == MessageTypeAbort && len(mData) == 0 {
+		if mType == shellconsts.MessageTypeAbort && len(mData) == 0 {
 			s.resolve.Do(func() {
 				debug("aborting the shell because of 'abort' message")
 				if s.abortFunc != nil {
@@ -332,8 +333,8 @@ func (s *ShellHandler) readMessages() {
 func (s *ShellHandler) sendAcks() {
 	// reserve a buffer for sending acknowledgments
 	ack := make([]byte, 2+4)
-	ack[0] = MessageTypeAck
-	ack[1] = StreamStdin
+	ack[0] = shellconsts.MessageTypeAck
+	ack[1] = shellconsts.StreamStdin
 	var size int64
 
 	for n := range s.tellIn {

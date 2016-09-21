@@ -67,7 +67,7 @@ func TestImageManager(t *testing.T) {
 	fmt.Println(" - Inspect file for sanity check: ", diskImage)
 	info := inspectImageFile(diskImage, imageQCOW2Format)
 	assert(info != nil, "Expected a qcow2 file")
-	assert(info.Format == "qcow2")
+	assert(info.Format == formatQCOW2)
 	assert(!info.DirtyFlag)
 	assert(info.BackingFile != "", "Missing backing file in qcow2")
 

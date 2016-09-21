@@ -36,6 +36,7 @@ func (a liveLogTest) Test() {
 			taskID,
 			"0",
 			path,
+			client.AnyPostArtifactRequest,
 		).Return(&resp, nil)
 	}
 

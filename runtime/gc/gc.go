@@ -13,6 +13,15 @@ func indexOfResource(resources []Disposable, resource Disposable) int {
 	return -1
 }
 
+// A ResourceTracker is an object capable of tracking resources.
+//
+// This is the interface for the GarbageCollector that should be exposed to
+// engines and plugins. So they can't initiate garbage collection.
+type ResourceTracker interface {
+	Register(resource Disposable)
+	Unregister(resource Disposable) bool
+}
+
 // GarbageCollector can be used register Disposable resources which will then
 // be diposed when not in use and the system is low on available disk space
 // or memory.
