@@ -27,7 +27,7 @@ build:
 
 generate:
 	# tools needed for go generate steps later...
-	go install github.com/jonasfj/go-import-subtree
+	go get github.com/jonasfj/go-import-subtree
 	# now we have the code generation tools built, we can use them...
 	# note, we can't use go generate ./... as we'll pick up vendor packages and have problems, so
 	# we use an explicit list
