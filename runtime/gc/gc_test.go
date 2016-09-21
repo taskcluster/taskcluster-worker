@@ -2,11 +2,10 @@ package gc
 
 import (
 	"fmt"
+	"math"
+	"os"
 	"testing"
 	"time"
-
-	sigar "github.com/cloudfoundry/gosigar"
-	"github.com/cloudfoundry/gosigar/fakes"
 )
 
 func assert(cond bool, a ...interface{}) {
@@ -118,12 +117,8 @@ func (t *testResource) Dispose() error {
 func TestCollectDiskOnly(t *testing.T) {
 	gc := &GarbageCollector{
 		storageFolder:    "...",
-		minimumDiskSpace: 1,
+		minimumDiskSpace: math.MaxInt64,
 		minimumMemory:    1,
-		metrics: &fakes.FakeSigar{
-			Mem:             sigar.Mem{ActualFree: 10},
-			FileSystemUsage: sigar.FileSystemUsage{Avail: 0},
-		},
 	}
 
 	// Add two resources only r1 should be disposed
@@ -148,12 +143,8 @@ func TestCollectDiskOnly(t *testing.T) {
 func TestCollectDiskOnlyInUse(t *testing.T) {
 	gc := &GarbageCollector{
 		storageFolder:    "...",
-		minimumDiskSpace: 1,
+		minimumDiskSpace: math.MaxInt64,
 		minimumMemory:    1,
-		metrics: &fakes.FakeSigar{
-			Mem:             sigar.Mem{ActualFree: 10},
-			FileSystemUsage: sigar.FileSystemUsage{Avail: 0},
-		},
 	}
 
 	// Add two resources only r1 should be disposed
@@ -178,13 +169,9 @@ func TestCollectDiskOnlyInUse(t *testing.T) {
 
 func TestCollectMemoryOnly(t *testing.T) {
 	gc := &GarbageCollector{
-		storageFolder:    "...",
+		storageFolder:    os.TempDir(),
 		minimumDiskSpace: 1,
-		minimumMemory:    10,
-		metrics: &fakes.FakeSigar{
-			Mem:             sigar.Mem{ActualFree: 5},
-			FileSystemUsage: sigar.FileSystemUsage{Avail: 10},
-		},
+		minimumMemory:    math.MaxInt64,
 	}
 
 	// Add two resources only r1 should be disposed

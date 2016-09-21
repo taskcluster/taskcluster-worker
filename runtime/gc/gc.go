@@ -4,7 +4,8 @@ import (
 	"sort"
 	"sync"
 
-	sigar "github.com/cloudfoundry/gosigar"
+	"github.com/shirou/gopsutil/disk"
+	"github.com/shirou/gopsutil/mem"
 )
 
 func indexOfResource(resources []Disposable, resource Disposable) int {
@@ -48,7 +49,6 @@ type GarbageCollector struct {
 	storageFolder    string
 	minimumDiskSpace int64
 	minimumMemory    int64
-	metrics          sigar.Sigar
 }
 
 // New creates a GarbageCollector which uses storageFolder to test for available
@@ -59,7 +59,6 @@ func New(storageFolder string, minimumDiskSpace, minimumMemory int64) *GarbageCo
 		storageFolder:    storageFolder,
 		minimumDiskSpace: minimumDiskSpace,
 		minimumMemory:    minimumMemory,
-		metrics:          &sigar.ConcreteSigar{},
 	}
 }
 
@@ -174,27 +173,27 @@ func (gc *GarbageCollector) CollectAll() error {
 // needDiskSpace returns true if we need to free diskspace
 func (gc *GarbageCollector) needDiskSpace() bool {
 	// If we have no metrics or minimum diskspace we remove everything
-	if gc.metrics == nil || gc.minimumDiskSpace == 0 || gc.storageFolder == "" {
+	if gc.minimumDiskSpace == 0 || gc.storageFolder == "" {
 		return true
 	}
-	usage, err := gc.metrics.GetFileSystemUsage(gc.storageFolder)
+	stat, err := disk.Usage(gc.storageFolder)
 	if err != nil {
 		return true
 	}
 
-	return int64(usage.Avail) < gc.minimumDiskSpace
+	return int64(stat.Free) < gc.minimumDiskSpace
 }
 
 // needMemory returns true if we need to free memory
 func (gc *GarbageCollector) needMemory() bool {
 	// If we have no metrics or minimum memory we remove everything
-	if gc.metrics == nil || gc.minimumMemory == 0 {
+	if gc.minimumMemory == 0 {
 		return true
 	}
-	usage, err := gc.metrics.GetMem()
+	stat, err := mem.VirtualMemory()
 	if err != nil {
 		return true
 	}
 
-	return int64(usage.ActualFree) < gc.minimumMemory
+	return int64(stat.Available) < gc.minimumMemory
 }
