@@ -29,7 +29,7 @@ type taskClaim struct {
 
 func reportException(client client.Queue, task *TaskRun, reason runtime.ExceptionReason, log *logrus.Entry) *updateError {
 	payload := queue.TaskExceptionRequest{Reason: string(reason)}
-	_, err := client.ReportException(task.TaskID, strconv.FormatInt(int64(task.RunID), 10), &payload)
+	_, err := client.ReportException(task.TaskID, strconv.Itoa(task.RunID), &payload)
 	if err != nil {
 		log.WithField("error", err).Warn("Not able to report exception for task")
 		return &updateError{err: err.Error()}
@@ -38,7 +38,7 @@ func reportException(client client.Queue, task *TaskRun, reason runtime.Exceptio
 }
 
 func reportFailed(client client.Queue, task *TaskRun, log *logrus.Entry) *updateError {
-	_, err := client.ReportFailed(task.TaskID, strconv.FormatInt(int64(task.RunID), 10))
+	_, err := client.ReportFailed(task.TaskID, strconv.Itoa(task.RunID))
 	if err != nil {
 		log.WithField("error", err).Warn("Not able to report failed completion for task.")
 		return &updateError{err: err.Error()}
@@ -47,7 +47,7 @@ func reportFailed(client client.Queue, task *TaskRun, log *logrus.Entry) *update
 }
 
 func reportCompleted(client client.Queue, task *TaskRun, log *logrus.Entry) *updateError {
-	_, err := client.ReportCompleted(task.TaskID, strconv.FormatInt(int64(task.RunID), 10))
+	_, err := client.ReportCompleted(task.TaskID, strconv.Itoa(task.RunID))
 	if err != nil {
 		log.WithField("error", err).Warn("Not able to report successful completion for task.")
 		return &updateError{err: err.Error()}
@@ -62,7 +62,7 @@ func claimTask(client client.Queue, taskID string, runID int, workerID string, w
 		WorkerID:    workerID,
 	}
 
-	tcrsp, err := client.ClaimTask(taskID, strconv.FormatInt(int64(runID), 10), &payload)
+	tcrsp, err := client.ClaimTask(taskID, strconv.Itoa(runID), &payload)
 	// check if an error occurred...
 	if err != nil {
 		switch err := err.(type) {
@@ -104,7 +104,7 @@ func claimTask(client client.Queue, taskID string, runID int, workerID string, w
 
 func reclaimTask(client client.Queue, taskID string, runID int, log *logrus.Entry) (*queue.TaskReclaimResponse, *updateError) {
 	log.Info("Reclaiming task")
-	tcrsp, err := client.ReclaimTask(taskID, strconv.FormatInt(int64(runID), 10))
+	tcrsp, err := client.ReclaimTask(taskID, strconv.Itoa(runID))
 
 	// check if an error occurred...
 	if err != nil {

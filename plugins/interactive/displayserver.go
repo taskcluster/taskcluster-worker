@@ -74,7 +74,7 @@ func (s *displayServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if displayName == "" {
 		reply(w, http.StatusBadRequest, displayconsts.ErrorMessage{
 			Code:    displayconsts.ErrorCodeInvalidParameters,
-			Message: "Querystring parameter 'display' must by given!",
+			Message: "Querystring parameter 'display' must be given!",
 		})
 	}
 	display, err := s.sandbox.OpenDisplay(displayName)

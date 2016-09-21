@@ -38,6 +38,10 @@ var taskDefinitions = map[string]struct {
 		definition: `{"delay": 10,"function": "write-log","argument": "Hello World"}`,
 		success:    true,
 	},
+	"failedPayload": {
+		definition: `{"delay": 10,"function": "false","argument": ""}`,
+		success:    false,
+	},
 }
 
 var claim = &taskClaim{
@@ -127,6 +131,28 @@ func TestRunTask(t *testing.T) {
 
 	tr.Run()
 	mockedQueue.AssertCalled(t, "ReportCompleted", "abc", "1")
+}
+
+func TestRunFailedTask(t *testing.T) {
+	claim.definition = &queue.TaskDefinitionResponse{
+		Payload: []byte(taskDefinitions["failedPayload"].definition),
+	}
+
+	environment, engine, pluginManager := ensureEnvironment(t)
+	tr, err := newTaskRun(&configType{}, claim, environment, engine, pluginManager, logger.WithField("test", "TestRunTask"))
+	assert.Nil(t, err)
+
+	mockedQueue := &client.MockQueue{}
+	mockedQueue.On(
+		"ReportFailed",
+		"abc",
+		"1",
+	).Return(&queue.TaskStatusResponse{}, nil)
+
+	tr.controller.SetQueueClient(mockedQueue)
+
+	tr.Run()
+	mockedQueue.AssertCalled(t, "ReportFailed", "abc", "1")
 }
 
 func TestRunMalformedEnginePayloadTask(t *testing.T) {
