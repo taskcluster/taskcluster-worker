@@ -109,7 +109,7 @@ func (m *Manager) Instance(imageID string, download Downloader) (*Instance, erro
 }
 
 func (img *image) loadImage(download Downloader, done chan<- struct{}) {
-	imageFile := filepath.Join(img.manager.imageFolder, slugid.Nice()+".tar.lz4")
+	imageFile := filepath.Join(img.manager.imageFolder, slugid.Nice()+".tar.zst")
 
 	// Create image folder
 	err := os.Mkdir(img.folder, 0777)

@@ -1,7 +1,7 @@
 Image Format Specification
 ==========================
 
-An image file: `image.tar.lz4` is an lz4 compressed tar-ball containing the
+An image file: `image.tar.zst` is an zstd compressed tar-ball containing the
 following files:
 
   * `disk.img`, raw disk image (as sparse file).

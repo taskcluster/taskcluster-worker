@@ -112,7 +112,7 @@ var payloadSchema = schematypes.Object{
 		"image": schematypes.URI{
 			MetaData: schematypes.MetaData{
 				Title: "Image to download",
-				Description: "URL to an image file. This is a lz4 compressed " +
+				Description: "URL to an image file. This is a zstd compressed " +
 					"tar-archive containing a raw disk image `disk.img`, a qcow2 " +
 					"overlay `layer.qcow2` and a machine definition file " +
 					"`machine.json`. Refer to engine documentation for more details.",

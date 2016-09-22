@@ -2,8 +2,8 @@ Test Image Build Process
 ========================
 
 This QEMU engine has two binary test images:
-  * `tinycore-setup.tar.lz4`, an image for easily rebuilding the test image,
-  * `tinycore-worker.tar.lz4`, a test image running qemu-guest-tools on boot.
+  * `tinycore-setup.tar.zstd`, an image for easily rebuilding the test image,
+  * `tinycore-worker.tar.zstd`, a test image running qemu-guest-tools on boot.
 
 You can download these with `./download.sh`, and upload them again using
 `./upload.sh`. To keep git lean and fast we store these in an S3 bucket with
@@ -34,17 +34,17 @@ super elegant to do as part of test setup.
 
 Rebuilding the Test Image
 -------------------------
-As long as we have the `tinycore-setup.tar.lz4` image we can quickly rebuild
+As long as we have the `tinycore-setup.tar.zst` image we can quickly rebuild
 the test image by simply running `./rebuild.sh` from this folder.
 This scripts requires `genisoimage` to be installed.
 
-Note, the `tinycore-worker.tar.lz4` image is under revision control, and should
+Note, the `tinycore-worker.tar.zst` image is under revision control, and should
 be commited after qemu-guest-tools have been updated.
 
 
 Rebuilding the Setup Image
 --------------------------
-The `tinycore-setup.tar.lz4` image is a TinyCoreLinux 7.2 with a startup script
+The `tinycore-setup.tar.zst` image is a TinyCoreLinux 7.2 with a startup script
 `/home/tc/.X.d/setup.sh` as follows:
 
 ```sh
@@ -86,5 +86,5 @@ are saved to disk when terminating.
   --size 1 \
   --boot tinycore.iso \
   from-new machine.json \
-  tinycore-setup.tar.lz4
+  tinycore-setup.tar.zst
 ```
