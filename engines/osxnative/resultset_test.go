@@ -106,16 +106,16 @@ func TestExtractFolder(t *testing.T) {
 	assert.Equal(t, err, engines.ErrResourceNotFound)
 
 	err = r.ExtractFolder("test-data", func(p string, stream ioext.ReadSeekCloser) error {
-		if _, err := os.Stat(filepath.Join("test-data", p)); err != nil {
-			return fmt.Errorf("%s should be a valid path relative to test-data directory: %v", p, err)
+		if _, err2 := os.Stat(filepath.Join("test-data", p)); err2 != nil {
+			return fmt.Errorf("%s should be a valid path relative to test-data directory: %v", p, err2)
 		}
 
 		expected := path.Base(p) + "\n"
-		data, err2 := ioutil.ReadAll(stream)
+		data, err3 := ioutil.ReadAll(stream)
 		sdata := string(data)
 
-		if err2 != nil {
-			return err2
+		if err3 != nil {
+			return err3
 		}
 
 		if sdata != expected {

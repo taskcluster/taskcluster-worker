@@ -17,6 +17,10 @@
 			"Rev": "3ec0642a7fb6488f65b06f9040adc67e3990296a"
 		},
 		{
+			"ImportPath": "github.com/StackExchange/wmi",
+			"Rev": "e54cbda6595d7293a7a468ccf9525f6bc8887f99"
+		},
+		{
 			"ImportPath": "github.com/bradfitz/rfbgo/rfb",
 			"Rev": "360eea0d6d336ffc925dfef78af32c3983189dcf"
 		},
@@ -43,19 +47,8 @@
 			"Rev": "99c3df83b51532e3615f851d8c2dbb638f5313bf"
 		},
 		{
-			"ImportPath": "github.com/cloudfoundry/gosigar",
-			"Comment": "scotty_09012012-30-gc32d31a",
-			"Rev": "c32d31af94b0e9d3b2877e49c1a581ad5a793343"
-		},
-		{
-			"ImportPath": "github.com/cloudfoundry/gosigar/fakes",
-			"Comment": "scotty_09012012-30-gc32d31a",
-			"Rev": "c32d31af94b0e9d3b2877e49c1a581ad5a793343"
-		},
-		{
 			"ImportPath": "github.com/davecgh/go-spew/spew",
-			"Comment": "v1.0.0-3-g6d21280",
-			"Rev": "6d212800a42e8ab5c146b8ace3490ee17e5225f9"
+			"Rev": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
 		},
 		{
 			"ImportPath": "github.com/davecgh/go-xdr/xdr2",
@@ -118,6 +111,16 @@
 			"Rev": "aa0c862057666179de291b67d9f093d12b5a8473"
 		},
 		{
+			"ImportPath": "github.com/go-ole/go-ole",
+			"Comment": "v1.2.0-17-g7dfdcf4",
+			"Rev": "7dfdcf409020452e29b4babcbb22f984d2aa308a"
+		},
+		{
+			"ImportPath": "github.com/go-ole/go-ole/oleutil",
+			"Comment": "v1.2.0-17-g7dfdcf4",
+			"Rev": "7dfdcf409020452e29b4babcbb22f984d2aa308a"
+		},
+		{
 			"ImportPath": "github.com/gorilla/websocket",
 			"Comment": "v1.0.0-21-g2d1e454",
 			"Rev": "2d1e4548da234d9cb742cc3628556fef86aafbac"
@@ -125,10 +128,6 @@
 		{
 			"ImportPath": "github.com/jbuchbinder/gopnm",
 			"Rev": "5176c556b9ce7e87b54b92744dc86f058f520e86"
-		},
-		{
-			"ImportPath": "github.com/jonasfj/go-import-subtree",
-			"Rev": "4f2f57c342542c08bf6d9919bb799226e4de5774"
 		},
 		{
 			"ImportPath": "github.com/kr/pty",
@@ -154,8 +153,22 @@
 		},
 		{
 			"ImportPath": "github.com/pmezard/go-difflib/difflib",
-			"Comment": "v1.0.0",
 			"Rev": "792786c7400a136282c1664665ae0a8db921c6c2"
+		},
+		{
+			"ImportPath": "github.com/shirou/gopsutil/disk",
+			"Comment": "v2.1-59-g5332238",
+			"Rev": "53322384071180140b2a4f33f161fc5898685da5"
+		},
+		{
+			"ImportPath": "github.com/shirou/gopsutil/internal/common",
+			"Comment": "v2.1-59-g5332238",
+			"Rev": "53322384071180140b2a4f33f161fc5898685da5"
+		},
+		{
+			"ImportPath": "github.com/shirou/gopsutil/mem",
+			"Comment": "v2.1-59-g5332238",
+			"Rev": "53322384071180140b2a4f33f161fc5898685da5"
 		},
 		{
 			"ImportPath": "github.com/stretchr/objx",
@@ -195,11 +208,11 @@
 		},
 		{
 			"ImportPath": "github.com/taskcluster/jsonschema2go",
-			"Rev": "91b27eef252d8a07cf326374a4932be9df3b6be7"
+			"Rev": "1d0fc0fcb5d0cb43993a09f85ed4b599d045c421"
 		},
 		{
 			"ImportPath": "github.com/taskcluster/jsonschema2go/text",
-			"Rev": "91b27eef252d8a07cf326374a4932be9df3b6be7"
+			"Rev": "1d0fc0fcb5d0cb43993a09f85ed4b599d045c421"
 		},
 		{
 			"ImportPath": "github.com/taskcluster/slugid-go/slugid",
@@ -241,11 +254,11 @@
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
-			"Rev": "71a035914f99bb58fe82eac0f1289f10963d876c"
+			"Rev": "6d3beaea10370160dea67f5c9327ed791afd5389"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context/ctxhttp",
-			"Rev": "71a035914f99bb58fe82eac0f1289f10963d876c"
+			"Rev": "6d3beaea10370160dea67f5c9327ed791afd5389"
 		},
 		{
 			"ImportPath": "golang.org/x/sys/unix",
@@ -253,11 +266,11 @@
 		},
 		{
 			"ImportPath": "golang.org/x/tools/go/ast/astutil",
-			"Rev": "f1a397bba50dee815e8c73f3ec94ffc0e8df1a09"
+			"Rev": "3f4088edb48e8a4e3c66a5f8e7b2a78615fcb83f"
 		},
 		{
 			"ImportPath": "golang.org/x/tools/imports",
-			"Rev": "f1a397bba50dee815e8c73f3ec94ffc0e8df1a09"
+			"Rev": "3f4088edb48e8a4e3c66a5f8e7b2a78615fcb83f"
 		},
 		{
 			"ImportPath": "gopkg.in/djherbis/buffer.v1",
