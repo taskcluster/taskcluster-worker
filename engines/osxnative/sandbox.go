@@ -52,7 +52,7 @@ type stderrLogWriter struct {
 }
 
 func (w stderrLogWriter) Write(p []byte) (int, error) {
-	w.context.LogError(string(p))
+	w.context.LogRaw(string(p))
 	return len(p), nil
 }
 
