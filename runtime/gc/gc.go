@@ -178,6 +178,7 @@ func (gc *GarbageCollector) needDiskSpace() bool {
 	}
 	stat, err := disk.Usage(gc.storageFolder)
 	if err != nil {
+		// TODO: Write a warning to the log
 		return true
 	}
 
@@ -192,6 +193,7 @@ func (gc *GarbageCollector) needMemory() bool {
 	}
 	stat, err := mem.VirtualMemory()
 	if err != nil {
+		// TODO: Write a warning to the log
 		return true
 	}
 
