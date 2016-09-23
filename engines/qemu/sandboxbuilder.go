@@ -136,13 +136,19 @@ func (sb *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
 		return nil, err
 	}
 
-	// No more errors, etc.
-	defer sb.m.Unlock()
-
 	// Create a sandbox
-	s := newSandbox(sb.command, sb.env, sb.proxies, sb.image, sb.network, sb.context, sb.engine)
+	s, err := newSandbox(sb.command, sb.env, sb.proxies, sb.image, sb.network, sb.context, sb.engine)
+	if err != nil {
+		sb.m.Unlock()
+		// Free all resources
+		sb.Discard()
+		return nil, err
+	}
+
+	// Resources are now owned by the sandbox
 	sb.network = nil
 	sb.image = nil
+	sb.m.Unlock()
 
 	return s, nil
 }

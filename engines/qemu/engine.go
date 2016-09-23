@@ -6,6 +6,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/network"
+	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
@@ -23,9 +24,10 @@ type engineProvider struct {
 }
 
 type configType struct {
-	MaxConcurrency int    `json:"maxConcurrency"`
-	ImageFolder    string `json:"imageFolder"`
-	SocketFolder   string `json:"socketFolder"`
+	MaxConcurrency int               `json:"maxConcurrency"`
+	ImageFolder    string            `json:"imageFolder"`
+	SocketFolder   string            `json:"socketFolder"`
+	MachineOptions vm.MachineOptions `json:"machineOptions"`
 }
 
 var configSchema = schematypes.Object{
@@ -52,8 +54,14 @@ var configSchema = schematypes.Object{
 											Ideally, this shouldn't be readable by anyone else.`,
 			},
 		},
+		"machineOptions": vm.MachineOptionsSchema,
 	},
-	Required: []string{"imageFolder", "maxConcurrency", "socketFolder"},
+	Required: []string{
+		"imageFolder",
+		"maxConcurrency",
+		"socketFolder",
+		"machineOptions",
+	},
 }
 
 func (p engineProvider) ConfigSchema() schematypes.Schema {
@@ -135,10 +143,7 @@ func (e *engine) PayloadSchema() schematypes.Object {
 
 func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {
 	var p payloadType
-	err := payloadSchema.Map(options.Payload, &p)
-	if err == schematypes.ErrTypeMismatch {
-		panic("Type mismatch")
-	} else if err != nil {
+	if schematypes.MustMap(payloadSchema, options.Payload, &p) != nil {
 		return nil, engines.ErrContractViolation
 	}
 

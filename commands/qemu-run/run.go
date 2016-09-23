@@ -94,7 +94,13 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 
 	// Create virtual machine
 	log.Info("Creating virtual machine")
-	vm := vm.NewVirtualMachine(image, net, tempFolder, "", "", logger.WithField("component", "vm"))
+	vm, err := vm.NewVirtualMachine(
+		image.Machine().Options(), image, net, tempFolder,
+		"", "", logger.WithField("component", "vm"),
+	)
+	if err != nil {
+		log.Fatal("Failed to create virtual-machine, error: ", err)
+	}
 
 	// Create meta-data service
 	log.Info("Creating meta-data service")

@@ -58,7 +58,10 @@ var provider = &enginetest.EngineProvider{
 	Config: `{
 		"maxConcurrency":   5,
 		"imageFolder":      "/tmp/images/",
-		"socketFolder":     "/tmp/"
+		"socketFolder":     "/tmp/",
+		"machineOptions": {
+			"maxMemory": 512
+		}
   }`,
 }
 
