@@ -181,7 +181,7 @@ func (c *TaskContext) IsCancelled() bool {
 // These log messages will be prefixed "[taskcluster]" so it's easy to see to
 // that they are worker logs.
 func (c *TaskContext) Log(a ...interface{}) {
-	c.log("[taskcluster] ", a...)
+	c.LogRaw("[taskcluster] ", a...)
 }
 
 // LogError writes a log error message from the worker
@@ -190,12 +190,13 @@ func (c *TaskContext) Log(a ...interface{}) {
 // that they are worker logs.  These errors are also easy to grep from the logs in
 // case of failure.
 func (c *TaskContext) LogError(a ...interface{}) {
-	c.log("[taskcluster:error] ", a...)
+	c.LogRaw("[taskcluster:error] ", a...)
 }
 
-func (c *TaskContext) log(prefix string, a ...interface{}) {
+// LogRaw writes log without any prefix message or newline
+func (c *TaskContext) LogRaw(prefix string, a ...interface{}) {
 	a = append([]interface{}{prefix}, a...)
-	_, err := fmt.Fprintln(c.logStream, a...)
+	_, err := fmt.Fprint(c.logStream, a...)
 	if err != nil {
 		//TODO: Forward this to the system log, it's not a critical error
 	}
