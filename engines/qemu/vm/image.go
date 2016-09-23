@@ -14,5 +14,5 @@ type Image interface {
 // tar archieve as used for input by image manager.
 type MutableImage interface {
 	Image
-	Package(targetFile string) error // Package the as lz4 compressed tar archieve
+	Package(targetFile string) error // Package the as zstd compressed tar archieve
 }

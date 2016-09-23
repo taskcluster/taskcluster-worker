@@ -18,7 +18,7 @@ func TestBuildImage(t *testing.T) {
 	logger, _ := runtime.CreateLogger("info")
 	log := logger.WithField("component", "qemu-build")
 
-	inputImageFile, err := filepath.Abs("../../engines/qemu/test-image/tinycore-setup.tar.lz4")
+	inputImageFile, err := filepath.Abs("../../engines/qemu/test-image/tinycore-setup.tar.zst")
 	if err != nil {
 		panic(err)
 	}
