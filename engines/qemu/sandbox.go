@@ -40,15 +40,21 @@ func newSandbox(
 	network *network.Network,
 	c *runtime.TaskContext,
 	e *engine,
-) *sandbox {
+) (*sandbox, error) {
 	log := e.Log.WithField("taskId", c.TaskID).WithField("runId", c.RunID)
+
+	vm, err := vm.NewVirtualMachine(
+		e.engineConfig.MachineOptions,
+		image, network, e.engineConfig.SocketFolder, "", "",
+		log.WithField("component", "vm"),
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	// Create sandbox
 	s := &sandbox{
-		vm: vm.NewVirtualMachine(
-			image, network, e.engineConfig.SocketFolder, "", "",
-			log.WithField("component", "vm"),
-		),
+		vm:      vm,
 		context: c,
 		engine:  e,
 		proxies: proxies,
@@ -71,7 +77,7 @@ func newSandbox(
 	// Resolve when VM is closed
 	go s.waitForCrash()
 
-	return s
+	return s, nil
 }
 
 func (s *sandbox) handleRequest(w http.ResponseWriter, r *http.Request) {

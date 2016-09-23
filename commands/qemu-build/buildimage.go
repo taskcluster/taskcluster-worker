@@ -84,7 +84,11 @@ func buildImage(
 
 	// Create virtual machine
 	log.Info("Creating virtual machine")
-	vm := vm.NewVirtualMachine(img, net, socketFolder, boot, cdrom, log.WithField("component", "vm"))
+	vm, err := vm.NewVirtualMachine(img.Machine().Options(), img, net, socketFolder, boot, cdrom, log.WithField("component", "vm"))
+	if err != nil {
+		log.Error("Failed to recreated virtual-machine, error: ", err)
+		return err
+	}
 
 	// Start the virtual machine
 	log.Info("Starting virtual machine")

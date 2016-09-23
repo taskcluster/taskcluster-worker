@@ -15,6 +15,7 @@ import (
 // This only allows certain arguments to be specified.
 type Machine struct {
 	UUID    string `json:"uuid"`
+	Memory  int    `json:"memory,omitempty"`
 	Network struct {
 		Device string `json:"device"`
 		MAC    string `json:"mac"`
@@ -40,6 +41,10 @@ const machineSchemaString = `{
 			"type":										"string",
 			"pattern":								"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
 			"description":						"System UUID for the virtual machine"
+		},
+		"memory": {
+			"type":										"integer",
+			"description":						"Memory in MiB, defaults to maximum available, if not specified."
 		},
 		"network": {
 			"type":									 	"object",
@@ -248,4 +253,34 @@ func validateMAC(mac string) error {
 		return errors.New("MAC address must have the multicast bit unset")
 	}
 	return nil
+}
+
+// SetDefaults will validate limitations and set defaults from options
+func (m *Machine) SetDefaults(options MachineOptions) error {
+	// Set defaults
+	if m.Memory != 0 {
+		m.Memory = options.MaxMemory
+	}
+
+	// Validate limitations
+	if m.Memory > options.MaxMemory {
+		return engines.NewMalformedPayloadError(
+			"Image memory ", m.Memory, " MiB is larger than allowed machine memory ",
+			options.MaxMemory, " MiB",
+		)
+	}
+
+	return nil
+}
+
+// Options will return a set of MachineOptions that allows the current machine
+// definition, and otherwise contains sane defaults. This is for utilities only.
+func (m Machine) Options() MachineOptions {
+	options := MachineOptions{
+		MaxMemory: 4 * 1024, // Default 4 GiB memory
+	}
+	if m.Memory != 0 {
+		options.MaxMemory = m.Memory
+	}
+	return options
 }
