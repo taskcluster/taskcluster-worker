@@ -38,24 +38,6 @@ var environmentWhitelist = []string{
 	"TASKCLUSTER_PUBLIC_IP",
 }
 
-type stdoutLogWriter struct {
-	context *runtime.TaskContext
-}
-
-func (w stdoutLogWriter) Write(p []byte) (int, error) {
-	w.context.Log(string(p))
-	return len(p), nil
-}
-
-type stderrLogWriter struct {
-	context *runtime.TaskContext
-}
-
-func (w stderrLogWriter) Write(p []byte) (int, error) {
-	w.context.LogError(string(p))
-	return len(p), nil
-}
-
 type sandbox struct {
 	engines.SandboxBase
 	context     *runtime.TaskContext
@@ -130,8 +112,8 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 	}
 
 	cmd := exec.Command(s.taskPayload.Command[0], s.taskPayload.Command[1:]...)
-	cmd.Stdout = stdoutLogWriter{s.context}
-	cmd.Stderr = stderrLogWriter{s.context}
+	cmd.Stdout = s.context.LogDrain()
+	cmd.Stderr = s.context.LogDrain()
 
 	// USER and HOME are treated separately because their values
 	// depend on either we create the new user successfully or not
@@ -144,10 +126,10 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 	// run successfully.
 	u := user{}
 	if err = u.create(); err != nil {
-		s.context.LogError("Could not create user: ", err, "\n")
+		s.context.LogError("Could not create user: ", err)
 		exitError, ok := err.(*exec.ExitError)
 		if ok {
-			s.context.LogError(string(exitError.Stderr), "\n")
+			s.context.LogError(string(exitError.Stderr))
 		}
 
 		tcWorkerEnv, exists := os.LookupEnv("TASKCLUSTER_WORKER_ENV")
@@ -165,19 +147,19 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 		var userInfo *osuser.User
 		userInfo, err = osuser.Lookup(u.name)
 		if err != nil {
-			s.context.LogError("Error looking up for user \""+u.name+"\": ", err, "\n")
+			s.context.LogError("Error looking up for user \""+u.name+"\": ", err)
 		} else {
 			var uid uint64
 			uid, err = strconv.ParseUint(userInfo.Uid, 10, 32)
 			if err != nil {
-				s.context.LogError("ParseUint failed to convert ", userInfo.Uid, ": ", err, "\n")
+				s.context.LogError("ParseUint failed to convert ", userInfo.Uid, ": ", err)
 				return nil, engines.ErrNonFatalInternalError
 			}
 
 			var gid uint64
 			gid, err = strconv.ParseUint(userInfo.Gid, 10, 32)
 			if err != nil {
-				s.context.LogError("ParseUint failed to convert ", userInfo.Gid, ": ", err, "\n")
+				s.context.LogError("ParseUint failed to convert ", userInfo.Gid, ": ", err)
 				return nil, engines.ErrNonFatalInternalError
 			}
 
@@ -210,7 +192,7 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 		defer os.Remove(filename)
 
 		if err = os.Chmod(filename, 0777); err != nil {
-			s.context.LogError(err, "\n")
+			s.context.LogError(err)
 			return nil, engines.ErrNonFatalInternalError
 		}
 	}
@@ -224,7 +206,7 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 	}
 
 	if err = cmd.Run(); err != nil {
-		s.context.LogError("Command \"", s.taskPayload.Command, "\" failed to run: ", err, "\n")
+		s.context.LogError("Command \"", s.taskPayload.Command, "\" failed to run: ", err)
 		switch err.(type) {
 		case *exec.ExitError:
 			err = nil // do not delete the user by the end of the function
