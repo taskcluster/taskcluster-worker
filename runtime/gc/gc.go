@@ -107,41 +107,44 @@ func (gc *GarbageCollector) Collect() error {
 		var err error
 		var size uint64
 
+		abort := false
+		dispose := false
 		if gc.needDiskSpace() {
 			size, err = r.DiskSize()
 			if err != nil && err != ErrDisposableSizeNotSupported {
-				goto abort
-			}
-			if size > 0 || err == ErrDisposableSizeNotSupported {
-				goto dispose
+				abort = true
+			} else if size > 0 || err == ErrDisposableSizeNotSupported {
+				dispose = true
 			}
 		}
 
-		if gc.needMemory() {
+		if !abort && !dispose && gc.needMemory() {
 			size, err = r.MemorySize()
 			if err != nil && err != ErrDisposableSizeNotSupported {
-				goto abort
-			}
-			if size > 0 || err == ErrDisposableSizeNotSupported {
-				goto dispose
+				abort = true
+			} else if size > 0 || err == ErrDisposableSizeNotSupported {
+				dispose = true
 			}
 		}
 
-		goto keep
-	keep:
-		resources = append(resources, r)
-		continue
-	abort:
-		gc.resources = append(resources, gc.resources[i-1:]...)
-		return err
-	dispose:
-		err = r.Dispose()
-		if err != nil {
-			if err != ErrDisposableInUse {
-				goto abort
-			}
-			goto keep
+		if abort {
+			gc.resources = append(resources, gc.resources[i-1:]...)
+			return err
 		}
+
+		if dispose {
+			err = r.Dispose()
+			if err != nil {
+				if err != ErrDisposableInUse {
+					gc.resources = append(resources, gc.resources[i-1:]...)
+					return err
+				}
+				resources = append(resources, r)
+			}
+			continue
+		}
+
+		resources = append(resources, r)
 	}
 
 	gc.resources = resources
@@ -178,6 +181,7 @@ func (gc *GarbageCollector) needDiskSpace() bool {
 	}
 	stat, err := disk.Usage(gc.storageFolder)
 	if err != nil {
+		// TODO: Write a warning to the log
 		return true
 	}
 
@@ -192,6 +196,7 @@ func (gc *GarbageCollector) needMemory() bool {
 	}
 	stat, err := mem.VirtualMemory()
 	if err != nil {
+		// TODO: Write a warning to the log
 		return true
 	}
 

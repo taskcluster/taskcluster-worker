@@ -147,7 +147,7 @@ func TestCollectDiskOnlyInUse(t *testing.T) {
 		minimumMemory:    1,
 	}
 
-	// Add two resources only r1 should be disposed
+	// Add two resources neither should be disposed
 	r1 := &testResource{
 		mem:          0,
 		disk:         10,

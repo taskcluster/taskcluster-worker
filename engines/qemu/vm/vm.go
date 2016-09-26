@@ -46,7 +46,7 @@ type VirtualMachine struct {
 // NewVirtualMachine constructs a new virtual machine using the given
 // machineOptions, image, network and cdroms.
 //
-// Returns engines.MalformedPayloadError, if machineOptions and image definition
+// Returns engines.MalformedPayloadError if machineOptions and image definition
 // are conflicting. If this returns an error, caller is responsible for
 // releasing all resources, otherwise, they will be held by the VirtualMachine
 // object.
