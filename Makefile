@@ -26,10 +26,8 @@ build:
 	go install $$(go list ./... | grep -v /vendor/)
 
 generate:
-	# these three tools are needed for go generate steps later...
-	go install github.com/taskcluster/taskcluster-worker/vendor/github.com/progrium/go-extpoints
-	go install github.com/taskcluster/taskcluster-worker/vendor/github.com/jonasfj/go-import-subtree
-	go install github.com/taskcluster/taskcluster-worker/codegen/go-composite-schema
+	# tools needed for go generate steps later...
+	go get github.com/jonasfj/go-import-subtree
 	# now we have the code generation tools built, we can use them...
 	# note, we can't use go generate ./... as we'll pick up vendor packages and have problems, so
 	# we use an explicit list
@@ -43,7 +41,7 @@ check: test
 	git status --porcelain
 	/bin/bash -c 'test $$(git status --porcelain | wc -l) == 0'
 test:
-	go install github.com/taskcluster/taskcluster-worker/vendor/github.com/golang/lint/golint
+	go get github.com/golang/lint/golint
 	go test -v -race $$(go list ./... | grep -v /vendor/)
 	go vet $$(go list ./... | grep -v /vendor/)
 	go list ./... | grep -v /vendor/ | xargs -n1 golint

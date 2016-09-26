@@ -10,8 +10,8 @@ import (
 	"time"
 
 	got "github.com/taskcluster/go-got"
+	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/queue"
-	"github.com/taskcluster/taskcluster-client-go/tcclient"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 

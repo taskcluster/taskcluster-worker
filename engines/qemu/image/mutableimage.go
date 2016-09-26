@@ -105,7 +105,7 @@ func (img *MutableImage) Machine() vm.Machine {
 	return *img.machine
 }
 
-// Package will write an lz4 compressed tar archieve of the image to targetFile.
+// Package will write an zstd compressed tar archieve of the image to targetFile.
 // This method cannot be called the image is in-use.
 func (img *MutableImage) Package(targetFile string) error {
 	img.m.Lock()
@@ -162,18 +162,17 @@ func (img *MutableImage) Package(targetFile string) error {
 		return fmt.Errorf("Failed to create image.tar file, error: %s", msg)
 	}
 
-	// lz4 compress everything and write to targetFile
-	lz4 := exec.Command(
-		//TODO: Support high and low compression
-		"lz4", "-z5f", "image.tar", targetFile,
+	// zstd compress everything and write to targetFile
+	zstd := exec.Command(
+		"zstd", "-3", "image.tar", "-fo", targetFile,
 	)
-	lz4.Dir = img.folder
-	if _, err := lz4.Output(); err != nil {
+	zstd.Dir = img.folder
+	if _, err := zstd.Output(); err != nil {
 		msg := err.Error()
 		if ee, ok := err.(*exec.ExitError); ok {
 			msg = string(ee.Stderr)
 		}
-		return fmt.Errorf("Failed to lz4 compress image file, error: %s", msg)
+		return fmt.Errorf("Failed to zstd compress image file, error: %s", msg)
 	}
 
 	// Remove layer.qcow2

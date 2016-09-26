@@ -9,8 +9,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
+	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/queue"
-	"github.com/taskcluster/taskcluster-client-go/tcclient"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"

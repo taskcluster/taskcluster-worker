@@ -275,7 +275,7 @@ func Merge(a ...Object) (Object, error) {
 			}
 		}
 
-		// Merge the lists of requried properties
+		// Merge the lists of required properties
 		for _, k := range obj.Required {
 			if !stringContains(required, k) {
 				required = append(required, k)

@@ -106,6 +106,7 @@ type (
 		TypeNameGenerator   NameGenerator
 		MemberNameGenerator NameGenerator
 		SkipCodeGen         bool
+		TypeNameBlacklist   StringSet
 	}
 
 	Result struct {
@@ -117,10 +118,10 @@ type (
 	SchemaSet struct {
 		all       map[string]*JsonSubSchema
 		used      map[string]*JsonSubSchema
-		typeNames stringSet
+		TypeNames StringSet
 	}
 
-	stringSet map[string]bool
+	StringSet map[string]bool
 )
 
 // Ensure url contains "#" by adding it to end if needed
@@ -179,7 +180,7 @@ func (subSchema JsonSubSchema) String() string {
 	return result
 }
 
-func (jsonSubSchema *JsonSubSchema) typeDefinition(topLevel bool, extraPackages stringSet, rawMessageTypes stringSet) (comment, typ string) {
+func (jsonSubSchema *JsonSubSchema) typeDefinition(topLevel bool, extraPackages StringSet, rawMessageTypes StringSet) (comment, typ string) {
 	comment = "\n"
 	if d := jsonSubSchema.Description; d != nil {
 		comment += text.Indent(*d, "// ")
@@ -300,20 +301,20 @@ func (jsonSubSchema *JsonSubSchema) typeDefinition(topLevel bool, extraPackages 
 		if f := jsonSubSchema.Format; f != nil {
 			if *f == "date-time" {
 				typ = "tcclient.Time"
-				extraPackages["github.com/taskcluster/taskcluster-client-go/tcclient"] = true
+				extraPackages["tcclient \"github.com/taskcluster/taskcluster-client-go\""] = true
 			}
 		}
 	}
 	switch typ {
 	case "json.RawMessage":
-		extraPackages["encoding/json"] = true
+		extraPackages["\"encoding/json\""] = true
 		if topLevel {
 			// Special case: we have here a top level RawMessage such as
 			// queue.PostArtifactRequest - therefore need to implement
 			// Marhsal and Unmarshal methods. See:
 			// http://play.golang.org/p/FKHSUmWVFD vs
 			// http://play.golang.org/p/erjM6ptIYI
-			extraPackages["errors"] = true
+			extraPackages["\"errors\""] = true
 			rawMessageTypes[jsonSubSchema.TypeName] = true
 		}
 	}
@@ -339,7 +340,7 @@ func (p *Properties) postPopulate(job *Job) error {
 			p.Properties[propertyName].PropertyName = propertyName
 		}
 		sort.Strings(p.SortedPropertyNames)
-		members := make(stringSet, len(p.SortedPropertyNames))
+		members := make(StringSet, len(p.SortedPropertyNames))
 		p.MemberNames = make(map[string]string, len(p.SortedPropertyNames))
 		propTypeNames := make(map[string]bool)
 		for _, j := range p.SortedPropertyNames {
@@ -453,7 +454,8 @@ func (job *Job) add(subSchema *JsonSubSchema) {
 	}
 	job.result.SchemaSet.used[subSchema.SourceURL] = subSchema
 	if subSchema.TypeName == "" {
-		subSchema.TypeName = job.TypeNameGenerator(subSchema.TypeNameRaw(), job.ExportTypes, job.result.SchemaSet.typeNames)
+		subSchema.TypeName = job.TypeNameGenerator(subSchema.TypeNameRaw(), job.ExportTypes, job.TypeNameBlacklist)
+		job.result.SchemaSet.TypeNames[subSchema.TypeName] = true
 	}
 }
 
@@ -534,10 +536,12 @@ func (subSchema *JsonSubSchema) postPopulate(job *Job) (err error) {
 	}
 	// Find and tag subschema properties that are in required list
 	for _, req := range subSchema.Required {
-		if subSubSchema, ok := subSchema.Properties.Properties[req]; ok {
-			subSubSchema.IsRequired = true
-		} else {
-			panic(fmt.Sprintf("Schema %v has a required property %v but this property definition cannot be found", subSchema.SourceURL, req))
+		if subSchema.Properties != nil {
+			if subSubSchema, ok := subSchema.Properties.Properties[req]; ok {
+				subSubSchema.IsRequired = true
+			} else {
+				panic(fmt.Sprintf("Schema %v has a required property %v but this property definition cannot be found", subSchema.SourceURL, req))
+			}
 		}
 	}
 	return nil
@@ -548,28 +552,30 @@ func (subSchema *JsonSubSchema) setSourceURL(url string) {
 }
 
 func (job *Job) loadJsonSchema(URL string) (subSchema *JsonSubSchema, err error) {
-	var resp *http.Response
-	u, err := url.Parse(URL)
-	if err != nil {
-		return
-	}
 	var body io.ReadCloser
-	// TODO: may be better to use https://golang.org/pkg/net/http/#NewFileTransport here??
-	switch u.Scheme {
-	case "http", "https":
-		resp, err = http.Get(URL)
+	if strings.HasPrefix(URL, "file://") {
+		body, err = os.Open(URL[7 : len(URL)-1]) // need to strip trailing '#'
 		if err != nil {
 			return
 		}
-		body = resp.Body
-	case "file":
-		body, err = os.Open(u.Path)
+	} else {
+		u, err := url.Parse(URL)
 		if err != nil {
-			return
+			return subSchema, err
 		}
-	default:
-		fmt.Printf("Unknown scheme: '%s'\n", u.Scheme)
-		fmt.Printf("URL: '%s'\n", URL)
+		var resp *http.Response
+		// TODO: may be better to use https://golang.org/pkg/net/http/#NewFileTransport here??
+		switch u.Scheme {
+		case "http", "https":
+			resp, err = http.Get(URL)
+			if err != nil {
+				return subSchema, err
+			}
+			body = resp.Body
+		default:
+			fmt.Printf("Unknown scheme: '%s'\n", u.Scheme)
+			fmt.Printf("URL: '%s'\n", URL)
+		}
 	}
 	defer body.Close()
 	data, err := ioutil.ReadAll(body)
@@ -610,9 +616,9 @@ func (job *Job) cacheJsonSchema(url string) (*JsonSubSchema, error) {
 // Returns the generated code content, and a map of keys of extra packages to import, e.g.
 // a generated type might use time.Time, so if not imported, this would have to be added.
 // using a map of strings -> bool to simulate a set - true => include
-func generateGoTypes(schemaSet *SchemaSet) (string, stringSet, stringSet) {
-	extraPackages := make(stringSet)
-	rawMessageTypes := make(stringSet)
+func generateGoTypes(schemaSet *SchemaSet) (string, StringSet, StringSet) {
+	extraPackages := make(StringSet)
+	rawMessageTypes := make(StringSet)
 	content := "type (" // intentionally no \n here since each type starts with one already
 	// Loop through all json schemas that were found referenced inside the API json schemas...
 	typeDefinitions := make(map[string]string)
@@ -638,7 +644,10 @@ func (job *Job) Execute() (*Result, error) {
 	job.result.SchemaSet = &SchemaSet{
 		all:       make(map[string]*JsonSubSchema),
 		used:      make(map[string]*JsonSubSchema),
-		typeNames: make(stringSet),
+		TypeNames: make(StringSet),
+	}
+	if job.TypeNameBlacklist == nil {
+		job.TypeNameBlacklist = make(StringSet)
 	}
 	if job.TypeNameGenerator == nil {
 		job.TypeNameGenerator = text.GoIdentifierFrom
@@ -684,7 +693,7 @@ package ` + job.Package + `
 		extraPackagesContent := ""
 		for j, k := range extraPackages {
 			if k {
-				extraPackagesContent += text.Indent("\""+j+"\"\n", "\t")
+				extraPackagesContent += text.Indent(""+j+"\n", "\t")
 			}
 		}
 
@@ -704,7 +713,7 @@ package ` + job.Package + `
 	return job.result, err
 }
 
-func jsonRawMessageImplementors(rawMessageTypes stringSet) string {
+func jsonRawMessageImplementors(rawMessageTypes StringSet) string {
 	// first sort the order of the rawMessageTypes since when we rebuild, we
 	// don't want to generate functions in a different order and introduce
 	// diffs against the previous version

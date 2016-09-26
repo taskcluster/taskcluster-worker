@@ -15,8 +15,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/taskcluster/slugid-go/slugid"
+	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/queue"
-	"github.com/taskcluster/taskcluster-client-go/tcclient"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/artifacts"
@@ -24,6 +24,7 @@ import (
 	_ "github.com/taskcluster/taskcluster-worker/plugins/livelog"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/success"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 )
 
@@ -91,7 +92,9 @@ func TestTaskManagerRunTask(t *testing.T) {
 		t.Error(err)
 	}
 
+	gc := &gc.GarbageCollector{}
 	environment := &runtime.Environment{
+		GarbageCollector: gc,
 		TemporaryStorage: tempStorage,
 		WebHookServer:    localServer,
 	}
@@ -108,7 +111,7 @@ func TestTaskManagerRunTask(t *testing.T) {
 		QueueBaseURL: serverURL,
 	}
 
-	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, logger.WithField("test", "TestTaskManagerRunTask"))
+	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, logger.WithField("test", "TestTaskManagerRunTask"), gc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +189,9 @@ func TestCancelTask(t *testing.T) {
 		t.Error(err)
 	}
 
+	gc := &gc.GarbageCollector{}
 	environment := &runtime.Environment{
+		GarbageCollector: gc,
 		TemporaryStorage: tempStorage,
 		WebHookServer:    localServer,
 	}
@@ -203,7 +208,7 @@ func TestCancelTask(t *testing.T) {
 		QueueBaseURL: serverURL,
 	}
 
-	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, logger.WithField("test", "TestRunTask"))
+	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, logger.WithField("test", "TestRunTask"), gc)
 	assert.Nil(t, err)
 
 	claim := &taskClaim{
@@ -298,7 +303,9 @@ func TestWorkerShutdown(t *testing.T) {
 		t.Error(err)
 	}
 
+	gc := &gc.GarbageCollector{}
 	environment := &runtime.Environment{
+		GarbageCollector: gc,
 		TemporaryStorage: tempStorage,
 		WebHookServer:    localServer,
 	}
@@ -314,7 +321,7 @@ func TestWorkerShutdown(t *testing.T) {
 	cfg := &configType{
 		QueueBaseURL: serverURL,
 	}
-	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, logger.WithField("test", "TestRunTask"))
+	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, logger.WithField("test", "TestRunTask"), gc)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -42,11 +43,25 @@ type VirtualMachine struct {
 	domain       *qemu.Domain
 }
 
-// NewVirtualMachine constructs a new virtual machine.
+// NewVirtualMachine constructs a new virtual machine using the given
+// machineOptions, image, network and cdroms.
+//
+// Returns engines.MalformedPayloadError if machineOptions and image definition
+// are conflicting. If this returns an error, caller is responsible for
+// releasing all resources, otherwise, they will be held by the VirtualMachine
+// object.
 func NewVirtualMachine(
+	machineOptions MachineOptions,
 	image Image, network Network, socketFolder, cdrom1, cdrom2 string,
 	log *logrus.Entry,
-) *VirtualMachine {
+) (*VirtualMachine, error) {
+	// Get machine definition and set defaults
+	machine := image.Machine()
+	err := machine.SetDefaults(machineOptions)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create a sub-folder in the socketFolder
 	socketFolder = filepath.Join(socketFolder, slugid.Nice())
 
@@ -81,16 +96,16 @@ func NewVirtualMachine(
 			"accel": "kvm",
 			// TODO: Configure additional options")
 		}),
-		"-m", "512", // TODO: Make memory configurable
+		"-m", strconv.Itoa(machine.Memory),
 		"-realtime", "mlock=off", // TODO: Enable for things like talos
 		// TODO: fit to system HT, see: https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-devices-system-cpu
 		// TODO: Configure CPU instruction sets: http://forum.ipfire.org/viewtopic.php?t=12642
 		"-smp", "cpus=2,sockets=2,cores=1,threads=1",
-		"-uuid", vm.image.Machine().UUID,
+		"-uuid", machine.UUID,
 		"-no-user-config", "-nodefaults",
 		"-rtc", "base=utc", // TODO: Allow clock=vm for loadvm with windows
 		"-boot", "menu=off,strict=on",
-		"-k", vm.image.Machine().Keyboard.Layout,
+		"-k", machine.Keyboard.Layout,
 		"-device", arg("vmware-svga", opts{
 			// TODO: Investigate if we can use vmware
 			// VGA ought to be the safe choice here
@@ -110,10 +125,10 @@ func NewVirtualMachine(
 			"addr": "0x4", // Always put balloon on PCI 0x4
 		}),
 		"-netdev", vm.network.NetDev("netdev-0"),
-		"-device", arg(vm.image.Machine().Network.Device, opts{
+		"-device", arg(machine.Network.Device, opts{
 			"netdev": "netdev-0",
 			"id":     "nic0",
-			"mac":    vm.image.Machine().Network.MAC,
+			"mac":    machine.Network.MAC,
 			"bus":    "pci.0",
 			"addr":   "0x5", // Always put network on PCI 0x5
 		}),
@@ -155,10 +170,10 @@ func NewVirtualMachine(
 	}
 
 	// Add optional sound device
-	if vm.image.Machine().Sound != nil {
-		if vm.image.Machine().Sound.Controller == "pci" {
+	if machine.Sound != nil {
+		if machine.Sound.Controller == "pci" {
 			options = append(options, []string{
-				"-device", arg(vm.image.Machine().Sound.Device, opts{
+				"-device", arg(machine.Sound.Device, opts{
 					"id":   "sound-0",
 					"bus":  "pci.0",
 					"addr": "0x6", // Always put sound on PCI 0x6
@@ -166,12 +181,12 @@ func NewVirtualMachine(
 			}...)
 		} else {
 			options = append(options, []string{
-				"-device", arg(vm.image.Machine().Sound.Controller, opts{
+				"-device", arg(machine.Sound.Controller, opts{
 					"id":   "sound-0",
 					"bus":  "pci.0",
 					"addr": "0x6", // Always put sound on PCI 0x6
 				}),
-				"-device", arg(vm.image.Machine().Sound.Device, opts{
+				"-device", arg(machine.Sound.Device, opts{
 					"id":  "sound-0-codec-0",
 					"bus": "sound-0.0",
 					"cad": "0",
@@ -231,7 +246,7 @@ func NewVirtualMachine(
 	// Create QEMU process
 	vm.qemu = exec.Command("qemu-system-x86_64", options...)
 
-	return vm
+	return vm, nil
 }
 
 // SetHTTPHandler sets the HTTP handler for the meta-data service.

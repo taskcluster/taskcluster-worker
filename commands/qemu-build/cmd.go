@@ -19,8 +19,8 @@ image and two ISO files to mounted as CDs and creates a virtual machine that
 will be saved to disk when terminated.
 
 usage:
-	taskcluster-worker qemu-build [options] from-new <machine.json> <result.tar.lz4>
-	taskcluster-worker qemu-build [options] from-image <image.tar.lz4> <result.tar.lz4>
+	taskcluster-worker qemu-build [options] from-new <machine.json> <result.tar.zst>
+	taskcluster-worker qemu-build [options] from-image <image.tar.zst> <result.tar.zst>
 
 options:
      --no-vnc       	Do not open a VNC display.
@@ -37,7 +37,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	log := logger.WithField("component", "qemu-build")
 
 	// Parse arguments
-	outputFile := arguments["<result.tar.lz4>"].(string)
+	outputFile := arguments["<result.tar.zst>"].(string)
 	fromNew := arguments["from-new"].(bool)
 	fromImage := arguments["from-image"].(bool)
 	novnc := arguments["--no-vnc"].(bool)
@@ -58,7 +58,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	if !fromImage {
 		inputFile = arguments["<machine.json>"].(string)
 	} else {
-		inputFile = arguments["<image.tar.lz4>"].(string)
+		inputFile = arguments["<image.tar.zst>"].(string)
 	}
 
 	return buildImage(

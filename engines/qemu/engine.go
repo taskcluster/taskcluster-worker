@@ -6,6 +6,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/network"
+	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
@@ -23,9 +24,10 @@ type engineProvider struct {
 }
 
 type configType struct {
-	MaxConcurrency int    `json:"maxConcurrency"`
-	ImageFolder    string `json:"imageFolder"`
-	SocketFolder   string `json:"socketFolder"`
+	MaxConcurrency int               `json:"maxConcurrency"`
+	ImageFolder    string            `json:"imageFolder"`
+	SocketFolder   string            `json:"socketFolder"`
+	MachineOptions vm.MachineOptions `json:"machineOptions"`
 }
 
 var configSchema = schematypes.Object{
@@ -52,8 +54,14 @@ var configSchema = schematypes.Object{
 											Ideally, this shouldn't be readable by anyone else.`,
 			},
 		},
+		"machineOptions": vm.MachineOptionsSchema,
 	},
-	Required: []string{"imageFolder", "maxConcurrency", "socketFolder"},
+	Required: []string{
+		"imageFolder",
+		"maxConcurrency",
+		"socketFolder",
+		"machineOptions",
+	},
 }
 
 func (p engineProvider) ConfigSchema() schematypes.Schema {
@@ -112,7 +120,7 @@ var payloadSchema = schematypes.Object{
 		"image": schematypes.URI{
 			MetaData: schematypes.MetaData{
 				Title: "Image to download",
-				Description: "URL to an image file. This is a lz4 compressed " +
+				Description: "URL to an image file. This is a zstd compressed " +
 					"tar-archive containing a raw disk image `disk.img`, a qcow2 " +
 					"overlay `layer.qcow2` and a machine definition file " +
 					"`machine.json`. Refer to engine documentation for more details.",
@@ -135,10 +143,7 @@ func (e *engine) PayloadSchema() schematypes.Object {
 
 func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {
 	var p payloadType
-	err := payloadSchema.Map(options.Payload, &p)
-	if err == schematypes.ErrTypeMismatch {
-		panic("Type mismatch")
-	} else if err != nil {
+	if schematypes.MustMap(payloadSchema, options.Payload, &p) != nil {
 		return nil, engines.ErrContractViolation
 	}
 

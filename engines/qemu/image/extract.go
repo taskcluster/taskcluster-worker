@@ -50,8 +50,8 @@ func extractImage(imageFile, imageFolder string) (*vm.Machine, error) {
 		return nil, engines.NewMalformedPayloadError("Image file is larger than ", maxImageSize, " bytes")
 	}
 
-	// Using lz4 | tar so we get sparse files (sh to get OS pipes)
-	tar := exec.Command("sh", "-fec", "lz4 -dq '"+imageFile+"' - | "+
+	// Using zstd | tar so we get sparse files (sh to get OS pipes)
+	tar := exec.Command("sh", "-fec", "zstd -dqc '"+imageFile+"' | "+
 		"tar -xoC '"+imageFolder+"' --no-same-permissions -- "+
 		"disk.img layer.qcow2 machine.json",
 	)

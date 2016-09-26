@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/taskcluster/taskcluster-client-go/tcclient"
+	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )

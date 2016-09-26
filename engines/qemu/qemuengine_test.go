@@ -14,7 +14,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines/enginetest"
 )
 
-const testImageFile = "./test-image/tinycore-worker.tar.lz4"
+const testImageFile = "./test-image/tinycore-worker.tar.zst"
 
 // makeTestServer will setup a httptest.Server instance serving the
 // testImageFile from the source tree. This is necessary to use the test image
@@ -58,7 +58,10 @@ var provider = &enginetest.EngineProvider{
 	Config: `{
 		"maxConcurrency":   5,
 		"imageFolder":      "/tmp/images/",
-		"socketFolder":     "/tmp/"
+		"socketFolder":     "/tmp/",
+		"machineOptions": {
+			"maxMemory": 512
+		}
   }`,
 }
 

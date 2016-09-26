@@ -12,8 +12,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/taskcluster/slugid-go/slugid"
+	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/queue"
-	"github.com/taskcluster/taskcluster-client-go/tcclient"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"

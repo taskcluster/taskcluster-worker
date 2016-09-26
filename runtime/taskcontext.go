@@ -9,7 +9,7 @@ import (
 
 	"sync"
 
-	"github.com/taskcluster/taskcluster-client-go/tcclient"
+	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"

@@ -1,7 +1,11 @@
 package gc
 
 import (
+	"sort"
 	"sync"
+
+	"github.com/shirou/gopsutil/disk"
+	"github.com/shirou/gopsutil/mem"
 )
 
 func indexOfResource(resources []Disposable, resource Disposable) int {
@@ -11,6 +15,20 @@ func indexOfResource(resources []Disposable, resource Disposable) int {
 		}
 	}
 	return -1
+}
+
+type disposableSorter []Disposable
+
+func (d disposableSorter) Len() int {
+	return len(d)
+}
+
+func (d disposableSorter) Swap(i, j int) {
+	d[i], d[j] = d[j], d[i]
+}
+
+func (d disposableSorter) Less(i, j int) bool {
+	return d[i].LastUsed().Before(d[j].LastUsed())
 }
 
 // A ResourceTracker is an object capable of tracking resources.
@@ -26,8 +44,22 @@ type ResourceTracker interface {
 // be diposed when not in use and the system is low on available disk space
 // or memory.
 type GarbageCollector struct {
-	resources []Disposable
-	m         sync.Mutex
+	resources        []Disposable
+	m                sync.Mutex
+	storageFolder    string
+	minimumDiskSpace int64
+	minimumMemory    int64
+}
+
+// New creates a GarbageCollector which uses storageFolder to test for available
+// diskspace and tries to ensure that minimumDiskSpace and minimumMemory is
+// satisfied after each call to Collect()
+func New(storageFolder string, minimumDiskSpace, minimumMemory int64) *GarbageCollector {
+	return &GarbageCollector{
+		storageFolder:    storageFolder,
+		minimumDiskSpace: minimumDiskSpace,
+		minimumMemory:    minimumMemory,
+	}
 }
 
 // Register takes a Disposable resource for the GarbageCollector to manage.
@@ -61,11 +93,62 @@ func (gc *GarbageCollector) Unregister(resource Disposable) bool {
 	return false
 }
 
-// Collect runs garbage collection and reclaims resources, at this stage it just
-// calls CollectAll(), but in the future this should dispose resources somewhat
-// intelligently.
+// Collect runs garbage collection and reclaims resources, attempting to
+// satisfy minimumMemory and minimumDiskSpace, if possible.
 func (gc *GarbageCollector) Collect() error {
-	return gc.CollectAll()
+	gc.m.Lock()
+	defer gc.m.Unlock()
+
+	// Sort to get least-recently-used first
+	sort.Sort(disposableSorter(gc.resources))
+
+	var resources []Disposable
+	for i, r := range gc.resources {
+		var err error
+		var size uint64
+
+		abort := false
+		dispose := false
+		if gc.needDiskSpace() {
+			size, err = r.DiskSize()
+			if err != nil && err != ErrDisposableSizeNotSupported {
+				abort = true
+			} else if size > 0 || err == ErrDisposableSizeNotSupported {
+				dispose = true
+			}
+		}
+
+		if !abort && !dispose && gc.needMemory() {
+			size, err = r.MemorySize()
+			if err != nil && err != ErrDisposableSizeNotSupported {
+				abort = true
+			} else if size > 0 || err == ErrDisposableSizeNotSupported {
+				dispose = true
+			}
+		}
+
+		if abort {
+			gc.resources = append(resources, gc.resources[i-1:]...)
+			return err
+		}
+
+		if dispose {
+			err = r.Dispose()
+			if err != nil {
+				if err != ErrDisposableInUse {
+					gc.resources = append(resources, gc.resources[i-1:]...)
+					return err
+				}
+				resources = append(resources, r)
+			}
+			continue
+		}
+
+		resources = append(resources, r)
+	}
+
+	gc.resources = resources
+	return nil
 }
 
 // CollectAll disposes all resources that can be disposed.
@@ -88,4 +171,34 @@ func (gc *GarbageCollector) CollectAll() error {
 	}
 	gc.resources = resources
 	return nil
+}
+
+// needDiskSpace returns true if we need to free diskspace
+func (gc *GarbageCollector) needDiskSpace() bool {
+	// If we have no metrics or minimum diskspace we remove everything
+	if gc.minimumDiskSpace == 0 || gc.storageFolder == "" {
+		return true
+	}
+	stat, err := disk.Usage(gc.storageFolder)
+	if err != nil {
+		// TODO: Write a warning to the log
+		return true
+	}
+
+	return int64(stat.Free) < gc.minimumDiskSpace
+}
+
+// needMemory returns true if we need to free memory
+func (gc *GarbageCollector) needMemory() bool {
+	// If we have no metrics or minimum memory we remove everything
+	if gc.minimumMemory == 0 {
+		return true
+	}
+	stat, err := mem.VirtualMemory()
+	if err != nil {
+		// TODO: Write a warning to the log
+		return true
+	}
+
+	return int64(stat.Available) < gc.minimumMemory
 }
