@@ -27,7 +27,7 @@ func (s sandboxbuilder) SetEnvironmentVariable(name string, value string) error 
 		return engines.ErrNamingConflict
 	}
 
-	s.context.Log("Setting \"", name, "\" environment variable to \"", value, "\" \n")
+	s.context.Log("Setting \"", name, "\" environment variable to \"", value, "\"")
 	s.env[name] = value
 	return nil
 }
