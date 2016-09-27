@@ -6,6 +6,7 @@ import (
 	"os/signal"
 
 	"github.com/taskcluster/taskcluster-worker/commands"
+	"github.com/taskcluster/taskcluster-worker/config"
 	"github.com/taskcluster/taskcluster-worker/worker"
 )
 
@@ -26,7 +27,7 @@ func (cmd) Usage() string {
 }
 
 func (cmd) Execute(args map[string]interface{}) bool {
-	config, err := worker.LoadConfigFile(args["<config.yml>"].(string))
+	config, err := config.LoadFromFile(args["<config.yml>"].(string))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return false

@@ -7,6 +7,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/takama/daemon"
+	"github.com/taskcluster/taskcluster-worker/config"
 	"github.com/taskcluster/taskcluster-worker/worker"
 )
 
@@ -24,7 +25,7 @@ func (svc *service) Run() (string, error) {
 	}
 
 	// load configuration file
-	config, err := worker.LoadConfigFile(svc.args["<config-file>"].(string))
+	config, err := config.LoadFromFile(svc.args["<config-file>"].(string))
 	if err != nil {
 		logger.WithError(err).Error("Failed to open configuration file")
 		return "Failed to open configuration file", err

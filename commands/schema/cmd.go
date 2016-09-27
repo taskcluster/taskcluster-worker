@@ -8,6 +8,7 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/taskcluster/taskcluster-worker/commands"
+	"github.com/taskcluster/taskcluster-worker/config"
 	"github.com/taskcluster/taskcluster-worker/worker"
 )
 
@@ -43,7 +44,7 @@ func (cmd) Execute(args map[string]interface{}) bool {
 	if args["config"].(bool) {
 		schema = worker.ConfigSchema().Schema()
 	} else {
-		config, err := worker.LoadConfigFile(args["<config.yml>"].(string))
+		config, err := config.LoadFromFile(args["<config.yml>"].(string))
 		if err != nil {
 			fmt.Println(err)
 			return false
