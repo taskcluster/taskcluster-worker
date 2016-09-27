@@ -4,7 +4,9 @@ package livelog
 
 import (
 	"bufio"
+	"compress/gzip"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -20,19 +22,24 @@ type pluginProvider struct {
 
 type plugin struct {
 	plugins.PluginBase
-	log *logrus.Entry
+	log         *logrus.Entry
+	environment *runtime.Environment
 }
 
 type taskPlugin struct {
 	plugins.TaskPluginBase
-	context    *runtime.TaskContext
-	url        string
-	expiration tcclient.Time
-	log        *logrus.Entry
+	context     *runtime.TaskContext
+	url         string
+	expiration  tcclient.Time
+	log         *logrus.Entry
+	environment *runtime.Environment
 }
 
 func (pluginProvider) NewPlugin(opts plugins.PluginOptions) (plugins.Plugin, error) {
-	return plugin{log: opts.Log}, nil
+	return plugin{
+		log:         opts.Log,
+		environment: opts.Environment,
+	}, nil
 }
 
 func (p plugin) NewTaskPlugin(opts plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
@@ -42,6 +49,7 @@ func (p plugin) NewTaskPlugin(opts plugins.TaskPluginOptions) (plugins.TaskPlugi
 			"taskID": opts.TaskInfo.TaskID,
 			"runID":  opts.TaskInfo.RunID,
 		}),
+		environment: p.environment,
 	}, nil
 }
 
@@ -100,11 +108,36 @@ func (tp *taskPlugin) Finished(success bool) error {
 		return err
 	}
 	defer file.Close()
+
+	tempFile, err := tp.environment.TemporaryStorage.NewFile()
+	if err != nil {
+		return err
+	}
+
+	defer tempFile.Close()
+
+	zip := gzip.NewWriter(tempFile)
+	if _, err = io.Copy(zip, file); err != nil {
+		return err
+	}
+
+	if err = zip.Close(); err != nil {
+		return err
+	}
+
+	_, err = tempFile.Seek(0, 0)
+	if err != nil {
+		return err
+	}
+
 	err = runtime.UploadS3Artifact(runtime.S3Artifact{
 		Name:     "public/logs/live_backing.log",
 		Mimetype: "text/plain",
 		Expires:  tp.context.TaskInfo.Expires,
-		Stream:   file,
+		Stream:   tempFile,
+		AdditionalHeaders: map[string]string{
+			"Content-Encoding": "gzip",
+		},
 	}, tp.context)
 
 	if err != nil {

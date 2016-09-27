@@ -17,10 +17,11 @@ import (
 
 // S3Artifact wraps all of the needed fields to upload an s3 artifact
 type S3Artifact struct {
-	Name     string
-	Mimetype string
-	Expires  tcclient.Time
-	Stream   ioext.ReadSeekCloser
+	Name              string
+	Mimetype          string
+	Expires           tcclient.Time
+	Stream            ioext.ReadSeekCloser
+	AdditionalHeaders map[string]string
 }
 
 // ErrorArtifact wraps all of the needed fields to upload an error artifact
@@ -61,12 +62,7 @@ func UploadS3Artifact(artifact S3Artifact, context *TaskContext) error {
 		return err
 	}
 
-	err = putArtifact(resp.PutURL, artifact.Mimetype, artifact.Stream)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return putArtifact(resp.PutURL, artifact.Mimetype, artifact.Stream, artifact.AdditionalHeaders)
 }
 
 // CreateErrorArtifact is responsible for inserting error
@@ -136,7 +132,7 @@ func createArtifact(context *TaskContext, name string, req []byte) ([]byte, erro
 	return json.RawMessage(*parsp), nil
 }
 
-func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser) error {
+func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser, additionalArtifacts map[string]string) error {
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		return err
@@ -148,6 +144,10 @@ func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser) error {
 
 	header := make(http.Header)
 	header.Set("content-type", mime)
+
+	for k, v := range additionalArtifacts {
+		header.Set(k, v)
+	}
 
 	backoff := got.DefaultBackOff
 	attempts := 0
