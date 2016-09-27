@@ -1,4 +1,4 @@
-//go:generate go-import-subtree engines/ plugins/ commands/
+//go:generate go-import-subtree engines/ plugins/ commands/ config/
 
 // Package main hosts the main function for taskcluter-worker.
 package main
