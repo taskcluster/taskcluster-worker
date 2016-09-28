@@ -1,14 +1,12 @@
 FROM ubuntu:16.04
 MAINTAINER Jonas Finnemann Jensen <jopsen@gmail.com>
 
-RUN apt-get update -y
-RUN apt-get upgrade -y
-
-# Install runtime dependencies
-RUN apt-get install -y qemu-system-x86 qemu-utils dnsmasq-base liblz4-tool iptables
-
-# Install build dependencies
-RUN apt-get install -y git curl screen nano genisoimage build-essential
+# Install dependencies
+RUN apt-get update -y \
+ && apt-get upgrade -y \
+ && apt-get install -y qemu-system-x86 qemu-utils dnsmasq-base iptables \
+ && apt-get install -y git curl screen nano genisoimage build-essential \
+ ;
 
 # Install golang 1.7
 RUN curl -L https://storage.googleapis.com/golang/go1.7.linux-amd64.tar.gz > /tmp/go.tar.gz \
@@ -29,8 +27,5 @@ ENV APP_PATH    github.com/taskcluster/taskcluster-worker
 ENV SHELL       bash
 
 RUN mkdir -p /go/src/$APP_PATH
-RUN ln -s /go/src/$APP_PATH /src
-
-RUN go get github.com/smartystreets/goconvey
 
 WORKDIR /go/src/$APP_PATH
