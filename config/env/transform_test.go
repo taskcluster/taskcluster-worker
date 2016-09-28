@@ -17,5 +17,24 @@ func TestEnvTransform(t *testing.T) {
 		Result: map[string]interface{}{
 			"key": "hello-world",
 		},
-	}.Test()
+	}.Test(t)
+}
+
+func TestEnvTransformArray(t *testing.T) {
+	os.Setenv("CFG_TEST_ENV_VAR", "hello-world")
+	configtest.Case{
+		Transform: "env",
+		Input: map[string]interface{}{
+			"key": []interface{}{
+				"test",
+				map[string]interface{}{"$env": "CFG_TEST_ENV_VAR"},
+			},
+		},
+		Result: map[string]interface{}{
+			"key": []interface{}{
+				"test",
+				"hello-world",
+			},
+		},
+	}.Test(t)
 }

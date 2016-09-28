@@ -3,9 +3,9 @@
 package configtest
 
 import (
-	"fmt"
-	"reflect"
+	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/taskcluster/taskcluster-worker/config"
 )
 
@@ -18,18 +18,12 @@ type Case struct {
 }
 
 // Test will execute the test case panicing if Input doesn't become Result
-func (c Case) Test() {
+func (c Case) Test(t *testing.T) {
 	transform := config.Providers()[c.Transform]
-	if transform == nil {
-		panic(fmt.Sprintf("Unknown transform: %s", c.Transform))
-	}
+	require.NotNil(t, transform, "unknown transform ", c.Transform)
 
 	err := transform.Transform(c.Input)
-	if err != nil {
-		panic(fmt.Sprintf("Transform(Input) failed, error: %s", err))
-	}
+	require.NoError(t, err, "Transform(Input) failed")
 
-	if !reflect.DeepEqual(c.Input, c.Result) {
-		panic(fmt.Sprintf("c.Result != c.Input, after transform, result: %#v ", c.Input))
-	}
+	require.Equal(t, c.Input, c.Result, "Unexpected result")
 }
