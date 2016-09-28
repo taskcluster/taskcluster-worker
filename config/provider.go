@@ -25,7 +25,7 @@ func Register(name string, provider TransformationProvider) {
 	defer mProviders.Unlock()
 
 	if _, ok := providers[name]; ok {
-		panic(fmt.Sprintf("config.Proider name '%s' is already in use!", name))
+		panic(fmt.Sprintf("config.Provider name '%s' is already in use!", name))
 	}
 
 	providers[name] = provider

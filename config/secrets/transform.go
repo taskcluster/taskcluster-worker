@@ -84,10 +84,10 @@ func injectSecrets(
 		}
 		for k, v := range val {
 			v, err := injectSecrets(s, cache, v)
-			val[k] = v
 			if err != nil {
 				return nil, err
 			}
+			val[k] = v
 		}
 	}
 	return val, nil

@@ -76,7 +76,7 @@ func Load(data []byte) (map[string]interface{}, error) {
 		}
 	}
 
-	// Filter out keys that isn't the config schema...
+	// Filter out keys that aren't in the config schema...
 	// This way extra keys can be used to provide options for the
 	// transformations, like "secrets" which will use the secretsBaseUrl if
 	// present in the configuration.
