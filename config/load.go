@@ -54,7 +54,7 @@ func Load(data []byte) (map[string]interface{}, error) {
 	// Extract transforms and config
 	c, ok := config.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("Expected top-level config vlaue to be an object")
+		return nil, fmt.Errorf("Expected top-level config value to be an object")
 	}
 	result, ok := c["config"].(map[string]interface{})
 	if !ok {
