@@ -99,7 +99,7 @@ func TestPutArtifact200(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	err := putArtifact(ts.URL, "text/plain", ioext.NopCloser(&bytes.Reader{}))
+	err := putArtifact(ts.URL, "text/plain", ioext.NopCloser(&bytes.Reader{}), map[string]string{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -111,7 +111,7 @@ func TestPutArtifact400(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	err := putArtifact(ts.URL, "text/plain", ioext.NopCloser(&bytes.Reader{}))
+	err := putArtifact(ts.URL, "text/plain", ioext.NopCloser(&bytes.Reader{}), map[string]string{})
 	if err == nil {
 		t.Fail()
 	}
@@ -129,7 +129,7 @@ func TestPutArtifact500(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	err := putArtifact(ts.URL, "text/plain", ioext.NopCloser(&bytes.Reader{}))
+	err := putArtifact(ts.URL, "text/plain", ioext.NopCloser(&bytes.Reader{}), map[string]string{})
 	if err != nil {
 		t.Error(err)
 	}
