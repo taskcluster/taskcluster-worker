@@ -11,6 +11,7 @@ package configsecrets
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/secrets"
@@ -62,7 +63,7 @@ func (provider) Transform(cfg map[string]interface{}) error {
 				return nil, err
 			}
 			value := map[string]interface{}{}
-			err := json.Unmarshal(secret.Secret, &value)
+			err = json.Unmarshal(secret.Secret, &value)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to parse response from secret, error: %s", err)
 			}
