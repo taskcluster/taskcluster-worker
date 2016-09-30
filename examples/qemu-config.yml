@@ -30,7 +30,7 @@ config:
   reclaimOffset:    120
   temporaryFolder:  /mnt/tmp
   serverIp:           {$packet: public-ipv4}
-  serverPort:         443
+  serverPort:         {$env: 443, type: number}
   tlsCertificiate:
     $secret:  project/taskcluster/taskcluster-worker/stateless-dns
     key:      certificate
