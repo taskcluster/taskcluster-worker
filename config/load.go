@@ -11,7 +11,7 @@ import (
 )
 
 // Schema returns the configuration file schema
-func Schema() schematypes.Schema {
+func Schema() schematypes.Object {
 	transformations := []string{}
 	for name := range Providers() {
 		transformations = append(transformations, name)
@@ -63,8 +63,14 @@ func Load(data []byte) (map[string]interface{}, error) {
 
 	// Apply transforms
 	if _, ok := c["transforms"]; ok {
+		var transforms []string
+		err := schematypes.MustMap(Schema().Properties["transforms"], c["transforms"], &transforms)
+		if err != nil {
+			return nil, fmt.Errorf("'transforms' schema violated, error: %s", err)
+		}
+
 		providers := Providers()
-		for _, t := range c["transforms"].([]string) {
+		for _, t := range transforms {
 			provider, ok := providers[t]
 			if !ok {
 				return nil, fmt.Errorf("Unknown config transformation: %s", t)
