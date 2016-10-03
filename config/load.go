@@ -67,9 +67,9 @@ func Load(data []byte) (map[string]interface{}, error) {
 	}
 
 	// Apply transforms
-	if _, ok := c["transforms"]; ok {
+	if ct, ok := c["transforms"]; ok {
 		var transforms []string
-		err := schematypes.MustMap(Schema().Properties["transforms"], c["transforms"], &transforms)
+		err := schematypes.MustMap(Schema().Properties["transforms"], ct, &transforms)
 		if err != nil {
 			return nil, fmt.Errorf("'transforms' schema violated, error: %s", err)
 		}
