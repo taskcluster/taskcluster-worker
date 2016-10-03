@@ -8,6 +8,15 @@ import (
 // A TransformationProvider provides a method Transform(config) that knows
 // how to transform the configuration object. Typically, by replacing objects
 // matching a specific pattern or overwriting specific values.
+//
+// The config object is a simple JSON compatible structure, and Transform()
+// should maintain this property. That means it consists of the following types:
+//   - map[string]interface{}
+//   - []interface{}
+//   - string
+//   - float64
+//   - bool
+//   - nil
 type TransformationProvider interface {
 	Transform(config map[string]interface{}) error
 }

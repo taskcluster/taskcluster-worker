@@ -88,7 +88,7 @@ func NewLocalServer(
 // ListenAndServe starts the local server listening
 func (s *LocalServer) ListenAndServe() error {
 	if s.server.TLSConfig != nil {
-		return s.server.ListenAndServeTLS("", "")
+		return s.server.ListenAndServeTLSConfig(s.server.TLSConfig)
 	}
 	return s.server.ListenAndServe()
 }

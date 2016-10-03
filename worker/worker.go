@@ -11,6 +11,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 )
@@ -130,7 +131,15 @@ func New(config interface{}, log *logrus.Logger) (*Worker, error) {
 func (w *Worker) Start() {
 	w.log.Info("worker starting up")
 
-	go w.server.ListenAndServe()
+	// Ensure that server is stopping gracefully
+	serverStopped := atomics.NewBool(false)
+	go func() {
+		err := w.server.ListenAndServe()
+		if !serverStopped.Get() {
+			w.log.Errorf("ListenAndServe failed for webhookserver, error: %s", err)
+		}
+	}()
+
 	go w.tm.Start()
 
 	select {
@@ -139,6 +148,10 @@ func (w *Worker) Start() {
 	}
 
 	w.tm.Stop()
+
+	// Allow server to stop
+	serverStopped.Set(true)
+	w.server.Stop()
 	return
 }
 

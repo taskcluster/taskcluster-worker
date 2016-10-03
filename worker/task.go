@@ -231,8 +231,11 @@ func (t *TaskRun) prepareStage() error {
 			RunID:  t.RunID,
 		},
 		Payload: t.plugin.PayloadSchema().Filter(payload),
+		Log:     t.log.WithField("plugin", "pluginManager"),
 	})
 	if err != nil {
+		// TODO: We need to review all this... t.context.LogError is for task errors
+		// hence MalformedPayloadError only, not for internal-errors!!!
 		t.context.LogError(err.Error())
 		return err
 	}

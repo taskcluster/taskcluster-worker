@@ -1,12 +1,14 @@
 # Configuration file for tc-worker.Dockerfile
 transforms:
+  - packet
   - env
   - secrets
 config:
   capacity:         1
   credentials:
-    # Create a client with the scope:
-    # assume:project:taskcluster:worker-test-scopes
+    # Taskcluster credentials with scopes like:
+    # - assume:project:taskcluster:worker-test-scopes
+    # - secrets:get:project/taskcluster/taskcluster-worker/stateless-dns
     clientId:       {$env: TASKCLUSTER_CLIENT_ID}
     accessToken:    {$env: TASKCLUSTER_ACCESS_TOKEN}
   provisionerId:    {$env: PROVISIONER_ID}
@@ -30,7 +32,7 @@ config:
   reclaimOffset:    120
   temporaryFolder:  /mnt/tmp
   serverIp:           {$packet: public-ipv4}
-  serverPort:         {$env: 443, type: number}
+  serverPort:         {$env: PORT, type: number}
   tlsCertificiate:
     $secret:  project/taskcluster/taskcluster-worker/stateless-dns
     key:      certificate

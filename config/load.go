@@ -11,7 +11,7 @@ import (
 )
 
 // Schema returns the configuration file schema
-func Schema() schematypes.Schema {
+func Schema() schematypes.Object {
 	transformations := []string{}
 	for name := range Providers() {
 		transformations = append(transformations, name)
@@ -61,10 +61,21 @@ func Load(data []byte) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("Expected 'config' property to be an object")
 	}
 
+	// Ensure that we have a simple JSON compatible structure
+	if err := jsonCompatTypes(result); err != nil {
+		panic(fmt.Sprintf("YAML loaded wrong types, error: %s", err))
+	}
+
 	// Apply transforms
-	if _, ok := c["transforms"]; ok {
+	if ct, ok := c["transforms"]; ok {
+		var transforms []string
+		err := schematypes.MustMap(Schema().Properties["transforms"], ct, &transforms)
+		if err != nil {
+			return nil, fmt.Errorf("'transforms' schema violated, error: %s", err)
+		}
+
 		providers := Providers()
-		for _, t := range c["transforms"].([]string) {
+		for _, t := range transforms {
 			provider, ok := providers[t]
 			if !ok {
 				return nil, fmt.Errorf("Unknown config transformation: %s", t)
@@ -72,6 +83,11 @@ func Load(data []byte) (map[string]interface{}, error) {
 			if err := provider.Transform(result); err != nil {
 				return nil, fmt.Errorf("Config transformation: %s failed error: %s",
 					t, err)
+			}
+
+			// Ensure that transform only injects simple JSON compatible types
+			if err := jsonCompatTypes(result); err != nil {
+				panic(fmt.Sprintf("%s injected wrong types, error: %s", t, err))
 			}
 		}
 	}
