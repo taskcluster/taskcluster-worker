@@ -1,33 +1,48 @@
-capacity:         1
-credentials:
-  # Create a client with the scope:
-  # assume:project:taskcluster:worker-test-scopes
-  clientId:       '...'
-  accessToken:    '...'
-provisionerId:    test-dummy-provisioner
-workerType:       dummy-worker-mock-33 # choose number to avoid conflicts
-workerGroup:      test-dummy-workers
-workerId:         dummy-worker-33
-engine:           qemu
-engines:
-  qemu:
-    maxConcurrency: 2
-    imageFolder:    /tmp/images/
-    socketFolder:   /tmp/
-    machineOptions:
-      maxMemory:    4096
-logLevel:         debug
-plugins:
-  interactive:    {}
-  disabled:       []
-pollingInterval:  1
-queueBaseUrl:     https://queue.taskcluster.net/v1
-reclaimOffset:    120
-temporaryFolder:  /tmp/tc-worker-tmp
-serverIp:           127.0.0.1
-serverPort:         60000
-statelessDNSSecret: fake-secret
-statelessDNSDomain: example.com
-maxLifeCycle:       10 * 60 # 10 min
-minimumDiskSpace:   10000000
-minimumMemory:      1000000
+# Configuration file for tc-worker.Dockerfile
+transforms:
+  - env
+  - secrets
+config:
+  capacity:         1
+  credentials:
+    # Create a client with the scope:
+    # assume:project:taskcluster:worker-test-scopes
+    clientId:       {$env: TASKCLUSTER_CLIENT_ID}
+    accessToken:    {$env: TASKCLUSTER_ACCESS_TOKEN}
+  provisionerId:    {$env: PROVISIONER_ID}
+  workerType:       {$env: WORKER_TYPE}
+  workerGroup:      {$env: WORKER_GROUP}
+  workerId:         {$env: WORKER_ID}
+  engine:           qemu
+  engines:
+    qemu:
+      maxConcurrency: 2
+      imageFolder:    /mnt/images
+      socketFolder:   /mnt/sockets
+      machineOptions:
+        maxMemory:    4096
+  logLevel:         debug
+  plugins:
+    interactive:    {}
+    disabled:       []
+  pollingInterval:  5
+  queueBaseUrl:     https://queue.taskcluster.net/v1
+  reclaimOffset:    120
+  temporaryFolder:  /mnt/tmp
+  serverIp:           {$packet: public-ipv4}
+  serverPort:         {$env: 443, type: number}
+  tlsCertificiate:
+    $secret:  project/taskcluster/taskcluster-worker/stateless-dns
+    key:      certificate
+  tlsKey:
+    $secret:  project/taskcluster/taskcluster-worker/stateless-dns
+    key:      tlsKey
+  statelessDNSSecret:
+    $secret:  project/taskcluster/taskcluster-worker/stateless-dns
+    key:      secret
+  statelessDNSDomain:
+    $secret:  project/taskcluster/taskcluster-worker/stateless-dns
+    key:      domain
+  maxLifeCycle:       3600      # 1 hour
+  minimumDiskSpace:   10000000  # 10 GB
+  minimumMemory:      1000000   # 1 GB

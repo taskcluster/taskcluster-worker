@@ -48,3 +48,10 @@ test:
 
 dev-test:
 	go test -race $$(go list ./... | grep -v /vendor/)
+
+tc-worker-env:
+	docker build -t taskcluster/tc-worker-env -f tc-worker-env.Dockerfile .
+
+tc-worker:
+	CGO_ENABLED=0 GOARCH=amd64 go build
+	docker build -t taskcluster/tc-worker -f tc-worker.Dockerfile .
