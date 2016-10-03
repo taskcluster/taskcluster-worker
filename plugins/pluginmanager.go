@@ -14,6 +14,7 @@ import (
 type pluginManager struct {
 	payloadSchema schematypes.Object
 	plugins       []Plugin
+	pluginNames   []string
 }
 
 type taskPluginManager struct {
@@ -188,6 +189,7 @@ func NewPluginManager(options PluginOptions) (Plugin, error) {
 
 	return &pluginManager{
 		plugins:       plugins,
+		pluginNames:   enabled,
 		payloadSchema: schema,
 	}, nil
 }
@@ -207,11 +209,12 @@ func (m *pluginManager) NewTaskPlugin(options TaskPluginOptions) (TaskPlugin, er
 	mu := sync.Mutex{}
 
 	errors := make(chan error)
-	for _, p := range m.plugins {
-		go func(p Plugin) {
+	for i, p := range m.plugins {
+		go func(name string, p Plugin) {
 			taskPlugin, err := p.NewTaskPlugin(TaskPluginOptions{
 				TaskInfo: options.TaskInfo,
 				Payload:  p.PayloadSchema().Filter(options.Payload),
+				Log:      options.Log.WithField("plugin", name),
 			})
 			if taskPlugin != nil {
 				mu.Lock()
@@ -219,7 +222,7 @@ func (m *pluginManager) NewTaskPlugin(options TaskPluginOptions) (TaskPlugin, er
 				mu.Unlock()
 			}
 			errors <- err
-		}(p)
+		}(m.pluginNames[i], p)
 	}
 
 	// Wait for errors, if any we dispose and return a merged error
