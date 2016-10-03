@@ -61,6 +61,11 @@ func Load(data []byte) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("Expected 'config' property to be an object")
 	}
 
+	// Ensure that we have a simple JSON compatible structure
+	if err := jsonCompatTypes(result); err != nil {
+		panic(fmt.Sprintf("YAML loaded wrong types, error: %s", err))
+	}
+
 	// Apply transforms
 	if _, ok := c["transforms"]; ok {
 		var transforms []string
@@ -78,6 +83,11 @@ func Load(data []byte) (map[string]interface{}, error) {
 			if err := provider.Transform(result); err != nil {
 				return nil, fmt.Errorf("Config transformation: %s failed error: %s",
 					t, err)
+			}
+
+			// Ensure that transform only injects simple JSON compatible types
+			if err := jsonCompatTypes(result); err != nil {
+				panic(fmt.Sprintf("%s injected wrong types, error: %s", t, err))
 			}
 		}
 	}
