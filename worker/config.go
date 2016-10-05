@@ -203,12 +203,12 @@ func ConfigSchema() schematypes.Object {
 			},
 			"networkInterface": schematypes.String{
 				MetaData: schematypes.MetaData{
-					Description: "Network device webhookserver should listen on, if not serverIp",
+					Description: "Network device webhookserver should listen on. If not supplied, it binds to the interface from serverIp address",
 				},
 			},
 			"exposedPort": schematypes.Integer{
 				MetaData: schematypes.MetaData{
-					Description: "Port webhookserver should listen on if not serverPort",
+					Description: "Port webhookserver should listen on. If not supplied, it uses the serverPort value.",
 				},
 				Minimum: 0,
 				Maximum: 65535,

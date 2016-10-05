@@ -52,7 +52,7 @@ func NewLocalServer(
 
 	// If network interface is specified we listen to that, instead of the public
 	// IP address. This is necessary when running inside a docker container where
-	// the local network interface isn't assigned a public IP.
+	// the local network interface isn't assigned to a public IP.
 	if networkInterface != "" {
 		iface, err := net.InterfaceByName(networkInterface)
 		if err != nil {
