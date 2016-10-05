@@ -49,7 +49,7 @@ func Load(data []byte) (map[string]interface{}, error) {
 	// This fixes obscurities in yaml.Unmarshal where it generates
 	// map[interface{}]interface{} instead of map[string]interface{}
 	// credits: https://github.com/go-yaml/yaml/issues/139#issuecomment-220072190
-	config = convertToMapStr(config)
+	config = convertSimpleJSONTypes(config)
 
 	// Extract transforms and config
 	c, ok := config.(map[string]interface{})
@@ -120,12 +120,12 @@ func LoadFromFile(filename string) (interface{}, error) {
 	return Load(configFile)
 }
 
-func convertToMapStr(val interface{}) interface{} {
+func convertSimpleJSONTypes(val interface{}) interface{} {
 	switch val := val.(type) {
 	case []interface{}:
 		r := make([]interface{}, len(val))
 		for i, v := range val {
-			r[i] = convertToMapStr(v)
+			r[i] = convertSimpleJSONTypes(v)
 		}
 		return r
 	case map[interface{}]interface{}:
@@ -135,9 +135,11 @@ func convertToMapStr(val interface{}) interface{} {
 			if !ok {
 				s = fmt.Sprintf("%v", k)
 			}
-			r[s] = convertToMapStr(v)
+			r[s] = convertSimpleJSONTypes(v)
 		}
 		return r
+	case int:
+		return float64(val)
 	default:
 		return val
 	}

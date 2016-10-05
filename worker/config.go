@@ -26,6 +26,8 @@ type configType struct {
 	LogLevel         string                 `json:"logLevel"`
 	ServerIP         string                 `json:"serverIp"`
 	ServerPort       int                    `json:"serverPort"`
+	NetworkInterface string                 `json:"networkInterface"`
+	ExposedPort      int                    `json:"exposedPort"`
 	TLSCertificate   string                 `json:"tlsCertificiate"`
 	TLSKey           string                 `json:"tlsKey"`
 	DNSSecret        string                 `json:"statelessDNSSecret"`
@@ -196,6 +198,18 @@ func ConfigSchema() schematypes.Object {
 			},
 			"serverIp": schematypes.String{},
 			"serverPort": schematypes.Integer{
+				Minimum: 0,
+				Maximum: 65535,
+			},
+			"networkInterface": schematypes.String{
+				MetaData: schematypes.MetaData{
+					Description: "Network device webhookserver should listen on, if not serverIp",
+				},
+			},
+			"exposedPort": schematypes.Integer{
+				MetaData: schematypes.MetaData{
+					Description: "Port webhookserver should listen on if not serverPort",
+				},
 				Minimum: 0,
 				Maximum: 65535,
 			},

@@ -51,6 +51,7 @@ var displayUpgrader = websocket.Upgrader{
 	HandshakeTimeout: displayconsts.DisplayHandshakeTimeout,
 	ReadBufferSize:   displayconsts.DisplayBufferSize,
 	WriteBufferSize:  displayconsts.DisplayBufferSize,
+	CheckOrigin:      func(_ *http.Request) bool { return true },
 }
 
 func (s *displayServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -159,6 +160,7 @@ func reply(w http.ResponseWriter, status int, payload interface{}) {
 			panic(fmt.Sprintf("Failed to marshal JSON reply, error: %s", err))
 		}
 	}
+	setCORS(w)
 	if len(data) > 0 {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Content-Length", strconv.Itoa(len(data)))

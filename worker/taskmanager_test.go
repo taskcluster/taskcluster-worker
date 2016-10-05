@@ -2,7 +2,6 @@ package worker
 
 import (
 	"encoding/json"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -78,10 +77,8 @@ func TestTaskManagerRunTask(t *testing.T) {
 	}
 
 	localServer, err := webhookserver.NewLocalServer(
-		net.TCPAddr{
-			IP:   []byte{127, 0, 0, 1},
-			Port: 60000,
-		},
+		[]byte{127, 0, 0, 1}, 60000,
+		"", 0,
 		"example.com",
 		"",
 		"",
@@ -175,10 +172,8 @@ func TestCancelTask(t *testing.T) {
 	}
 
 	localServer, err := webhookserver.NewLocalServer(
-		net.TCPAddr{
-			IP:   []byte{127, 0, 0, 1},
-			Port: 60000,
-		},
+		[]byte{127, 0, 0, 1}, 60000,
+		"", 0,
 		"example.com",
 		"",
 		"",
@@ -289,10 +284,8 @@ func TestWorkerShutdown(t *testing.T) {
 	}
 
 	localServer, err := webhookserver.NewLocalServer(
-		net.TCPAddr{
-			IP:   []byte{127, 0, 0, 1},
-			Port: 60000,
-		},
+		[]byte{127, 0, 0, 1}, 60000,
+		"", 0,
 		"example.com",
 		"",
 		"",

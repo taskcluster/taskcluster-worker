@@ -33,6 +33,8 @@ config:
   temporaryFolder:  /mnt/tmp
   serverIp:           {$packet: public-ipv4}
   serverPort:         {$env: PORT, type: number}
+  networkInterface:   eth0
+  exposedPort:        {$env: PORT, type: number}
   tlsCertificiate:
     $secret:  project/taskcluster/taskcluster-worker/stateless-dns
     key:      certificate

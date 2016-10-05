@@ -81,12 +81,14 @@ var upgrader = websocket.Upgrader{
 	HandshakeTimeout: shellconsts.ShellHandshakeTimeout,
 	ReadBufferSize:   shellconsts.ShellMaxMessageSize,
 	WriteBufferSize:  shellconsts.ShellMaxMessageSize,
+	CheckOrigin:      func(_ *http.Request) bool { return true },
 }
 
 func (s *ShellServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Quickly check that server haven't been aborted yet
 	select {
 	case <-s.done:
+		setCORS(w)
 		w.WriteHeader(http.StatusGone)
 		return
 	default:
@@ -100,10 +102,12 @@ func (s *ShellServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Create a new shell, do this before we upgrade so we can return 410 on error
 	shell, err := s.makeShell(command, tty)
 	if err == engines.ErrSandboxTerminated || err == engines.ErrSandboxAborted {
+		setCORS(w)
 		w.WriteHeader(http.StatusGone)
 		return
 	}
 	if err != nil {
+		setCORS(w)
 		w.WriteHeader(http.StatusInternalServerError)
 		debug("Failed to create shell, error: %s", err)
 		return
