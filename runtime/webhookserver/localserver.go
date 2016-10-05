@@ -23,10 +23,17 @@ type LocalServer struct {
 	url    string
 }
 
-// NewLocalServer creates a WebHookServer that listens on localhost and
-// uses stateless-dns-server to obtain a hostname.
+// NewLocalServer creates a WebHookServer that listens on publicIP, publicPort
+// and uses stateless-dns-server to obtain a hostname.
+//
+// If networkInterface is non-empty and localPort is non-zero then server will
+// listen on the localPort for the given networkInterface. This is useful if
+// running inside a container.
 func NewLocalServer(
-	publicAddress net.TCPAddr,
+	publicIP []byte,
+	publicPort int,
+	networkInterface string,
+	localPort int,
 	subdomain, dnsSecret, tlsCert, tlsKey string,
 	expiration time.Duration,
 ) (*LocalServer, error) {
@@ -34,11 +41,49 @@ func NewLocalServer(
 		hooks: make(map[string]http.Handler),
 	}
 
+	// Address that we should be listening on
+	localAddress := net.TCPAddr{
+		IP:   publicIP,
+		Port: publicPort,
+	}
+	if localPort != 0 {
+		localAddress.Port = localPort
+	}
+
+	// If network interface is specified we listen to that, instead of the public
+	// IP address. This is necessary when running inside a docker container where
+	// the local network interface isn't assigned to a public IP.
+	if networkInterface != "" {
+		iface, err := net.InterfaceByName(networkInterface)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"Unable to find interface: %s, error: %s", networkInterface, err,
+			)
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			return nil, fmt.Errorf(
+				"Couldn't list addresses of interface: %s, error: %s", networkInterface, err,
+			)
+		}
+		gotIP := false
+		for _, addr := range addrs {
+			if a, ok := addr.(*net.IPNet); ok && a.IP.To4() != nil {
+				localAddress.IP = a.IP.To4()
+				gotIP = true
+				break
+			}
+		}
+		if !gotIP {
+			return nil, fmt.Errorf("Interface: %s has no IPv4 address", networkInterface)
+		}
+	}
+
 	// Setup server
 	s.server = &graceful.Server{
 		Timeout: 35 * time.Second,
 		Server: &http.Server{
-			Addr:    publicAddress.String(),
+			Addr:    localAddress.String(),
 			Handler: http.HandlerFunc(s.handle),
 		},
 		NoSignalHandling: true,
@@ -61,7 +106,7 @@ func NewLocalServer(
 
 	// Construct hostname (using stateless-dns-go)
 	host := hostname.New(
-		publicAddress.IP,
+		publicIP,
 		subdomain,
 		time.Now().Add(expiration),
 		dnsSecret,
@@ -72,12 +117,12 @@ func NewLocalServer(
 	port := ""
 	if s.server.TLSConfig != nil {
 		proto = "https"
-		if publicAddress.Port != 443 {
-			port = fmt.Sprintf(":%d", publicAddress.Port)
+		if publicPort != 443 {
+			port = fmt.Sprintf(":%d", publicPort)
 		}
 	} else {
-		if publicAddress.Port != 80 {
-			port = fmt.Sprintf(":%d", publicAddress.Port)
+		if publicPort != 80 {
+			port = fmt.Sprintf(":%d", publicPort)
 		}
 	}
 	s.url = proto + "://" + host + port + "/"

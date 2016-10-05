@@ -3,7 +3,6 @@ package webhookserver
 import (
 	"bytes"
 	"fmt"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -22,10 +21,10 @@ func nilOrPanic(err error, a ...interface{}) {
 }
 
 func TestLocalServer(*testing.T) {
-	s, err := NewLocalServer(net.TCPAddr{
-		IP:   []byte{127, 0, 0, 1},
-		Port: 80,
-	}, "example.com", "no-secret", "", "", 10*time.Minute)
+	s, err := NewLocalServer(
+		[]byte{127, 0, 0, 1}, 80,
+		"", 80,
+		"example.com", "no-secret", "", "", 10*time.Minute)
 	nilOrPanic(err)
 
 	path := ""
@@ -102,10 +101,10 @@ func TestLocalServer(*testing.T) {
 }
 
 func TestLocalServerStop(*testing.T) {
-	s, err := NewLocalServer(net.TCPAddr{
-		IP:   []byte{127, 0, 0, 1},
-		Port: 0, // random port...
-	}, "example.com", "no-secret", "", "", 10*time.Minute)
+	s, err := NewLocalServer(
+		[]byte{127, 0, 0, 1}, 0,
+		"", 0,
+		"example.com", "no-secret", "", "", 10*time.Minute)
 	nilOrPanic(err)
 
 	done := make(chan struct{})

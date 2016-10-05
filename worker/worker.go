@@ -56,10 +56,8 @@ func New(config interface{}, log *logrus.Logger) (*Worker, error) {
 
 	// Setup WebHookServer
 	localServer, err := webhookserver.NewLocalServer(
-		net.TCPAddr{
-			IP:   net.ParseIP(c.ServerIP),
-			Port: c.ServerPort,
-		},
+		net.ParseIP(c.ServerIP), c.ServerPort,
+		c.NetworkInterface, c.ExposedPort,
 		c.DNSDomain,
 		c.DNSSecret,
 		c.TLSCertificate,
