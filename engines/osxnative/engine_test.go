@@ -10,7 +10,9 @@ import (
 
 var provider = enginetest.EngineProvider{
 	Engine: "macosx",
-	Config: "{}",
+	Config: `{
+		"createUser": false
+	}`,
 }
 
 var envVarTestCase = enginetest.EnvVarTestCase{

@@ -47,7 +47,7 @@ func (d dscl) read(a ...string) (string, error) {
 		return s, err
 	}
 
-	return strings.Fields(s)[1], nil
+	return strings.Join(strings.Fields(s)[1:], " "), nil
 }
 
 func (d dscl) create(a ...string) error {

@@ -72,8 +72,13 @@ func newTestSandbox(taskPayload *payloadType, env []string) (*sandbox, error) {
 		return nil, err
 	}
 
+	config := configType{
+		CreateUser: false,
+	}
+
 	e := engine{
 		EngineBase: engines.EngineBase{},
+		config:     &config,
 		log:        logrus.New().WithField("component", "test"),
 	}
 

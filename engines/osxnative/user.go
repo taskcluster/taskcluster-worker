@@ -3,18 +3,21 @@
 package osxnative
 
 import (
-	"github.com/taskcluster/slugid-go/slugid"
+	"fmt"
 	"os"
 	"path"
 	"strconv"
+
+	"github.com/taskcluster/slugid-go/slugid"
 )
 
 type user struct {
-	d    dscl
-	name string
+	d                   dscl
+	name                string
+	supplementaryGroups []string
 }
 
-func (u *user) create() error {
+func (u *user) create(groups []string) error {
 	var err error
 	defer func() {
 		if err != nil {
@@ -23,11 +26,6 @@ func (u *user) create() error {
 	}()
 
 	uid, err := u.getMaxUID()
-	if err != nil {
-		return err
-	}
-
-	staffGid, err := u.d.read("/Groups/staff", "PrimaryGroupID")
 	if err != nil {
 		return err
 	}
@@ -60,9 +58,24 @@ func (u *user) create() error {
 		}
 	}
 
-	err = u.d.create(userPath, "PrimaryGroupID", staffGid)
-	if err != nil {
-		return err
+	if len(groups) > 0 {
+		var primaryGroupID string
+		primaryGroupID, err = u.d.read("/Groups/"+groups[0], "PrimaryGroupID")
+		if err != nil {
+			return err
+		}
+
+		err = u.d.create(userPath, "PrimaryGroupID", primaryGroupID)
+		if err != nil {
+			return err
+		}
+
+		for _, group := range groups[1:] {
+			if err = u.d.append("/Groups/"+group, "GroupMembership", name); err != nil {
+				return err
+			}
+			u.supplementaryGroups = append(u.supplementaryGroups, group)
+		}
 	}
 
 	err = u.d.create(userPath, "NFSHomeDirectory", userPath)
@@ -90,15 +103,32 @@ func (u *user) delete() error {
 		return nil
 	}
 
-	userPath := path.Join("/Users", u.name)
-	err := u.d.delete(userPath)
-	if err != nil {
-		return err
+	var errList []error
+
+	for _, group := range u.supplementaryGroups {
+		if err := u.d.delete("/Groups/"+group, "GroupMembership", u.name); err != nil {
+			errList = append(errList, fmt.Errorf("Could not remove user %s from group %s: %v", u.name, group, err))
+		}
 	}
 
-	err = os.RemoveAll(userPath)
+	userPath := path.Join("/Users", u.name)
+
+	if err := u.d.delete(userPath); err != nil {
+		os.RemoveAll(userPath)
+		errList = append(errList, fmt.Errorf("Could not remove user %s: %v", u.name, err))
+	}
+
+	if err := os.RemoveAll(userPath); err != nil {
+		errList = append(errList, fmt.Errorf("Could not remove user home directory %s: %v", u.name, err))
+	}
+
 	u.name = ""
-	return err
+
+	if len(errList) > 0 {
+		return errList[0]
+	}
+
+	return nil
 }
 
 // return the next uid available
