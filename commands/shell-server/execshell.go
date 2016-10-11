@@ -4,19 +4,17 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
-	"os"
 	"os/exec"
 
-	"github.com/kr/pty"
 	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/plugins/interactive/ptysize"
+	"github.com/taskcluster/taskcluster-worker/plugins/interactive/pty"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
 type execShell struct {
 	cmd       *exec.Cmd
-	pty       *os.File
+	pty       *pty.PTY
 	resolve   atomics.Once
 	result    bool
 	resultErr error
@@ -36,7 +34,7 @@ func newExecShell(command []string, tty bool) (engines.Shell, error) {
 
 	// Start is wrapped in pty, if shell is supposed to emulate a TTY
 	var err error
-	if tty && ptysize.Supported {
+	if tty && pty.Supported {
 		s.pty, err = pty.Start(s.cmd)
 		if err != nil {
 			// if there was a start error we set empty streams
@@ -91,7 +89,7 @@ func (s *execShell) SetSize(columns, rows uint16) error {
 	if s.pty == nil {
 		return nil
 	}
-	return ptysize.Set(s.pty, columns, rows)
+	return s.pty.SetSize(columns, rows)
 }
 
 func (s *execShell) waitForResult() {
