@@ -11,11 +11,10 @@ type ReadSeekCloser interface {
 	io.Closer
 }
 
-// NopCloser is useful in testing where something that implements ReadSeekCloser is needed
-// If something that implements io.ReadSeeker is passed in, it will give it a noop close function.
-func NopCloser(r io.Reader) ReadSeekCloser {
-	//TODO: Require this cast be done outside of NopCloser!!!!
-	return readSeekNopCloser{r.(io.ReadSeeker)}
+// NopCloser wraps a io.ReadSeeker as ReadSeekCloser with Close being a noop.
+// This is useful for compliance with interface, if you don't care about closing.
+func NopCloser(r io.ReadSeeker) ReadSeekCloser {
+	return readSeekNopCloser{r}
 }
 
 type readSeekNopCloser struct {
