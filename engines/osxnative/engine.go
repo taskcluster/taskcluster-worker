@@ -12,7 +12,8 @@ import (
 
 type engine struct {
 	engines.EngineBase
-	log *logrus.Entry
+	config *configType
+	log    *logrus.Entry
 }
 
 type engineProvider struct {
@@ -20,12 +21,26 @@ type engineProvider struct {
 }
 
 func (e engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine, error) {
-	return engine{log: options.Log}, nil
+	var c configType
+	if err := schematypes.MustMap(configSchema, options.Config, &c); err != nil {
+		options.Log.WithError(err).Error("Invalid configuration")
+		return nil, engines.ErrContractViolation
+	}
+
+	return &engine{
+		config: &c,
+		log:    options.Log,
+	}, nil
 }
 
 type payloadType struct {
 	Link    string   `json:"link"`
 	Command []string `json:"command"`
+}
+
+type configType struct {
+	CreateUser bool     `json:"createUser"`
+	UserGroups []string `json:"userGroups"`
 }
 
 var payloadSchema = schematypes.Object{
@@ -46,10 +61,36 @@ var payloadSchema = schematypes.Object{
 			Items: schematypes.String{},
 		},
 	},
-	Required: []string{"command"},
 }
 
-func (e engine) PayloadSchema() schematypes.Object {
+var configSchema = schematypes.Object{
+	Properties: schematypes.Properties{
+		"createUser": schematypes.Boolean{
+			MetaData: schematypes.MetaData{
+				Title: "Tells if a user should be created to run a command",
+				Description: `When set to true, a new user is created on the fly to run
+				the command. It runs the command from whitin the user's home directory.`,
+			},
+		},
+		"userGroups": schematypes.Array{
+			MetaData: schematypes.MetaData{
+				Title: "List of groups to assign user to",
+				Description: `It contains the list of groups the user will belong to.
+				The first item is the user's primary group, the rest will be user's
+				supplementary groups.`,
+			},
+			Items:  schematypes.String{},
+			Unique: true,
+		},
+	},
+	Required: []string{"createUser"},
+}
+
+func (e engineProvider) ConfigSchema() schematypes.Schema {
+	return configSchema
+}
+
+func (e *engine) PayloadSchema() schematypes.Object {
 	return payloadSchema
 }
 

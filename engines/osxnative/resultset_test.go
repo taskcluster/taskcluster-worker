@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	osuser "os/user"
 	"path"
 	"path/filepath"
 	"testing"
@@ -34,9 +33,13 @@ func makeResultSet(t *testing.T) resultset {
 		t.Fatal(err)
 	}
 
+	config := configType{
+		CreateUser: false,
+	}
+
 	e := engine{
-		EngineBase: engines.EngineBase{},
-		log:        logrus.New().WithField("component", "test"),
+		config: &config,
+		log:    logrus.New().WithField("component", "test"),
 	}
 
 	return resultset{
@@ -66,13 +69,10 @@ func TestValidPath(t *testing.T) {
 		{"/", false},
 	}
 
-	userInfo, err := osuser.Current()
-	assert.NoError(t, err)
-
 	r := makeResultSet(t)
 
 	for _, tc := range testCases {
-		if r.validPath(userInfo.HomeDir, tc.pathName) != tc.expectedResult {
+		if r.validPath(home, tc.pathName) != tc.expectedResult {
 			t.Errorf("validPath(%s) != %t", tc.pathName, tc.expectedResult)
 		}
 	}

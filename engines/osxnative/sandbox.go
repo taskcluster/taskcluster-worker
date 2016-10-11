@@ -11,7 +11,6 @@ import (
 	osuser "os/user"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"syscall"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
@@ -94,6 +93,8 @@ func downloadLink(destdir string, link string) (string, error) {
 }
 
 func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
+	log := s.engine.log
+
 	if s.aborted {
 		return nil, engines.ErrSandboxAborted
 	}
@@ -115,87 +116,64 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 	cmd.Stdout = s.context.LogDrain()
 	cmd.Stderr = s.context.LogDrain()
 
-	// USER and HOME are treated separately because their values
-	// depend on either we create the new user successfully or not
-	processUser := os.Getenv("USER")
-	processHome := os.Getenv("HOME")
+	userInfo, err := osuser.Current()
+	if err != nil {
+		log.WithError(err).Error("Error getting user information: ")
+		return nil, engines.NewInternalError(err.Error())
+	}
 
-	// If we fail to create a new user, the most probable cause is that
-	// we don't have enough permissions. Chances are that we are running
-	// in in a development environment, so do not fail the task to tests
-	// run successfully.
 	u := user{}
-	if err = u.create(); err != nil {
-		s.context.LogError("Could not create user: ", err)
-		exitError, ok := err.(*exec.ExitError)
-		if ok {
-			s.context.LogError(string(exitError.Stderr))
+
+	if s.engine.config.CreateUser {
+		if err = u.create(s.engine.config.UserGroups); err != nil {
+			log.WithError(err).Error("Could not create user")
+			exitError, ok := err.(*exec.ExitError)
+			if ok {
+				log.Error(string(exitError.Stderr))
+			}
+
+			return nil, engines.NewInternalError("Could not create temporary user")
 		}
 
-		tcWorkerEnv, exists := os.LookupEnv("TASKCLUSTER_WORKER_ENV")
-
-		if exists && strings.ToLower(tcWorkerEnv) == "production" {
-			return nil, engines.ErrNonFatalInternalError
-		}
-	} else {
 		defer func() {
 			if err != nil {
 				u.delete()
 			}
 		}()
 
-		var userInfo *osuser.User
 		userInfo, err = osuser.Lookup(u.name)
 		if err != nil {
-			s.context.LogError("Error looking up for user \""+u.name+"\": ", err)
-		} else {
-			var uid uint64
-			uid, err = strconv.ParseUint(userInfo.Uid, 10, 32)
-			if err != nil {
-				s.context.LogError("ParseUint failed to convert ", userInfo.Uid, ": ", err)
-				return nil, engines.ErrNonFatalInternalError
-			}
-
-			var gid uint64
-			gid, err = strconv.ParseUint(userInfo.Gid, 10, 32)
-			if err != nil {
-				s.context.LogError("ParseUint failed to convert ", userInfo.Gid, ": ", err)
-				return nil, engines.ErrNonFatalInternalError
-			}
-
-			cmd.SysProcAttr = &syscall.SysProcAttr{
-				Credential: &syscall.Credential{
-					Uid:    uint32(uid),
-					Gid:    uint32(gid),
-					Groups: []uint32{},
-				},
-			}
-
-			cmd.Dir = userInfo.HomeDir
-			processUser = u.name
-			processHome = userInfo.HomeDir
+			log.WithError(err).Error("Error looking up for user \"" + u.name + "\"")
+			return nil, engines.NewInternalError(err.Error())
 		}
-	}
 
-	env = append(env, "HOME="+processHome, "USER="+processUser)
-	cmd.Env = env
-
-	if s.taskPayload.Link != "" {
-		var filename string
-		filename, err = downloadLink(getWorkingDir(u, s.context), s.taskPayload.Link)
-
+		var uid uint64
+		uid, err = strconv.ParseUint(userInfo.Uid, 10, 32)
 		if err != nil {
-			s.context.LogError(err)
+			log.WithError(err).Error("ParseUint failed to convert ", userInfo.Uid)
 			return nil, engines.ErrNonFatalInternalError
 		}
 
-		defer os.Remove(filename)
-
-		if err = os.Chmod(filename, 0777); err != nil {
-			s.context.LogError(err)
+		var gid uint64
+		gid, err = strconv.ParseUint(userInfo.Gid, 10, 32)
+		if err != nil {
+			log.WithError(err).Error("ParseUint failed to convert ", userInfo.Gid)
 			return nil, engines.ErrNonFatalInternalError
 		}
+
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			Credential: &syscall.Credential{
+				Uid:    uint32(uid),
+				Gid:    uint32(gid),
+				Groups: []uint32{},
+			},
+		}
+
+		cmd.Dir = userInfo.HomeDir
 	}
+
+	env = append(env, "HOME="+userInfo.HomeDir, "USER="+userInfo.Name)
+	cmd.Env = env
 
 	r := resultset{
 		ResultSetBase: engines.ResultSetBase{},
@@ -203,6 +181,23 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 		context:       s.context,
 		success:       false,
 		engine:        s.engine,
+	}
+
+	if s.taskPayload.Link != "" {
+		var filename string
+		filename, err = downloadLink(getWorkingDir(u, s.context), s.taskPayload.Link)
+
+		if err != nil {
+			s.context.LogError("Could not download ", s.taskPayload.Link, ": ", err)
+			return r, nil
+		}
+
+		defer os.Remove(filename)
+
+		if err = os.Chmod(filename, 0777); err != nil {
+			log.WithError(err).Error("Could not set permissions in the file")
+			return nil, engines.ErrNonFatalInternalError
+		}
 	}
 
 	if err = cmd.Run(); err != nil {
