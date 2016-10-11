@@ -17,6 +17,14 @@ type user struct {
 	supplementaryGroups []string
 }
 
+func newUser(sudo bool) user {
+	return user{
+		d: dscl{
+			sudo: sudo,
+		},
+	}
+}
+
 func (u *user) create(groups []string) error {
 	var err error
 	defer func() {

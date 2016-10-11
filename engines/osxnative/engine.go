@@ -41,6 +41,7 @@ type payloadType struct {
 type configType struct {
 	CreateUser bool     `json:"createUser"`
 	UserGroups []string `json:"userGroups"`
+	Sudo       bool     `json:"sudo"`
 }
 
 var payloadSchema = schematypes.Object{
@@ -81,6 +82,13 @@ var configSchema = schematypes.Object{
 			},
 			Items:  schematypes.String{},
 			Unique: true,
+		},
+		"sudo": schematypes.Boolean{
+			MetaData: schematypes.MetaData{
+				Title: "Use sudo",
+				Description: `Prefix internal privileged commands with sudo.
+				This is useful when the worker runs in a non privileged account.`,
+			},
 		},
 	},
 	Required: []string{"createUser"},

@@ -122,7 +122,7 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 		return nil, engines.NewInternalError(err.Error())
 	}
 
-	u := user{}
+	u := newUser(s.engine.config.Sudo)
 
 	if s.engine.config.CreateUser {
 		if err = u.create(s.engine.config.UserGroups); err != nil {

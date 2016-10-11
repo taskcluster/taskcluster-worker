@@ -9,6 +9,7 @@ import (
 )
 
 type dscl struct {
+	sudo bool
 }
 
 // run will exectue a dscl command using the provided arguments
@@ -16,7 +17,13 @@ type dscl struct {
 func (d dscl) run(command string, a ...string) (string, error) {
 	args := []string{".", command}
 	args = append(args, a...)
-	cmd := exec.Command("dscl", args...)
+	cmdline := []string{}
+	if d.sudo {
+		cmdline = append(cmdline, "sudo")
+	}
+	cmdline = append(cmdline, "dscl")
+	cmdline = append(cmdline, args...)
+	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 	cmd.Env = os.Environ()
 	output, err := cmd.Output()
 	return string(output), err
