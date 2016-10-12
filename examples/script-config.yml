@@ -1,0 +1,52 @@
+# Example configuration file for script engine deployment on hardware.
+transforms:
+  - abs
+  - env
+  - secrets
+config:
+  capacity:         1
+  credentials:
+    # Taskcluster credentials with scopes like:
+    # - assume:project:taskcluster:worker-test-scopes
+    clientId:       {$env: TASKCLUSTER_CLIENT_ID}
+    accessToken:    {$env: TASKCLUSTER_ACCESS_TOKEN}
+  provisionerId:    {$env: PROVISIONER_ID}  # test-dummy-provisioner
+  workerType:       {$env: WORKER_TYPE}     # dummy-worker-*
+  workerGroup:      {$env: WORKER_GROUP}    # test-dummy-workers
+  workerId:         {$env: WORKER_ID}       # dummy-worker-*
+  engine:           script
+  engines:
+    script:
+      # Command should:
+      #  - Read JSON payload from stdin,
+      #  - Read TASK_ID and RUN_ID environment variables (if it wants them),
+      #  - Print log to stdout
+      #  - Write artifacts to working directory (a temporary folder is given)
+      #  - Exit zero to indicate successful task completetion
+      command:      ['python', {$abs: 'examples/script.py'}]
+      schema:       # schema for task.payload passed to command over stdin
+        type:       object
+        properties:
+          buildUrl: {type: string}
+        required:
+          - buildUrl
+      expiration:   14 # artifact expiration in days
+  logLevel:         debug
+  plugins:
+    disabled:
+      - interactive
+      - artifacts
+      - env
+  pollingInterval:  5
+  queueBaseUrl:     https://queue.taskcluster.net/v1
+  reclaimOffset:    120
+  temporaryFolder:  /tmp/tc-worker/
+  serverIp:         127.0.0.1
+  serverPort:       8080
+  tlsCertificiate:  ''
+  tlsKey:           ''
+  statelessDNSSecret: ''
+  statelessDNSDomain: 'localhost.local' # livelog won't work with this
+  maxLifeCycle:       3600      # 1 hour
+  minimumDiskSpace:   10000000  # 10 GB
+  minimumMemory:      1000000   # 1 GB
