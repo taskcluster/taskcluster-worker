@@ -24,3 +24,17 @@ type readSeekNopCloser struct {
 func (readSeekNopCloser) Close() error {
 	return nil
 }
+
+type writeNopCloser struct {
+	io.Writer
+}
+
+func (w *writeNopCloser) Close() error {
+	return nil
+}
+
+// WriteNopCloser wraps an io.Writer and creates a io.WriteCloser where Close
+// is a noop.
+func WriteNopCloser(w io.Writer) io.WriteCloser {
+	return &writeNopCloser{w}
+}
