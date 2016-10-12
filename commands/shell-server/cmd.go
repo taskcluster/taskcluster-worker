@@ -3,6 +3,7 @@ package shellserver
 import (
 	"fmt"
 	"net/http"
+	"os"
 	goruntime "runtime"
 	"time"
 
@@ -46,7 +47,7 @@ options:
 func (cmd) Execute(args map[string]interface{}) bool {
 	log, err := runtime.CreateLogger(args["--log-level"].(string))
 	if err != nil {
-		fmt.Printf("Invalid log-level, error: %s", err)
+		fmt.Fprintf(os.Stderr, "Invalid log-level, error: %s", err)
 		return false
 	}
 
