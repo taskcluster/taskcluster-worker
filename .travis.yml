@@ -19,7 +19,6 @@ before_install:
   - export PATH="${GOROOT}/bin:${PATH}"
   - export GOOS="${MY_GOOS}"
   - export GOARCH="${MY_GOARCH}"
-  - export CGO_ENABLED=0
   - go version
   - go env
 
