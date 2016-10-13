@@ -23,7 +23,7 @@ prechecks:
 
 build:
 	go fmt $$(go list ./... | grep -v /vendor/)
-	go install $$(go list ./... | grep -v /vendor/)
+	CGO_ENABLED=0 go build
 
 generate:
 	# tools needed for go generate steps later...
