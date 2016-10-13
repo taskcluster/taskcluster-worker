@@ -273,6 +273,10 @@ func (p *taskPlugin) setupDisplay() error {
 	query.Set("runId", fmt.Sprintf("%d", p.context.RunID))
 	query.Set("socketUrl", p.displaySocketURL)
 	query.Set("displaysUrl", p.displaysURL)
+	// TODO: Make this an option the engine can specify in ListDisplays
+	//       Probably requires changing display list result to contain websocket
+	//       URLs. Hence, introducing v=2, so leaving it for later.
+	query.Set("shared", "true")
 
 	return runtime.CreateRedirectArtifact(runtime.RedirectArtifact{
 		Name:     p.opts.ArtifactPrefix + "display.html",
