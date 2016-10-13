@@ -21,7 +21,8 @@ config:
       #  - Read JSON payload from stdin,
       #  - Read TASK_ID and RUN_ID environment variables (if it wants them),
       #  - Print log to stdout
-      #  - Write artifacts to working directory (a temporary folder is given)
+      #  - Use working directory for temporary files (it'll be cleaned between tasks)
+      #  - Write artifacts ./artifacts/ (relative to current working directory) 
       #  - Exit zero to indicate successful task completetion
       command:      ['python', {$abs: 'examples/script.py'}]
       schema:       # schema for task.payload passed to command over stdin
