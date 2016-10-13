@@ -18,7 +18,7 @@ type sandboxBuilder struct {
 }
 
 func (b *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
-	script := b.engine.config.Script
+	script := b.engine.config.Command
 	cmd := exec.Command(script[0], script[1:]...)
 	folder, err := b.engine.environment.TemporaryStorage.NewFolder()
 	if err != nil {

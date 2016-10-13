@@ -3,7 +3,7 @@ package scriptengine
 import schematypes "github.com/taskcluster/go-schematypes"
 
 type configType struct {
-	Script     []string `json:"script"`
+	Command    []string `json:"command"`
 	Expiration int      `json:"expiration"`
 	Schema     struct {
 		Type       string                 `json:"type"`
@@ -18,9 +18,9 @@ var configSchema = schematypes.Object{
 		Description: `Configuration properties for the 'scriptengine'.`,
 	},
 	Properties: schematypes.Properties{
-		"script": schematypes.Array{
+		"command": schematypes.Array{
 			MetaData: schematypes.MetaData{
-				Title: "Script to Execute",
+				Title: "Command to Execute",
 				Description: `Script and arguments to execute. This script will be fed
         a JSON string that matches the schema configured over stdin.`,
 			},
@@ -53,7 +53,7 @@ var configSchema = schematypes.Object{
 		},
 	},
 	Required: []string{
-		"script",
+		"command",
 		"schema",
 		"expiration",
 	},
