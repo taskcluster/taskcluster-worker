@@ -105,9 +105,11 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	// Create meta-data service
 	log.Info("Creating meta-data service")
 	var shellServer *interactive.ShellServer
+	var displayServer *interactive.DisplayServer
 	ms := metaservice.New(command, make(map[string]string), os.Stdout, func(result bool) {
 		fmt.Println("### Task Completed, result = ", result)
 		shellServer.WaitAndClose()
+		displayServer.Abort()
 		vm.Kill()
 	}, environment)
 
@@ -119,11 +121,20 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 		ms.ExecShell, log.WithField("component", "shell-server"),
 	)
 
+	// Create displayServer
+	displayServer = interactive.NewDisplayServer(
+		&socketDisplayProvider{socket: vm.VNCSocket()},
+		log.WithField("component", "display-server"),
+	)
+
+	interactiveHandler := http.NewServeMux()
+	interactiveHandler.Handle("/shell/", shellServer)
+	interactiveHandler.Handle("/display/", displayServer)
 	interactiveServer := graceful.Server{
 		Timeout: 30 * time.Second,
 		Server: &http.Server{
 			Addr:    "localhost:8080",
-			Handler: shellServer,
+			Handler: interactiveHandler,
 		},
 		NoSignalHandling: true,
 	}
