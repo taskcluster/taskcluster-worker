@@ -9,7 +9,7 @@ import (
 var provider = &enginetest.EngineProvider{
 	Engine: "script",
 	Config: `{
-    "script": ["bash", "-ec", "v=$(cat); echo \"$v\"; echo \"$v\" | grep success"],
+    "command": ["bash", "-ec", "v=$(cat); echo \"$v\"; echo \"$v\" | grep success"],
     "schema": {
       "type": "object",
       "properties": {
