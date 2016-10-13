@@ -3,6 +3,7 @@ package interactive
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"sync"
@@ -13,23 +14,37 @@ import (
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/displayconsts"
 )
 
-type displayServer struct {
+// A DisplayProvider is an object that supplies displays. This is a subset of
+// the Sandbox interface.
+type DisplayProvider interface {
+	// See engines.Sandbox for documentation for methods.
+	ListDisplays() ([]engines.Display, error)
+	OpenDisplay(name string) (io.ReadWriteCloser, error)
+}
+
+// A DisplayServer exposes a DisplayProvider over a websocket, tracks
+// connections and ensures they are all cleaned up.
+type DisplayServer struct {
 	m        sync.Mutex
-	sandbox  engines.Sandbox
+	provider DisplayProvider
 	log      *logrus.Entry
 	done     chan struct{}
 	handlers []*DisplayHandler
 }
 
-func newDisplayServer(sandbox engines.Sandbox, log *logrus.Entry) *displayServer {
-	return &displayServer{
-		log:     log,
-		sandbox: sandbox,
-		done:    make(chan struct{}),
+// NewDisplayServer creates a DisplayServer for exposing the given provider
+// over a websocket.
+func NewDisplayServer(provider DisplayProvider, log *logrus.Entry) *DisplayServer {
+	return &DisplayServer{
+		log:      log,
+		provider: provider,
+		done:     make(chan struct{}),
 	}
 }
 
-func (s *displayServer) Abort() {
+// Abort stops new display connections from opneing and aborts all existing
+// connections, cleaning up all resources held.
+func (s *DisplayServer) Abort() {
 	s.m.Lock()
 	defer s.m.Unlock()
 
@@ -52,9 +67,10 @@ var displayUpgrader = websocket.Upgrader{
 	ReadBufferSize:   displayconsts.DisplayBufferSize,
 	WriteBufferSize:  displayconsts.DisplayBufferSize,
 	CheckOrigin:      func(_ *http.Request) bool { return true },
+	Subprotocols:     []string{"binary"},
 }
 
-func (s *displayServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *DisplayServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	select {
 	case <-s.done:
 		reply(w, http.StatusGone, displayconsts.ErrorMessage{
@@ -78,7 +94,7 @@ func (s *displayServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Message: "Querystring parameter 'display' must be given!",
 		})
 	}
-	display, err := s.sandbox.OpenDisplay(displayName)
+	display, err := s.provider.OpenDisplay(displayName)
 	switch err {
 	case engines.ErrNoSuchDisplay:
 		reply(w, http.StatusNotFound, displayconsts.ErrorMessage{
@@ -123,8 +139,8 @@ func (s *displayServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.handlers = append(s.handlers, h)
 }
 
-func (s *displayServer) listDisplays(w http.ResponseWriter, r *http.Request) {
-	displays, err := s.sandbox.ListDisplays()
+func (s *DisplayServer) listDisplays(w http.ResponseWriter, r *http.Request) {
+	displays, err := s.provider.ListDisplays()
 	if err == engines.ErrSandboxTerminated || err == engines.ErrSandboxAborted {
 		reply(w, http.StatusGone, errorMessageExecutionHalted)
 		return

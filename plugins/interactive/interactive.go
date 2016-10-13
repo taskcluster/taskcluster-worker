@@ -145,7 +145,7 @@ type taskPlugin struct {
 	shellServer      *ShellServer
 	displaysURL      string
 	displaySocketURL string
-	displayServer    *displayServer
+	displayServer    *DisplayServer
 }
 
 func (p *taskPlugin) Prepare(context *runtime.TaskContext) error {
@@ -260,7 +260,7 @@ func (p *taskPlugin) setupDisplay() error {
 	debug("Setting up interactive display")
 
 	// Create display server
-	p.displayServer = newDisplayServer(
+	p.displayServer = NewDisplayServer(
 		p.sandbox, p.log.WithField("interactive", "display"),
 	)
 	u := p.context.AttachWebHook(p.displayServer)
