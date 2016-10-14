@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -23,6 +25,10 @@ func (b *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
 	folder, err := b.engine.environment.TemporaryStorage.NewFolder()
 	if err != nil {
 		return nil, fmt.Errorf("Error creating temporary folder: %s", err)
+	}
+	err = os.Mkdir(filepath.Join(folder.Path(), artifactFolder), 0777)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create artifact folder, error: %s", err)
 	}
 	data, err := json.Marshal(b.payload)
 	if err != nil {

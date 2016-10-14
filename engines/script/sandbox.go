@@ -14,6 +14,8 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 )
 
+const artifactFolder = "artifacts"
+
 type sandbox struct {
 	engines.SandboxBase
 	context     *runtime.TaskContext
@@ -91,7 +93,8 @@ func (s *sandbox) Abort() error {
 }
 
 func (s *sandbox) uploadArtifacts() error {
-	return filepath.Walk(s.folder.Path(), func(p string, info os.FileInfo, err error) error {
+	folder := filepath.Join(s.folder.Path(), artifactFolder)
+	return filepath.Walk(folder, func(p string, info os.FileInfo, err error) error {
 		// Abort if there is an error
 		if err != nil {
 			return err
@@ -115,8 +118,14 @@ func (s *sandbox) uploadArtifacts() error {
 			return err
 		}
 
-		name, _ := filepath.Rel(s.folder.Path(), p)
+		// Find filename
+		name, _ := filepath.Rel(folder, p)
+
+		// Ensure expiration is no later than task.expires
 		expires := time.Now().Add(time.Duration(s.engine.config.Expiration) * 24 * time.Hour)
+		if time.Time(s.context.Expires).Before(expires) {
+			expires = time.Time(s.context.Expires)
+		}
 
 		// Upload artifact
 		err = runtime.UploadS3Artifact(runtime.S3Artifact{
