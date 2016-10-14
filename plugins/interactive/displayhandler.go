@@ -5,12 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.in/djherbis/nio.v2"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/displayconsts"
-	"gopkg.in/djherbis/buffer.v1"
 )
 
 // DisplayHandler handles serving a VNC display socket over a websocket,
@@ -30,7 +27,7 @@ func NewDisplayHandler(ws *websocket.Conn, display io.ReadWriteCloser, log *logr
 		ws:      ws,
 		display: display,
 		log:     log,
-		in:      nio.NewReader(display, buffer.New(displayconsts.DisplayBufferSize)),
+		in:      display,
 	}
 	d.ws.SetReadLimit(displayconsts.DisplayMaxMessageSize)
 	d.ws.SetReadDeadline(time.Now().Add(displayconsts.DisplayPongTimeout))
@@ -85,12 +82,18 @@ func (d *DisplayHandler) sendData() {
 	data := make([]byte, displayconsts.DisplayBufferSize)
 	for {
 		n, rerr := d.in.Read(data)
+		if rerr != nil {
+			debug("Display read error: %s", rerr)
+		}
 
-		d.mWrite.Lock()
-		debug("Sending %d bytes", n)
-		d.ws.SetWriteDeadline(time.Now().Add(displayconsts.DisplayWriteTimeout))
-		werr := d.ws.WriteMessage(websocket.BinaryMessage, data[:n])
-		d.mWrite.Unlock()
+		var werr error
+		if n > 0 {
+			d.mWrite.Lock()
+			debug("Display sending %d bytes", n)
+			d.ws.SetWriteDeadline(time.Now().Add(displayconsts.DisplayWriteTimeout))
+			werr = d.ws.WriteMessage(websocket.BinaryMessage, data[:n])
+			d.mWrite.Unlock()
+		}
 
 		if rerr != nil || werr != nil {
 			d.Abort()
@@ -115,10 +118,12 @@ func (d *DisplayHandler) readMessages() {
 
 		// Skip anything that isn't a binary message
 		if t != websocket.BinaryMessage || len(m) == 0 {
+			debug("Display ignoring non-binary message")
 			continue
 		}
 
 		_, err = d.display.Write(m)
+		debug("Display writing %d bytes", len(m))
 		if err != nil {
 			d.Abort()
 			return
