@@ -37,8 +37,9 @@ func (b *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
 
 	cmd.Dir = folder.Path()
 	cmd.Stdin = bytes.NewBuffer(data)
-	cmd.Stdout = b.context.LogDrain()
-	cmd.Stderr = b.context.LogDrain()
+	log := b.context.LogDrain()
+	cmd.Stdout = log
+	cmd.Stderr = log
 	cmd.Env = formatEnv(map[string]string{
 		"TASK_ID": b.context.TaskID,
 		"RUN_ID":  fmt.Sprintf("%d", b.context.RunID),
