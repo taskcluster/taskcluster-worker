@@ -258,7 +258,7 @@ func validateMAC(mac string) error {
 // SetDefaults will validate limitations and set defaults from options
 func (m *Machine) SetDefaults(options MachineOptions) error {
 	// Set defaults
-	if m.Memory != 0 {
+	if m.Memory == 0 {
 		m.Memory = options.MaxMemory
 	}
 
