@@ -86,13 +86,15 @@ func (s *sessionManager) NewShell(command []string, tty bool) (engines.Shell, er
 	// Create new shell
 	shell, err := s.meta.ExecShell(command, tty)
 	if err != nil {
-		// Track the shell while running
-		s.shells = append(s.shells, shell)
-		// Wait for shell to finish and remove it
-		go s.waitForShell(shell)
+		return nil, err
 	}
 
-	return shell, err
+	// Track the shell while running
+	s.shells = append(s.shells, shell)
+	// Wait for shell to finish and remove it
+	go s.waitForShell(shell)
+
+	return shell, nil
 }
 
 func (s *sessionManager) waitForShell(shell engines.Shell) {
