@@ -248,7 +248,7 @@ func (p *taskPlugin) setupShell() error {
 		Name:     p.opts.ArtifactPrefix + "shell.html",
 		Mimetype: "text/html",
 		URL:      p.parent.config.ShellToolURL + "?" + query.Encode(),
-		Expires:  p.context.Deadline,
+		Expires:  p.context.TaskInfo.Deadline,
 	}, p.context)
 }
 
@@ -282,7 +282,7 @@ func (p *taskPlugin) setupDisplay() error {
 		Name:     p.opts.ArtifactPrefix + "display.html",
 		Mimetype: "text/html",
 		URL:      p.parent.config.DisplayToolURL + "?" + query.Encode(),
-		Expires:  p.context.Deadline,
+		Expires:  p.context.TaskInfo.Deadline,
 	}, p.context)
 }
 
@@ -305,7 +305,7 @@ func (p *taskPlugin) createSocketsFile() error {
 	return runtime.UploadS3Artifact(runtime.S3Artifact{
 		Name:     p.opts.ArtifactPrefix + "sockets.json",
 		Mimetype: "application/json",
-		Expires:  p.context.Deadline,
+		Expires:  p.context.TaskInfo.Deadline,
 		Stream:   ioext.NopCloser(bytes.NewReader(data)),
 	}, p.context)
 }
