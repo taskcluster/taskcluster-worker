@@ -2,6 +2,6 @@
 // and a JSON schema, such that the worker executes declarative tasks.
 package scriptengine
 
-import "github.com/taskcluster/taskcluster-worker/runtime"
+import "github.com/taskcluster/taskcluster-worker/runtime/util"
 
-var debug = runtime.Debug("scriptengine")
+var debug = util.Debug("scriptengine")

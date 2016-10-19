@@ -6,6 +6,6 @@
 // It is also the services that the guest uses to report logs and final result.
 package metaservice
 
-import "github.com/taskcluster/taskcluster-worker/runtime"
+import "github.com/taskcluster/taskcluster-worker/runtime/util"
 
-var debug = runtime.Debug("metaservice")
+var debug = util.Debug("metaservice")

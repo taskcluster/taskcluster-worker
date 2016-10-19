@@ -8,10 +8,10 @@ package mocknet
 import (
 	"sync"
 
-	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
-var debug = runtime.Debug("mocknet")
+var debug = util.Debug("mocknet")
 
 // mNetworks guards access to networks, which is global list of mock networks.
 var (
