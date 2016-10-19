@@ -3,7 +3,6 @@
 package livelog
 
 import (
-	"bufio"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -14,6 +13,7 @@ import (
 	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
 type pluginProvider struct {
@@ -62,31 +62,18 @@ func (tp *taskPlugin) Prepare(context *runtime.TaskContext) error {
 		if err != nil {
 			w.WriteHeader(500)
 			w.Write([]byte("Error opening up live log"))
+			return
 		}
-
 		defer logReader.Close()
 
-		flusher := w.(http.Flusher)
-		reader := bufio.NewReader(logReader)
-
-		defer flusher.Flush()
-		now := time.Now()
-		for {
-			line, isPrefix, err := reader.ReadLine()
-			if err != nil {
-				return
-			}
-			w.Write(line)
-			if !isPrefix {
-				w.Write([]byte("\r\n"))
-			}
-
-			// if it has elapsed at least 500 milliseconds, flush it
-			if time.Since(now) >= 500*time.Millisecond {
-				flusher.Flush()
-				now = time.Now()
-			}
+		// Get an HTTP flusher if supported in the current context, or wrap in
+		// a NopFlusher, if flushing isn't available.
+		wf, ok := w.(ioext.WriteFlusher)
+		if !ok {
+			wf = ioext.NopFlusher(w)
 		}
+
+		ioext.CopyAndFlush(wf, logReader, 100*time.Millisecond)
 	}))
 
 	err := runtime.CreateRedirectArtifact(runtime.RedirectArtifact{
