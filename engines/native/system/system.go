@@ -1,31 +1,16 @@
 package system
 
-// System defines methods provided by a system implementation.
-// This allows for easy mocking of the system, which is useful in tests.
-type System interface {
-	CreateUser(homeFolder string, groups []Group) (User, error)
-	NewProcess(options ProcessOptions) Process
-	CreateGroup() (Group, error)
-	FindGroup(name string) (Group, error)
-	Link(target, source string) error
-	Unlink(target string) error
-}
+import "io"
 
-// default system type, platform specific methods are implemented in platform
-// specific files.
-type system struct{}
-
-// Default system implementation
-var Default System = system{}
-
-// CreateUser will create a new user that can only write to the given
-// homeDirectory.
-func CreateUser(homeDirectory string) (User, error) {
-	return Default.CreateUser(homeDirectory)
-}
-
-// NewProcess creates a new process with given arguments, environment variables,
-// and current working folder, running as given user.
-func NewProcess(options ProcessOptions) Process {
-	return Default.NewProcess(options)
+// ProcessOptions are the arguments given for StartProcess.
+// This structure is platform independent.
+type ProcessOptions struct {
+	Arguments     []string          // Command and arguments, default to shell
+	Environment   map[string]string // Environment variables
+	WorkingFolder string            // Working directory, if not HOME
+	Owner         *User             // User to run process as, nil to use current
+	Stdin         io.ReadCloser     // Stream with stdin, or nil if nothing
+	Stdout        io.WriteCloser    // Stream for stdout
+	Stderr        io.WriteCloser    // Stream for stderr, or nil if using stdout
+	TTY           bool              // Start as TTY, if supported, ignores stderr
 }
