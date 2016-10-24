@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"regexp"
 	rt "runtime"
@@ -39,6 +40,10 @@ type Options struct {
 type Case struct {
 	// A payload that will be passed to the sandbox and plugin
 	Payload string
+	// Set of environment variables to give the SandboxBuilder
+	Env map[string]string
+	// Mapping from hostname to handlers for proxies to attach to SandboxBuilder
+	Proxies map[string]http.Handler
 	// The plugin under test. This should be the name that is registered
 	Plugin string
 	// JSON configuration for the plugin
@@ -142,6 +147,16 @@ func (c Case) Test() {
 
 	err = tp.Prepare(context)
 	nilOrPanic(err, "taskPlugin.Prepare failed")
+
+	// Set environment variables and proxies
+	for key, val := range c.Env {
+		nilOrPanic(err, sandboxBuilder.SetEnvironmentVariable(key, val),
+			"Error setting env var: %s = %s", key, val)
+	}
+	for hostname, handler := range c.Proxies {
+		nilOrPanic(err, sandboxBuilder.AttachProxy(hostname, handler),
+			"Error attaching proxy for hostname: %s", hostname)
+	}
 
 	c.maybeRun(c.BeforeBuildSandbox, options)
 	err = tp.BuildSandbox(sandboxBuilder)

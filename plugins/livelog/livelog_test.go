@@ -1,65 +1,83 @@
 package livelog
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
-	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/taskcluster/slugid-go/slugid"
-	"github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-worker/plugins/plugintest"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 )
 
-type liveLogTest struct {
-	plugintest.Case
-	Artifacts []string
-}
+func TestLiveLogStreaming(t *testing.T) {
+	taskID := slugid.V4()
 
-func (a liveLogTest) Test() {
-	taskID := slugid.Nice()
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "Hello, client.")
-	}))
-	defer ts.Close()
+	// Create a mock queue
+	q := &client.MockQueue{}
+	livelog := q.ExpectRedirectArtifact(taskID, 0, "public/logs/live.log")
+	backing := q.ExpectS3Artifact(taskID, 0, "public/logs/live_backing.log")
 
-	s3resp, _ := json.Marshal(queue.S3ArtifactResponse{
-		PutURL: ts.URL,
-	})
-	resp := queue.PostArtifactResponse(s3resp)
-	mockedQueue := &client.MockQueue{}
-	for _, path := range a.Artifacts {
-		mockedQueue.On(
-			"CreateArtifact",
-			taskID,
-			"0",
-			path,
-			client.AnyPostArtifactRequest,
-		).Return(&resp, nil)
-	}
+	// Setup test case
+	plugintest.Case{
+		// We use the ping-proxy payload here. This way the mock-engine won't
+		// finish until the proxy replies 200 OK. In the proxy handler we don't
+		// reply OK, until we've read 'Pinging' from the livelog. Hence, we ensure
+		// that we're able to read a partial livelog.
+		Payload: `{
+			"delay": 0,
+			"function": "ping-proxy",
+			"argument": "http://my-proxy/test"
+		}`,
+		Proxies: map[string]http.Handler{
+			"my-proxy": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Get the livelog url
+				u := <-livelog
+				assert.Contains(t, u, "http", "Expected a redirect URL")
 
-	a.Case.QueueMock = mockedQueue
-	a.Case.TaskID = taskID
-	a.Case.Test()
-	mockedQueue.AssertExpectations(a.Case.TestStruct)
-}
+				// Open request to livelog
+				req, err := http.NewRequest("GET", u, nil)
+				require.NoError(t, err)
+				res, err := http.DefaultClient.Do(req)
+				require.NoError(t, err)
+				defer res.Body.Close()
 
-func TestLiveLogging(t *testing.T) {
-	liveLogTest{
-		Artifacts: []string{"public/logs/live.log", "public/logs/live_backing.log"},
-		Case: plugintest.Case{
-			Payload: `{
-				"delay": 0,
-				"function": "write-log",
-				"argument": "Hello world"
-			}`,
-			Plugin:        "livelog",
-			TestStruct:    t,
-			PluginSuccess: true,
-			EngineSuccess: true,
-			MatchLog:      "Hello world",
+				// Read 'Pinging' from livelog before continuing
+				data := []byte{}
+				for err == nil {
+					d := []byte{0}
+					var n int
+					n, err = res.Body.Read(d)
+					if n > 0 {
+						data = append(data, d[0])
+					}
+					if strings.Contains(string(data), "Pinging") {
+						break
+					}
+				}
+
+				// Reply so that we can continue
+				if strings.Contains(string(data), "Pinging") {
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte("[hello-world-yt5aqnur3]"))
+				} else {
+					w.WriteHeader(400)
+					w.Write([]byte("Expected to see 'Pinging'"))
+				}
+			}),
+		},
+		Plugin:        "livelog",
+		TestStruct:    t,
+		PluginSuccess: true,
+		EngineSuccess: true,
+		MatchLog:      "[hello-world-yt5aqnur3]",
+		TaskID:        taskID,
+		QueueMock:     q,
+		AfterFinished: func(plugintest.Options) {
+			assert.Contains(t, <-livelog, taskID, "Expected an artifact URL containing the taskId")
+			assert.Contains(t, string(<-backing), "[hello-world-yt5aqnur3]")
 		},
 	}.Test()
 }
