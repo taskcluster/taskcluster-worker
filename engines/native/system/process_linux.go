@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"os/user"
+	"sync"
 	"syscall"
 
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/pty"
@@ -16,11 +17,20 @@ import (
 
 const systemPKill = "/usr/bin/pkill"
 
+// test variables
+var testGroup = "root"
+var testCat = []string{"/bin/cat", "-"}
+var testTrue = []string{"/bin/true"}
+var testFalse = []string{"/bin/false"}
+var testPrintDir = []string{"/bin/pwd"}
+var testSleep = []string{"/bin/sleep", "5"}
+
 // Process is a representation of a system process.
 type Process struct {
 	cmd     *exec.Cmd
 	pty     *pty.PTY
 	resolve atomics.Once
+	sockets sync.WaitGroup
 	result  bool
 	stdin   io.ReadCloser
 	stdout  io.WriteCloser
@@ -29,6 +39,8 @@ type Process struct {
 
 func (p *Process) waitForResult() {
 	err := p.cmd.Wait()
+
+	p.sockets.Wait()
 
 	// Close all connected streams, ignore errors
 	if p.stdin != nil {
@@ -75,7 +87,7 @@ func (p *Process) SetSize(columns, rows uint16) {
 // if not successful.
 func StartProcess(options ProcessOptions) (*Process, error) {
 	// Default arguments to system shell
-	if len(options.Arguments) > 0 {
+	if len(options.Arguments) == 0 {
 		options.Arguments = []string{defaultShell}
 	}
 
@@ -94,7 +106,7 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 	}
 
 	// Default stdout to os.DevNul
-	if options.Stdout != nil {
+	if options.Stdout == nil {
 		options.Stdout = ioext.WriteNopCloser(ioutil.Discard)
 	}
 
@@ -132,9 +144,19 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 	} else {
 		p.pty, err = pty.Start(p.cmd)
 		if options.Stdin != nil {
-			go ioext.CopyAndClose(p.pty, options.Stdin)
+			p.sockets.Add(1)
+			go func() {
+				io.Copy(p.pty, options.Stdin)
+				p.sockets.Done()
+				// Kill process when stdin ends (if running as TTY)
+				p.Kill()
+			}()
 		}
-		go ioext.CopyAndClose(options.Stdout, p.pty)
+		p.sockets.Add(1)
+		go func() {
+			ioext.CopyAndClose(options.Stdout, p.pty)
+			p.sockets.Done()
+		}()
 	}
 
 	if err != nil {

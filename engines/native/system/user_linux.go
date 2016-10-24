@@ -10,7 +10,7 @@ import (
 	"github.com/taskcluster/slugid-go/slugid"
 )
 
-const defaultShell = "/usr/bash"
+const defaultShell = "/bin/bash"
 const systemUserAdd = "/usr/sbin/useradd"
 const systemUserDel = "/usr/sbin/userdel"
 
@@ -83,7 +83,7 @@ func (u *User) Remove() {
 	// Kill all process owned by this user, for good measure
 	_ = KillByOwner(u)
 
-	_, err := exec.Command(systemUserDel, "-r").Output()
+	_, err := exec.Command(systemUserDel, u.name).Output()
 	if err != nil {
 		if e, ok := err.(*exec.ExitError); ok {
 			panic(fmt.Sprintf(
