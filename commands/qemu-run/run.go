@@ -20,9 +20,10 @@ import (
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
-var debug = runtime.Debug("qemurun")
+var debug = util.Debug("qemurun")
 
 type cmd struct{}
 

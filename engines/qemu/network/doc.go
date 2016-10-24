@@ -12,6 +12,6 @@
 // another virtual machine.
 package network
 
-import "github.com/taskcluster/taskcluster-worker/runtime"
+import "github.com/taskcluster/taskcluster-worker/runtime/util"
 
-var debug = runtime.Debug("network")
+var debug = util.Debug("network")
