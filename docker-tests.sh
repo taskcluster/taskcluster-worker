@@ -6,6 +6,8 @@ ARGS="$ARGS -v `pwd`/.bash_history:/root/.bash_history";
 ARGS="$ARGS -v `pwd`:/go/src/github.com/taskcluster/taskcluster-worker/";
 ARGS="$ARGS taskcluster/tc-worker-env";
 
+TAGS='qemu network system';
+
 if [[ "$@" == go\ * ]]; then
   docker run $ARGS $@;
 elif [[ "$1" == -- ]]; then
@@ -14,10 +16,10 @@ elif [[ "$1" == -- ]]; then
 elif [[ "$@" == bash ]]; then
   docker run $ARGS bash --login;
 elif [[ "$@" == "" ]]; then
-  docker run $ARGS go test -race -tags 'qemu network' -p 1 -v \
+  docker run $ARGS go test -race -tags "$TAGS" -p 1 -v \
   `go list ./... | grep -v ^github.com/taskcluster/taskcluster-worker/vendor/`;
 else
-  docker run $ARGS go test -v -race -tags 'qemu network' -p 1 $@;
+  docker run $ARGS go test -v -race -tags "$TAGS" -p 1 $@;
 fi;
 
 if [[ "$?" != "0" ]]; then
