@@ -17,6 +17,10 @@ type sandboxBuilder struct {
 	env     map[string]string
 }
 
+func (b *sandboxBuilder) fetchContext() {
+	// TODO: Download, cache and extract b.payload.Context to home folder
+}
+
 var envVarPattern = regexp.MustCompile("^[a-zA-Z0-9_-]+$")
 
 func (b *sandboxBuilder) SetEnvironmentVariable(name string, value string) error {
