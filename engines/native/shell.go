@@ -110,7 +110,7 @@ func (s *shell) Abort() error {
 		s.resultErr = engines.ErrShellAborted
 	})
 	s.resolve.Wait()
-	return s.resultErr
+	return s.abortErr
 }
 
 func (s *shell) Wait() (bool, error) {

@@ -1,4 +1,4 @@
-// +build linux,system
+// +build linux,native
 
 package nativeengine
 

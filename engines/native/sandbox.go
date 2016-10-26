@@ -43,6 +43,7 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 	}
 
 	// Start process
+	debug("StartProcess: %v", b.payload.Command)
 	process, err := system.StartProcess(system.ProcessOptions{
 		Arguments:     b.payload.Command,
 		Environment:   b.env,
@@ -81,8 +82,10 @@ func (s *sandbox) NewShell(command []string, tty bool) (engines.Shell, error) {
 		return nil, engines.ErrSandboxTerminated
 	}
 
+	debug("NewShell with: %v", command)
 	shell, err := newShell(s, command, tty)
 	if err != nil {
+		debug("Failed to start shell, error: %s", err)
 		s.wg.Done()
 		return nil, engines.NewMalformedPayloadError(
 			"Unable to spawn command: ", command, " error: ", err,
@@ -91,7 +94,8 @@ func (s *sandbox) NewShell(command []string, tty bool) (engines.Shell, error) {
 
 	// Wait for the shell to be done and decrement WaitGroup
 	go func() {
-		shell.Wait()
+		result, _ := shell.Wait()
+		debug("Shell finished with: %v", result)
 		s.wg.Done()
 	}()
 
@@ -101,9 +105,11 @@ func (s *sandbox) NewShell(command []string, tty bool) (engines.Shell, error) {
 func (s *sandbox) waitForTermination() {
 	// Wait for process to terminate
 	success := s.process.Wait()
+	debug("Process finished with: %v", success)
 
 	// Wait for all shell to finish and prevent new shells from being created
 	s.wg.WaitAndDrain()
+	debug("All shells terminated")
 
 	s.resolve.Do(func() {
 		// Halt all other sub-processes
@@ -130,6 +136,8 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 
 func (s *sandbox) Abort() error {
 	s.resolve.Do(func() {
+		debug("Aborting sandbox")
+
 		// Kill sub-process
 		s.process.Kill()
 

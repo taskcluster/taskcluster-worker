@@ -39,6 +39,7 @@ type Process struct {
 
 func (p *Process) waitForResult() {
 	err := p.cmd.Wait()
+	debug("Process, cmd.Wait() return: %v", err)
 
 	p.sockets.Wait()
 
@@ -160,8 +161,10 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 	}
 
 	if err != nil {
+		debug("Failed to start process, error: %s", err)
 		return nil, fmt.Errorf("Unable to execute binary, error: %s", err)
 	}
+	debug("Started process with %v", options.Arguments)
 
 	// Go wait for result
 	go p.waitForResult()

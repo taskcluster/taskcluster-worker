@@ -104,12 +104,12 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 		}
 
 		// If we can't construct relative file path this internal error, we'll skip
-		relpath, err := filepath.Rel(r.homeFolder.Path(), abspath)
+		relpath, err := filepath.Rel(p, abspath)
 		if err != nil {
 			// TODO: Send error to sentry
 			r.log.Errorf(
 				"ExtractFolder from %s, filepath.Rel('%s', '%s') returns error: %s",
-				path, r.homeFolder.Path(), abspath, err,
+				path, p, abspath, err,
 			)
 			return nil
 		}
