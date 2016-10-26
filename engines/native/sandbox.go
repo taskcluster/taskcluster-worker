@@ -139,14 +139,14 @@ func (s *sandbox) Abort() error {
 			s.log.Error("Failed to kill all processes by owner, error: ", err)
 		}
 
+		// Remove temporary user (this will panic if unsuccessful)
+		s.user.Remove()
+
 		// Remove temporary home folder
 		err = s.homeFolder.Remove()
 		if err != nil {
 			s.log.Error("Failed to remove temporary home directory, error: ", err)
 		}
-
-		// Remove temporary user (this will panic if unsuccessful)
-		s.user.Remove()
 
 		// Set result
 		s.resultErr = engines.ErrSandboxAborted
