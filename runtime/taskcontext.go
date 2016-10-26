@@ -1,11 +1,13 @@
 package runtime
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"time"
 
 	"sync"
 
@@ -36,12 +38,12 @@ const (
 )
 
 // TaskStatus represents the current status of the task.
-type TaskStatus string
+type TaskStatus string // TODO: (jonasfj) TaskContext shouldn't track status
 
 // Enumerate task status to aid life-cycle decision making
 // Use strings for benefit of simple logging/reporting
 const (
-	Aborted   TaskStatus = "Aborted"
+	Aborted   TaskStatus = "Aborted" // TODO: (jonasfj) Don't distinguish between cancel/abort
 	Cancelled TaskStatus = "Cancelled"
 	Succeeded TaskStatus = "Succeeded"
 	Failed    TaskStatus = "Failed"
@@ -81,6 +83,7 @@ type TaskContext struct {
 	queue       client.Queue
 	status      TaskStatus
 	cancelled   bool
+	done        chan struct{}
 }
 
 // TaskContextController exposes logic for controlling the TaskContext.
@@ -104,6 +107,7 @@ func NewTaskContext(tempLogFile string,
 		logLocation: tempLogFile,
 		TaskInfo:    task,
 		webHookSet:  webhookserver.NewWebHookSet(server),
+		done:        make(chan struct{}),
 	}
 	return ctx, &TaskContextController{ctx}, nil
 }
@@ -145,11 +149,49 @@ func (c *TaskContext) Queue() client.Queue {
 	return c.queue
 }
 
+// Deadline returns empty time and false, this is implemented to satisfy
+// context.Context.
+func (c *TaskContext) Deadline() (deadline time.Time, ok bool) {
+	return time.Time{}, false
+}
+
+// Done returns a channel that is closed when to TaskContext is aborted or
+// canceled.
+//
+// Implemented in compliance with context.Context.
+func (c *TaskContext) Done() <-chan struct{} {
+	return c.done
+}
+
+// Err returns context.Canceled, if task as canceled or aborted.
+//
+// Implemented in compliance with context.Context.
+func (c *TaskContext) Err() error {
+	// NOTE: This method is implemented to support the context.Context interface
+	//       and may not return anything but context.Canceled or
+	//       context.DeadlineExceeded.
+	if c.status == Aborted || c.status == Cancelled {
+		return context.Canceled
+	}
+	return nil
+}
+
+// Value returns nil, this is implemented to satisfy context.Context
+func (c *TaskContext) Value(key interface{}) interface{} {
+	return nil
+}
+
 // Abort sets the status to aborted
 func (c *TaskContext) Abort() {
+	// TODO: (jonasfj): Remove this method TaskContext
 	// TODO (garndt): add abort/cancel channels for plugins to listen on
 	c.mu.Lock()
 	c.status = Aborted
+	select {
+	case <-c.done:
+	default:
+		close(c.done)
+	}
 	c.mu.Unlock()
 	return
 }
@@ -163,8 +205,14 @@ func (c *TaskContext) IsAborted() bool {
 
 // Cancel sets the status to cancelled
 func (c *TaskContext) Cancel() {
+	// TODO: (jonasfj): Remove this method TaskContext, add to TaskContextController
 	c.mu.Lock()
 	c.status = Cancelled
+	select {
+	case <-c.done:
+	default:
+		close(c.done)
+	}
 	c.mu.Unlock()
 	return
 }

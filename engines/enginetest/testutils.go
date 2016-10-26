@@ -13,9 +13,10 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
-var debug = runtime.Debug("enginetest")
+var debug = util.Debug("enginetest")
 
 func fmtPanic(a ...interface{}) {
 	panic(fmt.Sprintln(a...))

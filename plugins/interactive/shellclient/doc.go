@@ -3,6 +3,6 @@
 // stdin stream.
 package shellclient
 
-import "github.com/taskcluster/taskcluster-worker/runtime"
+import "github.com/taskcluster/taskcluster-worker/runtime/util"
 
-var debug = runtime.Debug("shellclient")
+var debug = util.Debug("shellclient")

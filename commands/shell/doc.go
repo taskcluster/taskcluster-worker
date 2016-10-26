@@ -3,6 +3,6 @@
 // in your terminal.
 package shell
 
-import "github.com/taskcluster/taskcluster-worker/runtime"
+import "github.com/taskcluster/taskcluster-worker/runtime/util"
 
-var debug = runtime.Debug("shell")
+var debug = util.Debug("shell")

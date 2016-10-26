@@ -36,7 +36,7 @@ func (a artifactTestCase) Test() {
 			taskID,
 			"0",
 			path,
-			client.AnyPostArtifactRequest,
+			client.PostS3ArtifactRequest,
 		).Return(&resp, nil)
 	}
 

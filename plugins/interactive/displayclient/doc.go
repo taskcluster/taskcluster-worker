@@ -5,6 +5,6 @@
 // a go application. Both for writing tests and command line utilities.
 package displayclient
 
-import "github.com/taskcluster/taskcluster-worker/runtime"
+import "github.com/taskcluster/taskcluster-worker/runtime/util"
 
-var debug = runtime.Debug("displayclient")
+var debug = util.Debug("displayclient")

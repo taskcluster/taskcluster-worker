@@ -8,10 +8,10 @@ package interactive
 
 import (
 	"github.com/taskcluster/taskcluster-worker/plugins"
-	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
-var debug = runtime.Debug("interactive")
+var debug = util.Debug("interactive")
 
 func init() {
 	plugins.Register("interactive", provider{})

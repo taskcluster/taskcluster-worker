@@ -8,6 +8,6 @@
 // other systems.
 package qemuengine
 
-import "github.com/taskcluster/taskcluster-worker/runtime"
+import "github.com/taskcluster/taskcluster-worker/runtime/util"
 
-var debug = runtime.Debug("qemu")
+var debug = util.Debug("qemu")
