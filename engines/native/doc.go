@@ -6,6 +6,6 @@
 // the system/ sub-package.
 package nativeengine
 
-import "github.com/taskcluster/taskcluster-worker/runtime"
+import "github.com/taskcluster/taskcluster-worker/runtime/util"
 
-var debug = runtime.Debug("native")
+var debug = util.Debug("native")

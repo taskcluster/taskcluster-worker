@@ -17,6 +17,8 @@
 //     	system.KillByOwner(user *User) error
 package system
 
+import "github.com/taskcluster/taskcluster-worker/runtime/util"
+
 // TODO: Implement the following methods to support cache folder.
 //      system.Group.Remove()
 //      system.CreateGroup() (*Group, error)
@@ -25,6 +27,4 @@ package system
 //      system.SetRecursiveReadWriteRecursive(folder string, group *Group) error
 //      system.SetRecursiveReadOnlyAccess(folder string, group *Group) error
 
-import "github.com/taskcluster/taskcluster-worker/runtime"
-
-var debug = runtime.Debug("system")
+var debug = util.Debug("system")
