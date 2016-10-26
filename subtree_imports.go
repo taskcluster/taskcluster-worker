@@ -3,6 +3,7 @@ package main
 
 import _ "github.com/taskcluster/taskcluster-worker/engines/enginetest"
 import _ "github.com/taskcluster/taskcluster-worker/engines/mock"
+import _ "github.com/taskcluster/taskcluster-worker/engines/native"
 import _ "github.com/taskcluster/taskcluster-worker/engines/osxnative"
 import _ "github.com/taskcluster/taskcluster-worker/engines/qemu"
 import _ "github.com/taskcluster/taskcluster-worker/engines/script"
