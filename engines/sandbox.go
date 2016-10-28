@@ -72,12 +72,15 @@ type Sandbox interface {
 	// ErrFeatureNotSupported. This should not interrupt/abort the execution of
 	// the task which should proceed as normal.
 	//
+	// If given command can't be started a MalformedPayloadError may be returned
+	// indicating why the specified command doesn't work.
+	//
 	// If the WaitForResult() method has returned and the sandbox isn't running
 	// anymore this method must return ErrSandboxTerminated, signaling that you
 	// can't interact with the sandbox anymore.
 	//
 	// Non-fatal errors: ErrFeatureNotSupported, ErrSandboxTerminated,
-	// ErrSandboxAborted.
+	// ErrSandboxAborted, MalformedPayloadError.
 	NewShell(command []string, tty bool) (Shell, error)
 
 	// ListDisplays returns a list of Display objects that describes displays
