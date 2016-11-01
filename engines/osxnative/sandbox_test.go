@@ -110,8 +110,9 @@ func TestInvalidCommand(t *testing.T) {
 	assert.NoError(t, err)
 
 	r, err := s.WaitForResult()
-	assert.Equal(t, err, engines.ErrNonFatalInternalError)
-	assert.Nil(t, r)
+	assert.NoError(t, err)
+	defer r.Dispose()
+	assert.False(t, r.Success())
 }
 
 func TestFailedCommand(t *testing.T) {
