@@ -14,9 +14,13 @@ GO_VERSION := $(shell go version 2>/dev/null | cut -f3 -d' ')
 GO_MAJ := $(shell echo "$(GO_VERSION)" | cut -f1 -d'.')
 GO_MIN := $(shell echo "$(GO_VERSION)" | cut -f2 -d'.')
 
-uname := $(shell uname)
-is_darwin := $(filter Darwin,$(uname))
-CGO_ENABLE := $(if $(is_darwin),1,0)
+ifeq ($(GOOS),darwin)
+	CGO_ENABLE = 1
+else
+	uname := $(shell uname)
+	is_darwin := $(filter Darwin,$(uname))
+	CGO_ENABLE = $(if $(is_darwin),1,0)
+endif
 
 all: rebuild
 
