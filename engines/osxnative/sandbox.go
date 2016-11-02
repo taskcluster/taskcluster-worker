@@ -202,16 +202,11 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 
 	if err = cmd.Run(); err != nil {
 		s.context.LogError("Command \"", s.taskPayload.Command, "\" failed to run: ", err)
-		switch err.(type) {
-		case *exec.ExitError:
-			err = nil // do not delete the user by the end of the function
-			return r, nil
-		default:
-			return nil, engines.ErrNonFatalInternalError
-		}
+		err = nil // do not delete the user by the end of the function
+	} else {
+		r.success = true
 	}
 
-	r.success = true
 	return r, nil
 }
 
