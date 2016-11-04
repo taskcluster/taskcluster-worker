@@ -1,9 +1,7 @@
 language: go
 
 go:
-  # this is a lie - we will use 1.7 which isn't supported yet
-  # by downloading it later in "before_install" section
-  - 1.6
+  - 1.7
 
 env:
   - "MY_GOOS=linux MY_GOARCH=amd64"
@@ -12,11 +10,6 @@ env:
   - "MY_GOOS=windows MY_GOARCH=386"
 
 before_install:
-  - curl -o go.tar.gz -sL https://storage.googleapis.com/golang/go1.7.linux-amd64.tar.gz
-  - tar -C $HOME -xf go.tar.gz
-  - rm go.tar.gz
-  - export GOROOT="${HOME}/go"
-  - export PATH="${GOROOT}/bin:${PATH}"
   - export GOOS="${MY_GOOS}"
   - export GOARCH="${MY_GOARCH}"
   - go version
