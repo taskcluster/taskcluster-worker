@@ -4,10 +4,10 @@ go:
   - 1.7
 
 env:
-  - "MY_GOOS=linux MY_GOARCH=amd64"
-  - "MY_GOOS=darwin MY_GOARCH=amd64"
-  - "MY_GOOS=windows MY_GOARCH=amd64"
-  - "MY_GOOS=windows MY_GOARCH=386"
+  - "GOOS=linux GOARCH=amd64"
+  - "GOOS=darwin GOARCH=amd64"
+  - "GOOS=windows GOARCH=amd64"
+  - "GOOS=windows GOARCH=386"
 
 os:
   - linux
@@ -15,18 +15,16 @@ os:
 
 matrix:
   exclude:
-    - env: "MY_GOOS=linux MY_GOARCH=amd64"
+    - env: "GOOS=linux GOARCH=amd64"
       os: osx
-    - env: "MY_GOOS=windows MY_GOARCH=amd64"
+    - env: "GOOS=windows GOARCH=amd64"
       os: osx
-    - env: "MY_GOOS=windows MY_GOARCH=386"
+    - env: "GOOS=windows GOARCH=386"
       os: osx
-    - env: "MY_GOOS=darwin MY_GOARCH=amd64"
+    - env: "GOOS=darwin GOARCH=amd64"
       os: linux
 
 before_install:
-  - export GOOS="${MY_GOOS}"
-  - export GOARCH="${MY_GOARCH}"
   - go version
   - go env
 
@@ -39,7 +37,7 @@ script:
   - "test $GOOS == windows || (go get github.com/axw/gocov/gocov github.com/mattn/goveralls golang.org/x/tools/cmd/cover github.com/pierrre/gotestcover && make rebuild check && ${GOPATH}/bin/gotestcover -v -coverprofile=coverage.report $(go list ./... | grep -v /vendor/) && go tool cover -func=coverage.report)"
 
 after_script:
-  - "if test $GOOS != linux; then $HOME/gopath/bin/goveralls -coverprofile=coverage.report -service=travis-ci; fi"
+  - "if test $GOOS != windows; then $HOME/gopath/bin/goveralls -coverprofile=coverage.report -service=travis-ci; fi"
 
 before_deploy:
   - "source .travis_rename_releases.sh"
