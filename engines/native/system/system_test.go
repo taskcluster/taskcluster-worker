@@ -1,4 +1,4 @@
-// +build linux,system
+// +build linux,system darwin,system
 
 package system
 
@@ -18,16 +18,16 @@ import (
 )
 
 // Note: Constants testGroup, testCat, testTrue, testFalse, testPrintDir, and
-//       testSleep should be defined per platform
+//       testSleep, testGroups should be defined per platform
 
 func TestSystem(t *testing.T) {
+	var err error
+	var u *User
+
 	// Setup temporary home directory
 	homeDir := filepath.Join(os.TempDir(), slugid.Nice())
 	require.NoError(t, os.MkdirAll(homeDir, 0777))
 	defer os.RemoveAll(homeDir)
-
-	var u *User
-	var err error
 
 	t.Run("CreateUser", func(t *testing.T) {
 		u, err = CreateUser(homeDir, nil)
@@ -83,7 +83,7 @@ func TestSystem(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.True(t, p.Wait())
-		require.Equal(t, "hello-world", out.String())
+		require.EqualValues(t, "hello-world", out.String())
 	})
 
 	t.Run("StartProcess Cat with TTY", func(t *testing.T) {

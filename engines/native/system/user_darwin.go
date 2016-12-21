@@ -2,17 +2,16 @@ package system
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"os/user"
+	"path"
 	"strconv"
-	"strings"
 
 	"github.com/taskcluster/slugid-go/slugid"
 )
 
 const defaultShell = "/bin/bash"
-const systemUserAdd = "/usr/sbin/useradd"
-const systemUserDel = "/usr/sbin/userdel"
 
 // User is a representation of a system user account.
 type User struct {
@@ -20,33 +19,21 @@ type User struct {
 	gid        uint32 // primary group id
 	name       string
 	homeFolder string
+	groups     []string // additional user groups
 }
 
 // CreateUser will create a new user, with the given homeFolder, set the user
 // owner of the homeFolder, and assign the user membership of given groups.
 func CreateUser(homeFolder string, groups []*Group) (*User, error) {
-	// Prepare arguments
-	args := formatArgs(map[string]string{
-		"-d": homeFolder,   // Set home folder
-		"-c": "task user",  // Comment
-		"-s": defaultShell, // Set default shell
-	})
-	args = append(args, "-M") // Don't create home, ignoring any global settings
-	args = append(args, "-U") // Create primary user-group with same name
-	if len(groups) > 0 {
-		gids := []string{}
-		for _, g := range groups {
-			gids = append(gids, strconv.Itoa(g.gid))
-		}
-		args = append(args, "-G", strings.Join(gids, ","))
+	d := dscl{
+		sudo: false,
 	}
 
 	// Generate a random username
-	name := slugid.Nice()
-	args = append(args, name)
+	name := "worker-" + slugid.Nice()
+	userPath := path.Join("/Users", name)
 
-	// Run useradd command
-	_, err := exec.Command(systemUserAdd, args...).Output()
+	err := d.create(userPath)
 	if err != nil {
 		if e, ok := err.(*exec.ExitError); ok {
 			return nil, fmt.Errorf(
@@ -56,43 +43,152 @@ func CreateUser(homeFolder string, groups []*Group) (*User, error) {
 		return nil, fmt.Errorf("Failed to run useradd, error: %s", err)
 	}
 
-	// Lookup user to get the uid
-	u, err := user.Lookup(name)
+	newUID, err := getMaxUID(d)
 	if err != nil {
-		panic(fmt.Sprintf(
-			"Failed to lookup newly created user: '%s', error: %s",
-			name, err,
-		))
+		panic(fmt.Errorf("Error trying to figure out the max UID: %v", err))
 	}
 
-	// Parse uid/gid
-	uid, err := strconv.ParseUint(u.Uid, 10, 32)
-	if err != nil {
-		panic(fmt.Sprintf("user.Uid should be an integer on POSIX systems"))
-	}
-	gid, err := strconv.ParseUint(u.Gid, 10, 32)
-	if err != nil {
-		panic(fmt.Sprintf("user.Gid should be an integer on POSIX systems"))
+	// We set the uid, then check if it is unique, if
+	// not, increment and try again
+	duplicated := true
+	for duplicated {
+		newUID++
+		strUID := strconv.Itoa(newUID)
+
+		// set user uid
+		err = d.create(userPath, "uid", strUID)
+		if err != nil {
+			panic(fmt.Errorf("Could not create user '%s': %v", userPath, err))
+		}
+
+		// check if uid has been used for another user
+		duplicated, err = isDuplicateID(d, "uid", newUID)
+		if err != nil {
+			panic(fmt.Errorf("Error checking if new uid %d already exists: %v", newUID, err))
+		}
 	}
 
-	return &User{uint32(uid), uint32(gid), name, homeFolder}, nil
+	groupName := path.Join("/Groups", name)
+	err = d.create(groupName)
+	if err != nil {
+		panic(fmt.Errorf("Could not create group '%s': %v", groupName, err))
+	}
+
+	err = d.create(groupName, "gid", strconv.Itoa(newUID))
+	if err != nil {
+		panic(fmt.Errorf("Error set gid for the group '%s': %v", groupName, err))
+	}
+
+	g, err := user.LookupGroup(name)
+	if err != nil {
+		panic(fmt.Errorf("Error looking for group '%s': %v", name, err))
+	}
+
+	gid, err := strconv.ParseUint(g.Gid, 10, 32)
+	if err != nil {
+		panic(err)
+	}
+	if err = d.create(userPath, "PrimaryGroupID", g.Gid); err != nil {
+		panic(fmt.Errorf("Error setting primary group id: %v", err))
+	}
+
+	supplementaryGroups := []string{}
+	for _, group := range groups {
+		g, err = user.LookupGroupId(strconv.Itoa(group.gid))
+		if err != nil {
+			panic(err)
+		}
+		supplementaryGroups = append(supplementaryGroups, g.Name)
+		if err = d.append("/Groups/"+g.Name, "GroupMembership", name); err != nil {
+			panic(err)
+		}
+	}
+
+	err = d.create(userPath, "NFSHomeDirectory", userPath)
+	if err != nil {
+		panic(fmt.Errorf("Error setting home directory: %v", err))
+	}
+
+	if err = os.Chown(homeFolder, newUID, int(gid)); err != nil {
+		panic(fmt.Errorf("Could not change owner of '%s' to user %v: %v", homeFolder, newUID, err))
+	}
+
+	return &User{
+		uid:        uint32(newUID),
+		gid:        uint32(gid),
+		name:       name,
+		homeFolder: homeFolder,
+		groups:     supplementaryGroups,
+	}, nil
 }
 
 // Remove will remove a user and all associated resources.
 func (u *User) Remove() {
+	d := dscl{
+		sudo: false,
+	}
 	// Kill all process owned by this user, for good measure
 	_ = KillByOwner(u)
 
-	_, err := exec.Command(systemUserDel, u.name).Output()
-	if err != nil {
-		if e, ok := err.(*exec.ExitError); ok {
-			panic(fmt.Sprintf(
-				"Failure removing user: %s (uid: %d), stderr: '%s'",
-				u.name, u.uid, e.Stderr,
-			))
+	for _, group := range u.groups {
+		err := d.delete("/Groups/"+group, "GroupMembership", u.name)
+		if err != nil {
+			panic(err)
 		}
-		panic(fmt.Sprintf(
-			"Unable to remove user: %s (uid: %d), error: %s", u.name, u.uid, err,
-		))
 	}
+
+	// delete primary group
+	if err := d.delete(path.Join("/Groups", u.name)); err != nil {
+		panic(err)
+	}
+
+	if err := d.delete(path.Join("/Users", u.name)); err != nil {
+		panic(err)
+	}
+}
+
+// return the next uid available
+func getMaxUID(d dscl) (int, error) {
+	uids, err := d.list("/Users", "uid")
+
+	if err != nil {
+		return -1, err
+	}
+
+	maxUID := 0
+	for _, entry := range uids {
+		uid, err := strconv.Atoi(entry[1])
+
+		if err != nil {
+			return -1, err
+		}
+
+		if uid > maxUID {
+			maxUID = uid
+		}
+	}
+
+	return maxUID, nil
+}
+
+func isDuplicateID(d dscl, name string, id int) (bool, error) {
+	entries, err := d.list("/Users", name)
+
+	if err != nil {
+		return true, err
+	}
+
+	n := 0
+	for _, entry := range entries {
+		entryID, err := strconv.Atoi(entry[1])
+		if err != nil {
+			return true, err
+		}
+
+		if id == entryID {
+			n++
+		}
+	}
+
+	return n > 1, nil
 }
