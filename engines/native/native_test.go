@@ -1,4 +1,4 @@
-// +build linux,native
+// +build linux,native darwin,native
 
 package nativeengine
 
