@@ -84,11 +84,7 @@ func CreateErrorArtifact(artifact ErrorArtifact, context *TaskContext) error {
 	}
 
 	var resp queue.ErrorArtifactResponse
-	err = json.Unmarshal(parsed, &resp)
-	if err != nil {
-		return err
-	}
-	return nil
+	return json.Unmarshal(parsed, &resp)
 }
 
 // CreateRedirectArtifact is responsible for inserting redirect
@@ -110,12 +106,7 @@ func CreateRedirectArtifact(artifact RedirectArtifact, context *TaskContext) err
 	}
 
 	var resp queue.RedirectArtifactResponse
-	err = json.Unmarshal(parsed, &resp)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return json.Unmarshal(parsed, &resp)
 }
 
 func createArtifact(context *TaskContext, name string, req []byte) ([]byte, error) {
