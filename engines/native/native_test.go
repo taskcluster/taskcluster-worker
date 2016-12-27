@@ -3,8 +3,10 @@
 package nativeengine
 
 import (
+	"net/http"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/taskcluster/taskcluster-worker/engines/enginetest"
 )
 
@@ -114,4 +116,46 @@ func TestShell(t *testing.T) {
 	c.TestBadCommand()
 	c.TestAbortSleepCommand()
 	c.Test()
+}
+
+func TestContext(t *testing.T) {
+	go func() {
+		require.NoError(t, http.ListenAndServe(":6000", http.FileServer(http.Dir("testdata/"))))
+	}()
+
+	t.Run("Context", func(t *testing.T) {
+		c := enginetest.ShellTestCase{
+			EngineProvider: provider,
+			Command:        "./test.sh",
+			Stdout:         "Test\n",
+			Stderr:         "",
+			BadCommand:     "exit 1;\n",
+			SleepCommand:   "sleep 30;\n",
+			Payload: `{
+				"command": ["sh", "-c", "true"],
+				"context": "http://localhost:6000/folder/test.sh"
+			}`,
+		}
+
+		c.TestCommand()
+		c.Test()
+	})
+
+	t.Run("CompressedContext", func(t *testing.T) {
+		c := enginetest.ShellTestCase{
+			EngineProvider: provider,
+			Command:        "folder/test.sh",
+			Stdout:         "Test\n",
+			Stderr:         "",
+			BadCommand:     "exit 1;\n",
+			SleepCommand:   "sleep 30;\n",
+			Payload: `{
+				"command": ["sh", "-c", "true"],
+				"context": "http://localhost:6000/folder.tar.gz"
+			}`,
+		}
+
+		c.TestCommand()
+		c.Test()
+	})
 }

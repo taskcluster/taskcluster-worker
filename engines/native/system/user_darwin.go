@@ -2,7 +2,6 @@ package system
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"os/user"
 	"path"
@@ -109,7 +108,7 @@ func CreateUser(homeFolder string, groups []*Group) (*User, error) {
 		panic(fmt.Errorf("Error setting home directory: %v", err))
 	}
 
-	if err = os.Chown(homeFolder, newUID, int(gid)); err != nil {
+	if err = chownR(homeFolder, newUID, int(gid)); err != nil {
 		panic(fmt.Errorf("Could not change owner of '%s' to user %v: %v", homeFolder, newUID, err))
 	}
 
