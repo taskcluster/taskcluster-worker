@@ -64,6 +64,8 @@ type Case struct {
 	RunID int
 	// A testing struct can be useful inside for assertions
 	TestStruct *testing.T
+	// If true, the sandbox is expected to be aborted
+	SandboxAbort bool
 
 	// Each of these functions is called at the time specified in the name
 	BeforeBuildSandbox func(Options)
@@ -170,14 +172,19 @@ func (c Case) Test() {
 	nilOrPanic(err, "taskPlugin.Started failed")
 	c.maybeRun(c.AfterStarted, options)
 
+	success := false
 	c.maybeRun(c.BeforeStopped, options)
 	resultSet, err := sandbox.WaitForResult()
-	nilOrPanic(err, "sandbox.WaitForResult failed")
-	assert(resultSet.Success() == c.EngineSuccess)
-	success, err := tp.Stopped(resultSet)
-	nilOrPanic(err, "taskPlugin.Stopped failed")
-	assert(success == c.PluginSuccess)
-	c.maybeRun(c.AfterStopped, options)
+	if c.SandboxAbort {
+		assert(err != nil)
+	} else {
+		nilOrPanic(err, "sandbox.WaitForResult failed")
+		assert(resultSet.Success() == c.EngineSuccess)
+		success, err = tp.Stopped(resultSet)
+		nilOrPanic(err, "taskPlugin.Stopped failed")
+		assert(success == c.PluginSuccess)
+		c.maybeRun(c.AfterStopped, options)
+	}
 
 	c.maybeRun(c.BeforeFinished, options)
 	controller.CloseLog()
@@ -201,8 +208,8 @@ func (c *Case) maybeRun(f func(Options), o Options) {
 
 func (c *Case) grepLog(context *runtime.TaskContext) {
 	reader, err := context.NewLogReader()
-	defer reader.Close()
 	nilOrPanic(err, "Failed to open log reader")
+	defer reader.Close()
 	data, err := ioutil.ReadAll(reader)
 	nilOrPanic(err, "Failed to read log")
 	if c.MatchLog != "" {
