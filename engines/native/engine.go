@@ -75,6 +75,5 @@ func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sand
 			WithField("taskId", options.TaskContext.TaskID).
 			WithField("runId", options.TaskContext.RunID),
 	}
-	go b.fetchContext()
 	return b, nil
 }

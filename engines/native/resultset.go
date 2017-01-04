@@ -41,8 +41,13 @@ func (r *resultSet) ExtractFile(path string) (ioext.ReadSeekCloser, error) {
 	// Cleanup the path
 	p = filepath.Clean(p)
 
+	prefix, err := filepath.EvalSymlinks(r.homeFolder.Path() + string(filepath.Separator))
+	if err != nil {
+		panic(err)
+	}
+
 	// Check that p is inside homeFolder
-	if !strings.HasPrefix(p, r.homeFolder.Path()+string(filepath.Separator)) {
+	if !strings.HasPrefix(p, prefix) {
 		return nil, engines.ErrResourceNotFound
 	}
 
@@ -80,8 +85,13 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 	// Cleanup the path
 	p = filepath.Clean(p)
 
+	prefix, err := filepath.EvalSymlinks(r.homeFolder.Path() + string(filepath.Separator))
+	if err != nil {
+		panic(err)
+	}
+
 	// Check that p is inside homeFolder
-	if !strings.HasPrefix(p, r.homeFolder.Path()+string(filepath.Separator)) {
+	if !strings.HasPrefix(p, prefix) {
 		return engines.ErrResourceNotFound
 	}
 

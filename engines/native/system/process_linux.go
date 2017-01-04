@@ -17,14 +17,6 @@ import (
 
 const systemPKill = "/usr/bin/pkill"
 
-// test variables
-var testGroup = "root"
-var testCat = []string{"/bin/cat", "-"}
-var testTrue = []string{"/bin/true"}
-var testFalse = []string{"/bin/false"}
-var testPrintDir = []string{"/bin/pwd"}
-var testSleep = []string{"/bin/sleep", "5"}
-
 // Process is a representation of a system process.
 type Process struct {
 	cmd     *exec.Cmd

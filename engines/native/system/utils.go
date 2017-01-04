@@ -1,6 +1,10 @@
 package system
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+)
 
 // Utilies that are useful across platforms
 
@@ -18,4 +22,13 @@ func formatArgs(options map[string]string) []string {
 		args = append(args, option, arg)
 	}
 	return args
+}
+
+func chownR(path string, uid, gid int) error {
+	return filepath.Walk(path, func(name string, info os.FileInfo, err error) error {
+		if err == nil {
+			err = os.Chown(name, uid, gid)
+		}
+		return err
+	})
 }
