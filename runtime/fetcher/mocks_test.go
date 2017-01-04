@@ -21,7 +21,7 @@ func (c *mockContext) Queue() client.Queue {
 }
 
 func (c *mockContext) Progress(description string, percent float64) {
-	debug("Progress: %s - %d %", description, percent)
+	debug("Progress: %s - %d %%", description, percent)
 }
 
 type mockWriteSeekReseter struct {

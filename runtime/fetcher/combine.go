@@ -11,9 +11,9 @@ type fetcherSet struct {
 	fetchers []Fetcher
 }
 
-// Combine will a list of Fetchers into a single Fetcher implementation.
+// Combine a list of Fetchers into a single Fetcher implementation.
 //
-// For this to work well, the reference schemas should all be distrinct such
+// For this to work well, the reference schemas should all be distinct such
 // that no reference matches more than one fetcher. If there is ambiguity the
 // first Fetcher whose schema matches will be used.
 func Combine(fetchers ...Fetcher) Fetcher {
