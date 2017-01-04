@@ -1,24 +1,30 @@
 language: go
 
 go:
-  # this is a lie - we will use 1.7 which isn't supported yet
-  # by downloading it later in "before_install" section
-  - 1.6
+  - 1.7
 
 env:
-  - "MY_GOOS=linux MY_GOARCH=amd64"
-  - "MY_GOOS=darwin MY_GOARCH=amd64"
-  - "MY_GOOS=windows MY_GOARCH=amd64"
-  - "MY_GOOS=windows MY_GOARCH=386"
+  - "GOOS=linux GOARCH=amd64"
+  - "GOOS=darwin GOARCH=amd64"
+  - "GOOS=windows GOARCH=amd64"
+  - "GOOS=windows GOARCH=386"
+
+os:
+  - linux
+  - osx
+
+matrix:
+  exclude:
+    - env: "GOOS=linux GOARCH=amd64"
+      os: osx
+    - env: "GOOS=windows GOARCH=amd64"
+      os: osx
+    - env: "GOOS=windows GOARCH=386"
+      os: osx
+    - env: "GOOS=darwin GOARCH=amd64"
+      os: linux
 
 before_install:
-  - curl -o go.tar.gz -sL https://storage.googleapis.com/golang/go1.7.linux-amd64.tar.gz
-  - tar -C $HOME -xf go.tar.gz
-  - rm go.tar.gz
-  - export GOROOT="${HOME}/go"
-  - export PATH="${GOROOT}/bin:${PATH}"
-  - export GOOS="${MY_GOOS}"
-  - export GOARCH="${MY_GOARCH}"
   - go version
   - go env
 
@@ -27,11 +33,11 @@ install:
 
 script:
 # note - below, || is used rather than && to ensure we only get zero exit code if all is ok
-  - "test $GOOS.$GOARCH == linux.amd64 || make build"
-  - "test $GOOS.$GOARCH != linux.amd64 || (go get github.com/axw/gocov/gocov github.com/mattn/goveralls golang.org/x/tools/cmd/cover github.com/pierrre/gotestcover && make rebuild check && ${GOPATH}/bin/gotestcover -v -coverprofile=coverage.report $(go list ./... | grep -v /vendor/) && go tool cover -func=coverage.report)"
+  - "test $GOOS != windows || make build"
+  - "test $GOOS == windows || (go get github.com/axw/gocov/gocov github.com/mattn/goveralls golang.org/x/tools/cmd/cover github.com/pierrre/gotestcover && make rebuild check && ${GOPATH}/bin/gotestcover -v -coverprofile=coverage.report $(go list ./... | grep -v /vendor/) && go tool cover -func=coverage.report)"
 
 after_script:
-  - "if test $GOOS.$GOARCH = linux.amd64; then $HOME/gopath/bin/goveralls -coverprofile=coverage.report -service=travis-ci; fi"
+  - "if test $GOOS != windows; then $HOME/gopath/bin/goveralls -coverprofile=coverage.report -service=travis-ci; fi"
 
 before_deploy:
   - "source .travis_rename_releases.sh"
