@@ -2,7 +2,6 @@ package system
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"os/user"
 	"strconv"
@@ -78,7 +77,7 @@ func CreateUser(homeFolder string, groups []*Group) (*User, error) {
 	debug("Created user with uid: %d, gid: %d, name: %s", uid, gid, name)
 
 	// Set user as owner of home folder
-	err = os.Chown(homeFolder, int(uid), int(gid))
+	err = chownR(homeFolder, int(uid), int(gid))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to chown homeFolder, error: %s", err)
 	}

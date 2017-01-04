@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"os/user"
+	"strconv"
 	"sync"
 	"syscall"
 
@@ -16,14 +17,6 @@ import (
 )
 
 const systemPKill = "/usr/bin/pkill"
-
-// test variables
-var testGroup = "root"
-var testCat = []string{"/bin/cat", "-"}
-var testTrue = []string{"/bin/true"}
-var testFalse = []string{"/bin/false"}
-var testPrintDir = []string{"/bin/pwd"}
-var testSleep = []string{"/bin/sleep", "5"}
 
 // Process is a representation of a system process.
 type Process struct {
@@ -143,20 +136,22 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 		err = p.cmd.Start()
 	} else {
 		p.pty, err = pty.Start(p.cmd)
-		if options.Stdin != nil {
+		if err == nil {
+			if options.Stdin != nil {
+				p.sockets.Add(1)
+				go func() {
+					io.Copy(p.pty, options.Stdin)
+					p.sockets.Done()
+					// Kill process when stdin ends (if running as TTY)
+					p.Kill()
+				}()
+			}
 			p.sockets.Add(1)
 			go func() {
-				io.Copy(p.pty, options.Stdin)
+				ioext.CopyAndClose(options.Stdout, p.pty)
 				p.sockets.Done()
-				// Kill process when stdin ends (if running as TTY)
-				p.Kill()
 			}()
 		}
-		p.sockets.Add(1)
-		go func() {
-			ioext.CopyAndClose(options.Stdout, p.pty)
-			p.sockets.Done()
-		}()
 	}
 
 	if err != nil {
@@ -172,7 +167,8 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 // KillByOwner will kill all process with the given owner.
 func KillByOwner(user *User) error {
 	// Create pkill command
-	cmd := exec.Command(systemPKill, "-u", user.name)
+	uid := strconv.FormatUint(uint64(user.uid), 10)
+	cmd := exec.Command(systemPKill, "-u", uid)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out

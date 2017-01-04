@@ -2,6 +2,8 @@ package nativeengine
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-worker/engines"
@@ -9,6 +11,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
 type sandbox struct {
@@ -33,6 +36,15 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 	if err != nil {
 		b.log.Error("Failed to create temporary folder: ", err)
 		return nil, fmt.Errorf("Failed to temporary folder, error: %s", err)
+	}
+
+	if b.payload.Context != "" {
+		if err = fetchContext(b.payload.Context, homeFolder.Path()); err != nil {
+			b.context.LogError(err)
+			return nil, engines.NewMalformedPayloadError(
+				fmt.Sprintf("Error downloading %s: %v", b.payload.Context, err),
+			)
+		}
 	}
 
 	// Create temporary user account
@@ -74,6 +86,42 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 	go s.waitForTermination()
 
 	return s, nil
+}
+
+func fetchContext(context, destdir string) error {
+	// TODO: use future cache subsystem, when we have it
+	// TODO: use the soon to be merged fetcher subsystem
+	filename, err := util.Download(context, destdir)
+	if err != nil {
+		return fmt.Errorf("Error downloading '%s': %v", context, err)
+	}
+
+	// TODO: verify if this will harm Windows
+	// TODO: abstract this away in system package
+	if err = os.Chmod(filename, 0700); err != nil {
+		return fmt.Errorf("Error setting file '%s' permissions: %v", filename, err)
+	}
+
+	unpackedFile := ""
+	switch filepath.Ext(filename) {
+	case ".zip":
+		err = runtime.Unzip(filename)
+	case ".gz":
+		unpackedFile, err = runtime.Gunzip(filename)
+	}
+
+	if err != nil {
+		return fmt.Errorf("Error unpacking '%s': %v", context, err)
+	}
+
+	if filepath.Ext(unpackedFile) == ".tar" {
+		err = runtime.Untar(unpackedFile)
+		if err != nil {
+			return fmt.Errorf("Error unpacking '%s': %v", context, err)
+		}
+	}
+
+	return nil
 }
 
 func (s *sandbox) NewShell(command []string, tty bool) (engines.Shell, error) {
