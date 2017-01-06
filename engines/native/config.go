@@ -25,7 +25,7 @@ var configSchema = schematypes.Object{
 					Title:       "Group Name",
 					Description: "Name of a user-group that task-users should be assigned",
 				},
-				Pattern: "^[a-zA-Z0-9_-]+$",
+				Pattern: "^[a-zA-Z0-9_.-]+$",
 			},
 		},
 	},
