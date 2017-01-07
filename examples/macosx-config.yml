@@ -20,7 +20,16 @@ config:
       userGroups: ['staff']
   logLevel:         info
   plugins:
-    disabled:       ['success', 'interactive']
+    disabled:       ['interactive', 'maxruntime']
+    env:
+      extra:
+        PATH: {$env: PATH}
+        TMPDIR: {$env: TMPDIR}
+        LANG: {$env: LANG}
+        LC_ALL: {$env: LC_ALL}
+        TERM: {$env: TERM}
+        TERM_PROGRAM: {$env: TERM_PROGRAM}
+        SHELL: /bin/bash
   pollingInterval:  10
   queueBaseUrl:     https://queue.taskcluster.net/v1
   reclaimOffset:    120

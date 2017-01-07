@@ -103,7 +103,7 @@ func CreateUser(homeFolder string, groups []*Group) (*User, error) {
 		}
 	}
 
-	err = d.create(userPath, "NFSHomeDirectory", userPath)
+	err = d.create(userPath, "NFSHomeDirectory", homeFolder)
 	if err != nil {
 		panic(fmt.Errorf("Error setting home directory: %v", err))
 	}
@@ -144,6 +144,11 @@ func (u *User) Remove() {
 	if err := d.delete(path.Join("/Users", u.name)); err != nil {
 		panic(err)
 	}
+}
+
+// Name returns the user name
+func (u *User) Name() string {
+	return u.name
 }
 
 // return the next uid available

@@ -19,3 +19,8 @@ func (u *User) Remove() {
 
 	panic("Not implemented")
 }
+
+// Name returns the user name
+func (u *User) Name() string {
+	return u.name
+}

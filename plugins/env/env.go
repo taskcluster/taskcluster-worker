@@ -13,10 +13,27 @@ import (
 
 type plugin struct {
 	plugins.PluginBase
+	extraVars map[string]string
 }
 
 type payloadType struct {
 	Env map[string]string `json:"env"`
+}
+
+type config struct {
+	Extra map[string]string `json:"extra"`
+}
+
+var configSchema = schematypes.Object{
+	Properties: schematypes.Properties{
+		"extra": schematypes.Map{
+			MetaData: schematypes.MetaData{
+				Title:       "Extra environment variables",
+				Description: "This defines extra environment variables to add to the engine.",
+			},
+			Values: schematypes.String{},
+		},
+	},
 }
 
 var payloadSchema = schematypes.Object{
@@ -35,13 +52,17 @@ func (plugin) PayloadSchema() schematypes.Object {
 	return payloadSchema
 }
 
-func (plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
+func (pl plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
 	var p payloadType
 	err := payloadSchema.Map(options.Payload, &p)
 	if err == schematypes.ErrTypeMismatch {
 		panic("internal error -- type mismatch")
 	} else if err != nil {
 		return nil, engines.ErrContractViolation
+	}
+
+	for k, v := range pl.extraVars {
+		p.Env[k] = v
 	}
 
 	return taskPlugin{
@@ -82,8 +103,20 @@ type pluginProvider struct {
 	plugins.PluginProviderBase
 }
 
-func (pluginProvider) NewPlugin(plugins.PluginOptions) (plugins.Plugin, error) {
-	return plugin{}, nil
+func (pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
+	var c config
+	if err := schematypes.MustMap(configSchema, options.Config, &c); err != nil {
+		return nil, engines.ErrContractViolation
+	}
+
+	return plugin{
+		PluginBase: plugins.PluginBase{},
+		extraVars:  c.Extra,
+	}, nil
+}
+
+func (pluginProvider) ConfigSchema() schematypes.Schema {
+	return configSchema
 }
 
 func init() {
