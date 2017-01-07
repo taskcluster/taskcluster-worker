@@ -13,6 +13,7 @@ import (
 	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
@@ -33,6 +34,7 @@ type taskPlugin struct {
 	expiration  tcclient.Time
 	log         *logrus.Entry
 	environment *runtime.Environment
+	uploaded    atomics.Bool
 }
 
 func (pluginProvider) NewPlugin(opts plugins.PluginOptions) (plugins.Plugin, error) {
@@ -50,6 +52,7 @@ func (p plugin) NewTaskPlugin(opts plugins.TaskPluginOptions) (plugins.TaskPlugi
 			"runID":  opts.TaskInfo.RunID,
 		}),
 		environment: p.environment,
+		uploaded:    atomics.NewBool(false),
 	}, nil
 }
 
@@ -90,6 +93,18 @@ func (tp *taskPlugin) Prepare(context *runtime.TaskContext) error {
 }
 
 func (tp *taskPlugin) Finished(success bool) error {
+	return tp.uploadLog()
+}
+
+func (tp *taskPlugin) Exception(runtime.ExceptionReason) error {
+	return tp.uploadLog()
+}
+
+func (tp *taskPlugin) uploadLog() error {
+	if tp.uploaded.Get() {
+		return nil
+	}
+
 	file, err := tp.context.ExtractLog()
 	if err != nil {
 		return err
@@ -142,6 +157,8 @@ func (tp *taskPlugin) Finished(success bool) error {
 		tp.log.Error(err)
 		return err
 	}
+
+	tp.uploaded.Set(true)
 
 	return nil
 }
