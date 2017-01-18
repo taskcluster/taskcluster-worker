@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -139,6 +141,13 @@ func (w *Worker) Start() {
 	}()
 
 	go w.tm.Start()
+
+	sigTerm := make(chan os.Signal, 1)
+	signal.Notify(sigTerm, os.Interrupt, os.Kill, syscall.SIGTERM)
+	go func() {
+		<-sigTerm
+		w.Stop()
+	}()
 
 	select {
 	case <-w.sm.WaitForShutdown():
