@@ -37,6 +37,9 @@ func TestStart(t *testing.T) {
 		},
 		"plugins": map[string]interface{}{
 			"disabled": []string{},
+			"env": map[string]interface{}{
+				"extra": map[string]interface{}{},
+			},
 		},
 		"capacity": 1,
 		"credentials": map[string]interface{}{

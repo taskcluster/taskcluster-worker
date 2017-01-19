@@ -54,11 +54,20 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 		return nil, fmt.Errorf("Failed to create temporary system user, error: %s", err)
 	}
 
+	env := map[string]string{}
+	for k, v := range b.env {
+		env[k] = v
+	}
+
+	env["HOME"] = homeFolder.Path()
+	env["USER"] = user.Name()
+	env["LOGNAME"] = user.Name()
+
 	// Start process
 	debug("StartProcess: %v", b.payload.Command)
 	process, err := system.StartProcess(system.ProcessOptions{
 		Arguments:     b.payload.Command,
-		Environment:   b.env,
+		Environment:   env,
 		WorkingFolder: homeFolder.Path(),
 		Owner:         user,
 		Stdout:        ioext.WriteNopCloser(b.context.LogDrain()),

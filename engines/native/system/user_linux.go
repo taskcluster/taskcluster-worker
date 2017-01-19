@@ -103,3 +103,8 @@ func (u *User) Remove() {
 		))
 	}
 }
+
+// Name returns the user name
+func (u *User) Name() string {
+	return u.name
+}

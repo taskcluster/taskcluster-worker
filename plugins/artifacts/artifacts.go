@@ -92,7 +92,15 @@ func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
 	}
 
 	if len(nonFatalErrs) > 0 {
-		return false, engines.MergeMalformedPayload(nonFatalErrs...)
+		// Only report an exception if the command executed successfully.
+		// The logic behind this it is that no artifact upload failure is
+		// expected for a succeeded run, but failed tasks might be missing
+		// some artifacts.
+		if result.Success() {
+			return false, engines.MergeMalformedPayload(nonFatalErrs...)
+		}
+
+		return false, nil
 	}
 	return true, nil
 }
