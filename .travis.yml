@@ -1,28 +1,25 @@
 language: go
 
-go:
-  - 1.7
+go: 1.7
 
 env:
-  - "GOOS=linux GOARCH=amd64"
-  - "GOOS=darwin GOARCH=amd64"
-  - "GOOS=windows GOARCH=amd64"
-  - "GOOS=windows GOARCH=386"
-
-os:
-  - linux
-  - osx
+  - GOOS=linux
+    GOARCH=amd64
 
 matrix:
-  exclude:
-    - env: "GOOS=linux GOARCH=amd64"
-      os: osx
-    - env: "GOOS=windows GOARCH=amd64"
-      os: osx
-    - env: "GOOS=windows GOARCH=386"
-      os: osx
-    - env: "GOOS=darwin GOARCH=amd64"
-      os: linux
+  include:
+    - os: osx
+      env:
+        - GOOS=darwin
+        - GOARCH=amd64
+    - os: linux
+      env:
+        - GOOS=windows
+        - GOARCH=amd64
+    - os: linux
+      env:
+        - GOOS=windows
+        - GOARCH=386
 
 before_install:
   - go version
