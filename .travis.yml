@@ -3,25 +3,29 @@ language: go
 go: 1.7
 
 env:
-  - GOOS=linux
-    GOARCH=amd64
+  - MY_GOOS=linux
+    MY_GOARCH=amd64
 
 matrix:
   include:
     - os: osx
       env:
-        - GOOS=darwin
-        - GOARCH=amd64
+        - MY_GOOS=darwin
+        - MY_GOARCH=amd64
     - os: linux
       env:
-        - GOOS=windows
-        - GOARCH=amd64
+        - MY_GOOS=windows
+        - MY_GOARCH=amd64
     - os: linux
       env:
-        - GOOS=windows
-        - GOARCH=386
+        - MY_GOOS=windows
+        - MY_GOARCH=386
 
 before_install:
+  # exporting variables here is a hack to have them available in deploy section.
+  # it works, just don't ask me why. -- wcosta
+  - export GOOS=${MY_GOOS}
+  - export GOARCH=${MY_GOARCH}
   - go version
   - go env
 
