@@ -6,9 +6,6 @@
 # Ensure bash shell! Needed for checking go version...
 SHELL := /bin/bash
 
-# Ensure go-extpoints and go-import-subtree are available for go generate
-export PATH := $(GOPATH)/bin:$(PATH)
-
 # For checking go compiler has a suitable version number
 GO_VERSION := $(shell go version 2>/dev/null | cut -f3 -d' ')
 GO_MAJ := $(shell echo "$(GO_VERSION)" | cut -f1 -d'.')
@@ -29,19 +26,10 @@ build:
 	go fmt $$(go list ./... | grep -v /vendor/)
 	CGO_ENABLED=$(CGO_ENABLE) go build
 
-generate:
-	# tools needed for go generate steps later...
-	go get github.com/jonasfj/go-import-subtree
-	# now we have the code generation tools built, we can use them...
-	# note, we can't use go generate ./... as we'll pick up vendor packages and have problems, so
-	# we use an explicit list
-	go generate $$(go list ./... | grep -v /vendor/)
-	go fmt $$(go list ./... | grep -v /vendor/)
-
-rebuild: prechecks generate build test
+rebuild: prechecks build test
 
 check: test
-	# tests should fail if go generate or go fmt results in uncommitted code
+	# tests should fail if go fmt results in uncommitted code
 	git status --porcelain
 	/bin/bash -c 'test $$(git status --porcelain | wc -l) == 0'
 test:
