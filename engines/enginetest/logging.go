@@ -2,6 +2,7 @@ package enginetest
 
 import (
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 )
@@ -31,7 +32,7 @@ func (c *LoggingTestCase) grepLogFromPayload(payload string, needle string, succ
 	s := r.buildRunSandbox()
 	debug(" - Result: %v", s)
 	if s != success {
-		fmtPanic("Task with payload: ", payload, " had ResultSet.Success(): ", s)
+		log.Panic("Task with payload: ", payload, " had ResultSet.Success(): ", s)
 	}
 	log := r.ReadLog()
 	retval := strings.Contains(log, needle)
@@ -47,7 +48,7 @@ func (c *LoggingTestCase) grepLogFromPayload(payload string, needle string, succ
 func (c *LoggingTestCase) TestLogTarget() {
 	debug("## TestLogTarget")
 	if !c.grepLogFromPayload(c.TargetPayload, c.Target, true, true) {
-		fmtPanic("Couldn't find target: ", c.Target, " in logs from TargetPayload")
+		log.Panic("Couldn't find target: ", c.Target, " in logs from TargetPayload")
 	}
 }
 
@@ -55,7 +56,7 @@ func (c *LoggingTestCase) TestLogTarget() {
 func (c *LoggingTestCase) TestLogTargetWhenFailing() {
 	debug("## TestLogTargetWhenFailing")
 	if !c.grepLogFromPayload(c.FailingPayload, c.Target, false, true) {
-		fmtPanic("Couldn't find target: ", c.Target, " in logs from FailingPayload")
+		log.Panic("Couldn't find target: ", c.Target, " in logs from FailingPayload")
 	}
 }
 
@@ -63,7 +64,7 @@ func (c *LoggingTestCase) TestLogTargetWhenFailing() {
 func (c *LoggingTestCase) TestSilentTask() {
 	debug("## TestSilentTask")
 	if c.grepLogFromPayload(c.SilentPayload, c.Target, true, false) {
-		fmtPanic("Found target: ", c.Target, " in logs from SilentPayload")
+		log.Panic("Found target: ", c.Target, " in logs from SilentPayload")
 	}
 }
 

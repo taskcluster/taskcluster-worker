@@ -5,6 +5,7 @@ package qemuengine
 import (
 	"flag"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -24,12 +25,12 @@ func makeTestServer() *httptest.Server {
 		w.WriteHeader(http.StatusOK)
 		f, err := os.Open(testImageFile)
 		if err != nil {
-			fmtPanic("Unexpected error opening image file, err: ", err)
+			log.Panic("Unexpected error opening image file, err: ", err)
 		}
 		defer f.Close()
 		_, err = io.Copy(w, f)
 		if err != nil && err != io.EOF {
-			fmtPanic("Unexpected error copying image file, err: ", err)
+			log.Panic("Unexpected error copying image file, err: ", err)
 		}
 	})
 	return httptest.NewServer(handler)

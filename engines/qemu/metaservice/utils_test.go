@@ -1,19 +1,15 @@
 package metaservice
 
-import "fmt"
+import "testing"
 
-func fmtPanic(a ...interface{}) {
-	panic(fmt.Sprintln(a...))
-}
-
-func nilOrPanic(err error, a ...interface{}) {
+func nilOrFatal(t *testing.T, err error, a ...interface{}) {
 	if err != nil {
-		fmtPanic(append(a, err)...)
+		t.Fatal(append(a, err)...)
 	}
 }
 
-func assert(condition bool, a ...interface{}) {
+func assert(t *testing.T, condition bool, a ...interface{}) {
 	if !condition {
-		fmtPanic(a...)
+		t.Fatal(a...)
 	}
 }
