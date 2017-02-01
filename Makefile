@@ -32,6 +32,9 @@ check: test
 	# tests should fail if go fmt results in uncommitted code
 	git status --porcelain
 	/bin/bash -c 'test $$(git status --porcelain | wc -l) == 0'
+	go get github.com/gordonklaus/ineffassign
+	"${GOPATH}/bin/ineffassign" .
+
 test:
 	go get github.com/golang/lint/golint
 	go test -v -race $$(go list ./... | grep -v /vendor/)
