@@ -130,12 +130,12 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 	assert(t, err == nil, "Didn't expect any error")
 
 	////////////////////
-	testShellHello(meta)
-	testShellCat(meta)
-	testShellCatStdErr(meta)
+	testShellHello(t, meta)
+	testShellCat(t, meta)
+	testShellCatStdErr(t, meta)
 }
 
-func testShellHello(meta *metaservice.MetaService) {
+func testShellHello(t *testing.T, meta *metaservice.MetaService) {
 	debug("### Test meta.Shell (using 'echo hello')")
 	shell, err := meta.ExecShell(nil, false)
 	nilOrFatal(t, err, "Failed to call meta.ExecShell()")
@@ -173,7 +173,7 @@ func testShellHello(meta *metaservice.MetaService) {
 	assert(t, success, "Expected success from shell, we closed with end of stdin")
 }
 
-func testShellCat(meta *metaservice.MetaService) {
+func testShellCat(t *testing.T, meta *metaservice.MetaService) {
 	debug("### Test meta.Shell (using 'exec cat -')")
 	shell, err := meta.ExecShell(nil, false)
 	nilOrFatal(t, err, "Failed to call meta.ExecShell()")
@@ -214,7 +214,7 @@ func testShellCat(meta *metaservice.MetaService) {
 		"len(input) = ", len(input), " len(output) = ", len(output))
 }
 
-func testShellCatStdErr(meta *metaservice.MetaService) {
+func testShellCatStdErr(t *testing.T, meta *metaservice.MetaService) {
 	debug("### Test meta.Shell (using 'exec cat - 1>&2')")
 	shell, err := meta.ExecShell(nil, false)
 	nilOrFatal(t, err, "Failed to call meta.ExecShell()")
