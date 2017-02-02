@@ -46,8 +46,7 @@ tasks:
           git checkout '{{ event.head.sha }}'
           make rebuild check
       artifacts:
-        # public/build/generic-worker-darwin-amd64:
         public/build/taskcluster-worker-linux-amd64:
-          path: "/go/bin/generic-worker"
+          path: "/go/src/github.com/taskcluster/taskcluster-worker/taskcluster-worker"
           expires: "{{ '2 weeks' | $fromNow }}"
           type: file
