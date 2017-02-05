@@ -6,6 +6,11 @@ type User struct {
 	homeFolder string
 }
 
+// CurrentUser will get a User record representing the current user.
+func CurrentUser() (*User, error) {
+	panic("Not implemented")
+}
+
 // CreateUser will create a new user, with the given homeFolder, set the user
 // owner of the homeFolder, and assign the user membership of given groups.
 func CreateUser(homeFolder string, groups []*Group) (*User, error) {

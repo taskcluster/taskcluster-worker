@@ -140,6 +140,12 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 }
 
 func (r *resultSet) Dispose() error {
+	// if we didn't create a user for this sandbox, we shouldn't destroy it either.
+	// TODO: why is this cleanup here, and not in Sandbox?
+	if !r.engine.config.CreateUser {
+		return nil
+	}
+
 	// Halt all other sub-processes
 	err := system.KillByOwner(r.user)
 	if err != nil {

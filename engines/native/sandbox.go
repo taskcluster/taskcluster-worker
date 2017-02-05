@@ -47,11 +47,20 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 		}
 	}
 
-	// Create temporary user account
-	user, err := system.CreateUser(homeFolder.Path(), b.engine.groups)
-	if err != nil {
-		homeFolder.Remove() // best-effort clean-up this is a fatal error
-		return nil, fmt.Errorf("Failed to create temporary system user, error: %s", err)
+	var user *system.User
+
+	if b.engine.config.CreateUser {
+		// Create temporary user account
+		user, err = system.CreateUser(homeFolder.Path(), b.engine.groups)
+		if err != nil {
+			homeFolder.Remove() // best-effort clean-up this is a fatal error
+			return nil, fmt.Errorf("Failed to create temporary system user, error: %s", err)
+		}
+	} else {
+		user, err = system.CurrentUser()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	env := map[string]string{}
@@ -207,10 +216,12 @@ func (s *sandbox) Abort() error {
 		// Remove temporary user (this will panic if unsuccessful)
 		s.user.Remove()
 
-		// Remove temporary home folder
-		err = s.homeFolder.Remove()
-		if err != nil {
-			s.log.Error("Failed to remove temporary home directory, error: ", err)
+		// Remove temporary home folder, if we created it
+		if s.engine.config.CreateUser {
+			err = s.homeFolder.Remove()
+			if err != nil {
+				s.log.Error("Failed to remove temporary home directory, error: ", err)
+			}
 		}
 
 		// Set result
