@@ -32,17 +32,17 @@ func CurrentUser() (*User, error) {
 	// Uid and Gid are always decimal numbers on posix systems
 	uid, err := strconv.Atoi(osUser.Uid)
 	if err != nil {
-		panic("user id is not an integer")
+		panic(fmt.Sprintf("Could not convert %s to integer: %s", osUser.Uid, err))
 	}
 	gid, err := strconv.Atoi(osUser.Gid)
 	if err != nil {
-		panic("user id is not an integer")
+		panic(fmt.Sprintf("Could not convert %s to integer: %s", osUser.Gid, err))
 	}
 
 	return &User{
 		uid:        uint32(uid),
 		gid:        uint32(gid),
-		name:       osUser.Name,
+		name:       osUser.Username,
 		homeFolder: osUser.HomeDir,
 	}, nil
 }

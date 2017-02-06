@@ -33,9 +33,6 @@ func (engineProvider) ConfigSchema() schematypes.Schema {
 func (engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine, error) {
 	var c config
 
-	// apply default values
-	c.CreateUser = true
-
 	if schematypes.MustMap(configSchema, options.Config, &c) != nil {
 		return nil, engines.ErrContractViolation
 	}

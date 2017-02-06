@@ -33,3 +33,8 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 func KillByOwner(user *User) error {
 	panic("Not implemented")
 }
+
+// KillChildren will kill all process that are child of the given process.
+func KillChildren(process *Process) error {
+	panic("Not implemented")
+}

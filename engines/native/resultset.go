@@ -140,20 +140,18 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 }
 
 func (r *resultSet) Dispose() error {
-	// if we didn't create a user for this sandbox, we shouldn't destroy it either.
-	// TODO: why is this cleanup here, and not in Sandbox?
-	if !r.engine.config.CreateUser {
-		return nil
-	}
+	var err error
 
-	// Halt all other sub-processes
-	err := system.KillByOwner(r.user)
-	if err != nil {
-		r.log.Error("Failed to kill all processes by owner, error: ", err)
-	}
+	if r.engine.config.CreateUser {
+		// Halt all other sub-processes owned by this user
+		err = system.KillByOwner(r.user)
+		if err != nil {
+			r.log.Error("Failed to kill all processes by owner, error: ", err)
+		}
 
-	// Remove temporary user (this will panic if unsuccessful)
-	r.user.Remove()
+		// Remove temporary user (this will panic if unsuccessful)
+		r.user.Remove()
+	}
 
 	// Remove temporary home folder
 	if rerr := r.homeFolder.Remove(); rerr != nil {

@@ -4,7 +4,7 @@ import schematypes "github.com/taskcluster/go-schematypes"
 
 type config struct {
 	Groups     []string `json:"groups,omitempty"`
-	CreateUser bool     `json:"createUser,omitempty"`
+	CreateUser bool     `json:"createUser"`
 }
 
 var configSchema = schematypes.Object{
@@ -38,5 +38,7 @@ var configSchema = schematypes.Object{
 			},
 		},
 	},
-	Required: []string{},
+	Required: []string{
+		"createUser",
+	},
 }

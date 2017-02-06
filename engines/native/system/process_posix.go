@@ -1,3 +1,5 @@
+// +build !windows
+
 package system
 
 import (
@@ -30,47 +32,36 @@ type Process struct {
 	stderr  io.WriteCloser
 }
 
-func (p *Process) waitForResult() {
-	err := p.cmd.Wait()
+func pkill(args ...string) error {
+	cmd := exec.Command(systemPKill, args...)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
 
-	p.sockets.Wait()
-
-	// Close all connected streams, ignore errors
-	if p.stdin != nil {
-		p.stdin.Close()
-	}
-	if p.stdout != nil {
-		p.stdout.Close()
-	}
-	if p.stderr != nil && p.stderr != p.stdout {
-		p.stderr.Close()
-	}
-	if p.pty != nil {
-		p.pty.Close()
+	// Start pkill, error here is pretty fatal
+	err := cmd.Start()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to start pkill, error: %s", err))
 	}
 
-	// Resolve with result
-	p.resolve.Do(func() {
-		p.result = err == nil
-	})
-}
+	// Wait for pkill to terminate
+	err = cmd.Wait()
 
-// Wait for process to terminate, returns true, if exited zero.
-func (p *Process) Wait() bool {
-	p.resolve.Wait()
-	return p.result
-}
-
-// Kill the process
-func (p *Process) Kill() {
-	p.cmd.Process.Kill()
-}
-
-// SetSize of the TTY, if running as TTY or do nothing.
-func (p *Process) SetSize(columns, rows uint16) {
-	if p.pty != nil {
-		p.pty.SetSize(columns, rows)
+	// Check error, exitcode 1 means nothing was killed we ignore that
+	if err != nil {
+		if e, ok := err.(*exec.ExitError); ok {
+			if status, ok := e.Sys().(syscall.WaitStatus); ok {
+				// Exit status 1 means no processes were killed, that's fine
+				if status.ExitStatus() == 1 {
+					return nil
+				}
+			}
+			return fmt.Errorf("pkill exited non-zero with output: %s", out.String())
+		}
+		return fmt.Errorf("pkill error: %s", err)
 	}
+
+	return nil
 }
 
 // StartProcess starts a new process with given arguments, environment variables,
@@ -136,27 +127,27 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 		err = p.cmd.Start()
 	} else {
 		p.pty, err = pty.Start(p.cmd)
-		if err == nil {
-			if options.Stdin != nil {
-				p.sockets.Add(1)
-				go func() {
-					io.Copy(p.pty, options.Stdin)
-					p.sockets.Done()
-					// Kill process when stdin ends (if running as TTY)
-					p.Kill()
-				}()
-			}
+		if options.Stdin != nil {
 			p.sockets.Add(1)
 			go func() {
-				ioext.CopyAndClose(options.Stdout, p.pty)
+				io.Copy(p.pty, options.Stdin)
 				p.sockets.Done()
+				// Kill process when stdin ends (if running as TTY)
+				p.Kill()
 			}()
 		}
+		p.sockets.Add(1)
+		go func() {
+			ioext.CopyAndClose(options.Stdout, p.pty)
+			p.sockets.Done()
+		}()
 	}
 
 	if err != nil {
+		debug("Failed to start process, error: %s", err)
 		return nil, fmt.Errorf("Unable to execute binary, error: %s", err)
 	}
+	debug("Started process with %v", options.Arguments)
 
 	// Go wait for result
 	go p.waitForResult()
@@ -164,37 +155,59 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 	return p, nil
 }
 
+func (p *Process) waitForResult() {
+	err := p.cmd.Wait()
+	debug("Process, cmd.Wait() return: %v", err)
+
+	p.sockets.Wait()
+
+	// Close all connected streams, ignore errors
+	if p.stdin != nil {
+		p.stdin.Close()
+	}
+	if p.stdout != nil {
+		p.stdout.Close()
+	}
+	if p.stderr != nil && p.stderr != p.stdout {
+		p.stderr.Close()
+	}
+	if p.pty != nil {
+		p.pty.Close()
+	}
+
+	// Resolve with result
+	p.resolve.Do(func() {
+		p.result = err == nil
+	})
+}
+
+// Wait for process to terminate, returns true, if exited zero.
+func (p *Process) Wait() bool {
+	p.resolve.Wait()
+	return p.result
+}
+
+// Kill the process
+func (p *Process) Kill() {
+	p.cmd.Process.Kill()
+}
+
+// SetSize of the TTY, if running as TTY or do nothing.
+func (p *Process) SetSize(columns, rows uint16) {
+	if p.pty != nil {
+		p.pty.SetSize(columns, rows)
+	}
+}
+
 // KillByOwner will kill all process with the given owner.
 func KillByOwner(user *User) error {
 	// Create pkill command
 	uid := strconv.FormatUint(uint64(user.uid), 10)
-	cmd := exec.Command(systemPKill, "-u", uid)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
+	return pkill("-u", uid)
+}
 
-	// Start pkill, error here is pretty fatal
-	err := cmd.Start()
-	if err != nil {
-		panic(fmt.Sprintf("Failed to start pkill, error: %s", err))
-	}
-
-	// Wait for pkill to terminate
-	err = cmd.Wait()
-
-	// Check error, exitcode 1 means nothing was killed we ignore that
-	if err != nil {
-		if e, ok := err.(*exec.ExitError); ok {
-			if status, ok := e.Sys().(syscall.WaitStatus); ok {
-				// Exit status 1 means no processes were killed, that's fine
-				if status.ExitStatus() == 1 {
-					return nil
-				}
-			}
-			return fmt.Errorf("pkill exited non-zero with output: %s", out.String())
-		}
-		return fmt.Errorf("pkill error: %s", err)
-	}
-
-	return nil
+// KillChildren will kill all process that are child of the given process.
+func KillChildren(process *Process) error {
+	pid := strconv.Itoa(process.cmd.Process.Pid)
+	return pkill("-P", pid)
 }

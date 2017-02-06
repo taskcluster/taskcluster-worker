@@ -48,6 +48,7 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 	}
 
 	var user *system.User
+	var username string
 
 	if b.engine.config.CreateUser {
 		// Create temporary user account
@@ -56,11 +57,19 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 			homeFolder.Remove() // best-effort clean-up this is a fatal error
 			return nil, fmt.Errorf("Failed to create temporary system user, error: %s", err)
 		}
+		username = user.Name()
 	} else {
-		user, err = system.CurrentUser()
+		var curUser *system.User
+
+		user = nil
+
+		curUser, err = system.CurrentUser()
 		if err != nil {
+			homeFolder.Remove()
 			return nil, err
 		}
+
+		username = curUser.Name()
 	}
 
 	env := map[string]string{}
@@ -69,8 +78,8 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 	}
 
 	env["HOME"] = homeFolder.Path()
-	env["USER"] = user.Name()
-	env["LOGNAME"] = user.Name()
+	env["USER"] = username
+	env["LOGNAME"] = username
 
 	// Start process
 	debug("StartProcess: %v", b.payload.Command)
@@ -179,7 +188,9 @@ func (s *sandbox) waitForTermination() {
 
 	s.resolve.Do(func() {
 		// Halt all other sub-processes
-		system.KillByOwner(s.user)
+		if s.engine.config.CreateUser {
+			system.KillByOwner(s.user)
+		}
 
 		// Create resultSet
 		s.resultSet = &resultSet{
@@ -204,24 +215,38 @@ func (s *sandbox) Abort() error {
 	s.resolve.Do(func() {
 		debug("Aborting sandbox")
 
-		// Kill sub-process
-		s.process.Kill()
+		// In case we didn't create a new user, killing
+		// the children processes is the only safe way
+		// to kill processes created by the task.
+		// We must kill the children after the parent
+		// to avoid the case of the parent creating new
+		// processes after we kill the descendents.
+		// On the other hand, we must kill children before
+		// the parent process is `waited`, because then
+		// the children process will be inherited by the init
+		// process in posix systems, and KillChildren won't
+		// work anymore.
+		// So, we run process.Kill() in a goroutine to
+		// "parallelize" the killing process.
+		go s.process.Kill()
+		system.KillChildren(s.process)
 
-		// Halt all other sub-processes
-		err := system.KillByOwner(s.user)
-		if err != nil {
-			s.log.Error("Failed to kill all processes by owner, error: ", err)
+		if s.engine.config.CreateUser {
+			// When we have a new user created, we can safely
+			// kill any process owned by it.
+			err := system.KillByOwner(s.user)
+			if err != nil {
+				s.log.Error("Failed to kill all processes by owner, error: ", err)
+			}
+
+			// Remove temporary user (this will panic if unsuccessful)
+			s.user.Remove()
 		}
 
-		// Remove temporary user (this will panic if unsuccessful)
-		s.user.Remove()
-
-		// Remove temporary home folder, if we created it
-		if s.engine.config.CreateUser {
-			err = s.homeFolder.Remove()
-			if err != nil {
-				s.log.Error("Failed to remove temporary home directory, error: ", err)
-			}
+		// Remove temporary home folder
+		err := s.homeFolder.Remove()
+		if err != nil {
+			s.log.Error("Failed to remove temporary home directory, error: ", err)
 		}
 
 		// Set result
