@@ -218,18 +218,7 @@ func (s *sandbox) Abort() error {
 		// In case we didn't create a new user, killing
 		// the children processes is the only safe way
 		// to kill processes created by the task.
-		// We must kill the children after the parent
-		// to avoid the case of the parent creating new
-		// processes after we kill the descendents.
-		// On the other hand, we must kill children before
-		// the parent process is `waited`, because then
-		// the children process will be inherited by the init
-		// process in posix systems, and KillChildren won't
-		// work anymore.
-		// So, we run process.Kill() in a goroutine to
-		// "parallelize" the killing process.
-		go s.process.Kill()
-		system.KillChildren(s.process)
+		system.KillProcessTree(s.process)
 
 		if s.engine.config.CreateUser {
 			// When we have a new user created, we can safely
