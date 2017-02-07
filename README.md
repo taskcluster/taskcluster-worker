@@ -52,49 +52,29 @@ git push --tags
 Freezing Dependencies
 ---------------------
 
-We are currently using [godep](https://github.com/tools/godep) to vendor dependencies.
+You need [govendor](https://github.com/kardianos/govendor) to manage vendor dependencies.
 
 ```
-go get -u github.com/tools/godep      # install godep tool
-godep restore ./...                   # copy vendored dependencies into your GOPATH
-
-# change versions
-cd ../jsonschema2go
-git reset --hard fa5483ebd1cf3c73374e815f0befaba6184f3090
-cd ../taskcluster-worker
-
-# save changes
-godep save github.com/taskcluster/jsonschema2go/...
-
-git add Godeps/ vendor/               # add changes
-git diff --cached                     # check changes look correct
-git commit -m "Froze jsonschema2go at revision fa5483ebd1cf3c73374e815f0befaba6184f3090"
+go get -u https://github.com/kardianos/govendor   # install govendor tool
+govendor sync
 ```
 
 Adding Dependencies
 ---------------------
 
 ```
-go get -u github.com/tools/godep      # install godep tool
-godep restore ./...                   # copy vendored dependencies into your GOPATH
-go get <my-dependency>                # go get your dependency
-godep save ./...                      # save dependencies (this won't update existing dependencies)
-git add Godeps/ vendor/               # add changes
-git diff --cached                     # check changes look correct
-git commit -m "Updated all go package dependencies to latest versions"
+go get <package>
+govendor add +ext <package>
+git add vendor/vendor.json
+git commit -m 'My new package.'
 ```
 
 Updating Dependencies
 ---------------------
 
 ```
-go get -u github.com/tools/godep      # install godep tool
-godep restore ./...                   # copy vendored dependencies into your GOPATH
-go get -u -t ./...                    # update versions
-godep update ./...                    # update dependencies
-git add Godeps/ vendor/               # add changes
-git diff --cached                     # check changes look correct
-git commit -m "Updated all go package dependencies to latest versions"
+go get -u -t ./...   # update versions
+govendor update
 ```
 
 Contributing
