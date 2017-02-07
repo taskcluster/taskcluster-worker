@@ -12,7 +12,9 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 
+	"github.com/shirou/gopsutil/process"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/pty"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
@@ -59,6 +61,50 @@ func pkill(args ...string) error {
 			return fmt.Errorf("pkill exited non-zero with output: %s", out.String())
 		}
 		return fmt.Errorf("pkill error: %s", err)
+	}
+
+	return nil
+}
+
+func killProcesses(root *process.Process) error {
+	// Start sending SIGSTOP to avoid that new processes be created while
+	// killing children. We don't kill the root process first because
+	// if there is another go routine waiting for it, children will
+	// be inherited by the *init* process, and we will unable to track
+	// them.
+	err := root.Suspend()
+	if err != nil {
+		return err
+	}
+
+	children, err := root.Children()
+
+	if err == nil {
+		// For reach child, we recursively kill all their children too.
+		for _, child := range children {
+			err = killProcesses(child)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// With all descendents gone, it is time to kill parent
+	err = root.Terminate()
+
+	// If we received an error, might be because the process is already gone
+	if err == nil {
+		// I couldn't find information signals are blocked in stopped processes
+		// or not. Let's play safe and send SIGCONT to the process
+		root.Resume()
+
+		go func() {
+			// Wait 5 seconds after sending SIGTERM, then send SIGKILL.
+			// If the process was gone after SIGTERM, Kill() will return
+			// an error, which we ignore.
+			time.Sleep(5 * time.Second)
+			_ = root.Kill()
+		}()
 	}
 
 	return nil
@@ -206,8 +252,12 @@ func KillByOwner(user *User) error {
 	return pkill("-u", uid)
 }
 
-// KillChildren will kill all process that are child of the given process.
-func KillChildren(process *Process) error {
-	pid := strconv.Itoa(process.cmd.Process.Pid)
-	return pkill("-P", pid)
+// KillProcesses will kill root and all of its descendents.
+func KillProcesses(root *Process) error {
+	proc, err := process.NewProcess(int32(root.cmd.Process.Pid))
+	if err != nil {
+		return err
+	}
+	err = killProcesses(proc)
+	return err
 }

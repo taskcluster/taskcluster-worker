@@ -34,7 +34,7 @@ func KillByOwner(user *User) error {
 	panic("Not implemented")
 }
 
-// KillChildren will kill all process that are child of the given process.
-func KillChildren(process *Process) error {
+// KillProcesses will kill root and all of its descendents.
+func KillProcesses(root *Process) error {
 	panic("Not implemented")
 }
