@@ -6,3 +6,4 @@ coverage.out
 /engines/qemu/test-image/tinycore-worker.tar.zst
 /mock-config.yml
 /qemu-config.yml
+/vendor/*/
