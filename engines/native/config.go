@@ -3,7 +3,8 @@ package nativeengine
 import schematypes "github.com/taskcluster/go-schematypes"
 
 type config struct {
-	Groups []string `json:"groups,omitempty"`
+	Groups     []string `json:"groups,omitempty"`
+	CreateUser bool     `json:"createUser"`
 }
 
 var configSchema = schematypes.Object{
@@ -28,6 +29,16 @@ var configSchema = schematypes.Object{
 				Pattern: "^[a-zA-Z0-9_.-]+$",
 			},
 		},
+		"createUser": schematypes.Boolean{
+			MetaData: schematypes.MetaData{
+				Title: "Tells if a user should be created to run a command",
+				Description: `When set to true, a new user is created on the fly to run
+				the command. It runs the command from whitin the user's home directory.
+				If false, the command runs without changing userid`,
+			},
+		},
 	},
-	Required: []string{},
+	Required: []string{
+		"createUser",
+	},
 }

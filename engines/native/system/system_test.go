@@ -222,6 +222,26 @@ func TestSystem(t *testing.T) {
 		require.True(t, <-done, "p.Wait was done before KillByOwner was called!")
 	})
 
+	t.Run("KillProcesses", func(t *testing.T) {
+		p, err := StartProcess(ProcessOptions{
+			Arguments: testChildren,
+			Owner:     nil,
+		})
+		require.NoError(t, err)
+		done := make(chan bool)
+		go func() {
+			p.Wait()
+			close(done)
+		}()
+		time.Sleep(100 * time.Millisecond)
+		require.NoError(t, KillProcesses(p))
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			t.Fatal("Processes weren't killed")
+		}
+	})
+
 	t.Run("user.Remove", func(t *testing.T) {
 		u.Remove()
 	})

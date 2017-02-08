@@ -8,11 +8,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/taskcluster/taskcluster-worker/engines/enginetest"
+	"github.com/taskcluster/taskcluster-worker/engines/native/system"
 )
 
 var provider = &enginetest.EngineProvider{
 	Engine: "native",
-	Config: `{}`,
+	Config: `{
+		"createUser": true
+	}`,
 }
 
 func TestLogging(t *testing.T) {
@@ -20,19 +23,48 @@ func TestLogging(t *testing.T) {
 		EngineProvider: provider,
 		Target:         "hello-world",
 		TargetPayload: `{
-      "command": ["sh", "-c", "echo 'hello-world' && true"]
-	  }`,
+			"command": ["sh", "-c", "echo 'hello-world' && true"]
+		}`,
 		FailingPayload: `{
-	    "command": ["sh", "-c", "echo 'hello-world' && false"]
-	  }`,
+			"command": ["sh", "-c", "echo 'hello-world' && false"]
+		}`,
 		SilentPayload: `{
-	    "command": ["sh", "-c", "echo 'no hello' && true"]
-	  }`,
+			"command": ["sh", "-c", "echo 'no hello' && true"]
+		}`,
 	}
 
 	c.TestLogTarget()
 	c.TestLogTargetWhenFailing()
 	c.TestSilentTask()
+	c.Test()
+}
+
+func TestLoggingNoUserCreation(t *testing.T) {
+	p := &enginetest.EngineProvider{
+		Engine: "native",
+		Config: `{
+            "createUser": false
+        }`,
+	}
+
+	user, err := system.CurrentUser()
+	require.NoError(t, err)
+
+	c := enginetest.LoggingTestCase{
+		EngineProvider: p,
+		Target:         user.Name(),
+		TargetPayload: `{
+			"command": ["sh", "-c", "whoami"]
+		}`,
+		FailingPayload: `{
+			"command": ["sh", "-c", "echo $(whoami) && false"]
+		}`,
+		SilentPayload: `{
+			"command": ["sh", "-c", "echo 'hello-world' && true"]
+		}`,
+	}
+
+	c.TestLogTarget()
 	c.Test()
 }
 
