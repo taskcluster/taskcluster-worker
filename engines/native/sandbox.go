@@ -48,7 +48,6 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 	}
 
 	var user *system.User
-	var username string
 
 	if b.engine.config.CreateUser {
 		// Create temporary user account
@@ -57,19 +56,12 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 			workingFolder.Remove() // best-effort clean-up this is a fatal error
 			return nil, fmt.Errorf("Failed to create temporary system user, error: %s", err)
 		}
-		username = user.Name()
 	} else {
-		var curUser *system.User
-
-		user = nil
-
-		curUser, err = system.CurrentUser()
+		user, err = system.CurrentUser()
 		if err != nil {
 			workingFolder.Remove()
 			return nil, err
 		}
-
-		username = curUser.Name()
 	}
 
 	env := map[string]string{}
@@ -78,8 +70,8 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 	}
 
 	env["HOME"] = workingFolder.Path()
-	env["USER"] = username
-	env["LOGNAME"] = username
+	env["USER"] = user.Name()
+	env["LOGNAME"] = user.Name()
 
 	// Start process
 	debug("StartProcess: %v", b.payload.Command)

@@ -148,6 +148,13 @@ func CreateUser(homeFolder string, groups []*Group) (*User, error) {
 
 // Remove will remove a user and all associated resources.
 func (u *User) Remove() {
+	currentUser, err := CurrentUser()
+	if err == nil {
+		if currentUser.uid == u.uid {
+			panic("oops, cannot delete current user " + u.Name())
+		}
+	}
+
 	d := dscl{
 		sudo: false,
 	}

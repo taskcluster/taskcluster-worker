@@ -112,10 +112,17 @@ func CreateUser(homeFolder string, groups []*Group) (*User, error) {
 
 // Remove will remove a user and all associated resources.
 func (u *User) Remove() {
+	currentUser, err := CurrentUser()
+	if err == nil {
+		if currentUser.uid == u.uid {
+			panic("oops, cannot delete current user " + u.Name())
+		}
+	}
+
 	// Kill all process owned by this user, for good measure
 	_ = KillByOwner(u)
 
-	_, err := exec.Command(systemUserDel, u.name).Output()
+	_, err = exec.Command(systemUserDel, u.name).Output()
 	if err != nil {
 		if e, ok := err.(*exec.ExitError); ok {
 			panic(fmt.Sprintf(
