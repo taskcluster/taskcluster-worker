@@ -41,7 +41,7 @@ func newShell(s *sandbox, command []string, tty bool) (*shell, error) {
 	process, err := system.StartProcess(system.ProcessOptions{
 		Arguments:     command,
 		Environment:   s.env,
-		WorkingFolder: s.homeFolder.Path(),
+		WorkingFolder: s.workingFolder.Path(),
 		Owner:         s.user,
 		Stdin:         pipein,
 		Stdout:        pipeout,
