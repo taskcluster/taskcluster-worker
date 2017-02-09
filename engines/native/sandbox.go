@@ -87,8 +87,7 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 		// StartProcess provides human-readable error messages (see docs)
 		// We'll convert it to a MalformedPayloadError
 		return nil, engines.NewMalformedPayloadError(
-			"Unable to start specified command: %v, error: %s",
-			b.payload.Command, err,
+			"Unable to start specified command: ", b.payload.Command, "error: ", err,
 		)
 	}
 
