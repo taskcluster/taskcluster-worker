@@ -33,3 +33,8 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 func KillByOwner(user *User) error {
 	panic("Not implemented")
 }
+
+// KillProcessTree will kill root and all of its descendents.
+func KillProcessTree(root *Process) error {
+	panic("Not implemented")
+}

@@ -21,6 +21,31 @@ type User struct {
 	groups     []string // additional user groups
 }
 
+// CurrentUser will get a User record representing the current user.
+func CurrentUser() (*User, error) {
+	osUser, err := user.Current()
+	if err != nil {
+		return nil, err
+	}
+
+	// Uid and Gid are always decimal numbers on posix systems
+	uid, err := strconv.Atoi(osUser.Uid)
+	if err != nil {
+		panic(fmt.Sprintf("Could not convert %s to integer: %s", osUser.Uid, err))
+	}
+	gid, err := strconv.Atoi(osUser.Gid)
+	if err != nil {
+		panic(fmt.Sprintf("Could not convert %s to integer: %s", osUser.Gid, err))
+	}
+
+	return &User{
+		uid:        uint32(uid),
+		gid:        uint32(gid),
+		name:       osUser.Username,
+		homeFolder: osUser.HomeDir,
+	}, nil
+}
+
 // CreateUser will create a new user, with the given homeFolder, set the user
 // owner of the homeFolder, and assign the user membership of given groups.
 func CreateUser(homeFolder string, groups []*Group) (*User, error) {
@@ -123,6 +148,13 @@ func CreateUser(homeFolder string, groups []*Group) (*User, error) {
 
 // Remove will remove a user and all associated resources.
 func (u *User) Remove() {
+	currentUser, err := CurrentUser()
+	if err == nil {
+		if currentUser.uid == u.uid {
+			panic("oops, cannot delete current user " + u.Name())
+		}
+	}
+
 	d := dscl{
 		sudo: false,
 	}
