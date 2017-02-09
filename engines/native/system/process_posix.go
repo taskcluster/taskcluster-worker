@@ -135,6 +135,23 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 		}
 	}
 
+	if options.Owner != nil {
+		currentUser, err := CurrentUser()
+		if err != nil {
+			return nil, err
+		}
+
+		// If we pass an owner to exec.Start, it will end up calling
+		// setgroups (even if we don't have any groups set), a syscall
+		// that only root is allowed to execute, causing non-privileged
+		// accounts unable to execute process.
+		// If the passed owner matches the current user, we set owner to
+		// nil to allow non-root accounts to succeed.
+		if currentUser.uid == options.Owner.uid {
+			options.Owner = nil
+		}
+	}
+
 	// Default stdout to os.DevNul
 	if options.Stdout == nil {
 		options.Stdout = ioext.WriteNopCloser(ioutil.Discard)
