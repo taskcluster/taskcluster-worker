@@ -50,3 +50,37 @@ tasks:
           path: "/go/src/github.com/taskcluster/taskcluster-worker/taskcluster-worker"
           expires: "{{ '2 weeks' | $fromNow }}"
           type: file
+
+
+  ##########################################################
+  #################### OS X 10.10 build ####################
+  ##########################################################
+
+  - provisionerId: tc-worker-provisioner
+    workerType: gecko-t-osx-10-10
+    metadata:
+      name: "Build/test 64 bit taskcluster-worker on Mac OS X 10.10"
+      description: "This builds the 64 bit linux version of taskcluster-worker"
+      owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
+      source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
+    scopes:
+      - secrets:get:repo:github.com/taskcluster/taskcluster-worker
+    payload:
+      artifacts:
+        - path: "/go/src/github.com/taskcluster/taskcluster-worker/taskcluster-worker"
+          expires: "{{ '2 weeks' | $fromNow }}"
+          type: file
+          name: public/build/taskcluster-worker-darwin-amd64
+      command:
+        - /bin/bash
+        - -vxec
+        - |
+          curl -s http://taskcluster/secrets/v1/secret/repo:github.com/taskcluster/taskcluster-worker | sed -n 's/.*"b64_encoded_credentials_script": "\(.*\)".*/\1/p' | base64 -d > ~/env_private.sh
+          source ~/env_private.sh
+          go get -d "github.com/taskcluster/taskcluster-worker"
+          cd "${GOPATH}/src/github.com/taskcluster/taskcluster-worker"
+          git remote add user '{{ event.head.repo.url }}'
+          git fetch --tags user
+          git checkout '{{ event.head.sha }}'
+          make rebuild check
+      reboot: true
