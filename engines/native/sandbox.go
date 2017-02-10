@@ -84,11 +84,16 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 		// Stderr defaults to Stdout when not specified
 	})
 	if err != nil {
+		if b.engine.config.CreateUser {
+			user.Remove()
+		}
+
+		workingFolder.Remove()
+
 		// StartProcess provides human-readable error messages (see docs)
 		// We'll convert it to a MalformedPayloadError
 		return nil, engines.NewMalformedPayloadError(
-			"Unable to start specified command: %v, error: %s",
-			b.payload.Command, err,
+			"Unable to start specified command: ", b.payload.Command, "error: ", err,
 		)
 	}
 
