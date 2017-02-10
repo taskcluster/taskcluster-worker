@@ -1,0 +1,53 @@
+# The version is always required
+version: 0
+# Top level metadata is always required
+metadata:
+  name: "TaskCluster Worker Tests"
+  description: "These tests should ensure that any new commits against taskcluster worker codebase are tested across all supported worker types in gekco."
+  owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
+  source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
+tasks:
+
+
+  ##########################################################
+  ##################### linux 64 build #####################
+  ##########################################################
+
+  - provisionerId: "{{ taskcluster.docker.provisionerId }}"
+    workerType: "{{ taskcluster.docker.workerType }}"
+    metadata:
+      name: "Build/test 64 bit taskcluster-worker on Debian GNU/Linux 8 (jessie)"
+      description: "This builds the 64 bit linux version of taskcluster-worker"
+      owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
+      source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
+    extra:
+      github:
+        # Events that will trigger this task
+        events:
+          - pull_request.*
+          - push
+    scopes:
+      - secrets:get:repo:github.com/taskcluster/taskcluster-worker
+    payload:
+      features:
+        taskclusterProxy: true
+      maxRunTime: 3600
+      image: golang
+      command:
+        - /bin/bash
+        - -vxec
+        - |
+          curl -s http://taskcluster/secrets/v1/secret/repo:github.com/taskcluster/taskcluster-worker | sed -n 's/.*"b64_encoded_credentials_script": "\(.*\)".*/\1/p' | base64 -d > ~/env_private.sh
+          source ~/env_private.sh
+          go get -d "github.com/taskcluster/taskcluster-worker"
+          cd "${GOPATH}/src/github.com/taskcluster/taskcluster-worker"
+          git remote add user '{{ event.head.repo.url }}'
+          git fetch --tags user
+          git checkout '{{ event.head.sha }}'
+          make rebuild check
+      artifacts:
+        # public/build/generic-worker-darwin-amd64:
+        public/build/taskcluster-worker-linux-amd64:
+          path: "/go/bin/generic-worker"
+          expires: "{{ '2 weeks' | $fromNow }}"
+          type: file
