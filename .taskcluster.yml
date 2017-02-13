@@ -63,6 +63,12 @@ tasks:
       description: "This builds the 64 bit linux version of taskcluster-worker"
       owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
       source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
+    extra:
+      github:
+        # Events that will trigger this task
+        events:
+          - pull_request.*
+          - push
     scopes:
       - secrets:get:repo:github.com/taskcluster/taskcluster-worker
     payload:
