@@ -22,6 +22,8 @@ matrix:
         - MY_GOARCH=386
 
 before_install:
+  - go get github.com/kardianos/govendor
+  - govendor sync
   # exporting variables here is a hack to have them available in deploy section.
   # it works, just don't ask me why. -- wcosta
   - export GOOS=${MY_GOOS}
