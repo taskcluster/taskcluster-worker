@@ -135,7 +135,7 @@ type TaskPlugin interface {
 
 	// Dispose is called once everything is done and it's time for clean-up.
 	//
-	// This method will be invoked following Stopped() or Exception(). It is then
+	// This method will be invoked following Finished() or Exception(). It is then
 	// the responsibility of the implementor to abort or wait for any long-running
 	// processes and clean-up any resources held.
 	Dispose() error
