@@ -47,7 +47,9 @@ tasks:
           git remote add user '{{ event.head.repo.url }}'
           git fetch --tags user
           git checkout '{{ event.head.sha }}'
+          ls vendor || true
           govendor sync
+          ls vendor
           make rebuild check
       artifacts:
         public/build/taskcluster-worker-linux-amd64:
@@ -96,5 +98,7 @@ tasks:
             git remote add user '{{ event.head.repo.url }}'
             git fetch --tags user
             git checkout '{{ event.head.sha }}'
+            ls vendor || true
             govendor sync
+            ls vendor
             make rebuild check
