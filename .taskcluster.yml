@@ -42,10 +42,9 @@ tasks:
           go get -v "github.com/kardianos/govendor"
           mkdir -p "${GOPATH}/src/github.com/taskcluster"
           cd "${GOPATH}/src/github.com/taskcluster"
-          git clone 'https://github.com/taskcluster/taskcluster-worker'
+          git clone '{{ event.head.repo.url }}'
           cd 'taskcluster-worker'
-          git remote add user '{{ event.head.repo.url }}'
-          git fetch --tags user
+          git fetch --tags
           git checkout '{{ event.head.sha }}'
           ls vendor || true
           govendor sync
@@ -93,10 +92,9 @@ tasks:
             go get -v "github.com/kardianos/govendor"
             mkdir -p "${GOPATH}/src/github.com/taskcluster"
             cd "${GOPATH}/src/github.com/taskcluster"
-            git clone 'https://github.com/taskcluster/taskcluster-worker'
+            git clone '{{ event.head.repo.url }}'
             cd 'taskcluster-worker'
-            git remote add user '{{ event.head.repo.url }}'
-            git fetch --tags user
+            git fetch --tags
             git checkout '{{ event.head.sha }}'
             ls vendor || true
             govendor sync
