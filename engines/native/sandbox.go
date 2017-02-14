@@ -21,7 +21,7 @@ type sandbox struct {
 	engine        *engine
 	context       *runtime.TaskContext
 	log           *logrus.Entry
-	workingFolder string
+	workingFolder runtime.TemporaryFolder
 	user          *system.User
 	process       *system.Process
 	env           map[string]string
@@ -34,20 +34,25 @@ type sandbox struct {
 
 func newSandbox(b *sandboxBuilder) (s *sandbox, err error) {
 	var user *system.User
+	var workingFolder runtime.TemporaryFolder
+	defer func() {
+		if err != nil {
+			if user != nil {
+				user.Remove()
+			}
+			if workingFolder != nil {
+				_ = workingFolder.Remove()
+			}
+		}
+	}()
 
 	if b.engine.config.CreateUser {
 		// Create temporary home folder for the task
-		workingFolder, err1 := b.engine.environment.TemporaryStorage.NewFolder()
-		if err1 != nil {
-			err = fmt.Errorf("Failed to temporary folder, error: %s", err1)
-			b.log.Error(err)
+		workingFolder, err = b.engine.environment.TemporaryStorage.NewFolder()
+		if err != nil {
+			err = fmt.Errorf("Failed to temporary folder, error: %s", err)
 			return
 		}
-		defer func() {
-			if err != nil {
-				_ = workingFolder.Remove()
-			}
-		}()
 
 		// Create temporary user account
 		user, err = system.CreateUser(workingFolder.Path(), b.engine.groups)
@@ -55,11 +60,6 @@ func newSandbox(b *sandboxBuilder) (s *sandbox, err error) {
 			err = fmt.Errorf("Failed to create temporary system user, error: %s", err)
 			return
 		}
-		defer func() {
-			if err != nil {
-				user.Remove()
-			}
-		}()
 	} else {
 		user, err = system.CurrentUser()
 		if err != nil {
@@ -70,9 +70,8 @@ func newSandbox(b *sandboxBuilder) (s *sandbox, err error) {
 	if b.payload.Context != "" {
 		if err = fetchContext(b.payload.Context, user); err != nil {
 			err = engines.NewMalformedPayloadError(
-				fmt.Sprintf("Error downloading %s: %v", b.payload.Context, err),
+				"Error downloading '", b.payload.Context, "': ", err,
 			)
-			b.context.LogError(err)
 			return
 		}
 	}
@@ -110,7 +109,7 @@ func newSandbox(b *sandboxBuilder) (s *sandbox, err error) {
 		engine:        b.engine,
 		context:       b.context,
 		log:           b.log,
-		workingFolder: user.Home(),
+		workingFolder: workingFolder,
 		user:          user,
 		process:       process,
 		env:           b.env,
@@ -254,9 +253,11 @@ func (s *sandbox) Abort() error {
 		}
 
 		// Remove temporary home folder
-		err := os.RemoveAll(s.workingFolder)
-		if err != nil {
-			s.log.Error("Failed to remove temporary home directory, error: ", err)
+		if s.workingFolder != nil {
+			err := s.workingFolder.Remove()
+			if err != nil {
+				s.log.Error("Failed to remove temporary home directory, error: ", err)
+			}
 		}
 
 		// Set result
