@@ -42,11 +42,11 @@ tasks:
           go get -v "github.com/kardianos/govendor"
           mkdir -p "${GOPATH}/src/github.com/taskcluster"
           cd "${GOPATH}/src/github.com/taskcluster"
-          git clone '{{ event.head.repo.url }}'
+          git clone '{{ event.head.repo.url }}' 'taskcluster-worker'
           cd 'taskcluster-worker'
           git fetch --tags
           git checkout '{{ event.head.sha }}'
-          ls vendor || true
+          ls vendor
           govendor sync
           ls vendor
           make rebuild check
@@ -92,11 +92,11 @@ tasks:
             go get -v "github.com/kardianos/govendor"
             mkdir -p "${GOPATH}/src/github.com/taskcluster"
             cd "${GOPATH}/src/github.com/taskcluster"
-            git clone '{{ event.head.repo.url }}'
+            git clone '{{ event.head.repo.url }}' 'taskcluster-worker'
             cd 'taskcluster-worker'
             git fetch --tags
             git checkout '{{ event.head.sha }}'
-            ls vendor || true
+            ls vendor
             govendor sync
             ls vendor
             make rebuild check
