@@ -3,7 +3,9 @@ package nativeengine
 import (
 	"fmt"
 	"os"
+	osuser "os/user"
 	"path/filepath"
+	"strconv"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-worker/engines"
@@ -19,7 +21,7 @@ type sandbox struct {
 	engine        *engine
 	context       *runtime.TaskContext
 	log           *logrus.Entry
-	workingFolder runtime.TemporaryFolder
+	workingFolder string
 	user          *system.User
 	process       *system.Process
 	env           map[string]string
@@ -30,37 +32,48 @@ type sandbox struct {
 	wg            atomics.WaitGroup
 }
 
-func newSandbox(b *sandboxBuilder) (*sandbox, error) {
-	// Create temporary home folder for the task
-	workingFolder, err := b.engine.environment.TemporaryStorage.NewFolder()
-	if err != nil {
-		b.log.Error("Failed to create temporary folder: ", err)
-		return nil, fmt.Errorf("Failed to temporary folder, error: %s", err)
-	}
-
-	if b.payload.Context != "" {
-		if err = fetchContext(b.payload.Context, workingFolder.Path()); err != nil {
-			b.context.LogError(err)
-			return nil, engines.NewMalformedPayloadError(
-				fmt.Sprintf("Error downloading %s: %v", b.payload.Context, err),
-			)
-		}
-	}
-
+func newSandbox(b *sandboxBuilder) (s *sandbox, err error) {
 	var user *system.User
 
 	if b.engine.config.CreateUser {
+		// Create temporary home folder for the task
+		workingFolder, err1 := b.engine.environment.TemporaryStorage.NewFolder()
+		if err1 != nil {
+			err = fmt.Errorf("Failed to temporary folder, error: %s", err1)
+			b.log.Error(err)
+			return
+		}
+		defer func() {
+			if err != nil {
+				_ = workingFolder.Remove()
+			}
+		}()
+
 		// Create temporary user account
 		user, err = system.CreateUser(workingFolder.Path(), b.engine.groups)
 		if err != nil {
-			workingFolder.Remove() // best-effort clean-up this is a fatal error
-			return nil, fmt.Errorf("Failed to create temporary system user, error: %s", err)
+			err = fmt.Errorf("Failed to create temporary system user, error: %s", err)
+			return
 		}
+		defer func() {
+			if err != nil {
+				user.Remove()
+			}
+		}()
 	} else {
 		user, err = system.CurrentUser()
 		if err != nil {
-			workingFolder.Remove()
-			return nil, err
+			return
+		}
+	}
+
+	if b.payload.Context != "" {
+		if err = fetchContext(b.payload.Context, user); err != nil {
+			err = engines.NewMalformedPayloadError(
+				fmt.Sprintf("Error downloading %s: %v", b.payload.Context, err),
+			)
+			b.context.LogError(err)
+			return
 		}
 	}
 
@@ -69,7 +82,7 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 		env[k] = v
 	}
 
-	env["HOME"] = workingFolder.Path()
+	env["HOME"] = user.Home()
 	env["USER"] = user.Name()
 	env["LOGNAME"] = user.Name()
 
@@ -78,30 +91,26 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 	process, err := system.StartProcess(system.ProcessOptions{
 		Arguments:     b.payload.Command,
 		Environment:   env,
-		WorkingFolder: workingFolder.Path(),
+		WorkingFolder: user.Home(),
 		Owner:         user,
 		Stdout:        ioext.WriteNopCloser(b.context.LogDrain()),
 		// Stderr defaults to Stdout when not specified
 	})
 	if err != nil {
-		if b.engine.config.CreateUser {
-			user.Remove()
-		}
-
-		workingFolder.Remove()
-
 		// StartProcess provides human-readable error messages (see docs)
 		// We'll convert it to a MalformedPayloadError
-		return nil, engines.NewMalformedPayloadError(
+		err = engines.NewMalformedPayloadError(
 			"Unable to start specified command: ", b.payload.Command, "error: ", err,
 		)
+		b.context.LogError(err)
+		return
 	}
 
-	s := &sandbox{
+	s = &sandbox{
 		engine:        b.engine,
 		context:       b.context,
 		log:           b.log,
-		workingFolder: workingFolder,
+		workingFolder: user.Home(),
 		user:          user,
 		process:       process,
 		env:           b.env,
@@ -109,13 +118,13 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 
 	go s.waitForTermination()
 
-	return s, nil
+	return
 }
 
-func fetchContext(context, destdir string) error {
+func fetchContext(context string, user *system.User) error {
 	// TODO: use future cache subsystem, when we have it
 	// TODO: use the soon to be merged fetcher subsystem
-	filename, err := util.Download(context, destdir)
+	filename, err := util.Download(context, user.Home())
 	if err != nil {
 		return fmt.Errorf("Error downloading '%s': %v", context, err)
 	}
@@ -124,6 +133,21 @@ func fetchContext(context, destdir string) error {
 	// TODO: abstract this away in system package
 	if err = os.Chmod(filename, 0700); err != nil {
 		return fmt.Errorf("Error setting file '%s' permissions: %v", filename, err)
+	}
+	u, err := osuser.Lookup(user.Name())
+	if err != nil {
+		return fmt.Errorf("Cannot lookup user %s: %v", user.Name(), err)
+	}
+	uid, err := strconv.Atoi(u.Uid)
+	if err != nil {
+		return fmt.Errorf("Cannot convert uid(%s) to int: %v", u.Uid, err)
+	}
+	gid, err := strconv.Atoi(u.Gid)
+	if err != nil {
+		return fmt.Errorf("Cannot convert gid(%s) to int: %v", u.Gid, err)
+	}
+	if err = os.Chown(filename, uid, gid); err != nil {
+		return fmt.Errorf("Can't change owner of %s: %v", filename, err)
 	}
 
 	unpackedFile := ""
@@ -230,7 +254,7 @@ func (s *sandbox) Abort() error {
 		}
 
 		// Remove temporary home folder
-		err := s.workingFolder.Remove()
+		err := os.RemoveAll(s.workingFolder)
 		if err != nil {
 			s.log.Error("Failed to remove temporary home directory, error: ", err)
 		}
