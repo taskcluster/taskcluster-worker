@@ -40,12 +40,12 @@ tasks:
           curl -s http://taskcluster/secrets/v1/secret/repo:github.com/taskcluster/taskcluster-worker | sed -n 's/.*"b64_encoded_credentials_script": "\(.*\)".*/\1/p' | base64 -d > ~/env_private.sh
           source ~/env_private.sh
           go get -v "github.com/kardianos/govendor"
-          govendor get -v -d "github.com/taskcluster/taskcluster-worker"
+          govendor get -v "github.com/taskcluster/taskcluster-worker"
           cd "${GOPATH}/src/github.com/taskcluster/taskcluster-worker"
           git remote add user '{{ event.head.repo.url }}'
           git fetch --tags user
           git checkout '{{ event.head.sha }}'
-          'govendor get -v "github.com/taskcluster/taskcluster-worker"'
+          govendor get -v "github.com/taskcluster/taskcluster-worker"
           make rebuild check
       artifacts:
         public/build/taskcluster-worker-linux-amd64:
@@ -87,7 +87,7 @@ tasks:
             curl -s "http://localhost:6000/secrets/v1/secret/repo:github.com/taskcluster/taskcluster-worker" | sed -n 's/.*"b64_encoded_credentials_script": "\(.*\)".*/\1/p' | base64 -D > env_private.sh
             source env_private.sh
             go get -v "github.com/kardianos/govendor"
-            govendor get -v -d "github.com/taskcluster/taskcluster-worker"
+            govendor get -v "github.com/taskcluster/taskcluster-worker"
             cd "${GOPATH}/src/github.com/taskcluster/taskcluster-worker"
             git remote add user '{{ event.head.repo.url }}'
             git fetch --tags user
