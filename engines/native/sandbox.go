@@ -69,7 +69,12 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 		env[k] = v
 	}
 
-	env["HOME"] = workingFolder.Path()
+	if b.engine.config.CreateUser {
+		env["HOME"] = workingFolder.Path()
+	} else {
+		env["HOME"] = os.Getenv("HOME")
+	}
+	
 	env["USER"] = user.Name()
 	env["LOGNAME"] = user.Name()
 
