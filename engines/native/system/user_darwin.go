@@ -183,6 +183,11 @@ func (u *User) Name() string {
 	return u.name
 }
 
+// Home returns the user home folder`
+func (u *User) Home() string {
+	return u.homeFolder
+}
+
 // return the next uid available
 func getMaxUID(d dscl) (int, error) {
 	uids, err := d.list("/Users", "uid")
