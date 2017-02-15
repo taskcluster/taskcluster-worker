@@ -46,9 +46,7 @@ tasks:
           cd 'taskcluster-worker'
           git fetch --tags
           git checkout '{{ event.head.sha }}'
-          ls vendor
           govendor sync
-          ls vendor
           make rebuild check
       artifacts:
         public/build/taskcluster-worker-linux-amd64:
@@ -96,7 +94,5 @@ tasks:
             cd 'taskcluster-worker'
             git fetch --tags
             git checkout '{{ event.head.sha }}'
-            ls vendor
             govendor sync
-            ls vendor
             make rebuild check
