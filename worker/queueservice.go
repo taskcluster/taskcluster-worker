@@ -74,6 +74,8 @@ type (
 		workerGroup      string
 		log              *logrus.Entry
 		halt             atomics.Bool
+		maxTasksToRun    int
+		claimedTasks     int
 	}
 )
 
@@ -85,16 +87,43 @@ func (q *queueService) Start() <-chan *taskClaim {
 
 	go func() {
 		for !q.halt.Get() {
-			q.mu.RLock()
-			capacity := q.capacity
-			q.mu.RUnlock()
-			tasks := q.retrieveTasksFromQueue(capacity)
+			claimSize, finished := q.claimSize()
+			if finished {
+				break
+			}
+			tasks := q.retrieveTasksFromQueue(claimSize)
 			q.claimTasks(tasks)
 			time.Sleep(time.Duration(q.interval) * time.Second)
 		}
 		close(q.tc)
 	}()
 	return q.tc
+}
+
+// claimSize returns the number of tasks that should be claimed, based on
+// available capacity, and the number of tasks already claimed versus the
+// maximum claim total. Additionally it returns a boolean indicating if
+// the maximum total of claimed tasks is equal to the number of claimed
+// tasks (which also implies size == 0).
+func (q *queueService) claimSize() (size int, finished bool) {
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+	if q.maxTasksToRun > 0 {
+		remaining := q.maxTasksToRun - q.claimedTasks
+		size = min(remaining, q.capacity)
+		finished = remaining == 0
+		return
+	}
+	size = q.capacity
+	return
+}
+
+// math.Min is for floats, let's avoid casting and float arithmetic...
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // Stop will set the current capacity to 0 so no tasks are claimed.
@@ -128,6 +157,7 @@ func (q *queueService) claimTasks(tasks []*taskMessage) {
 			}
 			q.mu.Lock()
 			q.capacity--
+			q.claimedTasks++
 			q.mu.Unlock()
 			q.tc <- claim
 		}(task)

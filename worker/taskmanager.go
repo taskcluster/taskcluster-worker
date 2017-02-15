@@ -63,6 +63,7 @@ func newTaskManager(
 		workerType:       config.WorkerType,
 		log:              log.WithField("component", "Queue Service"),
 		expirationOffset: config.ReclaimOffset,
+		maxTasksToRun:    config.MaxTasksToRun,
 	}
 
 	m := &Manager{
