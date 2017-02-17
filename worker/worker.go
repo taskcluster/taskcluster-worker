@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -142,11 +140,10 @@ func (w *Worker) Start() {
 
 	go w.tm.Start()
 
-	sigTerm := make(chan os.Signal, 1)
-	signal.Notify(sigTerm, os.Interrupt, os.Kill, syscall.SIGTERM)
+	// if task manager stops executing tasks, stop the worker
 	go func() {
-		<-sigTerm
-		w.Stop()
+		<-w.tm.doneExecutingTasks
+		w.ImmediateStop()
 	}()
 
 	select {
@@ -154,7 +151,7 @@ func (w *Worker) Start() {
 	case <-w.done:
 	}
 
-	w.tm.Stop()
+	w.tm.ImmediateStop()
 
 	// Allow server to stop
 	serverStopped.Set(true)
@@ -164,8 +161,12 @@ func (w *Worker) Start() {
 
 // Stop is a convenience method for stopping the worker loop.  Usually the worker will not be
 // stopped this way, but rather will listen for a shutdown event.
-func (w *Worker) Stop() {
+func (w *Worker) ImmediateStop() {
 	close(w.done)
+}
+
+func (w *Worker) GracefulStop() {
+	w.tm.GracefulStop()
 }
 
 // PayloadSchema returns the payload schema for this worker.

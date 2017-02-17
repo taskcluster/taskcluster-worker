@@ -14,8 +14,8 @@ type mockedQueueService struct {
 }
 
 func (m *mockedQueueService) Start() <-chan *taskClaim {
-	defer m.worker.Stop()
-	defer close(m.worker.tm.done)
+	defer m.worker.GracefulStop()
+	defer close(m.worker.tm.doneClaimingTasks)
 	m.started = true
 	return make(chan *taskClaim)
 }

@@ -1,6 +1,10 @@
 package daemon
 
 import (
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/takama/daemon"
 	"github.com/taskcluster/taskcluster-worker/config"
@@ -32,6 +36,13 @@ func (svc *service) Run() (string, error) {
 		logger.WithError(err).Error("Could not create worker")
 		return "Could not create worker", err
 	}
+
+	sigTerm := make(chan os.Signal, 1)
+	signal.Notify(sigTerm, os.Interrupt, os.Kill, syscall.SIGTERM)
+	go func() {
+		<-sigTerm
+		w.ImmediateStop()
+	}()
 
 	w.Start()
 	return "Worker successfully started", nil

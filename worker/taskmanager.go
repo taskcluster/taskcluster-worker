@@ -19,20 +19,20 @@ import (
 // time and are aborted if a cancellation message is received.
 type Manager struct {
 	sync.RWMutex
-	wg            sync.WaitGroup
-	done          chan struct{}
-	config        *configType
-	engine        engines.Engine
-	environment   *runtime.Environment
-	pluginManager plugins.Plugin
-	pluginOptions *plugins.PluginOptions
-	log           *logrus.Entry
-	queue         QueueService
-	provisionerID string
-	workerGroup   string
-	workerID      string
-	tasks         map[string]*TaskRun
-	gc            *gc.GarbageCollector
+	doneClaimingTasks  chan struct{}
+	doneExecutingTasks chan struct{}
+	config             *configType
+	engine             engines.Engine
+	environment        *runtime.Environment
+	pluginManager      plugins.Plugin
+	pluginOptions      *plugins.PluginOptions
+	log                *logrus.Entry
+	queue              QueueService
+	provisionerID      string
+	workerGroup        string
+	workerID           string
+	tasks              map[string]*TaskRun
+	gc                 *gc.GarbageCollector
 }
 
 // Create a new instance of the task manager that will be responsible for claiming,
@@ -67,17 +67,18 @@ func newTaskManager(
 	}
 
 	m := &Manager{
-		tasks:         make(map[string]*TaskRun),
-		done:          make(chan struct{}),
-		config:        config,
-		engine:        engine,
-		environment:   environment,
-		log:           log,
-		queue:         service,
-		provisionerID: config.ProvisionerID,
-		workerGroup:   config.WorkerGroup,
-		workerID:      config.WorkerID,
-		gc:            gc,
+		tasks:              make(map[string]*TaskRun),
+		doneClaimingTasks:  make(chan struct{}),
+		doneExecutingTasks: make(chan struct{}),
+		config:             config,
+		engine:             engine,
+		environment:        environment,
+		log:                log,
+		queue:              service,
+		provisionerID:      config.ProvisionerID,
+		workerGroup:        config.WorkerGroup,
+		workerID:           config.WorkerID,
+		gc:                 gc,
 	}
 
 	m.pluginManager = pluginManager
@@ -88,28 +89,41 @@ func newTaskManager(
 // claims that are returned by the queue service.
 func (m *Manager) Start() {
 	tc := m.queue.Start()
+	var wg sync.WaitGroup
 	go func() {
 		for t := range tc {
-			go m.run(t)
+			wg.Add(1)
+			go func(t *taskClaim) {
+				defer wg.Done()
+				m.run(t)
+			}(t)
 		}
-		close(m.done)
+		close(m.doneClaimingTasks)
+		wg.Wait()
+		close(m.doneExecutingTasks)
 	}()
 	return
 }
 
-// Stop should be called when the worker should gracefully end the execution of
-// all running tasks before completely shutting down.
-func (m *Manager) Stop() {
+// Stop should be called when the worker should aggressively terminate all
+// running tasks and then gracefully terminate.
+func (m *Manager) ImmediateStop() {
 	m.queue.Stop()
-	<-m.done
+	<-m.doneClaimingTasks
 
 	m.Lock()
+	defer m.Unlock()
 	for _, task := range m.tasks {
 		task.Abort()
 	}
+	<-m.doneExecutingTasks
+}
 
-	m.Unlock()
-	m.wg.Wait()
+// GracefulStop should be called when the worker should stop claiming new
+// tasks, but wait for existing tasks to complete naturally
+func (m *Manager) GracefulStop() {
+	m.queue.Stop()
+	<-m.doneExecutingTasks
 }
 
 // RunningTasks returns the list of task names that are currently running. This could
@@ -181,7 +195,6 @@ func (m *Manager) registerTask(task *TaskRun) error {
 	m.Lock()
 	defer m.Unlock()
 
-	m.wg.Add(1)
 	_, exists := m.tasks[name]
 	if exists {
 		return fmt.Errorf("Cannot register task %s. Task already exists.", name)
@@ -205,6 +218,5 @@ func (m *Manager) deregisterTask(task *TaskRun) error {
 
 	delete(m.tasks, name)
 	m.queue.Done()
-	m.wg.Done()
 	return nil
 }
