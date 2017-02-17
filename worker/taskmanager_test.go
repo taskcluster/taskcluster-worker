@@ -365,16 +365,17 @@ func TestWorkerShutdown(t *testing.T) {
 	go func() {
 		for _, c := range claims {
 			go func(claim *taskClaim) {
+				defer wg.Done()
 				tm.run(claim)
-				wg.Done()
 			}(c)
 		}
 	}()
 
 	time.Sleep(500 * time.Millisecond)
 	assert.Equal(t, len(tm.RunningTasks()), 2)
-	close(tm.done)
-	tm.Stop()
+	close(tm.doneClaimingTasks)
+	close(tm.doneExecutingTasks)
+	tm.ImmediateStop()
 
 	wg.Wait()
 	assert.Equal(t, 0, len(tm.RunningTasks()))
