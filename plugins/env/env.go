@@ -53,7 +53,9 @@ func (plugin) PayloadSchema() schematypes.Object {
 }
 
 func (pl plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
-	var p payloadType
+	p := payloadType{
+		Env: map[string]string{},
+	}
 	err := payloadSchema.Map(options.Payload, &p)
 	if err == schematypes.ErrTypeMismatch {
 		panic("internal error -- type mismatch")
