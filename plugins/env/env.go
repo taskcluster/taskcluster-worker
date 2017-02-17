@@ -48,11 +48,11 @@ var payloadSchema = schematypes.Object{
 	},
 }
 
-func (plugin) PayloadSchema() schematypes.Object {
+func (*plugin) PayloadSchema() schematypes.Object {
 	return payloadSchema
 }
 
-func (pl plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
+func (pl *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
 	p := payloadType{
 		Env: map[string]string{},
 	}
@@ -67,7 +67,7 @@ func (pl plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskP
 		p.Env[k] = v
 	}
 
-	return taskPlugin{
+	return &taskPlugin{
 		TaskPluginBase: plugins.TaskPluginBase{},
 		variables:      p.Env,
 	}, nil
@@ -78,7 +78,7 @@ type taskPlugin struct {
 	variables map[string]string
 }
 
-func (p taskPlugin) BuildSandbox(sandboxBuilder engines.SandboxBuilder) error {
+func (p *taskPlugin) BuildSandbox(sandboxBuilder engines.SandboxBuilder) error {
 	for k, v := range p.variables {
 		err := sandboxBuilder.SetEnvironmentVariable(k, v)
 
@@ -105,22 +105,22 @@ type pluginProvider struct {
 	plugins.PluginProviderBase
 }
 
-func (pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
+func (*pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
 	var c config
 	if err := schematypes.MustMap(configSchema, options.Config, &c); err != nil {
 		return nil, engines.ErrContractViolation
 	}
 
-	return plugin{
+	return &plugin{
 		PluginBase: plugins.PluginBase{},
 		extraVars:  c.Extra,
 	}, nil
 }
 
-func (pluginProvider) ConfigSchema() schematypes.Schema {
+func (*pluginProvider) ConfigSchema() schematypes.Schema {
 	return configSchema
 }
 
 func init() {
-	plugins.Register("env", pluginProvider{})
+	plugins.Register("env", &pluginProvider{})
 }
