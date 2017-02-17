@@ -86,7 +86,7 @@ tasks:
           - |
             export GOPATH="$(pwd)/go"
             # curl -s "http://localhost:6000/secrets/v1/secret/repo:github.com/taskcluster/taskcluster-worker" | sed -n 's/.*"b64_encoded_credentials_script": "\(.*\)".*/\1/p' | base64 -D > env_private.sh
-            source "$(TASKCLUSTER_CREDS_BOOTSTRAP)"
+            source "${TASKCLUSTER_CREDS_BOOTSTRAP}"
             go get -v "github.com/kardianos/govendor"
             mkdir -p "${GOPATH}/src/github.com/taskcluster"
             cd "${GOPATH}/src/github.com/taskcluster"
