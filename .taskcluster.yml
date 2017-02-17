@@ -63,7 +63,7 @@ tasks:
     workerType: mac-os-x
     metadata:
       name: "Build/test 64 bit taskcluster-worker on Mac OS X 10.10"
-      description: "This builds the 64 bit linux version of taskcluster-worker"
+      description: "This builds the 64 bit OS X version of taskcluster-worker"
       owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
       source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
     extra:
@@ -85,8 +85,8 @@ tasks:
           - -vxec
           - |
             export GOPATH="$(pwd)/go"
-            curl -s "http://localhost:6000/secrets/v1/secret/repo:github.com/taskcluster/taskcluster-worker" | sed -n 's/.*"b64_encoded_credentials_script": "\(.*\)".*/\1/p' | base64 -D > env_private.sh
-            source env_private.sh
+            # curl -s "http://localhost:6000/secrets/v1/secret/repo:github.com/taskcluster/taskcluster-worker" | sed -n 's/.*"b64_encoded_credentials_script": "\(.*\)".*/\1/p' | base64 -D > env_private.sh
+            source "$(TASKCLUSTER_CREDS_BOOTSTRAP)"
             go get -v "github.com/kardianos/govendor"
             mkdir -p "${GOPATH}/src/github.com/taskcluster"
             cd "${GOPATH}/src/github.com/taskcluster"
