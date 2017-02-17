@@ -140,13 +140,8 @@ func (w *Worker) Start() {
 
 	go w.tm.Start()
 
-	// if task manager stops executing tasks, stop the worker
-	go func() {
-		<-w.tm.doneExecutingTasks
-		w.ImmediateStop()
-	}()
-
 	select {
+	case <-w.tm.doneExecutingTasks:
 	case <-w.sm.WaitForShutdown():
 	case <-w.done:
 	}

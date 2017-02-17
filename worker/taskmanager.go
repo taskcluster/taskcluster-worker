@@ -105,8 +105,8 @@ func (m *Manager) Start() {
 	return
 }
 
-// Stop should be called when the worker should aggressively terminate all
-// running tasks and then gracefully terminate.
+// ImmediateStop should be called when the worker should aggressively terminate
+// all running tasks and then gracefully terminate.
 func (m *Manager) ImmediateStop() {
 	m.queue.Stop()
 	<-m.doneClaimingTasks
