@@ -138,8 +138,5 @@ func SubmitTask(t *testing.T, td *queue.TaskDefinitionRequest, payload TaskPaylo
 	if err != nil {
 		t.Fatalf("Could not submit task: %v", err)
 	}
-
-	// run the worker for one task only - note, the function will also return
-	// if there is a minute of idle time (see config above)
 	return
 }
