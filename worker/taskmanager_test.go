@@ -374,6 +374,7 @@ func TestWorkerShutdown(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	assert.Equal(t, len(tm.RunningTasks()), 2)
 	close(tm.doneClaimingTasks)
+	close(tm.doneExecutingTasks)
 	tm.ImmediateStop()
 
 	wg.Wait()
