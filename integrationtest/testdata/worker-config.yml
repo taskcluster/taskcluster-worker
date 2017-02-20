@@ -10,9 +10,9 @@ config:
     clientId:       {$env: TASKCLUSTER_CLIENT_ID}
     accessToken:    {$env: TASKCLUSTER_ACCESS_TOKEN}
   provisionerId:    test-dummy-provisioner
-  workerType:       dummy-worker-{$env: TASKCLUSTER_RANDOM_SUFFIX}
+  workerType:       {$env: TASKCLUSTER_WORKER_TYPE}
   workerGroup:      test-dummy-workers
-  workerId:         dummy-worker-${env: TASKCLUSTER_RANDOM_SUFFIX}
+  workerId:         {$env: TASKCLUSTER_WORKER_ID}
   engine:           native
   engines:
     native:
