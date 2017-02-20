@@ -35,6 +35,7 @@ type configType struct {
 	MaxLifeCycle     int                    `json:"maxLifeCycle"`
 	MinimumDiskSpace int64                  `json:"minimumDiskSpace"`
 	MinimumMemory    int64                  `json:"minimumMemory"`
+	MaxTasksToRun    int                    `json:"maxTasksToRun"`
 }
 
 type credentials struct {
@@ -219,8 +220,8 @@ func ConfigSchema() schematypes.Object {
 			"statelessDNSDomain": schematypes.String{},
 			"maxLifeCycle": schematypes.Integer{
 				MetaData: schematypes.MetaData{
-					Title:       "Max life cycle of worker",
-					Description: "Used to limit validity of hostname",
+					Title:       "Maximum lifetime of the worker in seconds",
+					Description: "Used to limit the time period for which the DNS server will return an IP for the given worker hostname",
 				},
 				Minimum: 5 * 60,
 				Maximum: 31 * 24 * 60 * 60,
@@ -228,7 +229,7 @@ func ConfigSchema() schematypes.Object {
 			"minimumDiskSpace": schematypes.Integer{
 				MetaData: schematypes.MetaData{
 					Title: "Minimum Disk Space",
-					Description: `The minimum amount of disk space to have available
+					Description: `The minimum amount of disk space in bytes to have available
 						before starting on the next task. Garbage collector will do a
 						best-effort attempt at releasing resources to satisfy this limit`,
 				},
@@ -238,12 +239,22 @@ func ConfigSchema() schematypes.Object {
 			"minimumMemory": schematypes.Integer{
 				MetaData: schematypes.MetaData{
 					Title: "Minimum Memory",
-					Description: `The minimum amount of memory to have available
+					Description: `The minimum amount of memory in bytes to have available
 						before starting on the next task. Garbage collector will do a
 						best-effort attempt at releasing resources to satisfy this limit`,
 				},
 				Minimum: 0,
 				Maximum: math.MaxInt64,
+			},
+			"maxTasksToRun": schematypes.Integer{
+				MetaData: schematypes.MetaData{
+					Title: "Number of tasks the worker should run before exiting",
+					Description: `If set to 0, the worker does not limit the number of tasks
+						it will claim and execute. For positive values > 0, the worker will
+						exit if it completes the given number of tasks.`,
+				},
+				Minimum: 0,
+				Maximum: math.MaxInt32,
 			},
 		},
 		Required: []string{

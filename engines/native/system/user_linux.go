@@ -140,3 +140,8 @@ func (u *User) Remove() {
 func (u *User) Name() string {
 	return u.name
 }
+
+// Home returns the user home folder`
+func (u *User) Home() string {
+	return u.homeFolder
+}

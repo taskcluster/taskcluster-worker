@@ -49,7 +49,7 @@ func (cmd) Execute(args map[string]interface{}) bool {
 	select {
 	case <-c:
 		signal.Stop(c)
-		w.Stop()
+		w.ImmediateStop()
 		<-done
 	case <-done:
 	}
