@@ -73,7 +73,7 @@ tasks:
           - pull_request.*
           - push
     scopes:
-      - secrets:get:repo:github.com/taskcluster/taskcluster-worker
+      - generic-worker:cache:taskcluster-worker-checkout
     payload:
       maxRunTime: 3600
       artifacts:
@@ -89,9 +89,13 @@ tasks:
             go get -v "github.com/kardianos/govendor"
             mkdir -p "${GOPATH}/src/github.com/taskcluster"
             cd "${GOPATH}/src/github.com/taskcluster"
-            git clone '{{ event.head.repo.url }}' 'taskcluster-worker'
+            [ ! -d taskcluster-worker ] && git clone '{{ event.head.repo.url }}' 'taskcluster-worker'
             cd 'taskcluster-worker'
-            git fetch --tags
-            git checkout '{{ event.head.sha }}'
+            git fetch origin refs/remotes/origin/*:refs/*
+            git checkout -f '{{ event.head.sha }}'
+            git clean -fd
             govendor sync
             make rebuild check
+      mounts:
+        - cacheName: taskcluster-worker-checkout
+          directory: go/src/github.com/taskcluster/taskcluster-worker
