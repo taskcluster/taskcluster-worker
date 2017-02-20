@@ -3,7 +3,6 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 transforms:
   - env
-  - secrets
 config:
   capacity:         {$env: TASKCLUSTER_CAPACITY, type: number}
   credentials:
@@ -27,18 +26,6 @@ config:
   temporaryFolder:  /var/tmp/tc-worker-tmp
   serverIp:           127.0.0.1
   serverPort:         60000
-  tlsCertificiate:
-    $secret:  project/taskcluster/taskcluster-worker/stateless-dns
-    key:      certificate
-  tlsKey:
-    $secret:  project/taskcluster/taskcluster-worker/stateless-dns
-    key:      tlsKey
-  statelessDNSSecret:
-    $secret:  project/taskcluster/taskcluster-worker/stateless-dns
-    key:      secret
-  statelessDNSDomain:
-    $secret:  project/taskcluster/taskcluster-worker/stateless-dns
-    key:      domain
   maxLifeCycle:       600
   minimumDiskSpace:   10000000  # 10 GB
   minimumMemory:      1000000   # 1 GB
