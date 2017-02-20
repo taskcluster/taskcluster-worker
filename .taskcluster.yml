@@ -90,7 +90,7 @@ tasks:
         - 'set GOPATH=%CD%\go'
         - ':: source "${TASKCLUSTER_CREDS_BOOTSTRAP}"'
         - 'go get -v github.com/kardianos/govendor'
-        - 'mkdir "%GOPATH%\src\github.com\taskcluster"'
+        - 'if not exist "%GOPATH%\src\github.com\taskcluster" mkdir "%GOPATH%\src\github.com\taskcluster"'
         - 'cd "%GOPATH%\src\github.com\taskcluster"'
         - 'if not exist taskcluster-worker git clone {{ event.head.repo.url }} taskcluster-worker'
         - 'cd taskcluster-worker'
