@@ -155,4 +155,3 @@ tasks:
       mounts:
         - cacheName: taskcluster-worker-checkout
           directory: go/src
-
