@@ -28,6 +28,7 @@ tasks:
           - push
     scopes:
       - secrets:get:repo:github.com/taskcluster/taskcluster-worker
+      - docker-worker:cache:taskcluster-worker-checkout
     payload:
       features:
         taskclusterProxy: true
