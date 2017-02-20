@@ -42,10 +42,11 @@ tasks:
           go get -v "github.com/kardianos/govendor"
           mkdir -p "${GOPATH}/src/github.com/taskcluster"
           cd "${GOPATH}/src/github.com/taskcluster"
-          git clone '{{ event.head.repo.url }}' 'taskcluster-worker'
+          if [ ! -d taskcluster-worker/.git ]; then rm -rf taskcluster-worker; git clone '{{ event.head.repo.url }}' 'taskcluster-worker'; fi
           cd 'taskcluster-worker'
           git fetch --tags
-          git checkout '{{ event.head.sha }}'
+          git checkout -f '{{ event.head.sha }}'
+          git clean -d -f -e '/vendor/*' -x
           govendor sync
           make rebuild check
       artifacts:
@@ -53,6 +54,8 @@ tasks:
           path: "/go/src/github.com/taskcluster/taskcluster-worker/taskcluster-worker"
           expires: "{{ '2 weeks' | $fromNow }}"
           type: file
+      cache:
+        taskcluster-worker-checkout: /go/src
 
 
   ##########################################################
