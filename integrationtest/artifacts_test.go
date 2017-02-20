@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/taskcluster/slugid-go/slugid"
+	tcclient "github.com/taskcluster/taskcluster-client-go"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/artifacts"
 )
 
@@ -15,26 +16,26 @@ var (
 
 func TestUpload(t *testing.T) {
 
+	task, workerType := NewTestTask("TestUpload")
 	payload := TaskPayload{
 		Command: []string{
 			"echo",
 			"hello world",
 		},
 		Artifacts: []struct {
-			Expires tcclient.Time `json:"expires"`
-			Name    string        `json:"type"`
+			Expires tcclient.Time `json:"expires,omitempty"`
+			Name    string        `json:"name"`
 			Path    string        `json:"path"`
 			Type    string        `json:"type"`
 		}{
 			{
-				Expires: expires,
+				Expires: task.Expires,
 				Name:    "SampleArtifacts/_/X.txt",
 				Path:    "SampleArtifacts/_/X.txt",
 				Type:    "file",
 			},
 		},
 	}
-	task, workerType := NewTestTask("TestUpload")
 	taskID, _ := SubmitTask(t, task, payload)
 	RunTestWorker(workerType)
 	t.Log(taskID)
