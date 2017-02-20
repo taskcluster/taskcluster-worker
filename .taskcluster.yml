@@ -93,6 +93,7 @@ tasks:
         - 'go get -v github.com/kardianos/govendor'
         - 'if not exist "%GOPATH%\src\github.com\taskcluster" mkdir "%GOPATH%\src\github.com\taskcluster"'
         - 'cd "%GOPATH%\src\github.com\taskcluster"'
+        - 'git config --global core.autocrlf false'
         - 'if not exist taskcluster-worker git clone {{ event.head.repo.url }} taskcluster-worker'
         - 'cd taskcluster-worker'
         - 'git fetch --tags'
