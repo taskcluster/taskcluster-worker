@@ -99,7 +99,7 @@ tasks:
         - 'git checkout -f {{ event.head.sha }}'
         - 'git clean -d -f -e /vendor/* -x'
         - 'govendor sync'
-        - 'make rebuild check'
+        - '"C:\cygwin\bin\bash.exe" --login -c "make rebuild check"'
       mounts:
         - cacheName: taskcluster-worker-checkout
           directory: go/src
