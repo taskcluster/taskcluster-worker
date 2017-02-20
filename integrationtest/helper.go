@@ -14,6 +14,7 @@ import (
 	_ "github.com/taskcluster/taskcluster-worker/commands/work"
 	_ "github.com/taskcluster/taskcluster-worker/config/env"
 	_ "github.com/taskcluster/taskcluster-worker/config/secrets"
+	_ "github.com/taskcluster/taskcluster-worker/engines/native"
 )
 
 type TaskPayload struct {
