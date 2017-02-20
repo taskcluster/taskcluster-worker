@@ -11,6 +11,7 @@ import (
 	tcclient "github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-worker/commands"
+	_ "github.com/taskcluster/taskcluster-worker/commands/work"
 )
 
 type TaskPayload struct {

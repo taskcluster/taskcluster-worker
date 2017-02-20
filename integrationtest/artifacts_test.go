@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/taskcluster/slugid-go/slugid"
-	_ "github.com/taskcluster/taskcluster-worker/commands/work"
 )
 
 var (
