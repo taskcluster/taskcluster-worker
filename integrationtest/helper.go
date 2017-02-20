@@ -13,6 +13,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/commands"
 	_ "github.com/taskcluster/taskcluster-worker/commands/work"
 	_ "github.com/taskcluster/taskcluster-worker/config/env"
+	_ "github.com/taskcluster/taskcluster-worker/config/secrets"
 )
 
 type TaskPayload struct {
