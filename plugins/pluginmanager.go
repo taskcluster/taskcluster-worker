@@ -47,6 +47,9 @@ func mergeErrors(errs ...error) error {
 // Note, that errors might be nil, if all are nil it'll return nil otherwise
 // it'll merge the errors.
 func waitForErrors(errors <-chan error, count int) error {
+	if count == 0 {
+		return nil
+	}
 	errs := []error{}
 	for err := range errors {
 		if err != nil {
