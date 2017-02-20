@@ -5,7 +5,7 @@ transforms:
   - env
   - secrets
 config:
-  capacity:         {$env: TASKCLUSTER_CAPACITY}
+  capacity:         {$env: TASKCLUSTER_CAPACITY, type: number}
   credentials:
     clientId:       {$env: TASKCLUSTER_CLIENT_ID}
     accessToken:    {$env: TASKCLUSTER_ACCESS_TOKEN}
@@ -42,4 +42,4 @@ config:
   maxLifeCycle:       600
   minimumDiskSpace:   10000000  # 10 GB
   minimumMemory:      1000000   # 1 GB
-  maxTasksToRun:      {$env: TASKCLUSTER_MAX_TASKS}
+  maxTasksToRun:      {$env: TASKCLUSTER_MAX_TASKS, type: number}

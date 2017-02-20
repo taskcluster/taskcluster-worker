@@ -12,6 +12,7 @@ import (
 	"github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-worker/commands"
 	_ "github.com/taskcluster/taskcluster-worker/commands/work"
+	_ "github.com/taskcluster/taskcluster-worker/config/env"
 )
 
 type TaskPayload struct {
