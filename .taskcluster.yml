@@ -87,9 +87,8 @@ tasks:
             export GOPATH="$(pwd)/go"
             source "${TASKCLUSTER_CREDS_BOOTSTRAP}"
             go get -v "github.com/kardianos/govendor"
-            mkdir -p "${GOPATH}/src/github.com/taskcluster"
             cd "${GOPATH}/src/github.com/taskcluster"
-            [ ! -d taskcluster-worker ] && git clone '{{ event.head.repo.url }}' 'taskcluster-worker'
+            if [ ! -d taskcluster-worker/.git ]; then rm -r taskcluster-worker; git clone '{{ event.head.repo.url }}' 'taskcluster-worker'; fi
             cd 'taskcluster-worker'
             git fetch origin refs/remotes/origin/*:refs/*
             git checkout -f '{{ event.head.sha }}'
