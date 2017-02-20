@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/taskcluster/slugid-go/slugid"
+	_ "github.com/taskcluster/taskcluster-worker/plugins/artifacts"
 )
 
 var (
@@ -18,6 +19,19 @@ func TestUpload(t *testing.T) {
 		Command: []string{
 			"echo",
 			"hello world",
+		},
+		Artifacts: []struct {
+			Expires tcclient.Time `json:"expires"`
+			Name    string        `json:"type"`
+			Path    string        `json:"path"`
+			Type    string        `json:"type"`
+		}{
+			{
+				Expires: expires,
+				Name:    "SampleArtifacts/_/X.txt",
+				Path:    "SampleArtifacts/_/X.txt",
+				Type:    "file",
+			},
 		},
 	}
 	task, workerType := NewTestTask("TestUpload")
