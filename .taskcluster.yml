@@ -88,6 +88,7 @@ tasks:
         - 'mkdir public\build'
         - 'mklink public\build\taskcluster-worker-windows-amd64.exe go\src\github.com\taskcluster\taskcluster-worker\taskcluster-worker.exe'
         - 'set GOPATH=%CD%\go'
+        - 'set PATH=%GOPATH\bin;%PATH%'
         - ':: source "${TASKCLUSTER_CREDS_BOOTSTRAP}"'
         - 'go get -v github.com/kardianos/govendor'
         - 'if not exist "%GOPATH%\src\github.com\taskcluster" mkdir "%GOPATH%\src\github.com\taskcluster"'
