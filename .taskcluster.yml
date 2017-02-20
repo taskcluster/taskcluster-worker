@@ -99,3 +99,4 @@ tasks:
       mounts:
         - cacheName: taskcluster-worker-checkout
           directory: go/src/github.com/taskcluster/taskcluster-worker
+
