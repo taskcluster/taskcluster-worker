@@ -93,7 +93,7 @@ tasks:
             cd 'taskcluster-worker'
             git fetch origin refs/remotes/origin/*:refs/*
             git checkout -f '{{ event.head.sha }}'
-            git clean -fd
+            git clean -d -f -e '/vendor/*' -x
             govendor sync
             make rebuild check
       mounts:
