@@ -91,7 +91,7 @@ tasks:
             cd "${GOPATH}/src/github.com/taskcluster"
             if [ ! -d taskcluster-worker/.git ]; then rm -rf taskcluster-worker; git clone '{{ event.head.repo.url }}' 'taskcluster-worker'; fi
             cd 'taskcluster-worker'
-            git fetch origin refs/remotes/origin/*:refs/*
+            git fetch --tags
             git checkout -f '{{ event.head.sha }}'
             git clean -d -f -e '/vendor/*' -x
             govendor sync
