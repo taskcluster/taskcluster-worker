@@ -59,6 +59,59 @@ tasks:
 
 
   ##########################################################
+  #################### Windows 2012 R2 #####################
+  ##########################################################
+
+  - provisionerId: aws-provisioner-v1
+    workerType: win2012r2-cu
+    metadata:
+      name: "Build/test 64 bit taskcluster-worker on Windows 2012 R2"
+      description: "This builds the 64 bit Windows version of taskcluster-worker"
+      owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
+      source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
+    extra:
+      github:
+        # Events that will trigger this task
+        events:
+          - pull_request.*
+          - push
+    scopes:
+      - generic-worker:cache:taskcluster-worker-checkout
+    payload:
+      maxRunTime: 3600
+      artifacts:
+        - expires: "{{ '2 weeks' | $fromNow }}"
+          type: file
+          path: public/build/taskcluster-worker-windows-amd64.exe
+      command:
+        - 'mkdir public\build'
+        - 'mklink public\build\taskcluster-worker-windows-amd64.exe go\src\github.com\taskcluster\taskcluster-worker\taskcluster-worker.exe'
+        - 'set GOPATH=%CD%\go'
+        - ':: source "${TASKCLUSTER_CREDS_BOOTSTRAP}"'
+        - 'go get -v github.com/kardianos/govendor'
+        - 'mkdir "%GOPATH%\src\github.com\taskcluster"'
+        - 'cd "%GOPATH%\src\github.com\taskcluster"'
+        - 'if not exist taskcluster-worker git clone {{ event.head.repo.url }} taskcluster-worker'
+        - 'cd taskcluster-worker'
+        - 'git fetch --tags'
+        - 'git checkout -f {{ event.head.sha }}'
+        - 'git clean -d -f -e /vendor/* -x'
+        - 'govendor sync'
+        - 'make rebuild check'
+      mounts:
+        - cacheName: taskcluster-worker-checkout
+          directory: go/src
+        - content:
+            url: https://storage.googleapis.com/golang/go1.7.5.windows-amd64.zip
+          directory: .
+          format: zip
+        - content:
+            url: https://github.com/git-for-windows/git/releases/download/v2.11.0.windows.3/MinGit-2.11.0.3-64-bit.zip
+          directory: git
+          format: zip
+
+
+  ##########################################################
   #################### OS X 10.10 build ####################
   ##########################################################
 
