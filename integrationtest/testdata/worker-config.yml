@@ -6,7 +6,6 @@ transforms:
 config:
   plugins:
     disabled:       []
-    env:            {}
   capacity:         {$env: TASKCLUSTER_CAPACITY, type: number}
   credentials:
     clientId:       {$env: TASKCLUSTER_CLIENT_ID}
@@ -31,3 +30,5 @@ config:
   minimumDiskSpace:   10000000  # 10 GB
   minimumMemory:      1000000   # 1 GB
   maxTasksToRun:      {$env: TASKCLUSTER_MAX_TASKS, type: number}
+  statelessDNSSecret: dummy-secret
+  statelessDNSDomain: dummy-foo.bar.com.biz
