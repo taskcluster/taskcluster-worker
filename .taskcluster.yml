@@ -99,7 +99,7 @@ tasks:
         - 'git checkout -f {{ event.head.sha }}'
         - 'git clean -d -f -e /vendor/* -x'
         - 'govendor sync'
-        - '"C:\mozilla-build\msys\bin\bash.exe" --login -c "pwd && cd && pwd && env | grep -v TASK && cd go/src/github.com/taskcluster/taskcluster-worker && make rebuild check"'
+        - '"C:\mozilla-build\msys\bin\bash.exe" --login -c "cd ${GOPATH}/src/github.com/taskcluster/taskcluster-worker && make rebuild check"'
       mounts:
         - cacheName: taskcluster-worker-checkout
           directory: go/src
