@@ -44,11 +44,11 @@ var payloadSchema = schematypes.Object{
 					"name": schematypes.String{
 						MetaData: schematypes.MetaData{
 							Title: "Artifact Name",
-							Description: `
-								This will be the leading path to directories and the full name
-								for files that are uploaded to s3. It must not begin or end
-								with "/" and must only contain printable ascii characters
-								otherwise.`,
+							Description: "" +
+								"This will be the leading path to directories and the full name\n" +
+								"for files that are uploaded to s3. It must not begin or end\n" +
+								"with '/' and must only contain printable ascii characters\n" +
+								"otherwise.",
 						},
 						Pattern: `^([\x20-\x2e\x30-\x7e][\x20-\x7e]*)[\x20-\x2e\x30-\x7e]$`,
 					},

@@ -2,6 +2,7 @@ package integrationtest
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -16,6 +17,22 @@ import (
 	_ "github.com/taskcluster/taskcluster-worker/config/secrets"
 	_ "github.com/taskcluster/taskcluster-worker/engines/native"
 )
+
+var (
+	// all tests can share taskGroupId so we can view all test tasks in same
+	// graph later for troubleshooting
+	taskGroupID string = slugid.Nice()
+	testdata    string = testdataDir()
+)
+
+func testdataDir() string {
+	// some basic setup...
+	cwd, err := os.Getwd()
+	if err != nil {
+		panic(fmt.Errorf("Could not get current directory during test package initialisation: %v", err))
+	}
+	return filepath.Join(cwd, "testdata")
+}
 
 type TaskPayload struct {
 
