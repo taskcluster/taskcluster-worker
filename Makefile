@@ -26,7 +26,7 @@ build:
 	go fmt $$(go list ./... | grep -v /vendor/)
 	CGO_ENABLED=$(CGO_ENABLE) go build
 
-rebuild: prechecks build test
+rebuild: prechecks build test lint
 
 check: test
 	# tests should fail if go fmt results in uncommitted code
@@ -47,3 +47,8 @@ tc-worker-env:
 tc-worker:
 	CGO_ENABLED=$(CGO_ENABLE) GOARCH=amd64 go build
 	docker build -t taskcluster/tc-worker -f tc-worker.Dockerfile .
+
+lint:
+	go get github.com/alecthomas/gometalinter
+	gometalinter --install
+	$(GOPATH)/bin/gometalinter --deadline 10m $$(go list ./... | grep -v /vendor/ | sed 's/github.com\/taskcluster\/taskcluster-worker/./')
