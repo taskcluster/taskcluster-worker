@@ -3,7 +3,6 @@
 package osxnative
 
 import (
-	"fmt"
 	"os"
 	osuser "os/user"
 	"strings"
@@ -36,7 +35,8 @@ func TestUser(t *testing.T) {
 	for _, group := range groups[1:] {
 		var members string
 		members, err = u.d.read("/Groups/"+group, "GroupMembership")
-		fmt.Println(members)
+		assert.NoError(t, err)
+		t.Log(members)
 		assert.True(t, strings.Contains(members, u.name))
 	}
 

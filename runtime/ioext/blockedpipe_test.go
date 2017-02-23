@@ -24,7 +24,7 @@ func TestBlockedPipe(t *testing.T) {
 		p := make([]byte, 4)
 		n, err := io.ReadFull(r, p)
 		if n != 4 || string(p[:n]) != "1234" {
-			fmt.Printf("read data: '%s', n = %d\n", string(p), n)
+			t.Logf("read data: '%s', n = %d\n", string(p), n)
 			panic("Wrong data read")
 		}
 		if err != nil {
@@ -36,7 +36,7 @@ func TestBlockedPipe(t *testing.T) {
 		p = make([]byte, 5)
 		n, err = io.ReadFull(r, p)
 		if n != 4 || string(p[:n]) != "5678" {
-			fmt.Printf("read data: '%s', n = %d\n", string(p), n)
+			t.Logf("read data: '%s', n = %d\n", string(p), n)
 			panic("Wrong data read")
 		}
 		if err != io.ErrUnexpectedEOF {
@@ -116,19 +116,19 @@ func TestBlockedPipeClosedPipe(t *testing.T) {
 	}
 
 	// Close the pipe
-	fmt.Println("- Closing")
+	t.Log("- Closing")
 	if r.Close() != nil {
 		panic("didn't think we should get an error here")
 	}
-	fmt.Println("- Closed")
+	t.Log("- Closed")
 
 	// Now we should be all done
 	<-allDone
-	fmt.Println("- allDone")
+	t.Log("- allDone")
 
 	// And we should have cleanedup, not leaking anything that would be bad
 	<-cleanedup
-	fmt.Println("- Cleanup")
+	t.Log("- Cleanup")
 }
 
 func TestBlockedReachesEOF(t *testing.T) {
