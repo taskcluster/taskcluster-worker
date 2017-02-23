@@ -52,10 +52,10 @@ func waitForErrors(taskPlugins []TaskPlugin, f func(p TaskPlugin) error) (err er
 	var wg sync.WaitGroup
 	for i, j := range taskPlugins {
 		wg.Add(1)
-		go func(b TaskPlugin) {
+		go func(i int, j TaskPlugin) {
 			defer wg.Done()
-			errors[i] = f(b)
-		}(j)
+			errors[i] = f(j)
+		}(i, j)
 	}
 	wg.Wait()
 	return mergeErrors(errors...)
