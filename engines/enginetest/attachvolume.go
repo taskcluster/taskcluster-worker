@@ -3,6 +3,7 @@
 package enginetest
 
 import (
+	"log"
 	"sync"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
@@ -55,10 +56,10 @@ func (c *VolumeTestCase) TestWriteReadVolume() {
 	nilOrPanic(err, "Failed to create a new cache folder")
 	defer evalNilOrPanic(volume.Dispose, "Failed to dispose cache folder")
 	if !c.writeVolume(volume, false) {
-		fmtPanic("Running with writeVolumePayload didn't finish successfully")
+		log.Panic("Running with writeVolumePayload didn't finish successfully")
 	}
 	if !c.readVolume(volume, false) {
-		fmtPanic("Running with CheckVolumePayload didn't finish successfully, ",
+		log.Panic("Running with CheckVolumePayload didn't finish successfully, ",
 			"after we ran writeVolumePayload with same volume (writing something)")
 	}
 }
@@ -70,7 +71,7 @@ func (c *VolumeTestCase) TestReadEmptyVolume() {
 	nilOrPanic(err, "Failed to create a new cache folder")
 	defer evalNilOrPanic(volume.Dispose, "Failed to dispose cache folder")
 	if c.readVolume(volume, false) {
-		fmtPanic("Running with CheckVolumePayload with an empty volume was successful.",
+		log.Panic("Running with CheckVolumePayload with an empty volume was successful.",
 			"It really shouldn't have been.")
 	}
 }
@@ -83,7 +84,7 @@ func (c *VolumeTestCase) TestWriteToReadOnlyVolume() {
 	defer evalNilOrPanic(volume.Dispose, "Failed to dispose cache folder")
 	c.writeVolume(volume, true)
 	if c.readVolume(volume, false) {
-		fmtPanic("Write on read-only volume didn't give us is an issue when reading")
+		log.Panic("Write on read-only volume didn't give us is an issue when reading")
 	}
 }
 
@@ -94,10 +95,10 @@ func (c *VolumeTestCase) TestReadToReadOnlyVolume() {
 	nilOrPanic(err, "Failed to create a new cache folder")
 	defer evalNilOrPanic(volume.Dispose, "Failed to dispose cache folder")
 	if !c.writeVolume(volume, false) {
-		fmtPanic("Running with writeVolumePayload didn't finish successfully")
+		log.Panic("Running with writeVolumePayload didn't finish successfully")
 	}
 	if !c.readVolume(volume, true) {
-		fmtPanic("Running with CheckVolumePayload didn't finish successfully, ",
+		log.Panic("Running with CheckVolumePayload didn't finish successfully, ",
 			"after we ran writeVolumePayload with same volume (writing something) ",
 			"This was with a readOnly attachment when reading")
 	}
