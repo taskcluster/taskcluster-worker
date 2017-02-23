@@ -41,23 +41,24 @@ func mergeErrors(errs ...error) error {
 	return nil
 }
 
-// waitForErrors returns when it has received count results from the errors
-// channel.
+// waitForErrors executes function f against every plugin passed in taskPlugins
+// and returns an error which represents the merge of all errors which occurred
+// against any plugin.
 //
 // Note, that errors might be nil, if all are nil it'll return nil otherwise
 // it'll merge the errors.
-func waitForErrors(errors <-chan error, count int) error {
-	errs := []error{}
-	for err := range errors {
-		if err != nil {
-			errs = append(errs, err)
-		}
-		count--
-		if count == 0 {
-			break
-		}
+func waitForErrors(taskPlugins []TaskPlugin, f func(p TaskPlugin) error) (err error) {
+	errors := make([]error, len(taskPlugins))
+	var wg sync.WaitGroup
+	for i, j := range taskPlugins {
+		wg.Add(1)
+		go func(b TaskPlugin) {
+			defer wg.Done()
+			errors[i] = f(b)
+		}(j)
 	}
-	return mergeErrors(errs...)
+	wg.Wait()
+	return mergeErrors(errors...)
 }
 
 // PluginManagerConfigSchema returns configuration for PluginOptions.Config for
@@ -198,41 +199,39 @@ func (m *pluginManager) PayloadSchema() schematypes.Object {
 	return m.payloadSchema
 }
 
-func (m *pluginManager) NewTaskPlugin(options TaskPluginOptions) (TaskPlugin, error) {
+func (m *pluginManager) NewTaskPlugin(options TaskPluginOptions) (manager TaskPlugin, err error) {
 	// Input must be valid
 	if m.payloadSchema.Validate(options.Payload) != nil {
 		return nil, engines.ErrContractViolation
 	}
 
-	// Create a list of TaskPlugins and a mutex to guard access
-	taskPlugins := []TaskPlugin{}
-	mu := sync.Mutex{}
+	taskPlugins := make([]TaskPlugin, len(m.plugins))
+	errors := make([]error, len(m.plugins))
 
-	errors := make(chan error)
+	var wg sync.WaitGroup
 	for i, p := range m.plugins {
-		go func(name string, p Plugin) {
-			taskPlugin, err := p.NewTaskPlugin(TaskPluginOptions{
+		wg.Add(1)
+		go func(i int, p Plugin) {
+			defer wg.Done()
+			taskPlugins[i], errors[i] = p.NewTaskPlugin(TaskPluginOptions{
 				TaskInfo: options.TaskInfo,
 				Payload:  p.PayloadSchema().Filter(options.Payload),
-				Log:      options.Log.WithField("plugin", name),
+				Log:      options.Log.WithField("plugin", m.pluginNames[i]),
 			})
-			if taskPlugin != nil {
-				mu.Lock()
-				taskPlugins = append(taskPlugins, taskPlugin)
-				mu.Unlock()
-			}
-			errors <- err
-		}(m.pluginNames[i], p)
+		}(i, p)
+	}
+	wg.Wait()
+	err = mergeErrors(errors...)
+
+	manager = &taskPluginManager{
+		taskPlugins: taskPlugins,
 	}
 
-	// Wait for errors, if any we dispose and return a merged error
-	err := waitForErrors(errors, len(m.plugins))
-	manager := &taskPluginManager{taskPlugins: taskPlugins}
 	if err != nil {
 		err2 := manager.Dispose()
 		return nil, mergeErrors(err, err2)
 	}
-	return manager, nil
+	return
 }
 
 func (m *taskPluginManager) Prepare(c *runtime.TaskContext) error {
@@ -245,11 +244,7 @@ func (m *taskPluginManager) Prepare(c *runtime.TaskContext) error {
 	defer m.working.Set(false)
 
 	// Run method on plugins in parallel
-	errors := make(chan error)
-	for _, p := range m.taskPlugins {
-		go func(p TaskPlugin) { errors <- p.Prepare(c) }(p)
-	}
-	return waitForErrors(errors, len(m.taskPlugins))
+	return waitForErrors(m.taskPlugins, func(p TaskPlugin) error { return p.Prepare(c) })
 }
 
 func (m *taskPluginManager) BuildSandbox(b engines.SandboxBuilder) error {
@@ -262,11 +257,7 @@ func (m *taskPluginManager) BuildSandbox(b engines.SandboxBuilder) error {
 	defer m.working.Set(false)
 
 	// Run method on plugins in parallel
-	errors := make(chan error)
-	for _, p := range m.taskPlugins {
-		go func(p TaskPlugin) { errors <- p.BuildSandbox(b) }(p)
-	}
-	return waitForErrors(errors, len(m.taskPlugins))
+	return waitForErrors(m.taskPlugins, func(p TaskPlugin) error { return p.BuildSandbox(b) })
 }
 
 func (m *taskPluginManager) Started(s engines.Sandbox) error {
@@ -279,11 +270,7 @@ func (m *taskPluginManager) Started(s engines.Sandbox) error {
 	defer m.working.Set(false)
 
 	// Run method on plugins in parallel
-	errors := make(chan error)
-	for _, p := range m.taskPlugins {
-		go func(p TaskPlugin) { errors <- p.Started(s) }(p)
-	}
-	return waitForErrors(errors, len(m.taskPlugins))
+	return waitForErrors(m.taskPlugins, func(p TaskPlugin) error { return p.Started(s) })
 }
 
 func (m *taskPluginManager) Stopped(r engines.ResultSet) (bool, error) {
@@ -299,17 +286,14 @@ func (m *taskPluginManager) Stopped(r engines.ResultSet) (bool, error) {
 	result := atomics.NewBool(true)
 
 	// Run method on plugins in parallel
-	errors := make(chan error)
-	for _, p := range m.taskPlugins {
-		go func(p TaskPlugin) {
-			success, err := p.Stopped(r)
-			if !success {
-				result.Set(false)
-			}
-			errors <- err
-		}(p)
-	}
-	return result.Get(), waitForErrors(errors, len(m.taskPlugins))
+	err := waitForErrors(m.taskPlugins, func(p TaskPlugin) error {
+		success, err := p.Stopped(r)
+		if !success {
+			result.Set(false)
+		}
+		return err
+	})
+	return result.Get(), err
 }
 
 func (m *taskPluginManager) Finished(s bool) error {
@@ -322,11 +306,7 @@ func (m *taskPluginManager) Finished(s bool) error {
 	defer m.working.Set(false)
 
 	// Run method on plugins in parallel
-	errors := make(chan error)
-	for _, p := range m.taskPlugins {
-		go func(p TaskPlugin) { errors <- p.Finished(s) }(p)
-	}
-	return waitForErrors(errors, len(m.taskPlugins))
+	return waitForErrors(m.taskPlugins, func(p TaskPlugin) error { return p.Finished(s) })
 }
 
 func (m *taskPluginManager) Exception(r runtime.ExceptionReason) error {
@@ -339,11 +319,7 @@ func (m *taskPluginManager) Exception(r runtime.ExceptionReason) error {
 	defer m.working.Set(false)
 
 	// Run method on plugins in parallel
-	errors := make(chan error)
-	for _, p := range m.taskPlugins {
-		go func(p TaskPlugin) { errors <- p.Exception(r) }(p)
-	}
-	return waitForErrors(errors, len(m.taskPlugins))
+	return waitForErrors(m.taskPlugins, func(p TaskPlugin) error { return p.Exception(r) })
 }
 
 func (m *taskPluginManager) Dispose() error {
@@ -355,9 +331,5 @@ func (m *taskPluginManager) Dispose() error {
 	// allow any calls to plugins after Dispose()
 
 	// Run method on plugins in parallel
-	errors := make(chan error)
-	for _, p := range m.taskPlugins {
-		go func(p TaskPlugin) { errors <- p.Dispose() }(p)
-	}
-	return waitForErrors(errors, len(m.taskPlugins))
+	return waitForErrors(m.taskPlugins, func(p TaskPlugin) error { return p.Dispose() })
 }
