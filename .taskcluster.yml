@@ -1,0 +1,161 @@
+# The version is always required
+version: 0
+# Top level metadata is always required
+metadata:
+  name: "TaskCluster Worker Tests"
+  description: "These tests should ensure that any new commits against taskcluster worker codebase are tested across all supported worker types in gekco."
+  owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
+  source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
+tasks:
+
+
+  ##########################################################
+  ##################### linux 64 build #####################
+  ##########################################################
+
+  - provisionerId: "{{ taskcluster.docker.provisionerId }}"
+    workerType: "{{ taskcluster.docker.workerType }}"
+    metadata:
+      name: "Build/test 64 bit taskcluster-worker on Debian GNU/Linux 8 (jessie)"
+      description: "This builds the 64 bit linux version of taskcluster-worker"
+      owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
+      source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
+    extra:
+      github:
+        # Events that will trigger this task
+        events:
+          - pull_request.*
+          - push
+    scopes:
+      - secrets:get:repo:github.com/taskcluster/taskcluster-worker
+      - docker-worker:cache:taskcluster-worker-checkout
+    payload:
+      features:
+        taskclusterProxy: true
+      maxRunTime: 3600
+      image: golang
+      command:
+        - /bin/bash
+        - -vxec
+        - |
+          curl -s http://taskcluster/secrets/v1/secret/repo:github.com/taskcluster/taskcluster-worker | sed -n 's/.*"b64_encoded_credentials_script": "\(.*\)".*/\1/p' | base64 -d > env_private.sh
+          source env_private.sh
+          go get -v "github.com/kardianos/govendor"
+          mkdir -p "${GOPATH}/src/github.com/taskcluster"
+          cd "${GOPATH}/src/github.com/taskcluster"
+          if [ ! -d taskcluster-worker/.git ]; then rm -rf taskcluster-worker; git clone '{{ event.head.repo.url }}' 'taskcluster-worker'; fi
+          cd 'taskcluster-worker'
+          git fetch --tags
+          git checkout -f '{{ event.head.sha }}'
+          git clean -d -f -e '/vendor/*' -x
+          govendor sync
+          make rebuild check
+      artifacts:
+        public/build/taskcluster-worker-linux-amd64:
+          path: "/go/src/github.com/taskcluster/taskcluster-worker/taskcluster-worker"
+          expires: "{{ '2 weeks' | $fromNow }}"
+          type: file
+      cache:
+        taskcluster-worker-checkout: /go/src
+
+
+  ##########################################################
+  #################### Windows 2012 R2 #####################
+  ##########################################################
+
+  - provisionerId: aws-provisioner-v1
+    workerType: win2012r2-cu
+    metadata:
+      name: "Build/test 64 bit taskcluster-worker on Windows 2012 R2"
+      description: "This builds the 64 bit Windows version of taskcluster-worker"
+      owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
+      source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
+    extra:
+      github:
+        # Events that will trigger this task
+        events:
+          - pull_request.*
+          - push
+    scopes:
+      - generic-worker:cache:taskcluster-worker-checkout
+    payload:
+      maxRunTime: 3600
+      artifacts:
+        - expires: "{{ '2 weeks' | $fromNow }}"
+          type: file
+          path: public/build/taskcluster-worker-windows-amd64.exe
+      command:
+        - 'mkdir public\build'
+        - 'mklink public\build\taskcluster-worker-windows-amd64.exe go\src\github.com\taskcluster\taskcluster-worker\taskcluster-worker.exe'
+        - 'set GOPATH=%CD%\go'
+        - 'set PATH=%GOPATH%\bin;%PATH%'
+        - ':: source "${TASKCLUSTER_CREDS_BOOTSTRAP}"'
+        - 'go get -v github.com/kardianos/govendor'
+        - 'if not exist "%GOPATH%\src\github.com\taskcluster" mkdir "%GOPATH%\src\github.com\taskcluster"'
+        - 'cd "%GOPATH%\src\github.com\taskcluster"'
+        - 'git config --global core.autocrlf false'
+        - 'if not exist taskcluster-worker git clone {{ event.head.repo.url }} taskcluster-worker'
+        - 'cd taskcluster-worker'
+        - 'git fetch --tags'
+        - 'git checkout -f {{ event.head.sha }}'
+        - 'git clean -d -f -e /vendor/* -x'
+        - 'govendor sync'
+        - 'C:\taskcluster-worker-test-creds.cmd'
+        - '"C:\mozilla-build\msys\bin\bash.exe" --login -c "cd ${GOPATH}/src/github.com/taskcluster/taskcluster-worker && make rebuild check"'
+      mounts:
+        - cacheName: taskcluster-worker-checkout
+          directory: go/src
+        - content:
+            url: https://storage.googleapis.com/golang/go1.7.5.windows-amd64.zip
+          directory: .
+          format: zip
+        - content:
+            url: https://github.com/git-for-windows/git/releases/download/v2.11.0.windows.3/MinGit-2.11.0.3-64-bit.zip
+          directory: git
+          format: zip
+
+
+  ##########################################################
+  #################### OS X 10.10 build ####################
+  ##########################################################
+
+  - provisionerId: pmoore-manual
+    workerType: mac-os-x
+    metadata:
+      name: "Build/test 64 bit taskcluster-worker on Mac OS X 10.10"
+      description: "This builds the 64 bit OS X version of taskcluster-worker"
+      owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
+      source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
+    extra:
+      github:
+        # Events that will trigger this task
+        events:
+          - pull_request.*
+          - push
+    scopes:
+      - generic-worker:cache:taskcluster-worker-checkout
+    payload:
+      maxRunTime: 3600
+      artifacts:
+        - expires: "{{ '2 weeks' | $fromNow }}"
+          type: file
+          path: public/build/taskcluster-worker-darwin-amd64
+      command:
+        - - /bin/bash
+          - -vxec
+          - |
+            export GOPATH="$(pwd)/go"
+            source "${TASKCLUSTER_CREDS_BOOTSTRAP}"
+            go get -v "github.com/kardianos/govendor"
+            mkdir -p "${GOPATH}/src/github.com/taskcluster"
+            cd "${GOPATH}/src/github.com/taskcluster"
+            if [ ! -d taskcluster-worker/.git ]; then rm -rf taskcluster-worker; git clone '{{ event.head.repo.url }}' 'taskcluster-worker'; fi
+            cd 'taskcluster-worker'
+            git fetch --tags
+            git checkout -f '{{ event.head.sha }}'
+            git clean -d -f -e '/vendor/*' -x
+            govendor sync
+            make rebuild check
+      mounts:
+        - cacheName: taskcluster-worker-checkout
+          directory: go/src
