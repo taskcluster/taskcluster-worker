@@ -33,9 +33,9 @@ func assert(t *testing.T, condition bool, a ...interface{}) {
 }
 
 func TestGuestToolsProcessingActions(t *testing.T) {
-	// Might work using https://qemu.weilnetz.de/w64/ but skip for now
+	// Doesn't currently run on Windows, let's skip until Windows is a priority
 	if goruntime.GOOS == "windows" {
-		t.Skip("Skipping since running on Windows")
+		t.Skip("Skipping on Windows - when we have native engine running on Windows, we should reenable!")
 	}
 	// Create temporary storage
 	storage, err := runtime.NewTemporaryStorage(os.TempDir())
