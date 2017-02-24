@@ -87,11 +87,14 @@ func (m *MockQueue) CreateArtifact(taskID, runID, name string, payload *queue.Po
 	return args.Get(0).(*queue.PostArtifactResponse), args.Error(1)
 }
 
+// PostAnyArtifactRequest matches if queue.PostArtifactRequest is called
 var PostAnyArtifactRequest = mock.MatchedBy(func(i interface{}) bool {
 	_, ok := i.(*queue.PostArtifactRequest)
 	return ok
 })
 
+// PostAnyArtifactRequest matches if queue.PostArtifactRequest is called with
+// an s3 artifact
 var PostS3ArtifactRequest = mock.MatchedBy(func(i interface{}) bool {
 	r, ok := i.(*queue.PostArtifactRequest)
 	if !ok {
