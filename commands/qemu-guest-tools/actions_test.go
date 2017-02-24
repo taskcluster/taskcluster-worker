@@ -3,7 +3,6 @@ package qemuguesttools
 import (
 	"bytes"
 	"crypto/rand"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http/httptest"
@@ -21,19 +20,15 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
-func fmtPanic(a ...interface{}) {
-	panic(fmt.Sprintln(a...))
-}
-
-func nilOrPanic(err error, a ...interface{}) {
+func nilOrFatal(t *testing.T, err error, a ...interface{}) {
 	if err != nil {
-		fmtPanic(append(a, err)...)
+		t.Fatal(append(a, err)...)
 	}
 }
 
-func assert(condition bool, a ...interface{}) {
+func assert(t *testing.T, condition bool, a ...interface{}) {
 	if !condition {
-		fmtPanic(a...)
+		t.Fatal(a...)
 	}
 }
 
@@ -86,68 +81,68 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 
 	testFile := filepath.Join(f.Path(), "hello.txt")
 	err = ioutil.WriteFile(testFile, []byte("hello-world"), 0777)
-	nilOrPanic(err, "Failed to create testFile: ", testFile)
+	nilOrFatal(t, err, "Failed to create testFile: ", testFile)
 
 	debug(" - request file: %s", testFile)
 	r, err := meta.GetArtifact(testFile)
-	nilOrPanic(err, "meta.GetArtifact failed, error: ", err)
+	nilOrFatal(t, err, "meta.GetArtifact failed, error: ", err)
 
 	debug(" - reading testFile")
 	data, err := ioutil.ReadAll(r)
-	nilOrPanic(err, "Failed to read testFile")
+	nilOrFatal(t, err, "Failed to read testFile")
 	debug(" - read: '%s'", string(data))
-	assert(string(data) == "hello-world", "Wrong payload: ", string(data))
+	assert(t, string(data) == "hello-world", "Wrong payload: ", string(data))
 
 	////////////////////
 	debug("### Test meta.GetArtifact (missing file)")
 	r, err = meta.GetArtifact(filepath.Join(f.Path(), "missing-file.txt"))
-	assert(r == nil, "Expected error wihtout a reader")
-	assert(err == engines.ErrResourceNotFound, "Expected ErrResourceNotFound")
+	assert(t, r == nil, "Expected error wihtout a reader")
+	assert(t, err == engines.ErrResourceNotFound, "Expected ErrResourceNotFound")
 
 	////////////////////
 	debug("### Test meta.ListFolder")
 	testFolder := filepath.Join(f.Path(), "test-folder")
 	err = os.Mkdir(testFolder, 0777)
-	nilOrPanic(err, "Failed to create test-folder/")
+	nilOrFatal(t, err, "Failed to create test-folder/")
 
 	testFile2 := filepath.Join(testFolder, "hello2.txt")
 	err = ioutil.WriteFile(testFile2, []byte("hello-world-2"), 0777)
-	nilOrPanic(err, "Failed to create testFile2: ", testFile2)
+	nilOrFatal(t, err, "Failed to create testFile2: ", testFile2)
 
 	debug(" - meta.ListFolder")
 	files, err := meta.ListFolder(f.Path())
-	nilOrPanic(err, "ListFolder failed, err: ", err)
+	nilOrFatal(t, err, "ListFolder failed, err: ", err)
 
-	assert(len(files) == 2, "Expected 2 files")
-	assert(files[0] == testFile || files[1] == testFile, "Expected testFile")
-	assert(files[0] == testFile2 || files[1] == testFile2, "Expected testFile2")
+	assert(t, len(files) == 2, "Expected 2 files")
+	assert(t, files[0] == testFile || files[1] == testFile, "Expected testFile")
+	assert(t, files[0] == testFile2 || files[1] == testFile2, "Expected testFile2")
 
 	////////////////////
 	debug("### Test meta.ListFolder (missing folder)")
 	files, err = meta.ListFolder(filepath.Join(f.Path(), "no-such-folder"))
-	assert(files == nil, "Expected files == nil, we hopefully have an error")
-	assert(err == engines.ErrResourceNotFound, "Expected ErrResourceNotFound")
+	assert(t, files == nil, "Expected files == nil, we hopefully have an error")
+	assert(t, err == engines.ErrResourceNotFound, "Expected ErrResourceNotFound")
 
 	////////////////////
 	debug("### Test meta.ListFolder (empty folder)")
 	emptyFolder := filepath.Join(f.Path(), "empty-folder")
 	err = os.Mkdir(emptyFolder, 0777)
-	nilOrPanic(err, "Failed to create empty-folder/")
+	nilOrFatal(t, err, "Failed to create empty-folder/")
 
 	files, err = meta.ListFolder(emptyFolder)
-	assert(len(files) == 0, "Expected zero files")
-	assert(err == nil, "Didn't expect any error")
+	assert(t, len(files) == 0, "Expected zero files")
+	assert(t, err == nil, "Didn't expect any error")
 
 	////////////////////
-	testShellHello(meta)
-	testShellCat(meta)
-	testShellCatStdErr(meta)
+	testShellHello(t, meta)
+	testShellCat(t, meta)
+	testShellCatStdErr(t, meta)
 }
 
-func testShellHello(meta *metaservice.MetaService) {
+func testShellHello(t *testing.T, meta *metaservice.MetaService) {
 	debug("### Test meta.Shell (using 'echo hello')")
 	shell, err := meta.ExecShell(nil, false)
-	nilOrPanic(err, "Failed to call meta.ExecShell()")
+	nilOrFatal(t, err, "Failed to call meta.ExecShell()")
 
 	readHello := sync.WaitGroup{}
 	readHello.Add(1)
@@ -169,7 +164,7 @@ func testShellHello(meta *metaservice.MetaService) {
 				break
 			}
 			if werr != nil {
-				assert(werr == io.EOF, "Expected EOF!")
+				assert(t, werr == io.EOF, "Expected EOF!")
 				break
 			}
 		}
@@ -178,14 +173,14 @@ func testShellHello(meta *metaservice.MetaService) {
 	}()
 
 	success, err := shell.Wait()
-	nilOrPanic(err, "Got an error from shell.Wait, error: ", err)
-	assert(success, "Expected success from shell, we closed with end of stdin")
+	nilOrFatal(t, err, "Got an error from shell.Wait, error: ", err)
+	assert(t, success, "Expected success from shell, we closed with end of stdin")
 }
 
-func testShellCat(meta *metaservice.MetaService) {
+func testShellCat(t *testing.T, meta *metaservice.MetaService) {
 	debug("### Test meta.Shell (using 'exec cat -')")
 	shell, err := meta.ExecShell(nil, false)
-	nilOrPanic(err, "Failed to call meta.ExecShell()")
+	nilOrFatal(t, err, "Failed to call meta.ExecShell()")
 
 	input := make([]byte, 42*1024*1024+7)
 	rand.Read(input)
@@ -210,23 +205,23 @@ func testShellCat(meta *metaservice.MetaService) {
 	outputDone.Add(1)
 	go func() {
 		data, rerr := ioutil.ReadAll(shell.StdoutPipe())
-		nilOrPanic(rerr, "Got error from stdout pipe, error: ", rerr)
+		nilOrFatal(t, rerr, "Got error from stdout pipe, error: ", rerr)
 		output = data
 		outputDone.Done()
 	}()
 
 	success, err := shell.Wait()
-	nilOrPanic(err, "Got an error from shell.Wait, error: ", err)
-	assert(success, "Expected success from shell, we closed with end of stdin")
+	nilOrFatal(t, err, "Got an error from shell.Wait, error: ", err)
+	assert(t, success, "Expected success from shell, we closed with end of stdin")
 	outputDone.Wait()
-	assert(bytes.Equal(output, input), "Expected data to match input, ",
+	assert(t, bytes.Equal(output, input), "Expected data to match input, ",
 		"len(input) = ", len(input), " len(output) = ", len(output))
 }
 
-func testShellCatStdErr(meta *metaservice.MetaService) {
+func testShellCatStdErr(t *testing.T, meta *metaservice.MetaService) {
 	debug("### Test meta.Shell (using 'exec cat - 1>&2')")
 	shell, err := meta.ExecShell(nil, false)
-	nilOrPanic(err, "Failed to call meta.ExecShell()")
+	nilOrFatal(t, err, "Failed to call meta.ExecShell()")
 
 	input := make([]byte, 4*1024*1024+37)
 	rand.Read(input)
@@ -251,15 +246,15 @@ func testShellCatStdErr(meta *metaservice.MetaService) {
 	outputDone.Add(1)
 	go func() {
 		data, rerr := ioutil.ReadAll(shell.StderrPipe())
-		nilOrPanic(rerr, "Got error from stderr pipe, error: ", rerr)
+		nilOrFatal(t, rerr, "Got error from stderr pipe, error: ", rerr)
 		output = data
 		outputDone.Done()
 	}()
 
 	success, err := shell.Wait()
-	nilOrPanic(err, "Got an error from shell.Wait, error: ", err)
-	assert(success, "Expected success from shell, we closed with end of stdin")
+	nilOrFatal(t, err, "Got an error from shell.Wait, error: ", err)
+	assert(t, success, "Expected success from shell, we closed with end of stdin")
 	outputDone.Wait()
-	assert(bytes.Equal(output, input), "Expected data to match input, ",
+	assert(t, bytes.Equal(output, input), "Expected data to match input, ",
 		"len(input) = ", len(input), " len(output) = ", len(output))
 }
