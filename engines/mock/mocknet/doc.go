@@ -5,13 +5,7 @@
 // instances without creating a TCP listener on localhost.
 package mocknet
 
-import (
-	"sync"
-
-	"github.com/taskcluster/taskcluster-worker/runtime/util"
-)
-
-var debug = util.Debug("mocknet")
+import "sync"
 
 // mNetworks guards access to networks, which is global list of mock networks.
 var (

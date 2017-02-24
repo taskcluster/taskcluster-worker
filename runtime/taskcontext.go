@@ -82,7 +82,6 @@ type TaskContext struct {
 	mu          sync.RWMutex
 	queue       client.Queue
 	status      TaskStatus
-	cancelled   bool
 	done        chan struct{}
 }
 

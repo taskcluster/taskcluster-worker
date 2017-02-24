@@ -25,7 +25,6 @@ type Manager struct {
 	engine             engines.Engine
 	environment        *runtime.Environment
 	pluginManager      plugins.Plugin
-	pluginOptions      *plugins.PluginOptions
 	log                *logrus.Entry
 	queue              QueueService
 	provisionerID      string

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
@@ -31,7 +30,6 @@ type taskPlugin struct {
 	plugins.TaskPluginBase
 	context     *runtime.TaskContext
 	url         string
-	expiration  tcclient.Time
 	log         *logrus.Entry
 	environment *runtime.Environment
 	uploaded    atomics.Bool

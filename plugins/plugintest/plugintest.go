@@ -296,10 +296,6 @@ func nilOrPanic(err error, a ...interface{}) {
 	}
 }
 
-func evalNilOrPanic(f func() error, a ...interface{}) {
-	nilOrPanic(f(), a...)
-}
-
 func assert(condition bool, a ...interface{}) {
 	if !condition {
 		fmtPanic(a...)
