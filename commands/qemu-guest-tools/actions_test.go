@@ -38,6 +38,10 @@ func assert(condition bool, a ...interface{}) {
 }
 
 func TestGuestToolsProcessingActions(t *testing.T) {
+	// Doesn't currently run on Windows, let's skip until Windows is a priority
+	if goruntime.GOOS == "windows" {
+		t.Skip("Skipping on Windows - when we start supporting Windows, we should reenable!")
+	}
 	// Create temporary storage
 	storage, err := runtime.NewTemporaryStorage(os.TempDir())
 	if err != nil {
