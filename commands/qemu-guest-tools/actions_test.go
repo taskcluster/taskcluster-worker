@@ -83,14 +83,14 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 	err = ioutil.WriteFile(testFile, []byte("hello-world"), 0777)
 	nilOrFatal(t, err, "Failed to create testFile: ", testFile)
 
-	t.Log(" - request file: %s", testFile)
+	t.Logf(" - request file: %s", testFile)
 	r, err := meta.GetArtifact(testFile)
 	nilOrFatal(t, err, "meta.GetArtifact failed, error: ", err)
 
 	t.Log(" - reading testFile")
 	data, err := ioutil.ReadAll(r)
 	nilOrFatal(t, err, "Failed to read testFile")
-	t.Log(" - read: '%s'", string(data))
+	t.Logf(" - read: '%s'", string(data))
 	assert(t, string(data) == "hello-world", "Wrong payload: ", string(data))
 
 	////////////////////
