@@ -138,7 +138,7 @@ func NewPluginManager(options PluginOptions) (Plugin, error) {
 	plugins := make([]Plugin, len(enabled))
 	errors := make([]error, len(enabled))
 	wg.Add(len(enabled))
-	for index, name := range enabled {
+	for i, j := range enabled {
 		go func(index int, name string) {
 			plugins[index], errors[index] = pluginProviders[name].NewPlugin(PluginOptions{
 				Environment: options.Environment,
@@ -147,7 +147,7 @@ func NewPluginManager(options PluginOptions) (Plugin, error) {
 				Config:      config[name],
 			})
 			wg.Done()
-		}(index, name) // needed to capture values not variables
+		}(i, j) // needed to capture values not variables
 	}
 	wg.Wait()
 
@@ -189,16 +189,16 @@ func (m *pluginManager) NewTaskPlugin(options TaskPluginOptions) (manager TaskPl
 	errors := make([]error, len(m.plugins))
 
 	var wg sync.WaitGroup
-	for i, p := range m.plugins {
+	for i, j := range m.plugins {
 		wg.Add(1)
-		go func(i int, p Plugin) {
+		go func(index int, p Plugin) {
 			defer wg.Done()
-			taskPlugins[i], errors[i] = p.NewTaskPlugin(TaskPluginOptions{
+			taskPlugins[index], errors[index] = p.NewTaskPlugin(TaskPluginOptions{
 				TaskInfo: options.TaskInfo,
 				Payload:  p.PayloadSchema().Filter(options.Payload),
-				Log:      options.Log.WithField("plugin", m.pluginNames[i]),
+				Log:      options.Log.WithField("plugin", m.pluginNames[index]),
 			})
-		}(i, p)
+		}(i, j)
 	}
 	wg.Wait()
 	err = mergeErrors(errors...)
