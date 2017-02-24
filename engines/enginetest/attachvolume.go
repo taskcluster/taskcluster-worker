@@ -59,8 +59,10 @@ func (c *VolumeTestCase) TestWriteReadVolume() {
 		log.Panic("Running with writeVolumePayload didn't finish successfully")
 	}
 	if !c.readVolume(volume, false) {
-		log.Panic("Running with CheckVolumePayload didn't finish successfully, ",
-			"after we ran writeVolumePayload with same volume (writing something)")
+		log.Panic(
+			"Running with CheckVolumePayload didn't finish successfully,",
+			"after we ran writeVolumePayload with same volume (writing something)",
+		)
 	}
 }
 
@@ -71,8 +73,10 @@ func (c *VolumeTestCase) TestReadEmptyVolume() {
 	nilOrPanic(err, "Failed to create a new cache folder")
 	defer evalNilOrPanic(volume.Dispose, "Failed to dispose cache folder")
 	if c.readVolume(volume, false) {
-		log.Panic("Running with CheckVolumePayload with an empty volume was successful.",
-			"It really shouldn't have been.")
+		log.Panic(
+			"Running with CheckVolumePayload with an empty volume was successful.",
+			"It really shouldn't have been.",
+		)
 	}
 }
 
@@ -98,9 +102,11 @@ func (c *VolumeTestCase) TestReadToReadOnlyVolume() {
 		log.Panic("Running with writeVolumePayload didn't finish successfully")
 	}
 	if !c.readVolume(volume, true) {
-		log.Panic("Running with CheckVolumePayload didn't finish successfully, ",
+		log.Panic(
+			"Running with CheckVolumePayload didn't finish successfully, ",
 			"after we ran writeVolumePayload with same volume (writing something) ",
-			"This was with a readOnly attachment when reading")
+			"This was with a readOnly attachment when reading",
+		)
 	}
 }
 
