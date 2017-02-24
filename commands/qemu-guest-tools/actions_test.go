@@ -72,7 +72,7 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 	defer g.StopProcessingActions()
 
 	////////////////////
-	debug("### Test meta.GetArtifact")
+	t.Log("### Test meta.GetArtifact")
 	f, err := storage.NewFolder()
 	if err != nil {
 		panic("Failed to create temp folder")
@@ -83,24 +83,24 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 	err = ioutil.WriteFile(testFile, []byte("hello-world"), 0777)
 	nilOrFatal(t, err, "Failed to create testFile: ", testFile)
 
-	debug(" - request file: %s", testFile)
+	t.Log(" - request file: %s", testFile)
 	r, err := meta.GetArtifact(testFile)
 	nilOrFatal(t, err, "meta.GetArtifact failed, error: ", err)
 
-	debug(" - reading testFile")
+	t.Log(" - reading testFile")
 	data, err := ioutil.ReadAll(r)
 	nilOrFatal(t, err, "Failed to read testFile")
-	debug(" - read: '%s'", string(data))
+	t.Log(" - read: '%s'", string(data))
 	assert(t, string(data) == "hello-world", "Wrong payload: ", string(data))
 
 	////////////////////
-	debug("### Test meta.GetArtifact (missing file)")
+	t.Log("### Test meta.GetArtifact (missing file)")
 	r, err = meta.GetArtifact(filepath.Join(f.Path(), "missing-file.txt"))
 	assert(t, r == nil, "Expected error wihtout a reader")
 	assert(t, err == engines.ErrResourceNotFound, "Expected ErrResourceNotFound")
 
 	////////////////////
-	debug("### Test meta.ListFolder")
+	t.Log("### Test meta.ListFolder")
 	testFolder := filepath.Join(f.Path(), "test-folder")
 	err = os.Mkdir(testFolder, 0777)
 	nilOrFatal(t, err, "Failed to create test-folder/")
@@ -109,7 +109,7 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 	err = ioutil.WriteFile(testFile2, []byte("hello-world-2"), 0777)
 	nilOrFatal(t, err, "Failed to create testFile2: ", testFile2)
 
-	debug(" - meta.ListFolder")
+	t.Log(" - meta.ListFolder")
 	files, err := meta.ListFolder(f.Path())
 	nilOrFatal(t, err, "ListFolder failed, err: ", err)
 
@@ -118,13 +118,13 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 	assert(t, files[0] == testFile2 || files[1] == testFile2, "Expected testFile2")
 
 	////////////////////
-	debug("### Test meta.ListFolder (missing folder)")
+	t.Log("### Test meta.ListFolder (missing folder)")
 	files, err = meta.ListFolder(filepath.Join(f.Path(), "no-such-folder"))
 	assert(t, files == nil, "Expected files == nil, we hopefully have an error")
 	assert(t, err == engines.ErrResourceNotFound, "Expected ErrResourceNotFound")
 
 	////////////////////
-	debug("### Test meta.ListFolder (empty folder)")
+	t.Log("### Test meta.ListFolder (empty folder)")
 	emptyFolder := filepath.Join(f.Path(), "empty-folder")
 	err = os.Mkdir(emptyFolder, 0777)
 	nilOrFatal(t, err, "Failed to create empty-folder/")
@@ -140,7 +140,7 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 }
 
 func testShellHello(t *testing.T, meta *metaservice.MetaService) {
-	debug("### Test meta.Shell (using 'echo hello')")
+	t.Log("### Test meta.Shell (using 'echo hello')")
 	shell, err := meta.ExecShell(nil, false)
 	nilOrFatal(t, err, "Failed to call meta.ExecShell()")
 
@@ -178,7 +178,7 @@ func testShellHello(t *testing.T, meta *metaservice.MetaService) {
 }
 
 func testShellCat(t *testing.T, meta *metaservice.MetaService) {
-	debug("### Test meta.Shell (using 'exec cat -')")
+	t.Log("### Test meta.Shell (using 'exec cat -')")
 	shell, err := meta.ExecShell(nil, false)
 	nilOrFatal(t, err, "Failed to call meta.ExecShell()")
 
@@ -198,7 +198,7 @@ func testShellCat(t *testing.T, meta *metaservice.MetaService) {
 		time.Sleep(250 * time.Millisecond)
 		shell.StdinPipe().Write(input)
 		shell.StdinPipe().Close()
-		debug("Closed stdin")
+		t.Log("Closed stdin")
 	}()
 	var output []byte
 	outputDone := sync.WaitGroup{}
@@ -219,7 +219,7 @@ func testShellCat(t *testing.T, meta *metaservice.MetaService) {
 }
 
 func testShellCatStdErr(t *testing.T, meta *metaservice.MetaService) {
-	debug("### Test meta.Shell (using 'exec cat - 1>&2')")
+	t.Log("### Test meta.Shell (using 'exec cat - 1>&2')")
 	shell, err := meta.ExecShell(nil, false)
 	nilOrFatal(t, err, "Failed to call meta.ExecShell()")
 
@@ -239,7 +239,7 @@ func testShellCatStdErr(t *testing.T, meta *metaservice.MetaService) {
 		time.Sleep(250 * time.Millisecond)
 		shell.StdinPipe().Write(input)
 		shell.StdinPipe().Close()
-		debug("Closed stdin")
+		t.Log("Closed stdin")
 	}()
 	var output []byte
 	outputDone := sync.WaitGroup{}

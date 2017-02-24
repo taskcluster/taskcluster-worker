@@ -283,9 +283,9 @@ func TestMetaServiceShell(t *testing.T) {
 		messageType, m, err2 := ws.ReadMessage()
 		nilOrFatal(t, err2, "ReadMessage failed")
 		assert(t, messageType == websocket.BinaryMessage, "expected BinaryMessage")
-		assert(t, bytes.Compare(m, []byte{
+		assert(bytes.Equal(m, []byte{
 			shellconsts.MessageTypeData, shellconsts.StreamStdin, 'h', 'i',
-		}) == 0, "expected 'hi' on stdin")
+		}), "expected 'hi' on stdin")
 
 		debug("guest-tool: Ack: 'hi' from stdin")
 		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
@@ -303,9 +303,9 @@ func TestMetaServiceShell(t *testing.T) {
 		messageType, m, err2 = ws.ReadMessage()
 		nilOrFatal(t, err2, "Failed to ReadMessage")
 		assert(t, messageType == websocket.BinaryMessage, "expected BinaryMessage")
-		assert(t, bytes.Compare(m, []byte{
+		assert(bytes.Equal(m, []byte{
 			shellconsts.MessageTypeAck, shellconsts.StreamStdout, 0, 0, 0, 5,
-		}) == 0, "expected ack for 5 on stdout")
+		}), "expected ack for 5 on stdout")
 
 		debug("guest-tool: Send: close on stdout")
 		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
@@ -317,9 +317,9 @@ func TestMetaServiceShell(t *testing.T) {
 		messageType, m, err2 = ws.ReadMessage()
 		nilOrFatal(t, err2, "Failed to ReadMessage")
 		assert(t, messageType == websocket.BinaryMessage, "expected BinaryMessage")
-		assert(t, bytes.Compare(m, []byte{
+		assert(bytes.Equal(m, []byte{
 			shellconsts.MessageTypeData, shellconsts.StreamStdin,
-		}) == 0, "expected stdin to be closed")
+		}), "expected stdin to be closed")
 
 		debug("guest-tool: Send: exit success")
 		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
