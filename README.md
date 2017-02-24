@@ -27,10 +27,10 @@ See https://github.com/taskcluster/taskcluster-worker/releases
 Installing From Source
 ----------------------
 
-1) [Install go 1.7](https://golang.org/doc/install) or higher
-2) `go get -u -t -d github.com/taskcluster-worker/...`
-3) `cd "${GOPATH}/src/github.com/taskcluster-worker"`
-4) `make rebuild`
+1. [Install go 1.7](https://golang.org/doc/install) or higher
+2. `go get -u -t -d github.com/taskclustertaskcluster-worker/...`
+3. `cd "${GOPATH}/src/github.com/taskcluster-worker"`
+4. `make rebuild`
 
 Testing
 -------
