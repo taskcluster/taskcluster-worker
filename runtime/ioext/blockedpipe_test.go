@@ -179,10 +179,11 @@ func TestBlockedSlowStream(t *testing.T) {
 	}()
 	done := make(chan struct{})
 	go func() {
+	loop:
 		for {
 			select {
 			case <-done:
-				break
+				break loop
 			case <-time.After(1 * time.Millisecond):
 				r.Unblock(4096)
 			}

@@ -62,7 +62,7 @@ func (urlFetcher) Fetch(ctx Context, ref interface{}, target WriteSeekReseter) e
 	return fetchURLWithRetries(ctx, u, target)
 }
 
-func fetchURLWithRetries(ctx Context, u string, target WriteSeekReseter) error {
+func fetchURLWithRetries(ctx context.Context, u string, target WriteSeekReseter) error {
 	retry := 0
 	for {
 		// Fetch URL, if no error then we're done
