@@ -234,48 +234,37 @@ func (m *pluginManager) NewTaskPlugin(options TaskPluginOptions) (manager TaskPl
 	return
 }
 
-// Sanity check that no two methods on plugin is running in parallel, this way
-// plugins don't have to be thread-safe, and we ensure nothing is called after
-// Dispose() has been called.
-func (m *taskPluginManager) inactiveOrPanic() {
+func (m *taskPluginManager) executePhase(f func(p TaskPlugin) error) error {
+	// Sanity check that no two methods on plugin is running in parallel, this way
+	// plugins don't have to be thread-safe, and we ensure nothing is called after
+	// Dispose() has been called.
 	if m.working.Swap(true) {
 		panic("Another plugin method is currently running, or Dispose() has been called!")
 	}
+	defer m.working.Set(false)
+
+	// Run method on plugins in parallel
+	return waitForErrors(m.taskPlugins, f)
 }
 
 func (m *taskPluginManager) Prepare(c *runtime.TaskContext) error {
-	m.inactiveOrPanic()
-	defer m.working.Set(false)
-
-	// Run method on plugins in parallel
-	return waitForErrors(m.taskPlugins, func(p TaskPlugin) error { return p.Prepare(c) })
+	return m.executePhase(func(p TaskPlugin) error { return p.Prepare(c) })
 }
 
 func (m *taskPluginManager) BuildSandbox(b engines.SandboxBuilder) error {
-	m.inactiveOrPanic()
-	defer m.working.Set(false)
-
-	// Run method on plugins in parallel
-	return waitForErrors(m.taskPlugins, func(p TaskPlugin) error { return p.BuildSandbox(b) })
+	return m.executePhase(func(p TaskPlugin) error { return p.BuildSandbox(b) })
 }
 
 func (m *taskPluginManager) Started(s engines.Sandbox) error {
-	m.inactiveOrPanic()
-	defer m.working.Set(false)
-
-	// Run method on plugins in parallel
-	return waitForErrors(m.taskPlugins, func(p TaskPlugin) error { return p.Started(s) })
+	return m.executePhase(func(p TaskPlugin) error { return p.Started(s) })
 }
 
 func (m *taskPluginManager) Stopped(r engines.ResultSet) (bool, error) {
-	m.inactiveOrPanic()
-	defer m.working.Set(false)
-
 	// Use atomic bool to return true, if no plugin returns false
 	result := atomics.NewBool(true)
 
 	// Run method on plugins in parallel
-	err := waitForErrors(m.taskPlugins, func(p TaskPlugin) error {
+	err := m.executePhase(func(p TaskPlugin) error {
 		success, err := p.Stopped(r)
 		if !success {
 			result.Set(false)
@@ -286,26 +275,15 @@ func (m *taskPluginManager) Stopped(r engines.ResultSet) (bool, error) {
 }
 
 func (m *taskPluginManager) Finished(s bool) error {
-	m.inactiveOrPanic()
-	defer m.working.Set(false)
-
-	// Run method on plugins in parallel
-	return waitForErrors(m.taskPlugins, func(p TaskPlugin) error { return p.Finished(s) })
+	return m.executePhase(func(p TaskPlugin) error { return p.Finished(s) })
 }
 
 func (m *taskPluginManager) Exception(r runtime.ExceptionReason) error {
-	m.inactiveOrPanic()
-	defer m.working.Set(false)
-
-	// Run method on plugins in parallel
-	return waitForErrors(m.taskPlugins, func(p TaskPlugin) error { return p.Exception(r) })
+	return m.executePhase(func(p TaskPlugin) error { return p.Exception(r) })
 }
 
 func (m *taskPluginManager) Dispose() error {
-	m.inactiveOrPanic()
-	// Notice that we don't call: defer w.working.Set(false), as we don't want to
-	// allow any calls to plugins after Dispose()
-
-	// Run method on plugins in parallel
-	return waitForErrors(m.taskPlugins, func(p TaskPlugin) error { return p.Dispose() })
+	// we don't want to allow any calls to plugins after Dispose()
+	defer m.working.Set(true)
+	return m.executePhase(func(p TaskPlugin) error { return p.Dispose() })
 }
