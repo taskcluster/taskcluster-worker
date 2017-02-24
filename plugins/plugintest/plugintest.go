@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -286,18 +287,14 @@ func parsePluginPayload(plugin plugins.Plugin, payload string) map[string]interf
 	return jsonPayload
 }
 
-func fmtPanic(a ...interface{}) {
-	panic(fmt.Sprintln(a...))
-}
-
 func nilOrPanic(err error, a ...interface{}) {
 	if err != nil {
-		fmtPanic(append(a, err)...)
+		log.Panic(append(a, err)...)
 	}
 }
 
 func assert(condition bool, a ...interface{}) {
 	if !condition {
-		fmtPanic(a...)
+		log.Panic(a...)
 	}
 }

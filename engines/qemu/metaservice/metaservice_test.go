@@ -39,10 +39,10 @@ func TestMetaService(t *testing.T) {
 
 	// Upload some log
 	req, err := http.NewRequest("POST", "http://169.254.169.254/engine/v1/log", bytes.NewBufferString("Hello World"))
-	nilOrPanic(err)
+	nilOrFatal(t, err)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
-	assert(w.Code == http.StatusOK)
+	assert(t, w.Code == http.StatusOK)
 
 	// Check the log
 	if log.String() != "Hello World" {
@@ -51,28 +51,28 @@ func TestMetaService(t *testing.T) {
 
 	// Check that we can report success
 	req, err = http.NewRequest("PUT", "http://169.254.169.254/engine/v1/success", nil)
-	nilOrPanic(err)
+	nilOrFatal(t, err)
 	w = httptest.NewRecorder()
 	s.ServeHTTP(w, req)
-	assert(w.Code == http.StatusOK)
+	assert(t, w.Code == http.StatusOK)
 
 	// Check result
-	assert(resolved)
-	assert(result)
+	assert(t, resolved)
+	assert(t, result)
 
 	// Check idempotency
 	req, err = http.NewRequest("PUT", "http://169.254.169.254/engine/v1/success", nil)
-	nilOrPanic(err)
+	nilOrFatal(t, err)
 	w = httptest.NewRecorder()
 	s.ServeHTTP(w, req)
-	assert(w.Code == http.StatusOK)
+	assert(t, w.Code == http.StatusOK)
 
 	// Check that we can have a conflict
 	req, err = http.NewRequest("PUT", "http://169.254.169.254/engine/v1/failed", nil)
-	nilOrPanic(err)
+	nilOrFatal(t, err)
 	w = httptest.NewRecorder()
 	s.ServeHTTP(w, req)
-	assert(w.Code == http.StatusConflict)
+	assert(t, w.Code == http.StatusConflict)
 
 	debug("### Test polling and get-artifact")
 
@@ -80,37 +80,37 @@ func TestMetaService(t *testing.T) {
 	go func() {
 		// Start polling for an action
 		req, err2 := http.NewRequest("GET", "http://169.254.169.254/engine/v1/poll", nil)
-		nilOrPanic(err2)
+		nilOrFatal(t, err2)
 		w := httptest.NewRecorder()
 		s.ServeHTTP(w, req)
-		assert(w.Code == http.StatusOK)
+		assert(t, w.Code == http.StatusOK)
 		action := Action{}
 		err2 = json.Unmarshal(w.Body.Bytes(), &action)
-		nilOrPanic(err2, "Failed to decode JSON")
+		nilOrFatal(t, err2, "Failed to decode JSON")
 
 		// Check that the action is 'get-artifact' (as expected)
-		assert(action.ID != "", "Expected action.ID != ''")
-		assert(action.Type == "get-artifact", "Expected get-artifact action")
-		assert(action.Path == "/home/worker/test-file", "Expected action.Path")
+		assert(t, action.ID != "", "Expected action.ID != ''")
+		assert(t, action.Type == "get-artifact", "Expected get-artifact action")
+		assert(t, action.Path == "/home/worker/test-file", "Expected action.Path")
 
 		// Post back an artifact
 		req, err2 = http.NewRequest("POST",
 			"http://169.254.169.254/engine/v1/reply?id="+action.ID,
 			bytes.NewBufferString("hello-world"),
 		)
-		nilOrPanic(err2)
+		nilOrFatal(t, err2)
 		w = httptest.NewRecorder()
 		s.ServeHTTP(w, req)
-		assert(w.Code == http.StatusOK)
+		assert(t, w.Code == http.StatusOK)
 	}()
 
 	// Get artifact through metaservice
 	f, err := s.GetArtifact("/home/worker/test-file")
-	nilOrPanic(err, "Failed to get artifact")
+	nilOrFatal(t, err, "Failed to get artifact")
 	defer f.Close()
 	b, err := ioutil.ReadAll(f)
-	nilOrPanic(err, "Error reading from file")
-	assert(string(b) == "hello-world", "Expected hello-world artifact")
+	nilOrFatal(t, err, "Error reading from file")
+	assert(t, string(b) == "hello-world", "Expected hello-world artifact")
 
 	debug("### Test polling and get-artifact for non-existing file")
 
@@ -118,35 +118,35 @@ func TestMetaService(t *testing.T) {
 	go func() {
 		// Start polling for an action
 		req, err2 := http.NewRequest("GET", "http://169.254.169.254/engine/v1/poll", nil)
-		nilOrPanic(err2)
+		nilOrFatal(t, err2)
 		w := httptest.NewRecorder()
 		s.ServeHTTP(w, req)
-		assert(w.Code == http.StatusOK)
+		assert(t, w.Code == http.StatusOK)
 		action := Action{}
 		err2 = json.Unmarshal(w.Body.Bytes(), &action)
-		nilOrPanic(err2, "Failed to decode JSON")
+		nilOrFatal(t, err2, "Failed to decode JSON")
 
 		// Check that the action is 'get-artifact' (as expected)
-		assert(action.ID != "", "Expected action.ID != ''")
-		assert(action.Type == "get-artifact", "Expected get-artifact action")
-		assert(action.Path == "/home/worker/wrong-file", "Expected action.Path")
+		assert(t, action.ID != "", "Expected action.ID != ''")
+		assert(t, action.Type == "get-artifact", "Expected get-artifact action")
+		assert(t, action.Path == "/home/worker/wrong-file", "Expected action.Path")
 
 		// Post back an artifact
 		req, err2 = http.NewRequest("POST",
 			"http://169.254.169.254/engine/v1/reply?id="+action.ID,
 			nil,
 		)
-		nilOrPanic(err2)
+		nilOrFatal(t, err2)
 		req.Header.Set("X-Taskcluster-Worker-Error", "file-not-found")
 		w = httptest.NewRecorder()
 		s.ServeHTTP(w, req)
-		assert(w.Code == http.StatusOK)
+		assert(t, w.Code == http.StatusOK)
 	}()
 
 	// Get error for artifact through metaservice
 	f, err = s.GetArtifact("/home/worker/wrong-file")
-	assert(f == nil, "Didn't expect to get a file")
-	assert(err == engines.ErrResourceNotFound, "Expected ErrResourceNotFound")
+	assert(t, f == nil, "Didn't expect to get a file")
+	assert(t, err == engines.ErrResourceNotFound, "Expected ErrResourceNotFound")
 
 	debug("### Test polling and list-folder")
 
@@ -154,18 +154,18 @@ func TestMetaService(t *testing.T) {
 	go func() {
 		// Start polling for an action
 		req, err2 := http.NewRequest("GET", "http://169.254.169.254/engine/v1/poll", nil)
-		nilOrPanic(err2)
+		nilOrFatal(t, err2)
 		w := httptest.NewRecorder()
 		s.ServeHTTP(w, req)
-		assert(w.Code == http.StatusOK)
+		assert(t, w.Code == http.StatusOK)
 		action := Action{}
 		err2 = json.Unmarshal(w.Body.Bytes(), &action)
-		nilOrPanic(err2, "Failed to decode JSON")
+		nilOrFatal(t, err2, "Failed to decode JSON")
 
 		// Check that the action is 'list-folder' (as expected)
-		assert(action.ID != "", "Expected action.ID != ''")
-		assert(action.Type == "list-folder", "Expected list-folder action")
-		assert(action.Path == "/home/worker/", "Expected action.Path")
+		assert(t, action.ID != "", "Expected action.ID != ''")
+		assert(t, action.Type == "list-folder", "Expected list-folder action")
+		assert(t, action.Path == "/home/worker/", "Expected action.Path")
 
 		// Post back an reply
 		payload, _ := json.Marshal(Files{
@@ -176,18 +176,18 @@ func TestMetaService(t *testing.T) {
 			"http://169.254.169.254/engine/v1/reply?id="+action.ID,
 			bytes.NewBuffer(payload),
 		)
-		nilOrPanic(err2)
+		nilOrFatal(t, err2)
 		req.Header.Set("Content-Type", "application/json")
 		w = httptest.NewRecorder()
 		s.ServeHTTP(w, req)
-		assert(w.Code == http.StatusOK, "Unexpected status: ", w.Code)
+		assert(t, w.Code == http.StatusOK, "Unexpected status: ", w.Code)
 	}()
 
 	// List folder through metaservice
 	files, err := s.ListFolder("/home/worker/")
-	nilOrPanic(err, "Failed to list-folder")
-	assert(len(files) == 1, "Expected one file")
-	assert(files[0] == "/home/worker/test-file", "Got the wrong file")
+	nilOrFatal(t, err, "Failed to list-folder")
+	assert(t, len(files) == 1, "Expected one file")
+	assert(t, files[0] == "/home/worker/test-file", "Got the wrong file")
 
 	debug("### Test polling and list-folder (not-found)")
 
@@ -195,18 +195,18 @@ func TestMetaService(t *testing.T) {
 	go func() {
 		// Start polling for an action
 		req, err2 := http.NewRequest("GET", "http://169.254.169.254/engine/v1/poll", nil)
-		nilOrPanic(err2)
+		nilOrFatal(t, err2)
 		w := httptest.NewRecorder()
 		s.ServeHTTP(w, req)
-		assert(w.Code == http.StatusOK)
+		assert(t, w.Code == http.StatusOK)
 		action := Action{}
 		err2 = json.Unmarshal(w.Body.Bytes(), &action)
-		nilOrPanic(err2, "Failed to decode JSON")
+		nilOrFatal(t, err2, "Failed to decode JSON")
 
 		// Check that the action is 'list-folder' (as expected)
-		assert(action.ID != "", "Expected action.ID != ''")
-		assert(action.Type == "list-folder", "Expected list-folder action")
-		assert(action.Path == "/home/worker/missing/", "Expected action.Path")
+		assert(t, action.ID != "", "Expected action.ID != ''")
+		assert(t, action.Type == "list-folder", "Expected list-folder action")
+		assert(t, action.Path == "/home/worker/missing/", "Expected action.Path")
 
 		// Post back an reply
 		payload, _ := json.Marshal(Files{
@@ -217,17 +217,17 @@ func TestMetaService(t *testing.T) {
 			"http://169.254.169.254/engine/v1/reply?id="+action.ID,
 			bytes.NewBuffer(payload),
 		)
-		nilOrPanic(err2)
+		nilOrFatal(t, err2)
 		req.Header.Set("Content-Type", "application/json")
 		w = httptest.NewRecorder()
 		s.ServeHTTP(w, req)
-		assert(w.Code == http.StatusOK, "Unexpected status: ", w.Code)
+		assert(t, w.Code == http.StatusOK, "Unexpected status: ", w.Code)
 	}()
 
 	// List folder through metaservice
 	files, err = s.ListFolder("/home/worker/missing/")
-	assert(err == engines.ErrResourceNotFound, "Expected ErrResourceNotFound")
-	assert(len(files) == 0, "Expected zero files")
+	assert(t, err == engines.ErrResourceNotFound, "Expected ErrResourceNotFound")
+	assert(t, len(files) == 0, "Expected zero files")
 }
 
 func TestMetaServiceShell(t *testing.T) {
@@ -256,20 +256,20 @@ func TestMetaServiceShell(t *testing.T) {
 	go func() {
 		// Start polling for an action
 		req, err2 := http.NewRequest("GET", s.URL+"/engine/v1/poll", nil)
-		nilOrPanic(err2)
+		nilOrFatal(t, err2)
 		res, err2 := http.DefaultClient.Do(req)
-		nilOrPanic(err2)
-		assert(res.StatusCode == http.StatusOK)
+		nilOrFatal(t, err2)
+		assert(t, res.StatusCode == http.StatusOK)
 		action := Action{}
 		data, err2 := ioutil.ReadAll(res.Body)
-		nilOrPanic(err2)
+		nilOrFatal(t, err2)
 		err2 = json.Unmarshal(data, &action)
-		nilOrPanic(err2, "Failed to decode JSON")
+		nilOrFatal(t, err2, "Failed to decode JSON")
 
 		// Check that the action is 'exec-shell' (as expected)
-		assert(action.ID != "", "Expected action.ID != ''")
-		assert(action.Type == "exec-shell", "Expected exec-shell action")
-		assert(action.Path == "", "Didn't expect action.Path")
+		assert(t, action.ID != "", "Expected action.ID != ''")
+		assert(t, action.Type == "exec-shell", "Expected exec-shell action")
+		assert(t, action.Path == "", "Didn't expect action.Path")
 
 		dialer := websocket.Dialer{
 			HandshakeTimeout: 30 * time.Second,
@@ -277,13 +277,13 @@ func TestMetaServiceShell(t *testing.T) {
 			WriteBufferSize:  8 * 1024,
 		}
 		ws, _, err2 := dialer.Dial("ws:"+s.URL[5:]+"/engine/v1/reply?id="+action.ID, nil)
-		nilOrPanic(err2, "Failed to open websocket")
+		nilOrFatal(t, err2, "Failed to open websocket")
 
 		debug("guest-tool: Read: 'hi' on stdin")
-		t, m, err2 := ws.ReadMessage()
-		nilOrPanic(err2, "ReadMessage failed")
-		assert(t == websocket.BinaryMessage, "expected BinaryMessage")
-		assert(bytes.Compare(m, []byte{
+		messageType, m, err2 := ws.ReadMessage()
+		nilOrFatal(t, err2, "ReadMessage failed")
+		assert(t, messageType == websocket.BinaryMessage, "expected BinaryMessage")
+		assert(t, bytes.Compare(m, []byte{
 			shellconsts.MessageTypeData, shellconsts.StreamStdin, 'h', 'i',
 		}) == 0, "expected 'hi' on stdin")
 
@@ -291,19 +291,19 @@ func TestMetaServiceShell(t *testing.T) {
 		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
 			shellconsts.MessageTypeAck, shellconsts.StreamStdin, 0, 0, 0, 2,
 		})
-		nilOrPanic(err2, "Failed to send ack")
+		nilOrFatal(t, err2, "Failed to send ack")
 
 		debug("guest-tool: Send: 'hello' on stdout")
 		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
 			shellconsts.MessageTypeData, shellconsts.StreamStdout, 'h', 'e', 'l', 'l', 'o',
 		})
-		nilOrPanic(err2, "Failed to send 'hello'")
+		nilOrFatal(t, err2, "Failed to send 'hello'")
 
 		debug("guest-tool: Read: ack for the 'hello'")
-		t, m, err2 = ws.ReadMessage()
-		nilOrPanic(err2, "Failed to ReadMessage")
-		assert(t == websocket.BinaryMessage, "expected BinaryMessage")
-		assert(bytes.Compare(m, []byte{
+		messageType, m, err2 = ws.ReadMessage()
+		nilOrFatal(t, err2, "Failed to ReadMessage")
+		assert(t, messageType == websocket.BinaryMessage, "expected BinaryMessage")
+		assert(t, bytes.Compare(m, []byte{
 			shellconsts.MessageTypeAck, shellconsts.StreamStdout, 0, 0, 0, 5,
 		}) == 0, "expected ack for 5 on stdout")
 
@@ -311,13 +311,13 @@ func TestMetaServiceShell(t *testing.T) {
 		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
 			shellconsts.MessageTypeData, shellconsts.StreamStdout,
 		})
-		nilOrPanic(err2, "Failed to send close for stdout")
+		nilOrFatal(t, err2, "Failed to send close for stdout")
 
 		debug("guest-tool: Read: close for stdin")
-		t, m, err2 = ws.ReadMessage()
-		nilOrPanic(err2, "Failed to ReadMessage")
-		assert(t == websocket.BinaryMessage, "expected BinaryMessage")
-		assert(bytes.Compare(m, []byte{
+		messageType, m, err2 = ws.ReadMessage()
+		nilOrFatal(t, err2, "Failed to ReadMessage")
+		assert(t, messageType == websocket.BinaryMessage, "expected BinaryMessage")
+		assert(t, bytes.Compare(m, []byte{
 			shellconsts.MessageTypeData, shellconsts.StreamStdin,
 		}) == 0, "expected stdin to be closed")
 
@@ -325,33 +325,33 @@ func TestMetaServiceShell(t *testing.T) {
 		err2 = ws.WriteMessage(websocket.BinaryMessage, []byte{
 			shellconsts.MessageTypeExit, 0,
 		})
-		nilOrPanic(err2, "Failed to send 'exit' success")
+		nilOrFatal(t, err2, "Failed to send 'exit' success")
 	}()
 
 	// Exec shell through metaservice
 	shell, err := meta.ExecShell(nil, false)
-	assert(err == nil, "Unexpected error: ", err)
+	assert(t, err == nil, "Unexpected error: ", err)
 
 	debug("server: Writing 'hi' on stdin")
 	_, err = shell.StdinPipe().Write([]byte("hi"))
-	nilOrPanic(err, "Failed to write 'hi' on stdin")
+	nilOrFatal(t, err, "Failed to write 'hi' on stdin")
 
 	debug("server: Reading stdout (waiting for stdout to close)")
 	b, err := ioutil.ReadAll(shell.StdoutPipe())
-	nilOrPanic(err, "Failed to readAll from stdout")
-	assert(string(b) == "hello", "Failed to read 'hello'")
+	nilOrFatal(t, err, "Failed to readAll from stdout")
+	assert(t, string(b) == "hello", "Failed to read 'hello'")
 
 	debug("server: Closing stdin")
 	err = shell.StdinPipe().Close()
-	nilOrPanic(err)
+	nilOrFatal(t, err)
 
 	debug("server: Waiting for exit success")
 	success, err := shell.Wait()
-	assert(err == nil, "Unexpected error: ", err)
-	assert(success, "Expected success")
+	assert(t, err == nil, "Unexpected error: ", err)
+	assert(t, success, "Expected success")
 
 	debug("server: Reading nothing stderr (just check that it's closed)")
 	b, err = ioutil.ReadAll(shell.StderrPipe())
-	nilOrPanic(err, "Failed to readAll from stderr")
-	assert(string(b) == "", "Failed to read ''")
+	nilOrFatal(t, err, "Failed to readAll from stderr")
+	assert(t, string(b) == "", "Failed to read ''")
 }
