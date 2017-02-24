@@ -283,7 +283,7 @@ func TestMetaServiceShell(t *testing.T) {
 		messageType, m, err2 := ws.ReadMessage()
 		nilOrFatal(t, err2, "ReadMessage failed")
 		assert(t, messageType == websocket.BinaryMessage, "expected BinaryMessage")
-		assert(bytes.Equal(m, []byte{
+		assert(t, bytes.Equal(m, []byte{
 			shellconsts.MessageTypeData, shellconsts.StreamStdin, 'h', 'i',
 		}), "expected 'hi' on stdin")
 
@@ -303,7 +303,7 @@ func TestMetaServiceShell(t *testing.T) {
 		messageType, m, err2 = ws.ReadMessage()
 		nilOrFatal(t, err2, "Failed to ReadMessage")
 		assert(t, messageType == websocket.BinaryMessage, "expected BinaryMessage")
-		assert(bytes.Equal(m, []byte{
+		assert(t, bytes.Equal(m, []byte{
 			shellconsts.MessageTypeAck, shellconsts.StreamStdout, 0, 0, 0, 5,
 		}), "expected ack for 5 on stdout")
 
@@ -317,7 +317,7 @@ func TestMetaServiceShell(t *testing.T) {
 		messageType, m, err2 = ws.ReadMessage()
 		nilOrFatal(t, err2, "Failed to ReadMessage")
 		assert(t, messageType == websocket.BinaryMessage, "expected BinaryMessage")
-		assert(bytes.Equal(m, []byte{
+		assert(t, bytes.Equal(m, []byte{
 			shellconsts.MessageTypeData, shellconsts.StreamStdin,
 		}), "expected stdin to be closed")
 
