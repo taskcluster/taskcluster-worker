@@ -11,7 +11,6 @@ import (
 )
 
 func TestUpload(t *testing.T) {
-
 	if runtime.GOOS == "windows" {
 		t.Skip("Currently not supported on Windows")
 	}

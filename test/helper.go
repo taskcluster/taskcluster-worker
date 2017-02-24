@@ -35,15 +35,13 @@ func testdataDir() string {
 }
 
 type TaskPayload struct {
-
 	// Artifacts to be published
 	Artifacts []struct {
 		Expires tcclient.Time `json:"expires,omitempty"`
 
-		// This will be the leading path to directories and the full name
-		// for files that are uploaded to s3. It must not begin or end
-		// with "/" and must only contain printable ascii characters
-		// otherwise.
+		// This will be the leading path to directories and the full name for
+		// files that are uploaded to s3. It must not begin or end with "/" and
+		// must only contain printable ascii characters otherwise.
 		//
 		// Syntax:     ^([\x20-\x2e\x30-\x7e][\x20-\x7e]*)[\x20-\x2e\x30-\x7e]$
 		Name string `json:"name"`
@@ -53,7 +51,9 @@ type TaskPayload struct {
 		// Syntax:     ^.*[^/]$
 		Path string `json:"path"`
 
-		// Artifacts can be either an individual `file` or a `directory` containing potentially multiple files with recursively included subdirectories
+		// Artifacts can be either an individual `file` or a `directory`
+		// containing potentially multiple files with recursively included
+		// subdirectories
 		//
 		// Possible values:
 		//   * "file"
@@ -64,7 +64,8 @@ type TaskPayload struct {
 	// Command to execute
 	Command []string `json:"command"`
 
-	// Optional URL for a gzipped tar-ball to downloaded and extracted in the HOME directory for running the command.
+	// Optional URL for a gzipped tar-ball to be downloaded and extracted in
+	// the HOME directory for running the command.
 	Context string `json:"context,omitempty"`
 
 	// Mapping from environment variables to values
@@ -128,7 +129,11 @@ func NewTestTask(name string) (task *queue.TaskDefinitionRequest, workerType str
 	return
 }
 
-func SubmitTask(t *testing.T, td *queue.TaskDefinitionRequest, payload TaskPayload) (taskID string, myQueue *queue.Queue) {
+func SubmitTask(
+	t *testing.T,
+	td *queue.TaskDefinitionRequest,
+	payload TaskPayload,
+) (taskID string, q *queue.Queue) {
 	taskID = slugid.Nice()
 	// check we have all the env vars we need to run this test
 	if os.Getenv("TASKCLUSTER_CLIENT_ID") == "" || os.Getenv("TASKCLUSTER_ACCESS_TOKEN") == "" {
@@ -139,23 +144,23 @@ func SubmitTask(t *testing.T, td *queue.TaskDefinitionRequest, payload TaskPaylo
 		AccessToken: os.Getenv("TASKCLUSTER_ACCESS_TOKEN"),
 		Certificate: os.Getenv("TASKCLUSTER_CERTIFICATE"),
 	}
-	myQueue = queue.New(creds)
+	q = queue.New(creds)
 
 	b, err := json.Marshal(&payload)
 	if err != nil {
-		t.Fatalf("Could not convert task payload to json")
+		t.Fatalf("Could not convert task payload to json: %v", err)
 	}
 
 	payloadJSON := json.RawMessage{}
 	err = json.Unmarshal(b, &payloadJSON)
 	if err != nil {
-		t.Fatalf("Could not convert json bytes of payload to json.RawMessage")
+		t.Fatalf("Could not convert json bytes of payload to json.RawMessage: %v", err)
 	}
 
 	td.Payload = payloadJSON
 
 	// submit task
-	_, err = myQueue.CreateTask(taskID, td)
+	_, err = q.CreateTask(taskID, td)
 	if err != nil {
 		t.Fatalf("Could not submit task: %v", err)
 	}
