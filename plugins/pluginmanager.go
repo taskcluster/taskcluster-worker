@@ -41,26 +41,6 @@ func mergeErrors(errs ...error) error {
 	return nil
 }
 
-// waitForErrors executes function f against every plugin passed in taskPlugins
-// and returns an error which represents the merge of all errors which occurred
-// against any plugin.
-//
-// Note, that errors might be nil, if all are nil it'll return nil otherwise
-// it'll merge the errors.
-func waitForErrors(taskPlugins []TaskPlugin, f func(p TaskPlugin) error) (err error) {
-	errors := make([]error, len(taskPlugins))
-	var wg sync.WaitGroup
-	for i, j := range taskPlugins {
-		wg.Add(1)
-		go func(i int, j TaskPlugin) {
-			defer wg.Done()
-			errors[i] = f(j)
-		}(i, j)
-	}
-	wg.Wait()
-	return mergeErrors(errors...)
-}
-
 // PluginManagerConfigSchema returns configuration for PluginOptions.Config for
 // NewPluginManager.
 func PluginManagerConfigSchema() schematypes.Object {
@@ -234,7 +214,9 @@ func (m *pluginManager) NewTaskPlugin(options TaskPluginOptions) (manager TaskPl
 	return
 }
 
-func (m *taskPluginManager) executePhase(f func(p TaskPlugin) error) error {
+type TaskPluginPhase func(TaskPlugin) error
+
+func (m *taskPluginManager) executePhase(f TaskPluginPhase) error {
 	// Sanity check that no two methods on plugin is running in parallel, this way
 	// plugins don't have to be thread-safe, and we ensure nothing is called after
 	// Dispose() has been called.
@@ -243,8 +225,20 @@ func (m *taskPluginManager) executePhase(f func(p TaskPlugin) error) error {
 	}
 	defer m.working.Set(false)
 
-	// Run method on plugins in parallel
-	return waitForErrors(m.taskPlugins, f)
+	// Execute phase on plugins in parallel
+	errors := make([]error, len(m.taskPlugins))
+	var wg sync.WaitGroup
+	for i, j := range m.taskPlugins {
+		wg.Add(1)
+		go func(index int, tp TaskPlugin) {
+			defer wg.Done()
+			errors[index] = f(tp)
+		}(i, j)
+	}
+	wg.Wait()
+	// Returned error represents the merge of all errors which occurred against
+	// any plugin, or nil if no error occurred.
+	return mergeErrors(errors...)
 }
 
 func (m *taskPluginManager) Prepare(c *runtime.TaskContext) error {
