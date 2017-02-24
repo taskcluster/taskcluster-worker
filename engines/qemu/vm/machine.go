@@ -2,6 +2,7 @@ package vm
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
@@ -231,6 +232,25 @@ func (m *Machine) Validate() error {
 	// Return any errors collected
 	if hasError {
 		return engines.NewMalformedPayloadError(errs)
+	}
+	return nil
+}
+
+// validateMAC ensures that MAC address has local bit set, and multicast bit
+// unset. This is important as we shouldn't use globally registered MAC
+// addreses in our virtual machines.
+func validateMAC(mac string) error {
+	m := make([]byte, 6)
+	n, err := fmt.Sscanf(
+		mac, "%02x:%02x:%02x:%02x:%02x:%02x",
+		&m[0], &m[1], &m[2], &m[3], &m[4], &m[5],
+	)
+	if n != 6 && err != nil {
+		return errors.New("MAC address must be on the form: x:x:x:x:x:x")
+	} else if m[0]&2 == 0 {
+		return errors.New("MAC address must have the local bit set")
+	} else if m[0]&1 == 1 {
+		return errors.New("MAC address must have the multicast bit unset")
 	}
 	return nil
 }
