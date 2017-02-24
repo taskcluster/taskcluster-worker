@@ -236,8 +236,8 @@ func (r *run) OpenLogReader() {
 
 func (r *run) ReadLog() string {
 	reader, err := r.context.NewLogReader()
-	defer reader.Close()
 	nilOrPanic(err, "Failed to open log reader")
+	defer reader.Close()
 	data, err := ioutil.ReadAll(reader)
 	nilOrPanic(err, "Failed to read log")
 	return string(data)
