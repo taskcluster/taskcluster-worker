@@ -234,13 +234,17 @@ func (m *pluginManager) NewTaskPlugin(options TaskPluginOptions) (manager TaskPl
 	return
 }
 
-func (m *taskPluginManager) Prepare(c *runtime.TaskContext) error {
-	// Sanity check that no two methods on plugin is running in parallel, this way
-	// plugins don't have to be thread-safe, and we ensure nothing is called after
-	// Dispose() has been called.
+// Sanity check that no two methods on plugin is running in parallel, this way
+// plugins don't have to be thread-safe, and we ensure nothing is called after
+// Dispose() has been called.
+func (m *taskPluginManager) inactiveOrPanic() {
 	if m.working.Swap(true) {
 		panic("Another plugin method is currently running, or Dispose() has been called!")
 	}
+}
+
+func (m *taskPluginManager) Prepare(c *runtime.TaskContext) error {
+	m.inactiveOrPanic()
 	defer m.working.Set(false)
 
 	// Run method on plugins in parallel
@@ -248,12 +252,7 @@ func (m *taskPluginManager) Prepare(c *runtime.TaskContext) error {
 }
 
 func (m *taskPluginManager) BuildSandbox(b engines.SandboxBuilder) error {
-	// Sanity check that no two methods on plugin is running in parallel, this way
-	// plugins don't have to be thread-safe, and we ensure nothing is called after
-	// Dispose() has been called.
-	if m.working.Swap(true) {
-		panic("Another plugin method is currently running, or Dispose() has been called!")
-	}
+	m.inactiveOrPanic()
 	defer m.working.Set(false)
 
 	// Run method on plugins in parallel
@@ -261,12 +260,7 @@ func (m *taskPluginManager) BuildSandbox(b engines.SandboxBuilder) error {
 }
 
 func (m *taskPluginManager) Started(s engines.Sandbox) error {
-	// Sanity check that no two methods on plugin is running in parallel, this way
-	// plugins don't have to be thread-safe, and we ensure nothing is called after
-	// Dispose() has been called.
-	if m.working.Swap(true) {
-		panic("Another plugin method is currently running, or Dispose() has been called!")
-	}
+	m.inactiveOrPanic()
 	defer m.working.Set(false)
 
 	// Run method on plugins in parallel
@@ -274,12 +268,7 @@ func (m *taskPluginManager) Started(s engines.Sandbox) error {
 }
 
 func (m *taskPluginManager) Stopped(r engines.ResultSet) (bool, error) {
-	// Sanity check that no two methods on plugin is running in parallel, this way
-	// plugins don't have to be thread-safe, and we ensure nothing is called after
-	// Dispose() has been called.
-	if m.working.Swap(true) {
-		panic("Another plugin method is currently running, or Dispose() has been called!")
-	}
+	m.inactiveOrPanic()
 	defer m.working.Set(false)
 
 	// Use atomic bool to return true, if no plugin returns false
@@ -297,12 +286,7 @@ func (m *taskPluginManager) Stopped(r engines.ResultSet) (bool, error) {
 }
 
 func (m *taskPluginManager) Finished(s bool) error {
-	// Sanity check that no two methods on plugin is running in parallel, this way
-	// plugins don't have to be thread-safe, and we ensure nothing is called after
-	// Dispose() has been called.
-	if m.working.Swap(true) {
-		panic("Another plugin method is currently running, or Dispose() has been called!")
-	}
+	m.inactiveOrPanic()
 	defer m.working.Set(false)
 
 	// Run method on plugins in parallel
@@ -310,12 +294,7 @@ func (m *taskPluginManager) Finished(s bool) error {
 }
 
 func (m *taskPluginManager) Exception(r runtime.ExceptionReason) error {
-	// Sanity check that no two methods on plugin is running in parallel, this way
-	// plugins don't have to be thread-safe, and we ensure nothing is called after
-	// Dispose() has been called.
-	if m.working.Swap(true) {
-		panic("Another plugin method is currently running, or Dispose() has been called!")
-	}
+	m.inactiveOrPanic()
 	defer m.working.Set(false)
 
 	// Run method on plugins in parallel
@@ -323,10 +302,7 @@ func (m *taskPluginManager) Exception(r runtime.ExceptionReason) error {
 }
 
 func (m *taskPluginManager) Dispose() error {
-	// Sanity check that no two methods on plugin is running in parallel
-	if m.working.Swap(true) {
-		panic("Another plugin method is currently running, or Dispose() has been called!")
-	}
+	m.inactiveOrPanic()
 	// Notice that we don't call: defer w.working.Set(false), as we don't want to
 	// allow any calls to plugins after Dispose()
 
