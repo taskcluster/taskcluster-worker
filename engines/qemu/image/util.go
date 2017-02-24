@@ -10,35 +10,36 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 )
 
-// copyFile copies source to destination.
-func copyFile(source, target string) error {
-	// Open input file
-	input, err := os.Open(source)
+// copyFile copies source to destination, and returns an error if one occurs
+// during opening input or output file, copying data from input to output, or
+// closing input or output file
+func copyFile(source, target string) (err error) {
+	var input *os.File
+	var output *os.File
+	input, err = os.Open(source)
 	if err != nil {
-		return err
+		return
 	}
-	defer input.Close()
+
+	closeFile := func(f *os.File) {
+		err2 := f.Close()
+		if err == nil {
+			err = err2
+		}
+	}
+
+	defer closeFile(input)
 
 	// Create target file
-	output, err := os.Create(target)
+	output, err = os.Create(target)
 	if err != nil {
-		return err
+		return
 	}
+	defer closeFile(output)
 
 	// Copy data
 	_, err = io.Copy(output, input)
-	if err != nil {
-		output.Close()
-		return err
-	}
-
-	// Close output file
-	err = output.Close()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return
 }
 
 const maxRetries = 7

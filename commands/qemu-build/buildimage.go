@@ -49,7 +49,7 @@ func buildImage(
 
 		// Construct MutableImage
 		log.Info("Creating MutableImage")
-		img, err2 = image.NewMutableImage(tempFolder, int(size), machine)
+		img, err2 = image.NewMutableImage(tempFolder, size, machine)
 		if err2 != nil {
 			log.Error("Failed to create image, error: ", err2)
 			return err2

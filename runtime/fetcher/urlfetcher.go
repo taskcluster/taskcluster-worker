@@ -1,6 +1,7 @@
 package fetcher
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -100,7 +101,7 @@ func newPersistentError(format string, a ...interface{}) error {
 	return persistentError(fmt.Sprintf(format, a...))
 }
 
-func fetchURL(ctx Context, u string, target io.Writer) error {
+func fetchURL(ctx context.Context, u string, target io.Writer) error {
 	// Create a new request
 	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {

@@ -18,10 +18,7 @@ import (
 
 	"github.com/taskcluster/taskcluster-worker/commands"
 	"github.com/taskcluster/taskcluster-worker/runtime"
-	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
-
-var debug = util.Debug("guesttools")
 
 func init() {
 	commands.Register("qemu-guest-tools", cmd{})
