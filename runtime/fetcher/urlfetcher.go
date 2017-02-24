@@ -50,7 +50,7 @@ func (urlFetcher) Scopes(ref interface{}) [][]string {
 	if urlSchema.Validate(ref) != nil {
 		panic(fmt.Sprintf("Reference: %#v doesn't satisfy Fetcher.Schema()", ref))
 	}
-	return [][]string{[]string{}} // Set containing the empty-scope-set
+	return [][]string{{}} // Set containing the empty-scope-set
 }
 
 func (urlFetcher) Fetch(ctx Context, ref interface{}, target WriteSeekReseter) error {

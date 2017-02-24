@@ -53,7 +53,7 @@ func NewMutableImage(folder string, size int, machine *vm.Machine) (*MutableImag
 }
 
 // NewMutableImageFromFile creates a mutable image from an existing compressed
-// image tar archieve.
+// image tar archive.
 func NewMutableImageFromFile(imageFile, imageFolder string) (*MutableImage, error) {
 	// Extract image normally
 	machine, err := extractImage(imageFile, imageFolder)
@@ -105,7 +105,7 @@ func (img *MutableImage) Machine() vm.Machine {
 	return *img.machine
 }
 
-// Package will write an zstd compressed tar archieve of the image to targetFile.
+// Package will write an zstd compressed tar archive of the image to targetFile.
 // This method cannot be called the image is in-use.
 func (img *MutableImage) Package(targetFile string) error {
 	img.m.Lock()

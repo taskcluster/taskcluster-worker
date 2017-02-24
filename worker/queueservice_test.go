@@ -104,7 +104,7 @@ func TestShouldRefreshQueueUrls(t *testing.T) {
 	// When expiration is still within limits, and the queue slice has already been
 	// populated, the queue service should not need to refresh
 	service.expires = tcclient.Time(time.Now().Add(time.Minute * 6))
-	service.queues = []messageQueue{messageQueue{}, messageQueue{}}
+	service.queues = []messageQueue{{}, {}}
 	assert.Equal(t, false, service.shouldRefreshQueueUrls())
 
 	// Expiration is coming close, need to refresh
@@ -117,7 +117,7 @@ func TestShouldNotRefreshMessageQueueURLs(t *testing.T) {
 	service := queueService{
 		expirationOffset: 300,
 		expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
-		queues:           []messageQueue{messageQueue{}, messageQueue{}},
+		queues:           []messageQueue{{}, {}},
 		log:              logger.WithField("component", "Queue Service"),
 	}
 
