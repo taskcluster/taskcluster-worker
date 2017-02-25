@@ -59,12 +59,12 @@ func extractImage(imageFile, imageFolder string) (*vm.Machine, error) {
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok {
 			return nil, engines.NewMalformedPayloadError(
-				"Failed to extract image archieve, error: ", string(ee.Stderr),
+				"Failed to extract image archive, error: ", string(ee.Stderr),
 			)
 		}
 		// If this wasn't GNU tar exiting non-zero then it must be some internal
 		// error. Perhaps tar is missing from the PATH.
-		return nil, fmt.Errorf("Failed to extract image archieve, error: %s", err)
+		return nil, fmt.Errorf("Failed to extract image archive, error: %s", err)
 	}
 
 	// Check files exist, are plain files and not larger than maxImageSize

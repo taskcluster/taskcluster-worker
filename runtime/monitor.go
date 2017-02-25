@@ -24,8 +24,8 @@ type Monitor interface {
 
 	// Report error/warning to sentry and write to log, returns incidentId which
 	// can be included in task-logs, if relevant.
-	ReportError(err error) string
-	ReportWarning(err error) string
+	ReportError(err error, comment ...interface{}) string
+	ReportWarning(err error, comment ...interface{}) string
 
 	// Write log messages to system log
 	Debug(...interface{})
@@ -131,28 +131,29 @@ func (m *monitor) Time(name string, fn func()) {
 	m.Statsum.Time(name, fn)
 }
 
-func (m *monitor) ReportError(err error) string {
+func (m *monitor) ReportError(err error, message ...interface{}) string {
 	incidentID := uuid.NewRandom().String()
-	m.Entry.WithField("incidentId", incidentID).Error(err)
-	m.submitError(err, raven.ERROR, incidentID)
+	m.Entry.WithField("incidentId", incidentID).WithError(err).Error(message...)
+	m.submitError(err, fmt.Sprint(message...), raven.ERROR, incidentID)
 	return incidentID
 }
 
-func (m *monitor) ReportWarning(err error) string {
+func (m *monitor) ReportWarning(err error, message ...interface{}) string {
 	incidentID := uuid.NewRandom().String()
-	m.Entry.WithField("incidentId", incidentID).Warn(err)
-	m.submitError(err, raven.WARNING, incidentID)
+	m.Entry.WithField("incidentId", incidentID).WithError(err).Warn(message...)
+	m.submitError(err, fmt.Sprint(message...), raven.WARNING, incidentID)
 	return incidentID
 }
 
-func (m *monitor) submitError(err error, level raven.Severity, incidentID string) {
+func (m *monitor) submitError(err error, message string, level raven.Severity, incidentID string) {
 	// Capture stack trace
 	exception := raven.NewException(err, raven.NewStacktrace(2, 5, []string{
 		"github.com/taskcluster/",
 	}))
 
 	// Create error packet
-	packet := raven.NewPacket(err.Error(), nil, exception)
+	text := fmt.Sprintf("Error: %s\nMessage: %s", err.Error(), message)
+	packet := raven.NewPacket(text, nil, exception)
 	packet.Level = level
 	packet.EventID = incidentID
 
