@@ -18,6 +18,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
+	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 )
 
 var logger, _ = runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
@@ -91,6 +92,7 @@ func ensureEnvironment(t *testing.T) (*runtime.Environment, engines.Engine, plug
 
 	environment := &runtime.Environment{
 		TemporaryStorage: tempStorage,
+		Monitor:          mocks.NewMockMonitor(true),
 	}
 	engineProvider := engines.Engines()["mock"]
 	engine, err := engineProvider.NewEngine(engines.EngineOptions{
