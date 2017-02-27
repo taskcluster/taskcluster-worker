@@ -14,6 +14,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
+	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
@@ -148,6 +149,7 @@ func newTestEnvironment() *runtime.Environment {
 		GarbageCollector: &gc.GarbageCollector{},
 		TemporaryStorage: folder,
 		Log:              logger,
+		Monitor:          mocks.NewMockMonitor(true),
 	}
 }
 

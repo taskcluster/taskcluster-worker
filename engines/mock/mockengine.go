@@ -23,6 +23,9 @@ func init() {
 }
 
 func (e engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine, error) {
+	if options.Environment.Monitor == nil {
+		panic("EngineOptions.Environment.Monitor is nil, this is a contract violation")
+	}
 	return engine{Log: options.Log}, nil
 }
 

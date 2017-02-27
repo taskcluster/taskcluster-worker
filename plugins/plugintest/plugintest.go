@@ -20,6 +20,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
+	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 )
 
@@ -252,6 +253,7 @@ func newTestEnvironment() *runtime.Environment {
 		GarbageCollector: &gc.GarbageCollector{},
 		TemporaryStorage: folder,
 		Log:              logger,
+		Monitor:          mocks.NewMockMonitor(true),
 	}
 }
 
