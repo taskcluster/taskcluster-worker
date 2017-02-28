@@ -4,6 +4,7 @@ package nativeengine
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -141,7 +142,7 @@ func TestShell(t *testing.T) {
 		SleepCommand:   "sleep 30;\n",
 		Payload: `{
       "command": ["sh", "-c", "sleep 1 && true"]
-	  }`,
+	  }`, // sleep in payload, sandbox doesn't terminate before shell is started
 	}
 
 	c.TestCommand()
@@ -151,9 +152,8 @@ func TestShell(t *testing.T) {
 }
 
 func TestContext(t *testing.T) {
-	go func() {
-		require.NoError(t, http.ListenAndServe(":6000", http.FileServer(http.Dir("testdata/"))))
-	}()
+	s := httptest.NewServer(http.FileServer(http.Dir("testdata/")))
+	defer s.Close()
 
 	t.Run("Context", func(t *testing.T) {
 		c := enginetest.ShellTestCase{
@@ -164,9 +164,9 @@ func TestContext(t *testing.T) {
 			BadCommand:     "exit 1;\n",
 			SleepCommand:   "sleep 30;\n",
 			Payload: `{
-				"command": ["sh", "-c", "true"],
-				"context": "http://localhost:6000/folder/test.sh"
-			}`,
+				"command": ["sh", "-c", "sleep 1 && true"],
+				"context": "` + s.URL + `/folder/test.sh"
+			}`, // sleep in payload, sandbox doesn't terminate before shell is started
 		}
 
 		c.TestCommand()
@@ -182,9 +182,9 @@ func TestContext(t *testing.T) {
 			BadCommand:     "exit 1;\n",
 			SleepCommand:   "sleep 30;\n",
 			Payload: `{
-				"command": ["sh", "-c", "true"],
-				"context": "http://localhost:6000/folder.tar.gz"
-			}`,
+				"command": ["sh", "-c", "sleep 1 && true"],
+				"context": "` + s.URL + `/folder.tar.gz"
+			}`, // sleep in payload, sandbox doesn't terminate before shell is started
 		}
 
 		c.TestCommand()
