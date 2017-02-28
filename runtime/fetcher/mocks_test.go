@@ -14,7 +14,6 @@ import (
 type mockContext struct {
 	context.Context
 	queue client.Queue
-	t     *testing.T
 }
 
 func (c *mockContext) Queue() client.Queue {
@@ -22,7 +21,7 @@ func (c *mockContext) Queue() client.Queue {
 }
 
 func (c *mockContext) Progress(description string, percent float64) {
-	c.t.Logf("Progress: %s - %f %%", description, percent)
+	debug("Progress: %s - %d %%", description, percent)
 }
 
 type mockWriteSeekReseter struct {
