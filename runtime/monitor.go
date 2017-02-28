@@ -315,7 +315,7 @@ func (m *loggingMonitor) WithTags(tags map[string]string) Monitor {
 		fields[k] = v
 	}
 	fields["prefix"] = m.prefix // don't allow overwrite "prefix"
-	return &monitor{
+	return &loggingMonitor{
 		Entry:  m.Entry.WithFields(fields),
 		prefix: m.prefix,
 	}
@@ -327,7 +327,7 @@ func (m *loggingMonitor) WithTag(key, value string) Monitor {
 
 func (m *loggingMonitor) WithPrefix(prefix string) Monitor {
 	prefix = m.prefix + prefix
-	return &monitor{
+	return &loggingMonitor{
 		Entry:  m.Entry.WithField("prefix", prefix),
 		prefix: prefix + ".",
 	}

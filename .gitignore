@@ -8,3 +8,4 @@ coverage.out
 /mock-config.yml
 /qemu-config.yml
 /vendor/*/
+/config.env
