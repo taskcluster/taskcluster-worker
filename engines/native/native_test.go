@@ -140,7 +140,7 @@ func TestShell(t *testing.T) {
 		BadCommand:     "exit 1;\n",
 		SleepCommand:   "sleep 30;\n",
 		Payload: `{
-      "command": ["sh", "-c", "true"]
+      "command": ["sh", "-c", "sleep 1 && true"]
 	  }`,
 	}
 
