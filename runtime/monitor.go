@@ -119,6 +119,33 @@ type sentry struct {
 	auth       client.Auth
 }
 
+func (s *sentry) Client() (*raven.Client, error) {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	// Refresh sentry DSN if necessary
+	if s.expiration.Before(time.Now()) {
+		// Fetch DSN
+		res, err := s.auth.SentryDSN(s.project)
+		if err != nil {
+			return nil, err
+		}
+		// Create or update DSN for the client
+		if s.client == nil {
+			s.client, err = raven.New(res.Dsn.Secret)
+		} else {
+			err = s.client.SetDSN(res.Dsn.Secret)
+		}
+		if err != nil {
+			return nil, err
+		}
+		// Set expiration, so we remember to refresh
+		s.expiration = time.Time(res.Expires)
+	}
+
+	return s.client, nil
+}
+
 type monitor struct {
 	*statsum.Statsum
 	*logrus.Entry
@@ -165,42 +192,22 @@ func (m *monitor) submitError(err error, message string, level raven.Severity, i
 	tags["incidentId"] = incidentID
 	tags["prefix"] = m.prefix
 
-	// Refresh sentry DSN
-	m.sentry.m.Lock()
-	if m.sentry.expiration.Before(time.Now()) {
-		// Fetch DSN
-		res, rerr := m.sentry.auth.SentryDSN(m.sentry.project)
-		if rerr != nil {
-			m.Error("Failed to obtain sentry DSN, error: ", rerr)
-			m.Error("Failed to send error: ", err)
-			m.sentry.m.Unlock()
-			return
-		}
-		// Create or update DSN for the client
-		if m.sentry.client == nil {
-			m.sentry.client, rerr = raven.New(res.Dsn.Secret)
-		} else {
-			rerr = m.sentry.client.SetDSN(res.Dsn.Secret)
-		}
-		if rerr != nil {
-			m.Error("Obtained invalid sentry DSN, error: ", rerr)
-			m.Error("Failed to send error: ", err)
-			m.sentry.m.Unlock()
-			return
-		}
-		// Set expiration, so we remember to refresh
-		m.sentry.expiration = time.Time(res.Expires)
+	// Get client with fresh sentry DSN (if cached is old)
+	client, rerr := m.sentry.Client()
+	if rerr != nil {
+		m.Error("Failed to obtain sentry DSN, error: ", rerr)
+		m.Error("Failed to send error: ", err)
+		return
 	}
-	m.sentry.m.Unlock()
 
 	// Send packet
-	_, done := m.sentry.client.Capture(packet, tags)
+	_, done := client.Capture(packet, tags)
 	<-done
 }
 
 func (m *monitor) WithTags(tags map[string]string) Monitor {
 	// Merge tags from monitor and tags
-	allTags := make(map[string]string, len(tags))
+	allTags := make(map[string]string, len(m.tags)+len(tags))
 	for k, v := range m.tags {
 		allTags[k] = v
 	}
@@ -246,7 +253,7 @@ type loggingMonitor struct {
 }
 
 // NewLoggingMonitor creates a monitor that just logs everything. This won't
-// attempt to to send anything to sentry or statsum.
+// attempt to send anything to sentry or statsum.
 func NewLoggingMonitor(logLevel string, tags map[string]string) Monitor {
 	// Create logger and parse logLevel
 	logger := logrus.New()
