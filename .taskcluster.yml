@@ -119,8 +119,8 @@ tasks:
   #################### OS X 10.10 build ####################
   ##########################################################
 
-  - provisionerId: pmoore-manual
-    workerType: mac-os-x
+  - provisionerId: tc-worker-provisioner
+    workerType: gecko-t-osx-10-10
     metadata:
       name: "Build/test 64 bit taskcluster-worker on Mac OS X 10.10"
       description: "This builds the 64 bit OS X version of taskcluster-worker"
@@ -135,28 +135,35 @@ tasks:
     scopes:
       - generic-worker:cache:taskcluster-worker-checkout
     payload:
-      maxRunTime: 3600
+      # currently disabled in
+      # https://github.com/mozilla/build-puppet/blob/c45dec99fbaaf849cd0202724b8f33b30fb41942/modules/taskcluster_worker/templates/taskcluster-worker.yml.erb#L26
+      # due to https://bugzilla.mozilla.org/show_bug.cgi?id=1309197#c31
+      # maxRunTime: 3600
       artifacts:
         - expires: "{{ '2 weeks' | $fromNow }}"
           type: file
-          path: public/build/taskcluster-worker-darwin-amd64
+          path: go/src/github.com/taskcluster/taskcluster-worker/taskcluster-worker
+          name: public/build/taskcluster-worker-darwin-amd64
       command:
-        - - /bin/bash
-          - -vxec
-          - |
-            export GOPATH="$(pwd)/go"
-            source "${TASKCLUSTER_CREDS_BOOTSTRAP}"
-            go get -v "github.com/kardianos/govendor"
-            mkdir -p "${GOPATH}/src/github.com/taskcluster"
-            cd "${GOPATH}/src/github.com/taskcluster"
-            if [ ! -d taskcluster-worker/.git ]; then rm -rf taskcluster-worker; git clone '{{ event.head.repo.url }}' 'taskcluster-worker'; fi
-            cd 'taskcluster-worker'
-            git fetch --tags
-            git checkout -f '{{ event.head.sha }}'
-            git clean -d -f -e '/vendor/*' -x
-            govendor sync
-            make rebuild check
-            mv go/src/github.com/taskcluster/taskcluster-worker/taskcluster-worker public/build/taskcluster-worker-darwin-amd64
-      mounts:
-        - cacheName: taskcluster-worker-checkout
-          directory: go/src
+        - /bin/bash
+        - -vxec
+        - |
+          export GOPATH="$(pwd)/go"
+          source "${TASKCLUSTER_CREDS_BOOTSTRAP}"
+          go get -v "github.com/kardianos/govendor"
+          mkdir -p "${GOPATH}/src/github.com/taskcluster"
+          cd "${GOPATH}/src/github.com/taskcluster"
+          if [ ! -d taskcluster-worker/.git ]; then
+            rm -rf taskcluster-worker
+            git clone '{{ event.head.repo.url }}' 'taskcluster-worker'
+          fi
+          cd 'taskcluster-worker'
+          git fetch --tags
+          git checkout -f '{{ event.head.sha }}'
+          git clean -d -f -e '/vendor/*' -x
+          govendor sync
+          make rebuild check
+      # not yet implemented in taskcluster-worker
+      # mounts:
+      #   - cacheName: taskcluster-worker-checkout
+      #     directory: go/src
