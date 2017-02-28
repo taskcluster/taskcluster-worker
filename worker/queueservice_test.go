@@ -90,7 +90,7 @@ func TestRetrievePollTaskUrlsErrorCaught(t *testing.T) {
 		t.Fatal("Error should have been returned when polling failed")
 	}
 
-	assert.Equal(t, "Error retrieving message queue urls.", err.Error())
+	assert.Equal(t, "error retrieving message queue urls", err.Error())
 }
 
 func TestShouldRefreshQueueUrls(t *testing.T) {
