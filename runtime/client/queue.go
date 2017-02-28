@@ -93,7 +93,7 @@ var PostAnyArtifactRequest = mock.MatchedBy(func(i interface{}) bool {
 	return ok
 })
 
-// PostAnyArtifactRequest matches if queue.PostArtifactRequest is called with
+// PostS3ArtifactRequest matches if queue.PostS3ArtifactRequest is called with
 // an s3 artifact
 var PostS3ArtifactRequest = mock.MatchedBy(func(i interface{}) bool {
 	r, ok := i.(*queue.PostArtifactRequest)
