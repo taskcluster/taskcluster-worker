@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/taskcluster/slugid-go/slugid"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/queue"
@@ -147,22 +148,16 @@ func SubmitTask(
 	q = queue.New(creds)
 
 	b, err := json.Marshal(&payload)
-	if err != nil {
-		t.Fatalf("Could not convert task payload to json: %v", err)
-	}
+	require.NoError(t, err)
 
 	payloadJSON := json.RawMessage{}
 	err = json.Unmarshal(b, &payloadJSON)
-	if err != nil {
-		t.Fatalf("Could not convert json bytes of payload to json.RawMessage: %v", err)
-	}
+	require.NoError(t, err)
 
 	td.Payload = payloadJSON
 
 	// submit task
 	_, err = q.CreateTask(taskID, td)
-	if err != nil {
-		t.Fatalf("Could not submit task: %v", err)
-	}
+	require.NoError(t, err, "Could not submit task")
 	return
 }
