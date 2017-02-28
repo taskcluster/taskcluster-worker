@@ -191,9 +191,30 @@
 			"revision": "b984ec7fa9ff9e428bd0cf0abf429384dfbe3e37"
 		},
 		{
+			"checksumSHA1": "mbhJnsNwGAwkTQH5c2hVRO9YmxA=",
+			"origin": "github.com/taskcluster/statsum/vendor/github.com/philhofer/fwd",
+			"path": "github.com/philhofer/fwd",
+			"revision": "b67a889bdf09b2f267017f12c794758112f6b344",
+			"revisionTime": "2017-02-22T01:37:00Z"
+		},
+		{
 			"checksumSHA1": "LuFv4/jlrmFNnDb/5SCSEPAM9vU=",
 			"path": "github.com/pmezard/go-difflib/difflib",
 			"revision": "792786c7400a136282c1664665ae0a8db921c6c2"
+		},
+		{
+			"checksumSHA1": "D1JbeyQhazKyXOokR5w7XrHWWw8=",
+			"origin": "github.com/taskcluster/statsum/vendor/github.com/pquerna/ffjson/fflib/v1",
+			"path": "github.com/pquerna/ffjson/fflib/v1",
+			"revision": "b67a889bdf09b2f267017f12c794758112f6b344",
+			"revisionTime": "2017-02-22T01:37:00Z"
+		},
+		{
+			"checksumSHA1": "iZHmHPBzKJiS6ROUaVOf4DVOhbA=",
+			"origin": "github.com/taskcluster/statsum/vendor/github.com/pquerna/ffjson/fflib/v1/internal",
+			"path": "github.com/pquerna/ffjson/fflib/v1/internal",
+			"revision": "b67a889bdf09b2f267017f12c794758112f6b344",
+			"revisionTime": "2017-02-22T01:37:00Z"
 		},
 		{
 			"checksumSHA1": "9rCHOi3ELajBtQUPWxxmEo/Nalk=",
@@ -311,6 +332,18 @@
 			"revision": "dceab83a80cf8a20ddcb1cf50087c7d72fcf23dc"
 		},
 		{
+			"checksumSHA1": "lsCypwrrrl9RyiA69oq6eTBA/fM=",
+			"path": "github.com/taskcluster/statsum",
+			"revision": "b67a889bdf09b2f267017f12c794758112f6b344",
+			"revisionTime": "2017-02-22T01:37:00Z"
+		},
+		{
+			"checksumSHA1": "tpbXWdz3j1GRxGRq+J0ZE6R/I1A=",
+			"path": "github.com/taskcluster/statsum/payload",
+			"revision": "b67a889bdf09b2f267017f12c794758112f6b344",
+			"revisionTime": "2017-02-22T01:37:00Z"
+		},
+		{
 			"checksumSHA1": "rbm4FbK+OdUno8jhGG/aQo/gmwM=",
 			"path": "github.com/taskcluster/taskcluster-base-go/jsontest",
 			"revision": "3e5fe97ee400d93aa8eab4eb4ba7e24e1e8df3ce"
@@ -339,6 +372,13 @@
 			"checksumSHA1": "Jggs+SsefVhBtVaWOqlFnsXICkk=",
 			"path": "github.com/tent/hawk-go",
 			"revision": "d4fa08268f573f25df477fedc813f26bfb833761"
+		},
+		{
+			"checksumSHA1": "aTiJJQgo4zVRwQ9O3y0IY7O9cAk=",
+			"origin": "github.com/taskcluster/statsum/vendor/github.com/tinylib/msgp/msgp",
+			"path": "github.com/tinylib/msgp/msgp",
+			"revision": "b67a889bdf09b2f267017f12c794758112f6b344",
+			"revisionTime": "2017-02-22T01:37:00Z"
 		},
 		{
 			"checksumSHA1": "drSl/ipSHSsHWWTrp3WZw4LN/No=",
@@ -379,6 +419,12 @@
 			"checksumSHA1": "+mjMyJPLBPu7vIHaXkDuvqcDk0s=",
 			"path": "golang.org/x/tools/imports",
 			"revision": "3f4088edb48e8a4e3c66a5f8e7b2a78615fcb83f"
+		},
+		{
+			"checksumSHA1": "BoDMXJFal8LyM35n5LKhZGIxLyk=",
+			"path": "gopkg.in/dgrijalva/jwt-go.v2",
+			"revision": "268038b363c7a8d7306b8e35bf77a1fde4b0c402",
+			"revisionTime": "2016-06-16T19:14:24Z"
 		},
 		{
 			"checksumSHA1": "NwR8Jfz6xyRq+6z/ZDOmqssnsq8=",

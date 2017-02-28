@@ -23,7 +23,6 @@ type configType struct {
 	WorkerGroup      string                 `json:"workerGroup"`
 	WorkerID         string                 `json:"workerId"`
 	TemporaryFolder  string                 `json:"temporaryFolder"`
-	LogLevel         string                 `json:"logLevel"`
 	ServerIP         string                 `json:"serverIp"`
 	ServerPort       int                    `json:"serverPort"`
 	NetworkInterface string                 `json:"networkInterface"`
@@ -36,6 +35,8 @@ type configType struct {
 	MinimumDiskSpace int64                  `json:"minimumDiskSpace"`
 	MinimumMemory    int64                  `json:"minimumMemory"`
 	MaxTasksToRun    int                    `json:"maxTasksToRun"`
+	LogLevel         string                 `json:"logLevel"`
+	MonitorProject   string                 `json:"monitorProject"`
 }
 
 type credentials struct {
@@ -187,16 +188,6 @@ func ConfigSchema() schematypes.Object {
 							overwritten.`,
 				},
 			},
-			"logLevel": schematypes.StringEnum{
-				Options: []string{
-					logrus.DebugLevel.String(),
-					logrus.InfoLevel.String(),
-					logrus.WarnLevel.String(),
-					logrus.ErrorLevel.String(),
-					logrus.FatalLevel.String(),
-					logrus.PanicLevel.String(),
-				},
-			},
 			"serverIp": schematypes.String{},
 			"serverPort": schematypes.Integer{
 				Minimum: 0,
@@ -255,6 +246,26 @@ func ConfigSchema() schematypes.Object {
 				},
 				Minimum: 0,
 				Maximum: math.MaxInt32,
+			},
+			"logLevel": schematypes.StringEnum{
+				Options: []string{
+					logrus.DebugLevel.String(),
+					logrus.InfoLevel.String(),
+					logrus.WarnLevel.String(),
+					logrus.ErrorLevel.String(),
+					logrus.FatalLevel.String(),
+					logrus.PanicLevel.String(),
+				},
+			},
+			"monitorProject": schematypes.String{
+				MetaData: schematypes.MetaData{
+					Title: "Sentry Statsum Project",
+					Description: "Project name to be used for statsum and sentry " +
+						"reporting. Requires scopes `auth:statsum:<project>` and " +
+						"`auth:sentry:<project>`. If not specified error reports and " +
+						"metrics will be logged and otherwise discarded.",
+				},
+				Pattern: "^[a-zA-Z0-9_-]{1,22}$",
 			},
 		},
 		Required: []string{

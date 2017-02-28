@@ -8,6 +8,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
+	tcclient "github.com/taskcluster/taskcluster-client-go"
+	"github.com/taskcluster/taskcluster-client-go/auth"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -68,6 +70,25 @@ func New(config interface{}, log *logrus.Logger) (*Worker, error) {
 		return nil, err
 	}
 
+	// Setup monitor
+	tags := map[string]string{
+		"provisionerId": c.ProvisionerID,
+		"workerType":    c.WorkerType,
+		"workerGroup":   c.WorkerGroup,
+		"workerId":      c.WorkerID,
+	}
+	var monitor runtime.Monitor
+	if c.MonitorProject != "" {
+		a := auth.New(&tcclient.Credentials{
+			ClientID:    c.Credentials.ClientID,
+			AccessToken: c.Credentials.AccessToken,
+			Certificate: c.Credentials.Certificate,
+		})
+		monitor = runtime.NewMonitor(c.MonitorProject, a, c.LogLevel, tags)
+	} else {
+		monitor = runtime.NewLoggingMonitor(c.LogLevel, tags)
+	}
+
 	// Create environment
 	gc := gc.New(c.TemporaryFolder, c.MinimumDiskSpace, c.MinimumMemory)
 	env := &runtime.Environment{
@@ -75,6 +96,7 @@ func New(config interface{}, log *logrus.Logger) (*Worker, error) {
 		Log:              log,
 		TemporaryStorage: tempStorage,
 		WebHookServer:    localServer,
+		Monitor:          monitor,
 	}
 
 	// Ensure that engine confiuguration was provided for the engine selected

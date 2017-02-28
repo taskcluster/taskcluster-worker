@@ -65,7 +65,7 @@ Adding Dependencies
 
 ```
 go get <package>
-govendor add +ext <package>
+govendor add +external
 git add vendor/vendor.json
 git commit -m 'My new package.'
 ```

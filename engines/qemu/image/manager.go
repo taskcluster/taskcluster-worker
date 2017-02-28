@@ -7,9 +7,9 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/getsentry/raven-go"
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
 
@@ -20,7 +20,7 @@ type Manager struct {
 	imageFolder string
 	gc          gc.ResourceTracker
 	log         *logrus.Entry
-	sentry      *raven.Client
+	monitor     runtime.Monitor
 }
 
 // Downloader is a function capable of downloading an image to an imageFile.
@@ -48,7 +48,7 @@ type Instance struct {
 
 // NewManager creates a new image manager using the imageFolder for storing
 // images and instances of images.
-func NewManager(imageFolder string, gc gc.ResourceTracker, log *logrus.Entry, sentry *raven.Client) (*Manager, error) {
+func NewManager(imageFolder string, gc gc.ResourceTracker, log *logrus.Entry, monitor runtime.Monitor) (*Manager, error) {
 	// Ensure the image folder is created
 	err := os.MkdirAll(imageFolder, 0777)
 	if err != nil {
@@ -59,7 +59,7 @@ func NewManager(imageFolder string, gc gc.ResourceTracker, log *logrus.Entry, se
 		imageFolder: imageFolder,
 		gc:          gc,
 		log:         log,
-		sentry:      sentry,
+		monitor:     monitor,
 	}, nil
 }
 
@@ -134,8 +134,7 @@ cleanup:
 	// Delete the image file
 	e := os.RemoveAll(imageFile)
 	if e != nil {
-		eventID := img.manager.sentry.CaptureError(e, nil) // TODO: Severity level warning
-		img.manager.log.Warning("Failed to delete image file, err: ", e, " sentry eventId: ", eventID)
+		img.manager.monitor.ReportWarning(e, "Failed to delete image file")
 	}
 
 	// If there was an err, set ima.err and remove it from cache
@@ -149,8 +148,7 @@ cleanup:
 		// Delete the image folder
 		e := os.RemoveAll(img.folder)
 		if e != nil {
-			eventID := img.manager.sentry.CaptureError(e, nil) // TODO: Severity level warning
-			img.manager.log.Warning("Failed to delete image folder, err: ", e, " sentry eventId: ", eventID)
+			img.manager.monitor.ReportWarning(e, "Failed to delete image folder")
 		}
 	} else {
 		img.manager.gc.Register(img)
@@ -234,8 +232,7 @@ func (i *Instance) Release() {
 
 	// Delete the layer.qcow2 copy
 	if err := os.Remove(i.diskFile); err != nil {
-		eventID := i.image.manager.sentry.CaptureError(err, nil)
-		i.image.manager.log.Error("Failed to layer.qcow2 copy, err: ", err, " sentry eventId: ", eventID)
+		i.image.manager.monitor.ReportError(err, "Failed to delete layer.qcow2 copy")
 	}
 
 	// Release the image

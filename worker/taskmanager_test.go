@@ -24,6 +24,7 @@ import (
 	_ "github.com/taskcluster/taskcluster-worker/plugins/success"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
+	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 )
 
@@ -94,6 +95,7 @@ func TestTaskManagerRunTask(t *testing.T) {
 		GarbageCollector: gc,
 		TemporaryStorage: tempStorage,
 		WebHookServer:    localServer,
+		Monitor:          mocks.NewMockMonitor(true),
 	}
 	engineProvider := engines.Engines()["mock"]
 	engine, err := engineProvider.NewEngine(engines.EngineOptions{
@@ -189,6 +191,7 @@ func TestCancelTask(t *testing.T) {
 		GarbageCollector: gc,
 		TemporaryStorage: tempStorage,
 		WebHookServer:    localServer,
+		Monitor:          mocks.NewMockMonitor(true),
 	}
 	engineProvider := engines.Engines()["mock"]
 	engine, err := engineProvider.NewEngine(engines.EngineOptions{
@@ -301,6 +304,7 @@ func TestWorkerShutdown(t *testing.T) {
 		GarbageCollector: gc,
 		TemporaryStorage: tempStorage,
 		WebHookServer:    localServer,
+		Monitor:          mocks.NewMockMonitor(true),
 	}
 	engineProvider := engines.Engines()["mock"]
 	engine, err := engineProvider.NewEngine(engines.EngineOptions{

@@ -82,7 +82,7 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 		c.ImageFolder,
 		options.Environment.GarbageCollector,
 		options.Log.WithField("subsystem", "image-manager"),
-		options.Environment.Sentry,
+		options.Environment.Monitor.WithPrefix("image-manager"),
 	)
 	if err != nil {
 		return nil, err
