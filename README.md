@@ -27,10 +27,12 @@ See https://github.com/taskcluster/taskcluster-worker/releases
 Installing From Source
 ----------------------
 
-1) [Install go 1.7](https://golang.org/doc/install) or higher
-2) `go get -u -t -d github.com/taskcluster-worker/...`
-3) `cd "${GOPATH}/src/github.com/taskcluster-worker"`
-4) `make rebuild`
+1. [Install go 1.7](https://golang.org/doc/install) or higher
+2. `go get -u -t -d github.com/taskclustertaskcluster-worker/...`
+3. `cd "${GOPATH}/src/github.com/taskcluster-worker"`
+4. `go get -u https://github.com/kardianos/govendor`
+5. `govendor sync`
+6. `make rebuild`
 
 Testing
 -------
@@ -55,7 +57,6 @@ Freezing Dependencies
 You need [govendor](https://github.com/kardianos/govendor) to manage vendor dependencies.
 
 ```
-go get -u https://github.com/kardianos/govendor   # install govendor tool
 govendor sync
 ```
 
