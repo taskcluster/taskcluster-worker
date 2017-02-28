@@ -15,6 +15,8 @@ uname := $(shell uname)
 is_darwin := $(filter Darwin,$(uname))
 CGO_ENABLE := $(if $(is_darwin),1,0)
 
+.PHONY: all prechecks build rebuild check test dev-test tc-worker-env tc-worker
+
 all: rebuild
 
 prechecks:
