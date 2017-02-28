@@ -35,8 +35,6 @@ check: test
 test:
 	go get github.com/golang/lint/golint
 	go test -v -race $$(go list ./... | grep -v /vendor/)
-	go vet $$(go list ./... | grep -v /vendor/)
-	go list ./... | grep -v /vendor/ | xargs -n1 golint
 
 dev-test:
 	go test -race $$(go list ./... | grep -v /vendor/)
