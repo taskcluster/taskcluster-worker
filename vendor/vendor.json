@@ -311,6 +311,12 @@
 			"revision": "dceab83a80cf8a20ddcb1cf50087c7d72fcf23dc"
 		},
 		{
+			"checksumSHA1": "lsCypwrrrl9RyiA69oq6eTBA/fM=",
+			"path": "github.com/taskcluster/statsum",
+			"revision": "b67a889bdf09b2f267017f12c794758112f6b344",
+			"revisionTime": "2017-02-22T01:37:00Z"
+		},
+		{
 			"checksumSHA1": "rbm4FbK+OdUno8jhGG/aQo/gmwM=",
 			"path": "github.com/taskcluster/taskcluster-base-go/jsontest",
 			"revision": "3e5fe97ee400d93aa8eab4eb4ba7e24e1e8df3ce"
