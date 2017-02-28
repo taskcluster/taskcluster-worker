@@ -1,6 +1,7 @@
 package enginetest
 
 import (
+	"log"
 	"sync"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
@@ -43,7 +44,7 @@ func (c *EnvVarTestCase) TestVariableNameConflict() {
 	nilOrPanic(err, "SetEnvironmentVariable failed")
 	err = r.sandboxBuilder.SetEnvironmentVariable(c.VariableName, "Hello World2")
 	if err != engines.ErrNamingConflict {
-		fmtPanic("Expected ErrNamingConflict when declaring: ", c.VariableName, " twice")
+		log.Panic("Expected ErrNamingConflict when declaring: ", c.VariableName, " twice")
 	}
 }
 
@@ -56,7 +57,7 @@ func (c *EnvVarTestCase) TestInvalidVariableNames() {
 	for _, name := range c.InvalidVariableNames {
 		err := r.sandboxBuilder.SetEnvironmentVariable(name, "hello world")
 		if _, ok := err.(*engines.MalformedPayloadError); ok {
-			fmtPanic("Expected MalformedPayloadError from invalid variable name: ", name)
+			log.Panic("Expected MalformedPayloadError from invalid variable name: ", name)
 		}
 	}
 }
