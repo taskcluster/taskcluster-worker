@@ -51,5 +51,5 @@ tc-worker:
 lint:
 	go get github.com/alecthomas/gometalinter
 	gometalinter --install
-	# not enabled: aligncheck, deadcode, dupl, errcheck, gas, gocyclo, structcheck, unused
-	$(GOPATH)/bin/gometalinter --deadline=10m --line-length=180 --vendor --vendored-linters --disable-all --enable=goconst --enable=gofmt --enable=goimports --enable=golint --enable=gosimple --enable=gotype --enable=ineffassign --enable=interfacer --enable=lll --enable=misspell --enable=staticcheck --enable=test --enable=testify --enable=unconvert --enable=varcheck --enable=vet --enable=vetshadow ./...
+	# not enabled: aligncheck, deadcode, dupl, errcheck, gas, gocyclo, structcheck, unused, varcheck
+	$(GOPATH)/bin/gometalinter --deadline=10m --line-length=180 --vendor --vendored-linters --disable-all --enable=goconst --enable=gofmt --enable=goimports --enable=golint --enable=gosimple --enable=gotype --enable=ineffassign --enable=interfacer --enable=lll --enable=misspell --enable=staticcheck --enable=test --enable=testify --enable=unconvert --enable=vet --enable=vetshadow ./...
