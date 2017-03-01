@@ -3,7 +3,6 @@ package shellserver
 import (
 	"fmt"
 	"net/http"
-	"os"
 	goruntime "runtime"
 	"time"
 
@@ -45,15 +44,11 @@ options:
 }
 
 func (cmd) Execute(args map[string]interface{}) bool {
-	log, err := runtime.CreateLogger(args["--log-level"].(string))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Invalid log-level, error: %s", err)
-		return false
-	}
+	monitor := runtime.NewLoggingMonitor(args["--log-level"].(string), nil)
 
 	// Create shell server
 	shellServer := interactive.NewShellServer(
-		newExecShell, log.WithField("component", "shell-server"),
+		newExecShell, monitor.WithTag("component", "shell-server"),
 	)
 
 	// Setup server

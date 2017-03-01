@@ -13,12 +13,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/digitalocean/go-qemu"
 	"github.com/digitalocean/go-qemu/qmp"
 	"github.com/fsnotify/fsnotify"
 	pnm "github.com/jbuchbinder/gopnm"
 	"github.com/taskcluster/slugid-go/slugid"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 const (
@@ -39,7 +39,7 @@ type VirtualMachine struct {
 	qemuDone     chan<- struct{}
 	Done         <-chan struct{} // Closed when the virtual machine is done
 	Error        error           // Error, to be read after Done is closed
-	log          *logrus.Entry
+	monitor      runtime.Monitor
 	domain       *qemu.Domain
 }
 
@@ -53,7 +53,7 @@ type VirtualMachine struct {
 func NewVirtualMachine(
 	machineOptions MachineOptions,
 	image Image, network Network, socketFolder, cdrom1, cdrom2 string,
-	log *logrus.Entry,
+	monitor runtime.Monitor,
 ) (*VirtualMachine, error) {
 	// Get machine definition and set defaults
 	machine := image.Machine()
@@ -70,7 +70,7 @@ func NewVirtualMachine(
 		socketFolder: socketFolder,
 		network:      network,
 		image:        image,
-		log:          log,
+		monitor:      monitor,
 	}
 
 	vncSocket := filepath.Join(vm.socketFolder, vncSocketFile)
@@ -280,7 +280,7 @@ func (vm *VirtualMachine) Start() {
 	// Create socket folder
 	err := os.MkdirAll(socketFolder, 0700)
 	if err != nil {
-		vm.log.Errorf("Failed to create socketFolder, error: %s", err)
+		vm.monitor.Errorf("Failed to create socketFolder, error: %s", err)
 		vm.Error = err
 		close(vm.qemuDone)
 		return
@@ -289,7 +289,7 @@ func (vm *VirtualMachine) Start() {
 	// Start monitor socketFolder for vnc and qmp sockets
 	socketsReady, err := vm.waitForSockets()
 	if err != nil {
-		vm.log.Errorf("Error configuring socketFolder monitoring, error: %s", err)
+		vm.monitor.Errorf("Error configuring socketFolder monitoring, error: %s", err)
 		vm.Error = err
 		close(vm.qemuDone)
 		return
@@ -305,8 +305,8 @@ func (vm *VirtualMachine) Start() {
 	// Forward stdout/err to log
 	// Normally QEMU won't write anything... So sending everything to log is
 	// probably a good thing. Usually, it's errors and deprecation notices.
-	go scanLog(stdout, vm.log.Info, vm.log.Error)
-	go scanLog(stderr, vm.log.Error, vm.log.Error)
+	go scanLog(stdout, vm.monitor.Info, vm.monitor.Error)
+	go scanLog(stderr, vm.monitor.Error, vm.monitor.Error)
 
 	// Wait for QEMU to finish and cleanup
 	go func() {

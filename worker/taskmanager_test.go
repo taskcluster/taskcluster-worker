@@ -100,7 +100,7 @@ func TestTaskManagerRunTask(t *testing.T) {
 	engineProvider := engines.Engines()["mock"]
 	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: environment,
-		Log:         logger.WithField("engine", "mock"),
+		Monitor:     mocks.NewMockMonitor(true),
 	})
 	if err != nil {
 		t.Fatal(err.Error())
@@ -110,7 +110,7 @@ func TestTaskManagerRunTask(t *testing.T) {
 		QueueBaseURL: serverURL,
 	}
 
-	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, logger.WithField("test", "TestTaskManagerRunTask"), gc)
+	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, mocks.NewMockMonitor(true), gc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,7 +196,7 @@ func TestCancelTask(t *testing.T) {
 	engineProvider := engines.Engines()["mock"]
 	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: environment,
-		Log:         logger.WithField("engine", "mock"),
+		Monitor:     mocks.NewMockMonitor(true),
 	})
 	if err != nil {
 		t.Fatal(err.Error())
@@ -206,7 +206,7 @@ func TestCancelTask(t *testing.T) {
 		QueueBaseURL: serverURL,
 	}
 
-	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, logger.WithField("test", "TestRunTask"), gc)
+	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, mocks.NewMockMonitor(true), gc)
 	assert.Nil(t, err)
 
 	claim := &taskClaim{
@@ -309,7 +309,7 @@ func TestWorkerShutdown(t *testing.T) {
 	engineProvider := engines.Engines()["mock"]
 	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: environment,
-		Log:         logger.WithField("engine", "mock"),
+		Monitor:     mocks.NewMockMonitor(true),
 	})
 	if err != nil {
 		t.Fatal(err.Error())
@@ -318,7 +318,7 @@ func TestWorkerShutdown(t *testing.T) {
 	cfg := &configType{
 		QueueBaseURL: serverURL,
 	}
-	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, logger.WithField("test", "TestRunTask"), gc)
+	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, mocks.NewMockMonitor(true), gc)
 	if err != nil {
 		t.Fatal(err)
 	}

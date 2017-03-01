@@ -58,10 +58,9 @@ Options:
 func (cmd) Execute(arguments map[string]interface{}) bool {
 	host := arguments["--host"].(string)
 
-	logger, _ := runtime.CreateLogger("info")
-	log := logger.WithField("component", "qemu-guest-tools")
+	monitor := runtime.NewLoggingMonitor("info", nil).WithTag("component", "qemu-guest-tools")
 
-	g := new(host, log)
+	g := new(host, monitor)
 
 	if arguments["post-log"].(bool) {
 		logFile := arguments["<log-file>"].(string)
@@ -71,7 +70,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 		} else {
 			f, err := os.Open(logFile)
 			if err != nil {
-				log.Error("Failed to open log-file, error: ", err)
+				monitor.Error("Failed to open log-file, error: ", err)
 				return false
 			}
 			defer f.Close()
@@ -80,7 +79,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 		w, done := g.CreateTaskLog()
 		_, err := io.Copy(w, r)
 		if err != nil {
-			log.Error("Failed to post entire log, error: ", err)
+			monitor.Error("Failed to post entire log, error: ", err)
 			err = w.Close()
 			<-done
 		}

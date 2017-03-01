@@ -14,6 +14,31 @@ import (
 )
 
 // A Monitor is responsible for collecting logs, stats and error messages.
+//
+// A monitor is a context aware object for monitoring. That is to say that a
+// Monitor is used to record metrics, write logs and report errors. When doing
+// so the Monitor object adds meta-data to the metrics, logs and errors. The
+// meta-data added is context dependent tags and prefix. These help identify
+// where a log message, metric or error originates from.
+//
+// By encapsulating the context meta-data inside the Monitor object, an
+// implementor gets a Monitor rarely needs to add tags or prefix. For example
+// a monitor will always be prefixed by plugin name before being passed to a
+// plugin, hence, it is easy trace any log message, metric or error report to
+// the plugin that it was created in.
+//
+// When passing a Monitor to a sub-component it often makes sense to add
+// additional tags or prefix. This way a downloader function that takes a
+// Monitor need not worry about being able to distinguish its metrics, logs and
+// errors from that of its parent.
+//
+// Prefixes should always be constants, such as engine, plugin, function or
+// component names. Values that change such as taskId or runId should not be
+// used as prefixes, such values is however great as tags.
+//
+// All metrics reported for a given prefix + name will be aggregated. Hence, if
+// taskId was used as prefix, the dimensionality of metrics would explode and
+// the aggregation wouldn't be useful.
 type Monitor interface {
 	// Measure values in statsum
 	Measure(name string, value ...float64)

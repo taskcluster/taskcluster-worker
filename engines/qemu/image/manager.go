@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -19,7 +18,6 @@ type Manager struct {
 	images      map[string]*image
 	imageFolder string
 	gc          gc.ResourceTracker
-	log         *logrus.Entry
 	monitor     runtime.Monitor
 }
 
@@ -48,7 +46,7 @@ type Instance struct {
 
 // NewManager creates a new image manager using the imageFolder for storing
 // images and instances of images.
-func NewManager(imageFolder string, gc gc.ResourceTracker, log *logrus.Entry, monitor runtime.Monitor) (*Manager, error) {
+func NewManager(imageFolder string, gc gc.ResourceTracker, monitor runtime.Monitor) (*Manager, error) {
 	// Ensure the image folder is created
 	err := os.MkdirAll(imageFolder, 0777)
 	if err != nil {
@@ -58,7 +56,6 @@ func NewManager(imageFolder string, gc gc.ResourceTracker, log *logrus.Entry, mo
 		images:      make(map[string]*image),
 		imageFolder: imageFolder,
 		gc:          gc,
-		log:         log,
 		monitor:     monitor,
 	}, nil
 }

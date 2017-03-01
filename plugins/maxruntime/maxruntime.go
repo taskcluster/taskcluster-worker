@@ -3,10 +3,10 @@ package maxruntime
 import (
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 type pluginProvider struct {
@@ -21,7 +21,8 @@ type taskPlugin struct {
 	plugins.TaskPluginBase
 	maxRunTime int
 	done       chan bool
-	log        *logrus.Entry
+	monitor    runtime.Monitor
+	context    *runtime.TaskContext
 }
 
 type payloadType struct {
@@ -59,15 +60,21 @@ func (plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlug
 		TaskPluginBase: plugins.TaskPluginBase{},
 		maxRunTime:     p.MaxRunTime,
 		done:           make(chan bool),
-		log:            options.Log,
+		monitor:        options.Monitor,
 	}, nil
+}
+
+func (tp *taskPlugin) Prepare(context *runtime.TaskContext) error {
+	tp.context = context
+	return nil
 }
 
 func (tp *taskPlugin) Started(sandbox engines.Sandbox) error {
 	go func() {
 		select {
 		case <-time.After(time.Duration(tp.maxRunTime) * time.Second):
-			tp.log.Error("Task was killed because maximum run time was exceeded")
+			tp.monitor.Info("Killing task due to maxRunTime exceeded")
+			tp.context.LogError("Task was killed because maximum run time was exceeded")
 			sandbox.Abort()
 		case <-tp.done:
 		}

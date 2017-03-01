@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 )
 
 // A VolumeTestCase holds information necessary to run tests that an engine
@@ -32,6 +33,7 @@ func (c *VolumeTestCase) writeVolume(volume engines.Volume, readOnly bool) bool 
 	sandboxBuilder, err := c.engine.NewSandboxBuilder(engines.SandboxOptions{
 		TaskContext: ctx,
 		Payload:     parseTestPayload(c.engine, c.WriteVolumePayload),
+		Monitor:     mocks.NewMockMonitor(true),
 	})
 	nilOrPanic(err, "Error creating SandboxBuilder")
 	err = sandboxBuilder.AttachVolume(c.Mountpoint, volume, readOnly)

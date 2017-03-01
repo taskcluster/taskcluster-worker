@@ -143,7 +143,7 @@ func NewPluginManager(options PluginOptions) (Plugin, error) {
 			plugins[index], errors[index] = pluginProviders[name].NewPlugin(PluginOptions{
 				Environment: options.Environment,
 				Engine:      options.Engine,
-				Log:         options.Log.WithField("plugin", name),
+				Monitor:     options.Monitor.WithPrefix(name).WithTag("plugin", name),
 				Config:      config[name],
 			})
 			wg.Done()
@@ -196,7 +196,7 @@ func (m *pluginManager) NewTaskPlugin(options TaskPluginOptions) (manager TaskPl
 			taskPlugins[index], errors[index] = p.NewTaskPlugin(TaskPluginOptions{
 				TaskInfo: options.TaskInfo,
 				Payload:  p.PayloadSchema().Filter(options.Payload),
-				Log:      options.Log.WithField("plugin", m.pluginNames[index]),
+				Monitor:  options.Monitor.WithPrefix(m.pluginNames[index]).WithTag("plugin", m.pluginNames[index]),
 			})
 		}(i, j)
 	}

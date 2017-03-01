@@ -78,7 +78,7 @@ func (p *EngineProvider) ensureEngine() {
 	// Find EngineProvider
 	engineProvider := engines.Engines()[p.Engine]
 	if engineProvider == nil {
-		log.Panic("Couldn't find EngineProvider: ", p.Engine)
+		panic(fmt.Sprint("Couldn't find EngineProvider: ", p.Engine))
 	}
 
 	var jsonConfig interface{}
@@ -90,7 +90,7 @@ func (p *EngineProvider) ensureEngine() {
 	// Create Engine instance
 	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: p.environment,
-		Log:         p.environment.Log.WithField("engine", p.Engine),
+		Monitor:     p.environment.Monitor.WithTag("engine", p.Engine),
 		Config:      jsonConfig,
 	})
 	nilOrPanic(err, "Failed to create Engine")
@@ -139,16 +139,9 @@ func newTestEnvironment() *runtime.Environment {
 		f.Remove()
 	})
 
-	logger, err := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating logger. %s", err)
-		os.Exit(1)
-	}
-
 	return &runtime.Environment{
 		GarbageCollector: &gc.GarbageCollector{},
 		TemporaryStorage: folder,
-		Log:              logger,
 		Monitor:          mocks.NewMockMonitor(true),
 	}
 }
@@ -207,6 +200,7 @@ func (r *run) NewSandboxBuilder(payload string) {
 	sandboxBuilder, err := r.provider.engine.NewSandboxBuilder(engines.SandboxOptions{
 		TaskContext: r.context,
 		Payload:     parseTestPayload(r.provider.engine, payload),
+		Monitor:     mocks.NewMockMonitor(true),
 	})
 	r.sandboxBuilder = sandboxBuilder
 	nilOrPanic(err, "Error creating SandboxBuilder")

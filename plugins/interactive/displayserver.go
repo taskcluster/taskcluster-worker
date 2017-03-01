@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/displayconsts"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 // A DisplayProvider is an object that supplies displays. This is a subset of
@@ -27,16 +27,16 @@ type DisplayProvider interface {
 type DisplayServer struct {
 	m        sync.Mutex
 	provider DisplayProvider
-	log      *logrus.Entry
+	monitor  runtime.Monitor
 	done     chan struct{}
 	handlers []*DisplayHandler
 }
 
 // NewDisplayServer creates a DisplayServer for exposing the given provider
 // over a websocket.
-func NewDisplayServer(provider DisplayProvider, log *logrus.Entry) *DisplayServer {
+func NewDisplayServer(provider DisplayProvider, monitor runtime.Monitor) *DisplayServer {
 	return &DisplayServer{
-		log:      log,
+		monitor:  monitor,
 		provider: provider,
 		done:     make(chan struct{}),
 	}
@@ -135,7 +135,7 @@ func (s *DisplayServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create new handler and add it to the list
-	h := NewDisplayHandler(ws, display, s.log.WithField("display", displayName))
+	h := NewDisplayHandler(ws, display, s.monitor.WithTag("display", displayName))
 	s.handlers = append(s.handlers, h)
 }
 

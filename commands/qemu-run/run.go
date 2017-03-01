@@ -2,7 +2,6 @@ package qemurun
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -59,52 +58,52 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 		TemporaryStorage: storage,
 	}
 
+	monitor := runtime.NewLoggingMonitor("info", nil).WithTag("component", "qemu-run")
+
 	// Create a temporary folder
 	tempFolder := filepath.Join("/tmp", slugid.Nice())
 	if err = os.Mkdir(tempFolder, 0777); err != nil {
-		log.Fatal("Failed to create temporary folder in /tmp, error: ", err)
+		monitor.Panic("Failed to create temporary folder in /tmp, error: ", err)
 	}
 
 	// Create the necessary runtime setup
 	gc := &gc.GarbageCollector{}
-	logger, _ := runtime.CreateLogger("info")
-	log := logger.WithField("component", "qemu-run")
 
 	// Create image manager
-	log.Info("Creating image manager")
-	manager, err := image.NewManager(filepath.Join(tempFolder, "/images/"), gc, logger.WithField("component", "image-manager"), nil)
+	monitor.Info("Creating image manager")
+	manager, err := image.NewManager(filepath.Join(tempFolder, "/images/"), gc, monitor.WithTag("component", "image-manager"))
 	if err != nil {
-		log.Fatal("Failed to create image manager", err)
+		monitor.Panic("Failed to create image manager", err)
 	}
 
 	// Get an instance of the image
-	log.Info("Creating instance of image")
+	monitor.Info("Creating instance of image")
 	image, err := manager.Instance("image", func(target string) error {
 		return cp.CopyFile(target, imageFile)
 	})
 	if err != nil {
-		log.Fatal("Failed to create instance of image, error: ", err)
+		monitor.Panic("Failed to create instance of image, error: ", err)
 	}
 
 	// Setup a user-space network
-	log.Info("Creating user-space network")
+	monitor.Info("Creating user-space network")
 	net, err := network.NewUserNetwork(tempFolder)
 	if err != nil {
-		log.Fatal("Failed to create user-space network, error: ", err)
+		monitor.Panic("Failed to create user-space network, error: ", err)
 	}
 
 	// Create virtual machine
-	log.Info("Creating virtual machine")
+	monitor.Info("Creating virtual machine")
 	vm, err := vm.NewVirtualMachine(
 		image.Machine().Options(), image, net, tempFolder,
-		"", "", logger.WithField("component", "vm"),
+		"", "", monitor.WithTag("component", "vm"),
 	)
 	if err != nil {
-		log.Fatal("Failed to create virtual-machine, error: ", err)
+		monitor.Panic("Failed to create virtual-machine, error: ", err)
 	}
 
 	// Create meta-data service
-	log.Info("Creating meta-data service")
+	monitor.Info("Creating meta-data service")
 	var shellServer *interactive.ShellServer
 	var displayServer *interactive.DisplayServer
 	ms := metaservice.New(command, make(map[string]string), os.Stdout, func(result bool) {
@@ -119,13 +118,13 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 
 	// Create ShellServer
 	shellServer = interactive.NewShellServer(
-		ms.ExecShell, log.WithField("component", "shell-server"),
+		ms.ExecShell, monitor.WithTag("component", "shell-server"),
 	)
 
 	// Create displayServer
 	displayServer = interactive.NewDisplayServer(
 		&socketDisplayProvider{socket: vm.VNCSocket()},
-		log.WithField("component", "display-server"),
+		monitor.WithTag("component", "display-server"),
 	)
 
 	interactiveHandler := http.NewServeMux()
@@ -142,7 +141,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	go interactiveServer.ListenAndServe()
 
 	// Start the virtual machine
-	log.Info("Start the virtual machine")
+	monitor.Info("Start the virtual machine")
 	vm.Start()
 
 	// Start vncviewer

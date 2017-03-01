@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -23,7 +22,7 @@ var (
 type PluginOptions struct {
 	Environment *runtime.Environment
 	Engine      engines.Engine
-	Log         *logrus.Entry
+	Monitor     runtime.Monitor
 	Config      interface{}
 }
 

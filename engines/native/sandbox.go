@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/native/system"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -18,7 +17,7 @@ type sandbox struct {
 	engines.SandboxBase
 	engine        *engine
 	context       *runtime.TaskContext
-	log           *logrus.Entry
+	monitor       runtime.Monitor
 	workingFolder runtime.TemporaryFolder
 	user          *system.User
 	process       *system.Process
@@ -51,7 +50,7 @@ func newSandbox(b *sandboxBuilder) (s *sandbox, err error) {
 		workingFolder, err = b.engine.environment.TemporaryStorage.NewFolder()
 		if err != nil {
 			err = fmt.Errorf("Failed to temporary folder, error: %s", err)
-			b.log.Error(err)
+			b.monitor.Error(err)
 			return
 		}
 
@@ -110,7 +109,7 @@ func newSandbox(b *sandboxBuilder) (s *sandbox, err error) {
 	s = &sandbox{
 		engine:        b.engine,
 		context:       b.context,
-		log:           b.log,
+		monitor:       b.monitor,
 		workingFolder: workingFolder,
 		user:          user,
 		process:       process,
@@ -207,7 +206,7 @@ func (s *sandbox) waitForTermination() {
 		s.resultSet = &resultSet{
 			engine:        s.engine,
 			context:       s.context,
-			log:           s.log,
+			monitor:       s.monitor,
 			workingFolder: s.workingFolder,
 			user:          s.user,
 			success:       success,
@@ -236,7 +235,7 @@ func (s *sandbox) Abort() error {
 			// kill any process owned by it.
 			err := system.KillByOwner(s.user)
 			if err != nil {
-				s.log.Error("Failed to kill all processes by owner, error: ", err)
+				s.monitor.Error("Failed to kill all processes by owner, error: ", err)
 			}
 
 			// Remove temporary user (this will panic if unsuccessful)
@@ -246,7 +245,7 @@ func (s *sandbox) Abort() error {
 		// Remove temporary home folder
 		if s.workingFolder != nil {
 			if err := s.workingFolder.Remove(); err != nil {
-				s.log.Error("Failed to remove temporary home directory, error: ", err)
+				s.monitor.Error("Failed to remove temporary home directory, error: ", err)
 			}
 		}
 

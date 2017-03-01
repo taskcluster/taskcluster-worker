@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-client-go"
 	tcqueue "github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-worker/engines"
@@ -26,7 +25,7 @@ type Manager struct {
 	environment        *runtime.Environment
 	pluginManager      plugins.Plugin
 	pluginOptions      *plugins.PluginOptions
-	log                *logrus.Entry
+	monitor            runtime.Monitor
 	queue              QueueService
 	provisionerID      string
 	workerGroup        string
@@ -39,7 +38,7 @@ type Manager struct {
 // executing, and resolving units of work (tasks).
 func newTaskManager(
 	config *configType, engine engines.Engine, pluginManager plugins.Plugin,
-	environment *runtime.Environment, log *logrus.Entry, gc *gc.GarbageCollector,
+	environment *runtime.Environment, monitor runtime.Monitor, gc *gc.GarbageCollector,
 ) (*Manager, error) {
 	queue := tcqueue.New(
 		&tcclient.Credentials{
@@ -61,7 +60,7 @@ func newTaskManager(
 		workerGroup:      config.WorkerGroup,
 		workerID:         config.WorkerID,
 		workerType:       config.WorkerType,
-		log:              log.WithField("component", "Queue Service"),
+		monitor:          monitor.WithPrefix("queue-service"),
 		expirationOffset: config.ReclaimOffset,
 		maxTasksToRun:    config.MaxTasksToRun,
 	}
@@ -73,7 +72,7 @@ func newTaskManager(
 		config:             config,
 		engine:             engine,
 		environment:        environment,
-		log:                log,
+		monitor:            monitor,
 		queue:              service,
 		provisionerID:      config.ProvisionerID,
 		workerGroup:        config.WorkerGroup,
@@ -162,23 +161,23 @@ func (m *Manager) CancelTask(taskID string, runID int) {
 func (m *Manager) run(claim *taskClaim) {
 	// Always do a best-effort GCing before we run a task
 	if err := m.gc.Collect(); err != nil {
-		m.log.Error("Failed to run garbage collector, error: ", err)
+		m.monitor.Error("Failed to run garbage collector, error: ", err)
 	}
 
-	log := m.log.WithFields(logrus.Fields{
+	monitor := m.monitor.WithTags(map[string]string{
 		"taskID": claim.taskID,
-		"runID":  claim.runID,
+		"runID":  fmt.Sprintf("%d", claim.runID),
 	})
 
-	task, err := newTaskRun(m.config, claim, m.environment, m.engine, m.pluginManager, log)
+	task, err := newTaskRun(m.config, claim, m.environment, m.engine, m.pluginManager, monitor)
 	if err != nil {
 		// This is a fatal call because creating a task run should never fail.
-		log.WithField("error", err.Error()).Fatal("Could not successfully run the task")
+		monitor.WithTag("error", err.Error()).Panic("Could not successfully run the task")
 	}
 
 	err = m.registerTask(task)
 	if err != nil {
-		log.WithField("error", err.Error()).Warn("Could not register task")
+		monitor.WithTag("error", err.Error()).Warn("Could not register task")
 		panic(err)
 	}
 
@@ -190,7 +189,7 @@ func (m *Manager) run(claim *taskClaim) {
 
 func (m *Manager) registerTask(task *TaskRun) error {
 	name := fmt.Sprintf("%s/%d", task.TaskID, task.RunID)
-	m.log.Debugf("Registered task: %s", name)
+	m.monitor.Debugf("Registered task: %s", name)
 
 	m.Lock()
 	defer m.Unlock()
@@ -206,7 +205,7 @@ func (m *Manager) registerTask(task *TaskRun) error {
 
 func (m *Manager) deregisterTask(task *TaskRun) error {
 	name := fmt.Sprintf("%s/%d", task.TaskID, task.RunID)
-	m.log.Debugf("Deregistered task: %s", name)
+	m.monitor.Debugf("Deregistered task: %s", name)
 
 	m.Lock()
 	defer m.Unlock()
