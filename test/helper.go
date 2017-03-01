@@ -1,4 +1,4 @@
-package integrationtest
+package test
 
 import (
 	"encoding/json"
@@ -13,6 +13,7 @@ import (
 	tcclient "github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-worker/commands"
+	// needed so that these components register themselves
 	_ "github.com/taskcluster/taskcluster-worker/commands/work"
 	_ "github.com/taskcluster/taskcluster-worker/config/env"
 	_ "github.com/taskcluster/taskcluster-worker/config/secrets"
@@ -22,8 +23,8 @@ import (
 var (
 	// all tests can share taskGroupId so we can view all test tasks in same
 	// graph later for troubleshooting
-	taskGroupID string = slugid.Nice()
-	testdata    string = testdataDir()
+	taskGroupID = slugid.Nice()
+	testdata    = testdataDir()
 )
 
 func testdataDir() string {
@@ -35,6 +36,11 @@ func testdataDir() string {
 	return filepath.Join(cwd, "testdata")
 }
 
+// TaskPayload is generated from running
+// `taskcluster-worker schema payload [options] <config.yml>`
+// and then passing the results through
+// github.com/taskcluster/jsonschema2go.
+// It represents the structure expected when using the test config.yml
 type TaskPayload struct {
 	// Artifacts to be published
 	Artifacts []struct {
@@ -76,6 +82,10 @@ type TaskPayload struct {
 	Reboot bool `json:"reboot,omitempty"`
 }
 
+// RunTestWorker will start up the taskcluster-worker, claim one task, and then
+// return. This is useful in integration tests, such that tests can submit a
+// real task to the queue, then call this function to execute the task, and
+// then query the queue to get task results.
 func RunTestWorker(workerType string) {
 	os.Setenv("TASKCLUSTER_CAPACITY", "1")
 	os.Setenv("TASKCLUSTER_WORKER_TYPE", workerType)
@@ -89,6 +99,13 @@ func RunTestWorker(workerType string) {
 	)
 }
 
+// NewTestTask generates a task definition for the given test name. This task
+// definition is typically then further refined, before being sumbitted to the
+// queue via a call to SubmitTask(...). It will also generate and return a
+// unique (slug) workerType for this task, and this task only. This is useful
+// for being able to run multiple tasks in parallel, and being confident that
+// the worker instance that was started to run this task, is the one that
+// receives it.
 func NewTestTask(name string) (task *queue.TaskDefinitionRequest, workerType string) {
 	created := time.Now().UTC()
 	// reset nanoseconds
@@ -130,6 +147,12 @@ func NewTestTask(name string) (task *queue.TaskDefinitionRequest, workerType str
 	return
 }
 
+// SubmitTask will submit a real task to the production queue, if at least
+// environment variables TASKCLUSTER_CLIENT_ID and TASKCLUSTER_ACCESS_TOKEN
+// have been set in the current process (TASKCLUSTER_CERTIFICATE is also
+// respected, but not required). It will return a reference to the queue and
+// the taskID used, in order that the caller can query the queue for results,
+// if required.
 func SubmitTask(
 	t *testing.T,
 	td *queue.TaskDefinitionRequest,

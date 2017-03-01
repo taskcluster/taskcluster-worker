@@ -1,4 +1,4 @@
-package integrationtest
+package test
 
 import (
 	"path/filepath"
