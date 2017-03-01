@@ -34,6 +34,7 @@ import (
 	_ "github.com/taskcluster/taskcluster-worker/config/abs"
 	_ "github.com/taskcluster/taskcluster-worker/config/configtest"
 	_ "github.com/taskcluster/taskcluster-worker/config/env"
+	_ "github.com/taskcluster/taskcluster-worker/config/hostcredentials"
 	_ "github.com/taskcluster/taskcluster-worker/config/packet"
 	_ "github.com/taskcluster/taskcluster-worker/config/secrets"
 	_ "github.com/taskcluster/taskcluster-worker/engines/enginetest"
