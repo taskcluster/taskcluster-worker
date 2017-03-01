@@ -33,8 +33,7 @@ check: test
 	git status --porcelain
 	/bin/bash -c 'test $$(git status --porcelain | wc -l) == 0'
 test:
-	go get github.com/golang/lint/golint
-	go test -v -race $$(go list ./... | grep -v /vendor/)
+	go test -tags=system -v -race $$(go list ./... | grep -v /vendor/)
 
 dev-test:
 	go test -race $$(go list ./... | grep -v /vendor/)
