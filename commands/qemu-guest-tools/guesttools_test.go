@@ -61,7 +61,7 @@ func TestGuestToolsSuccess(t *testing.T) {
 	if !resolved {
 		t.Error("Expected the metadata to have resolved the task")
 	}
-	if result != true {
+	if !result {
 		t.Error("Expected the metadata to get successful result")
 	}
 	if !strings.Contains(logTask.String(), "Hello world") {
@@ -112,7 +112,7 @@ func TestGuestToolsFailed(t *testing.T) {
 	if !resolved {
 		t.Error("Expected the metadata to have resolved the task")
 	}
-	if result != false {
+	if !result {
 		t.Error("Expected the metadata to get failed result")
 	}
 	if !strings.Contains(logTask.String(), "Hello world") {
@@ -194,7 +194,7 @@ func TestGuestToolsLiveLog(t *testing.T) {
 	if !resolved {
 		t.Error("Expected the metadata to have resolved the task")
 	}
-	if result != true {
+	if !result {
 		t.Error("Expected the metadata to get successful result")
 	}
 	if !strings.Contains(logTask.String(), "request-ok") {
