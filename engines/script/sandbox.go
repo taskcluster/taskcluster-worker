@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -26,7 +25,7 @@ type sandbox struct {
 	resultSet   engines.ResultSet
 	resultError error
 	resultAbort error
-	log         *logrus.Entry
+	monitor     runtime.Monitor
 	aborted     atomics.Bool
 	done        chan struct{}
 }
@@ -37,7 +36,7 @@ func (s *sandbox) run() {
 
 	// if error wasn't because script exited non-zero, then we have a problem
 	if _, ok := err.(*exec.ExitError); err != nil && !ok {
-		s.log.Error("Script execution failed, error: ", err)
+		s.monitor.Error("Script execution failed, error: ", err)
 	}
 
 	// Upload artifacts if not aborted
@@ -46,7 +45,7 @@ func (s *sandbox) run() {
 		if err2 != nil {
 			success = false
 			s.context.LogError("Failed to upload artifacts")
-			s.log.Warn("Failed to upload artifacts, error: ", err2)
+			s.monitor.Warn("Failed to upload artifacts, error: ", err2)
 		}
 	} else {
 		success = false
@@ -57,7 +56,7 @@ func (s *sandbox) run() {
 		// Remove folder, log error
 		err := s.folder.Remove()
 		if err != nil {
-			s.log.Errorf("Failed to remove temporary folder, error: %s", err)
+			s.monitor.Errorf("Failed to remove temporary folder, error: %s", err)
 		}
 
 		s.resultSet = &resultSet{success: success}
@@ -84,7 +83,7 @@ func (s *sandbox) Abort() error {
 		// Remove folder, log error
 		err := s.folder.Remove()
 		if err != nil {
-			s.log.Errorf("Failed to remove temporary folder, error: %s", err)
+			s.monitor.Errorf("Failed to remove temporary folder, error: %s", err)
 		}
 		s.resultError = engines.ErrSandboxAborted
 	})

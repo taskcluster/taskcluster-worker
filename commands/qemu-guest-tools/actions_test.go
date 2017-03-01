@@ -18,6 +18,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 )
 
 func nilOrFatal(t *testing.T, err error, a ...interface{}) {
@@ -60,12 +61,8 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 		panic("Expected a url we can parse")
 	}
 
-	// Create a logger
-	logger, _ := runtime.CreateLogger("info")
-	log := logger.WithField("component", "guest-tools-tests")
-
 	// Create an run guest-tools
-	g := new(u.Host, log)
+	g := new(u.Host, mocks.NewMockMonitor(true))
 
 	// start processing actions
 	go g.ProcessActions()

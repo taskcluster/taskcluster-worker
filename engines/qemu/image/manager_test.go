@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
@@ -22,12 +21,11 @@ const testImageFile = "../test-image/tinycore-worker.tar.zst"
 func TestImageManager(t *testing.T) {
 	debug(" - Setup environment needed to test")
 	gc := &gc.GarbageCollector{}
-	log := logrus.StandardLogger()
 	monitor := mocks.NewMockMonitor(true)
 	imageFolder := filepath.Join("/tmp", slugid.Nice())
 
 	debug(" - Create manager")
-	manager, err := NewManager(imageFolder, gc, log.WithField("subsystem", "image-manager"), monitor)
+	manager, err := NewManager(imageFolder, gc, monitor)
 	require.NoError(t, err, "Failed to create image manager")
 
 	debug(" - Test parallel download")

@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -23,8 +22,8 @@ type pluginProvider struct {
 
 type plugin struct {
 	plugins.PluginBase
-	log         *logrus.Entry
-	environment *runtime.Environment
+	monitor     runtime.Monitor
+	environment runtime.Environment
 }
 
 type taskPlugin struct {
@@ -32,27 +31,24 @@ type taskPlugin struct {
 	context     *runtime.TaskContext
 	url         string
 	expiration  tcclient.Time
-	log         *logrus.Entry
-	environment *runtime.Environment
+	monitor     runtime.Monitor
+	environment runtime.Environment
 	uploaded    atomics.Bool
 }
 
-func (pluginProvider) NewPlugin(opts plugins.PluginOptions) (plugins.Plugin, error) {
+func (pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
 	return plugin{
-		log:         opts.Log,
-		environment: opts.Environment,
+		monitor:     options.Monitor,
+		environment: *options.Environment,
 	}, nil
 }
 
-func (p plugin) NewTaskPlugin(opts plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
+func (p plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
 	return &taskPlugin{
 		TaskPluginBase: plugins.TaskPluginBase{},
-		log: p.log.WithFields(logrus.Fields{
-			"taskID": opts.TaskInfo.TaskID,
-			"runID":  opts.TaskInfo.RunID,
-		}),
-		environment: p.environment,
-		uploaded:    atomics.NewBool(false),
+		monitor:        options.Monitor,
+		environment:    p.environment,
+		uploaded:       atomics.NewBool(false),
 	}, nil
 }
 
@@ -154,7 +150,7 @@ func (tp *taskPlugin) uploadLog() error {
 		Expires:  tp.context.TaskInfo.Expires,
 	}, tp.context)
 	if err != nil {
-		tp.log.Error(err)
+		tp.monitor.Error(err)
 		return err
 	}
 

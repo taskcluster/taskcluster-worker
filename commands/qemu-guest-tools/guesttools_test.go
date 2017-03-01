@@ -15,6 +15,7 @@ import (
 
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 )
 
 func TestGuestToolsSuccess(t *testing.T) {
@@ -52,12 +53,8 @@ func TestGuestToolsSuccess(t *testing.T) {
 		panic("Expected a url we can parse")
 	}
 
-	// Create a logger
-	logger, _ := runtime.CreateLogger("info")
-	log := logger.WithField("component", "guest-tools-tests")
-
 	// Create an run guest-tools
-	g := new(u.Host, log)
+	g := new(u.Host, mocks.NewMockMonitor(true))
 	g.Run()
 
 	// Check the state
@@ -107,12 +104,8 @@ func TestGuestToolsFailed(t *testing.T) {
 		panic("Expected a url we can parse")
 	}
 
-	// Create a logger
-	logger, _ := runtime.CreateLogger("info")
-	log := logger.WithField("component", "guest-tools-tests")
-
 	// Create an run guest-tools
-	g := new(u.Host, log)
+	g := new(u.Host, mocks.NewMockMonitor(true))
 	g.Run()
 
 	// Check the state
@@ -173,10 +166,6 @@ func TestGuestToolsLiveLog(t *testing.T) {
 		panic("Expected a url we can parse")
 	}
 
-	// Create a logger
-	logger, _ := runtime.CreateLogger("info")
-	log := logger.WithField("component", "guest-tools-tests")
-
 	// Wait for
 	logTask := bytes.NewBuffer(nil)
 	logDone := sync.WaitGroup{}
@@ -196,7 +185,7 @@ func TestGuestToolsLiveLog(t *testing.T) {
 	}()
 
 	// Create an run guest-tools
-	g := new(u.Host, log)
+	g := new(u.Host, mocks.NewMockMonitor(true))
 	g.Run()
 	writer.Close()
 	logDone.Wait()

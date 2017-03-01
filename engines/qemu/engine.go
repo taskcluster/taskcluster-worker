@@ -1,7 +1,6 @@
 package qemuengine
 
 import (
-	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
@@ -13,7 +12,7 @@ import (
 type engine struct {
 	engines.EngineBase
 	engineConfig configType
-	Log          *logrus.Entry
+	monitor      runtime.Monitor
 	imageManager *image.Manager
 	networkPool  *network.Pool
 	Environment  *runtime.Environment
@@ -81,7 +80,6 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 	imageManager, err := image.NewManager(
 		c.ImageFolder,
 		options.Environment.GarbageCollector,
-		options.Log.WithField("subsystem", "image-manager"),
 		options.Environment.Monitor.WithPrefix("image-manager"),
 	)
 	if err != nil {
@@ -97,7 +95,7 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 	// Construct engine object
 	return &engine{
 		engineConfig: c,
-		Log:          options.Log,
+		monitor:      options.Monitor,
 		imageManager: imageManager,
 		networkPool:  networkPool,
 		Environment:  options.Environment,
@@ -157,7 +155,7 @@ func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sand
 	}
 
 	// Create sandboxBuilder, it'll handle image downloading
-	return newSandboxBuilder(&p, net, options.TaskContext, e), nil
+	return newSandboxBuilder(&p, net, options.TaskContext, e, options.Monitor), nil
 }
 
 func (e *engine) Dispose() error {

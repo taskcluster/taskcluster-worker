@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/httpbackoff"
 	"github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -27,36 +26,36 @@ type taskClaim struct {
 	definition *queue.TaskDefinitionResponse
 }
 
-func reportException(client client.Queue, task *TaskRun, reason runtime.ExceptionReason, log *logrus.Entry) *updateError {
+func reportException(client client.Queue, task *TaskRun, reason runtime.ExceptionReason, monitor runtime.Monitor) *updateError {
 	payload := queue.TaskExceptionRequest{Reason: string(reason)}
 	_, err := client.ReportException(task.TaskID, strconv.Itoa(task.RunID), &payload)
 	if err != nil {
-		log.WithField("error", err).Warn("Not able to report exception for task")
+		monitor.WithTag("error", err.Error()).Warn("Not able to report exception for task")
 		return &updateError{err: err.Error()}
 	}
 	return nil
 }
 
-func reportFailed(client client.Queue, task *TaskRun, log *logrus.Entry) *updateError {
+func reportFailed(client client.Queue, task *TaskRun, monitor runtime.Monitor) *updateError {
 	_, err := client.ReportFailed(task.TaskID, strconv.Itoa(task.RunID))
 	if err != nil {
-		log.WithField("error", err).Warn("Not able to report failed completion for task.")
+		monitor.WithTag("error", err.Error()).Warn("Not able to report failed completion for task.")
 		return &updateError{err: err.Error()}
 	}
 	return nil
 }
 
-func reportCompleted(client client.Queue, task *TaskRun, log *logrus.Entry) *updateError {
+func reportCompleted(client client.Queue, task *TaskRun, monitor runtime.Monitor) *updateError {
 	_, err := client.ReportCompleted(task.TaskID, strconv.Itoa(task.RunID))
 	if err != nil {
-		log.WithField("error", err).Warn("Not able to report successful completion for task.")
+		monitor.WithTag("error", err.Error()).Warn("Not able to report successful completion for task.")
 		return &updateError{err: err.Error()}
 	}
 	return nil
 }
 
-func claimTask(client client.Queue, taskID string, runID int, workerID string, workerGroup string, log *logrus.Entry) (*taskClaim, error) {
-	log.Info("Claiming task")
+func claimTask(client client.Queue, taskID string, runID int, workerID string, workerGroup string, monitor runtime.Monitor) (*taskClaim, error) {
+	monitor.Info("Claiming task")
 	payload := queue.TaskClaimRequest{
 		WorkerGroup: workerGroup,
 		WorkerID:    workerID,
@@ -80,15 +79,15 @@ func claimTask(client client.Queue, taskID string, runID int, workerID string, w
 			case err.HttpResponseCode != 200:
 				errorMessage = fmt.Sprintf("Received http status code %v when claiming task %v.", err.HttpResponseCode, taskID)
 			}
-			log.WithFields(logrus.Fields{
-				"error":      err,
-				"statusCode": err.HttpResponseCode,
+			monitor.WithTags(map[string]string{
+				"error":      err.Error(),
+				"statusCode": fmt.Sprintf("%d", err.HttpResponseCode),
 			}).Error(errorMessage)
 			return nil, e
 
 		default:
-			log.WithFields(logrus.Fields{
-				"error": err,
+			monitor.WithTags(map[string]string{
+				"error": err.Error(),
 			}).Error(fmt.Sprintf("Unexpected error occurred when claiming task %s", taskID))
 			return nil, err
 		}
@@ -102,8 +101,8 @@ func claimTask(client client.Queue, taskID string, runID int, workerID string, w
 	}, nil
 }
 
-func reclaimTask(client client.Queue, taskID string, runID int, log *logrus.Entry) (*queue.TaskReclaimResponse, *updateError) {
-	log.Info("Reclaiming task")
+func reclaimTask(client client.Queue, taskID string, runID int, monitor runtime.Monitor) (*queue.TaskReclaimResponse, *updateError) {
+	monitor.Info("Reclaiming task")
 	tcrsp, err := client.ReclaimTask(taskID, strconv.Itoa(runID))
 
 	// check if an error occurred...
@@ -111,6 +110,6 @@ func reclaimTask(client client.Queue, taskID string, runID int, log *logrus.Entr
 		return nil, &updateError{err: err.Error()}
 	}
 
-	log.Info("Reclaimed task successfully")
+	monitor.Info("Reclaimed task successfully")
 	return tcrsp, nil
 }

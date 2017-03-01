@@ -8,15 +8,15 @@ import (
 	"os/signal"
 	"path/filepath"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-worker/commands/qemu-run"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/network"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 func buildImage(
-	log *logrus.Entry,
+	monitor runtime.Monitor,
 	inputFile, outputFile string,
 	fromImage, novnc bool,
 	boot,
@@ -26,14 +26,14 @@ func buildImage(
 	// Find absolute outputFile
 	outputFile, err := filepath.Abs(outputFile)
 	if err != nil {
-		log.Error("Failed to resolve output file, error: ", err)
+		monitor.Error("Failed to resolve output file, error: ", err)
 		return err
 	}
 
 	// Create temp folder for the image
 	tempFolder, err := ioutil.TempDir("", "taskcluster-worker-build-image-")
 	if err != nil {
-		log.Error("Failed to create temporary folder, error: ", err)
+		monitor.Error("Failed to create temporary folder, error: ", err)
 		return err
 	}
 	defer os.RemoveAll(tempFolder)
@@ -43,21 +43,21 @@ func buildImage(
 		// Read machine definition
 		machine, err2 := vm.LoadMachine(inputFile)
 		if err2 != nil {
-			log.Error("Failed to load machine file from ", inputFile, " error: ", err2)
+			monitor.Error("Failed to load machine file from ", inputFile, " error: ", err2)
 			return err2
 		}
 
 		// Construct MutableImage
-		log.Info("Creating MutableImage")
+		monitor.Info("Creating MutableImage")
 		img, err2 = image.NewMutableImage(tempFolder, int(size), machine)
 		if err2 != nil {
-			log.Error("Failed to create image, error: ", err2)
+			monitor.Error("Failed to create image, error: ", err2)
 			return err2
 		}
 	} else {
 		img, err = image.NewMutableImageFromFile(inputFile, tempFolder)
 		if err != nil {
-			log.Error("Failed to load image, error: ", err)
+			monitor.Error("Failed to load image, error: ", err)
 			return err
 		}
 	}
@@ -65,16 +65,16 @@ func buildImage(
 	// Create temp folder for sockets
 	socketFolder, err := ioutil.TempDir("", "taskcluster-worker-sockets-")
 	if err != nil {
-		log.Error("Failed to create temporary folder, error: ", err)
+		monitor.Error("Failed to create temporary folder, error: ", err)
 		return err
 	}
 	defer os.RemoveAll(socketFolder)
 
 	// Setup a user-space network
-	log.Info("Creating user-space network")
+	monitor.Info("Creating user-space network")
 	net, err := network.NewUserNetwork(tempFolder)
 	if err != nil {
-		log.Error("Failed to create user-space network, error: ", err)
+		monitor.Error("Failed to create user-space network, error: ", err)
 		return err
 	}
 
@@ -83,15 +83,15 @@ func buildImage(
 	net.SetHandler(&logService{Destination: os.Stdout})
 
 	// Create virtual machine
-	log.Info("Creating virtual machine")
-	vm, err := vm.NewVirtualMachine(img.Machine().Options(), img, net, socketFolder, boot, cdrom, log.WithField("component", "vm"))
+	monitor.Info("Creating virtual machine")
+	vm, err := vm.NewVirtualMachine(img.Machine().Options(), img, net, socketFolder, boot, cdrom, monitor.WithTag("component", "vm"))
 	if err != nil {
-		log.Error("Failed to recreated virtual-machine, error: ", err)
+		monitor.Error("Failed to recreated virtual-machine, error: ", err)
 		return err
 	}
 
 	// Start the virtual machine
-	log.Info("Starting virtual machine")
+	monitor.Info("Starting virtual machine")
 	vm.Start()
 
 	// Open VNC display
@@ -117,17 +117,17 @@ func buildImage(
 
 	if err != nil {
 		if e, ok := err.(*exec.ExitError); ok {
-			log.Error("QEMU error: ", string(e.Stderr))
+			monitor.Error("QEMU error: ", string(e.Stderr))
 		}
-		log.Info("Error running virtual machine: ", err)
+		monitor.Info("Error running virtual machine: ", err)
 		return err
 	}
 
 	// Package up the finished image
-	log.Info("Package virtual machine image")
+	monitor.Info("Package virtual machine image")
 	err = img.Package(outputFile)
 	if err != nil {
-		log.Error("Failed to package finished image, error: ", err)
+		monitor.Error("Failed to package finished image, error: ", err)
 		return err
 	}
 

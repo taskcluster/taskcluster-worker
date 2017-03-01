@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellconsts"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
@@ -16,7 +16,7 @@ import (
 // ShellHandler handles a websocket and exposes a reader for stdin, and writers
 // for piping out stdout and stderr.
 type ShellHandler struct {
-	log           *logrus.Entry
+	monitor       runtime.Monitor
 	ws            *websocket.Conn
 	mWrite        sync.Mutex
 	stdin         io.ReadCloser
@@ -35,7 +35,7 @@ type ShellHandler struct {
 
 // NewShellHandler returns a new ShellHandler structure for that can
 // serve/expose a shell over a websocket.
-func NewShellHandler(ws *websocket.Conn, log *logrus.Entry) *ShellHandler {
+func NewShellHandler(ws *websocket.Conn, monitor runtime.Monitor) *ShellHandler {
 	tellIn := make(chan int, 10)
 	stdin, stdinWriter := ioext.AsyncPipe(shellconsts.ShellMaxPendingBytes, tellIn)
 	stdoutReader, stdout := ioext.BlockedPipe()
@@ -44,7 +44,7 @@ func NewShellHandler(ws *websocket.Conn, log *logrus.Entry) *ShellHandler {
 	stderrReader.Unblock(shellconsts.ShellMaxPendingBytes)
 
 	s := &ShellHandler{
-		log:          log,
+		monitor:      monitor,
 		ws:           ws,
 		stdin:        stdin,
 		stdout:       stdout,
@@ -121,7 +121,7 @@ func (s *ShellHandler) Terminated(success bool) {
 func (s *ShellHandler) abort() {
 	debug("Trying to abort (if not already resolved)")
 	s.resolve.Do(func() {
-		s.log.Error("Resolving the shell using abort()")
+		s.monitor.Error("Resolving the shell using abort()")
 		if s.abortFunc != nil {
 			s.abortFunc()
 		}
@@ -137,7 +137,7 @@ func (s *ShellHandler) send(message []byte) {
 	s.mWrite.Unlock()
 
 	if err != nil {
-		s.log.Error("Failed to send message, error: ", err)
+		s.monitor.Error("Failed to send message, error: ", err)
 		s.abort()
 	}
 }
@@ -162,7 +162,7 @@ func (s *ShellHandler) sendPings() {
 				return
 			}
 
-			s.log.Error("Failed to send ping, error: ", err)
+			s.monitor.Error("Failed to send ping, error: ", err)
 			s.abort()
 			return
 		}
@@ -197,7 +197,7 @@ func (s *ShellHandler) waitForSuccess() {
 		shellconsts.MessageTypeExit, result,
 	})
 	if err != nil {
-		s.log.Error("Failed to send 'Exit' message, error: ", err)
+		s.monitor.Error("Failed to send 'Exit' message, error: ", err)
 	}
 
 	// Close the connection gracefully, We do this because closing the websocket
@@ -238,7 +238,7 @@ func (s *ShellHandler) transmitStream(r io.Reader, streamID byte) {
 
 		if err != nil && err != io.EOF {
 			// If we fail to read with some other error we abort
-			s.log.Error("Failed to read streamId: ", streamID, " error: ", err)
+			s.monitor.Error("Failed to read streamId: ", streamID, " error: ", err)
 			s.abort()
 			return
 		}
@@ -253,7 +253,7 @@ func (s *ShellHandler) readMessages() {
 			if e, ok := err.(*websocket.CloseError); ok && e.Code == websocket.CloseNormalClosure {
 				debug("Websocket closed normally error: %s", err)
 			} else {
-				s.log.Error("Failed to read message from websocket, error: ", err)
+				s.monitor.Error("Failed to read message from websocket, error: ", err)
 			}
 			s.abort()
 			return
@@ -288,7 +288,7 @@ func (s *ShellHandler) readMessages() {
 			// The right thing might be to return an error, as in pipe-broken...
 			// Maybe one day we can consider this, for now abort seems reasonable.
 			if err != nil {
-				s.log.Error("Failed to write to stdin, error: ", err)
+				s.monitor.Error("Failed to write to stdin, error: ", err)
 				s.abort()
 				return
 			}

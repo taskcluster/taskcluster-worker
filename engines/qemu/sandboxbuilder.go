@@ -24,11 +24,15 @@ type sandboxBuilder struct {
 	env        map[string]string
 	context    *runtime.TaskContext
 	engine     *engine
+	monitor    runtime.Monitor
 }
 
 // newSandboxBuilder creates a new sandboxBuilder, the network and command
 // properties must be set manually after calling this method.
-func newSandboxBuilder(payload *payloadType, network *network.Network, c *runtime.TaskContext, e *engine) *sandboxBuilder {
+func newSandboxBuilder(
+	payload *payloadType, network *network.Network,
+	c *runtime.TaskContext, e *engine, monitor runtime.Monitor,
+) *sandboxBuilder {
 	imageDone := make(chan struct{})
 	sb := &sandboxBuilder{
 		network:   network,
@@ -38,6 +42,7 @@ func newSandboxBuilder(payload *payloadType, network *network.Network, c *runtim
 		env:       make(map[string]string),
 		context:   c,
 		engine:    e,
+		monitor:   monitor,
 	}
 	// Start downloading and extracting the image
 	go func() {
@@ -137,7 +142,10 @@ func (sb *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
 	}
 
 	// Create a sandbox
-	s, err := newSandbox(sb.command, sb.env, sb.proxies, sb.image, sb.network, sb.context, sb.engine)
+	s, err := newSandbox(
+		sb.command, sb.env, sb.proxies, sb.image, sb.network,
+		sb.context, sb.engine, sb.monitor,
+	)
 	if err != nil {
 		sb.m.Unlock()
 		// Free all resources

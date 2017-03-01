@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
@@ -15,8 +14,8 @@ import (
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/queue"
-	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
+	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 )
 
 const ProvisionerID = "dummy-provisioner"
@@ -25,13 +24,12 @@ var WorkerType = (fmt.Sprintf("dummy-type-%s", slugid.Nice()))[0:22]
 var WorkerID = fmt.Sprintf("dummy-worker-%s", slugid.Nice())
 
 func TestRetrievePollTaskUrls(t *testing.T) {
-	logger, _ := runtime.CreateLogger("")
 	mockedQueue := &client.MockQueue{}
 	service := queueService{
 		client:           mockedQueue,
 		provisionerID:    ProvisionerID,
 		workerType:       WorkerType,
-		log:              logger.WithField("component", "Queue Service"),
+		monitor:          mocks.NewMockMonitor(true),
 		expirationOffset: 300,
 	}
 	mockedQueue.On(
@@ -68,13 +66,12 @@ func TestRetrievePollTaskUrls(t *testing.T) {
 }
 
 func TestRetrievePollTaskUrlsErrorCaught(t *testing.T) {
-	logger, _ := runtime.CreateLogger("")
 	mockedQueue := &client.MockQueue{}
 	service := queueService{
 		client:           mockedQueue,
 		provisionerID:    ProvisionerID,
 		workerType:       WorkerType,
-		log:              logger.WithField("component", "Queue Service"),
+		monitor:          mocks.NewMockMonitor(true),
 		expirationOffset: 300,
 	}
 
@@ -113,12 +110,11 @@ func TestShouldRefreshQueueUrls(t *testing.T) {
 }
 
 func TestShouldNotRefreshMessageQueueURLs(t *testing.T) {
-	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		expirationOffset: 300,
 		expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
 		queues:           []messageQueue{messageQueue{}, messageQueue{}},
-		log:              logger.WithField("component", "Queue Service"),
+		monitor:          mocks.NewMockMonitor(true),
 	}
 
 	// Because the expiration is not close, and the service already has queues,
@@ -137,9 +133,8 @@ func TestPollTaskUrlInvalidXMLResponse(t *testing.T) {
 
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
-	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		log: logger.WithField("component", "Queue Service"),
+		monitor: mocks.NewMockMonitor(true),
 		queues: []messageQueue{{
 			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
@@ -159,9 +154,8 @@ func TestPollTaskURLEmptyMessageList(t *testing.T) {
 
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
-	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		log: logger.WithField("component", "Queue Service"),
+		monitor: mocks.NewMockMonitor(true),
 		queues: []messageQueue{{
 			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
@@ -204,9 +198,8 @@ func TestPollTaskURLNonEmptyMessageList(t *testing.T) {
 
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
-	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		log: logger.WithField("component", "Queue Service"),
+		monitor: mocks.NewMockMonitor(true),
 		queues: []messageQueue{{
 			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
@@ -244,9 +237,8 @@ func TestPollTaskURLInvalidMessageTextContents(t *testing.T) {
 
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
-	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		log: logger.WithField("component", "Queue Service"),
+		monitor: mocks.NewMockMonitor(true),
 		queues: []messageQueue{{
 			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
@@ -288,9 +280,8 @@ func TestPollTaskURLInvalidMessageTextEncoding(t *testing.T) {
 
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
-	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		log: logger.WithField("component", "Queue Service"),
+		monitor: mocks.NewMockMonitor(false),
 		queues: []messageQueue{{
 			SignedDeleteURL: fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL),
 			SignedPollURL:   fmt.Sprintf("%s/tasks", s.URL),
@@ -312,9 +303,8 @@ func TestSuccessfullyDeleteFromAzureQueue(t *testing.T) {
 
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
-	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		log: logger.WithField("component", "Queue Service"),
+		monitor: mocks.NewMockMonitor(true),
 	}
 	err := service.deleteFromAzure(fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL))
 	assert.Nil(t, err)
@@ -327,9 +317,8 @@ func TestErrorCaughtDeleteFromAzureQueueL(t *testing.T) {
 
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
-	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		log: logger.WithField("component", "Queue Service"),
+		monitor: mocks.NewMockMonitor(true),
 	}
 	err := service.deleteFromAzure(fmt.Sprintf("%s/delete/{{messageId}}/{{popReceipt}}", s.URL))
 	assert.NotNil(t, err)
@@ -392,9 +381,8 @@ func TestRetrieveTasksFromQueue(t *testing.T) {
 
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
-	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		log:              logger.WithField("component", "Queue Service"),
+		monitor:          mocks.NewMockMonitor(true),
 		expirationOffset: 300,
 		expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
 		queues: []messageQueue{
@@ -473,9 +461,8 @@ func TestRetrieveTasksFromQueueDoesNotQueryLowPriority(t *testing.T) {
 
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
-	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		log:              logger.WithField("component", "Queue Service"),
+		monitor:          mocks.NewMockMonitor(true),
 		expirationOffset: 300,
 		expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
 		queues: []messageQueue{
@@ -531,9 +518,8 @@ func TestRetrieveTasksFromQueueDequeueChecked(t *testing.T) {
 
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
-	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
-		log:              logger.WithField("component", "Queue Service"),
+		monitor:          mocks.NewMockMonitor(true),
 		expirationOffset: 300,
 		expires:          tcclient.Time(time.Now().Add(time.Minute * 10)),
 		queues: []messageQueue{
@@ -598,10 +584,9 @@ func TestClaimTask(t *testing.T) {
 		signedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
 	}
 
-	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		client:        mockedQueue,
-		log:           logger.WithField("component", "Queue Service"),
+		monitor:       mocks.NewMockMonitor(true),
 		workerID:      WorkerID,
 		workerGroup:   WorkerType,
 		provisionerID: ProvisionerID,
@@ -652,10 +637,9 @@ func TestClaimTaskError(t *testing.T) {
 		signedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
 	}
 
-	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		client:        mockedQueue,
-		log:           logger.WithField("component", "Queue Service"),
+		monitor:       mocks.NewMockMonitor(false),
 		workerID:      WorkerID,
 		workerGroup:   WorkerType,
 		provisionerID: ProvisionerID,
@@ -738,12 +722,11 @@ func TestClaimTasks(t *testing.T) {
 		signedDeleteURL: fmt.Sprintf("%s/delete", s.URL),
 	}}
 
-	logger, _ := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 	service := queueService{
 		client:        mockedQueue,
 		capacity:      2,
 		tc:            make(chan *taskClaim, 2),
-		log:           logger.WithField("component", "Queue Service"),
+		monitor:       mocks.NewMockMonitor(true),
 		workerID:      WorkerID,
 		workerGroup:   WorkerType,
 		provisionerID: ProvisionerID,

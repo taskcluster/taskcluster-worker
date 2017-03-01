@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/displayconsts"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 // DisplayHandler handles serving a VNC display socket over a websocket,
@@ -16,17 +16,17 @@ type DisplayHandler struct {
 	mWrite  sync.Mutex // guards access to ws.Write
 	ws      *websocket.Conn
 	display io.ReadWriteCloser
-	log     *logrus.Entry
+	monitor runtime.Monitor
 	in      io.ReadCloser
 }
 
 // NewDisplayHandler creates a DisplayHandler that connects the websocket to the
 // display socket.
-func NewDisplayHandler(ws *websocket.Conn, display io.ReadWriteCloser, log *logrus.Entry) *DisplayHandler {
+func NewDisplayHandler(ws *websocket.Conn, display io.ReadWriteCloser, monitor runtime.Monitor) *DisplayHandler {
 	d := &DisplayHandler{
 		ws:      ws,
 		display: display,
-		log:     log,
+		monitor: monitor,
 		in:      display,
 	}
 	d.ws.SetReadLimit(displayconsts.DisplayMaxMessageSize)
@@ -66,7 +66,7 @@ func (d *DisplayHandler) sendPings() {
 				return
 			}
 
-			d.log.Error("Failed to send ping, error: ", err)
+			d.monitor.Error("Failed to send ping, error: ", err)
 			d.Abort()
 			return
 		}
@@ -110,7 +110,7 @@ func (d *DisplayHandler) readMessages() {
 			if e, ok := err.(*websocket.CloseError); ok && e.Code == websocket.CloseNormalClosure {
 				debug("Websocket closed normally error: ", err)
 			} else {
-				d.log.Error("Failed to read message from websocket, error: ", err)
+				d.monitor.Error("Failed to read message from websocket, error: ", err)
 			}
 			d.Abort()
 			return

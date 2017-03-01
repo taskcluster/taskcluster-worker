@@ -33,8 +33,7 @@ options:
 
 func (cmd) Execute(arguments map[string]interface{}) bool {
 	// Setup logging
-	logger, _ := runtime.CreateLogger("info")
-	log := logger.WithField("component", "qemu-build")
+	monitor := runtime.NewLoggingMonitor("info", nil).WithTag("component", "qemu-build")
 
 	// Parse arguments
 	outputFile := arguments["<result.tar.zst>"].(string)
@@ -45,10 +44,10 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	cdrom, _ := arguments["--cdrom"].(string)
 	size, err := strconv.ParseInt(arguments["--size"].(string), 10, 32)
 	if err != nil {
-		log.Fatal("Couldn't parse --size, error: ", err)
+		monitor.Panic("Couldn't parse --size, error: ", err)
 	}
 	if size > 80 {
-		log.Fatal("Images have a sanity limit of 80 GiB!")
+		monitor.Panic("Images have a sanity limit of 80 GiB!")
 	}
 	if fromNew == fromImage {
 		panic("Impossible arguments")
@@ -62,7 +61,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	}
 
 	return buildImage(
-		log, inputFile, outputFile,
+		monitor, inputFile, outputFile,
 		fromImage, novnc, boot, cdrom, int(size),
 	) == nil
 }

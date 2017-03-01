@@ -3,7 +3,6 @@ package scriptengine
 import (
 	"fmt"
 
-	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -15,7 +14,7 @@ type engineProvider struct {
 
 type engine struct {
 	engines.EngineBase
-	Log         *logrus.Entry
+	monitor     runtime.Monitor
 	config      configType
 	schema      schematypes.Object
 	environment *runtime.Environment
@@ -45,8 +44,8 @@ func (engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine, 
 	}
 
 	return &engine{
-		Log:    options.Log,
-		config: config,
+		monitor: options.Monitor,
+		config:  config,
 		schema: schematypes.Object{
 			Properties: properties,
 		},
@@ -66,5 +65,6 @@ func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sand
 		payload: options.Payload,
 		engine:  e,
 		context: options.TaskContext,
+		monitor: options.Monitor,
 	}, nil
 }

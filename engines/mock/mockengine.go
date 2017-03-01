@@ -3,14 +3,14 @@ package mockengine
 import (
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 type engine struct {
 	engines.EngineBase
-	Log *logrus.Entry
+	monitor runtime.Monitor
 }
 
 type engineProvider struct {
@@ -26,7 +26,10 @@ func (e engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 	if options.Environment.Monitor == nil {
 		panic("EngineOptions.Environment.Monitor is nil, this is a contract violation")
 	}
-	return engine{Log: options.Log}, nil
+	if options.Monitor == nil {
+		panic("EngineOptions.Monitor is nil, this is a contract violation")
+	}
+	return engine{monitor: options.Monitor}, nil
 }
 
 // mock config contains no fields
@@ -39,7 +42,15 @@ func (e engine) PayloadSchema() schematypes.Object {
 }
 
 func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {
-	e.Log.Debug("Building Sandbox")
+	e.monitor.Debug("Building Sandbox")
+
+	// Some sanity checks to ensure that we're providing all the options
+	if options.Monitor == nil {
+		panic("SandboxOptions.Monitor is nil, this is a contract violation")
+	}
+	if options.TaskContext == nil {
+		panic("SandboxOptions.TaskContext is nil, this is a constract violation")
+	}
 
 	var p payloadType
 	err := e.PayloadSchema().Map(options.Payload, &p)
