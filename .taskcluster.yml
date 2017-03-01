@@ -153,6 +153,7 @@ tasks:
             git clean -d -f -e '/vendor/*' -x
             govendor sync
             make rebuild check
+            cd ../../../../..
             mv go/bin/taskcluster-worker public/build/taskcluster-worker-darwin-amd64
       mounts:
         - cacheName: taskcluster-worker-checkout
