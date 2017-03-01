@@ -174,7 +174,7 @@ func (q *queueService) claimTask(task *taskMessage) (*taskClaim, error) {
 			if err.statusCode == 401 || err.statusCode == 403 || err.statusCode >= 500 {
 				// Do not delete the message if task could not be claimed because of server
 				// or authorization failures
-				return nil, errors.New("Error when attempting to claim task.  Task was *not* deleted from Azure.")
+				return nil, errors.New("error claiming task: task was *not* deleted from Azure")
 			}
 		}
 
@@ -379,7 +379,7 @@ func (q *queueService) refreshMessageQueueURLs() error {
 	signedURLs, err := q.client.PollTaskUrls(q.provisionerID, q.workerType)
 	if err != nil {
 		q.monitor.WithTag("error", err.Error()).Warn("Error retrieving message queue urls.")
-		return errors.New("Error retrieving message queue urls.")
+		return errors.New("error retrieving message queue urls")
 	}
 
 	messageQueues := []messageQueue{}

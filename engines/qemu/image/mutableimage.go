@@ -105,7 +105,7 @@ func (img *MutableImage) Machine() vm.Machine {
 	return *img.machine
 }
 
-// Package will write an zstd compressed tar archieve of the image to targetFile.
+// Package will write an zstd compressed tar archive of the image to targetFile.
 // This method cannot be called the image is in-use.
 func (img *MutableImage) Package(targetFile string) error {
 	img.m.Lock()

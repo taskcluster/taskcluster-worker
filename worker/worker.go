@@ -175,12 +175,14 @@ func (w *Worker) Start() {
 	return
 }
 
-// Stop is a convenience method for stopping the worker loop.  Usually the worker will not be
-// stopped this way, but rather will listen for a shutdown event.
+// ImmediateStop is a convenience method for stopping the worker loop.  Usually
+// the worker will not be stopped this way, but rather will listen for a
+// shutdown event.
 func (w *Worker) ImmediateStop() {
 	close(w.done)
 }
 
+// GracefulStop will allow the worker to complete its running task, before stopping.
 func (w *Worker) GracefulStop() {
 	w.tm.GracefulStop()
 }

@@ -10,10 +10,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	assert "github.com/stretchr/testify/require"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 )
 
 // Simple HTTP server for tests
@@ -79,7 +79,7 @@ func newTestSandbox(taskPayload *payloadType, env []string) (*sandbox, error) {
 	e := engine{
 		EngineBase: engines.EngineBase{},
 		config:     &config,
-		log:        logrus.New().WithField("component", "test"),
+		monitor:    mocks.NewMockMonitor(true),
 	}
 
 	return newSandbox(context, taskPayload, env, &e), nil

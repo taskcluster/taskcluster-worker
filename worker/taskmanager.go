@@ -196,7 +196,7 @@ func (m *Manager) registerTask(task *TaskRun) error {
 
 	_, exists := m.tasks[name]
 	if exists {
-		return fmt.Errorf("Cannot register task %s. Task already exists.", name)
+		return fmt.Errorf("cannot register task %s since it already exists", name)
 	}
 
 	m.tasks[name] = task
@@ -212,7 +212,7 @@ func (m *Manager) deregisterTask(task *TaskRun) error {
 
 	_, exists := m.tasks[name]
 	if !exists {
-		return fmt.Errorf("Cannot deregister task %s. Task does not exist", name)
+		return fmt.Errorf("cannot deregister task %s since it does not exist", name)
 	}
 
 	delete(m.tasks, name)

@@ -7,9 +7,7 @@ import (
 	"strings"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
-	"github.com/taskcluster/taskcluster-worker/engines/qemu/network"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
@@ -35,8 +33,8 @@ func newSandbox(
 	command []string,
 	env map[string]string,
 	proxies map[string]http.Handler,
-	image *image.Instance,
-	network *network.Network,
+	image vm.Image,
+	network vm.Network,
 	c *runtime.TaskContext,
 	e *engine,
 	monitor runtime.Monitor,

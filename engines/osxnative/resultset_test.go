@@ -10,11 +10,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	assert "github.com/stretchr/testify/require"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
+	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 )
 
 type testCase struct {
@@ -38,8 +38,8 @@ func makeResultSet(t *testing.T) resultset {
 	}
 
 	e := engine{
-		config: &config,
-		log:    logrus.New().WithField("component", "test"),
+		config:  &config,
+		monitor: mocks.NewMockMonitor(true),
 	}
 
 	return resultset{
