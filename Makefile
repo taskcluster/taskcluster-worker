@@ -35,7 +35,9 @@ check: test
 	git status --porcelain
 	/bin/bash -c 'test $$(git status --porcelain | wc -l) == 0'
 test:
-	go test -tags=system -v -race $$(go list ./... | grep -v /vendor/)
+	# should run with -tags=system at some point..... i.e.:
+	# go test -tags=system -v -race $$(go list ./... | grep -v /vendor/)
+	go test -v -race $$(go list ./... | grep -v /vendor/)
 
 dev-test:
 	go test -race $$(go list ./... | grep -v /vendor/)
