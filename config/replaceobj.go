@@ -24,22 +24,22 @@ func inject(
 	switch val := val.(type) {
 	case []interface{}:
 		for i, v := range val {
-			v, err := inject(key, replacement, v)
+			v2, err := inject(key, replacement, v)
 			if err != nil {
 				return nil, err
 			}
-			val[i] = v
+			val[i] = v2
 		}
 	case map[string]interface{}:
 		if _, ok := val["$"+key].(string); ok {
 			return replacement(val)
 		}
 		for k, v := range val {
-			v, err := inject(key, replacement, v)
+			v2, err := inject(key, replacement, v)
 			if err != nil {
 				return nil, err
 			}
-			val[k] = v
+			val[k] = v2
 		}
 	}
 	return val, nil
