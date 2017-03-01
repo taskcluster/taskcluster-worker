@@ -154,6 +154,7 @@ tasks:
             govendor sync
             make rebuild check
             cd ../../../../..
+            mkdir -p public/build
             mv go/bin/taskcluster-worker public/build/taskcluster-worker-darwin-amd64
       mounts:
         - cacheName: taskcluster-worker-checkout
