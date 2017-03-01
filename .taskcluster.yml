@@ -24,7 +24,6 @@ tasks:
       github:
         # Events that will trigger this task
         events:
-          - pull_request.*
           - push
     scopes:
       - secrets:get:repo:github.com/taskcluster/taskcluster-worker
@@ -74,7 +73,6 @@ tasks:
       github:
         # Events that will trigger this task
         events:
-          - pull_request.*
           - push
     scopes:
       - generic-worker:cache:taskcluster-worker-checkout
@@ -130,7 +128,6 @@ tasks:
       github:
         # Events that will trigger this task
         events:
-          - pull_request.*
           - push
     scopes:
       - generic-worker:cache:taskcluster-worker-checkout
