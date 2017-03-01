@@ -24,6 +24,7 @@ import (
 	_ "github.com/taskcluster/taskcluster-worker/plugins/success"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
+	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 )
 
@@ -94,11 +95,12 @@ func TestTaskManagerRunTask(t *testing.T) {
 		GarbageCollector: gc,
 		TemporaryStorage: tempStorage,
 		WebHookServer:    localServer,
+		Monitor:          mocks.NewMockMonitor(true),
 	}
 	engineProvider := engines.Engines()["mock"]
 	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: environment,
-		Log:         logger.WithField("engine", "mock"),
+		Monitor:     mocks.NewMockMonitor(true),
 	})
 	if err != nil {
 		t.Fatal(err.Error())
@@ -108,7 +110,7 @@ func TestTaskManagerRunTask(t *testing.T) {
 		QueueBaseURL: serverURL,
 	}
 
-	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, logger.WithField("test", "TestTaskManagerRunTask"), gc)
+	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, mocks.NewMockMonitor(true), gc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,11 +191,12 @@ func TestCancelTask(t *testing.T) {
 		GarbageCollector: gc,
 		TemporaryStorage: tempStorage,
 		WebHookServer:    localServer,
+		Monitor:          mocks.NewMockMonitor(true),
 	}
 	engineProvider := engines.Engines()["mock"]
 	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: environment,
-		Log:         logger.WithField("engine", "mock"),
+		Monitor:     mocks.NewMockMonitor(true),
 	})
 	if err != nil {
 		t.Fatal(err.Error())
@@ -203,7 +206,7 @@ func TestCancelTask(t *testing.T) {
 		QueueBaseURL: serverURL,
 	}
 
-	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, logger.WithField("test", "TestRunTask"), gc)
+	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, mocks.NewMockMonitor(true), gc)
 	assert.Nil(t, err)
 
 	claim := &taskClaim{
@@ -301,11 +304,12 @@ func TestWorkerShutdown(t *testing.T) {
 		GarbageCollector: gc,
 		TemporaryStorage: tempStorage,
 		WebHookServer:    localServer,
+		Monitor:          mocks.NewMockMonitor(true),
 	}
 	engineProvider := engines.Engines()["mock"]
 	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: environment,
-		Log:         logger.WithField("engine", "mock"),
+		Monitor:     mocks.NewMockMonitor(true),
 	})
 	if err != nil {
 		t.Fatal(err.Error())
@@ -314,13 +318,13 @@ func TestWorkerShutdown(t *testing.T) {
 	cfg := &configType{
 		QueueBaseURL: serverURL,
 	}
-	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, logger.WithField("test", "TestRunTask"), gc)
+	tm, err := newTaskManager(cfg, engine, MockPlugin{}, environment, mocks.NewMockMonitor(true), gc)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	claims := []*taskClaim{
-		&taskClaim{
+		{
 			taskID: "abc",
 			runID:  1,
 			definition: &queue.TaskDefinitionResponse{
@@ -339,7 +343,7 @@ func TestWorkerShutdown(t *testing.T) {
 				TakenUntil: tcclient.Time(time.Now().Add(time.Minute * 5)),
 			},
 		},
-		&taskClaim{
+		{
 			taskID: "def",
 			runID:  0,
 			definition: &queue.TaskDefinitionResponse{
@@ -365,16 +369,17 @@ func TestWorkerShutdown(t *testing.T) {
 	go func() {
 		for _, c := range claims {
 			go func(claim *taskClaim) {
+				defer wg.Done()
 				tm.run(claim)
-				wg.Done()
 			}(c)
 		}
 	}()
 
 	time.Sleep(500 * time.Millisecond)
 	assert.Equal(t, len(tm.RunningTasks()), 2)
-	close(tm.done)
-	tm.Stop()
+	close(tm.doneClaimingTasks)
+	close(tm.doneExecutingTasks)
+	tm.ImmediateStop()
 
 	wg.Wait()
 	assert.Equal(t, 0, len(tm.RunningTasks()))

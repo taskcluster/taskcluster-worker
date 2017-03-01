@@ -20,7 +20,7 @@ import (
 
 const metaDataIP = "169.254.169.254"
 
-var remoteAddrPattern = regexp.MustCompile("^(192\\.168\\.\\d{1,3})\\.\\d{1,3}:\\d{1,5}$")
+var remoteAddrPattern = regexp.MustCompile(`^(192\.168\.\d{1,3})\.\d{1,3}:\d{1,5}$`)
 
 // Pool manages a static set of networks (TAP devices).
 type Pool struct {

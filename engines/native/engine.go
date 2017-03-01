@@ -3,7 +3,6 @@ package nativeengine
 import (
 	"fmt"
 
-	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/native/system"
@@ -16,8 +15,8 @@ type engineProvider struct {
 
 type engine struct {
 	engines.EngineBase
-	environment *runtime.Environment
-	log         *logrus.Entry
+	environment runtime.Environment
+	monitor     runtime.Monitor
 	config      config
 	groups      []*system.Group
 }
@@ -46,15 +45,15 @@ func (engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine, 
 				"Unable to find system user-group: %s from engine config.",
 				name,
 			)
-			options.Log.WithError(err).Error(errorMsg)
+			options.Monitor.ReportError(err, errorMsg)
 			return nil, engines.NewInternalError(errorMsg)
 		}
 		groups = append(groups, group)
 	}
 
 	return &engine{
-		environment: options.Environment,
-		log:         options.Log,
+		environment: *options.Environment,
+		monitor:     options.Monitor,
 		config:      c,
 		groups:      groups,
 	}, nil
@@ -74,9 +73,7 @@ func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sand
 		payload: p,
 		context: options.TaskContext,
 		env:     make(map[string]string),
-		log: e.log.
-			WithField("taskId", options.TaskContext.TaskID).
-			WithField("runId", options.TaskContext.RunID),
+		monitor: options.Monitor,
 	}
 	return b, nil
 }

@@ -3,7 +3,6 @@ package nativeengine
 import (
 	"regexp"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
@@ -11,7 +10,7 @@ import (
 type sandboxBuilder struct {
 	engines.SandboxBuilderBase
 	engine  *engine
-	log     *logrus.Entry
+	monitor runtime.Monitor
 	payload payload
 	context *runtime.TaskContext
 	env     map[string]string

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	rt "runtime"
 	"strings"
@@ -13,18 +14,15 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
+	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
 var debug = util.Debug("enginetest")
 
-func fmtPanic(a ...interface{}) {
-	panic(fmt.Sprintln(a...))
-}
-
 func nilOrPanic(err error, a ...interface{}) {
 	if err != nil {
-		fmtPanic(append(a, err)...)
+		log.Panic(append(a, err)...)
 	}
 }
 
@@ -34,7 +32,7 @@ func evalNilOrPanic(f func() error, a ...interface{}) {
 
 func assert(condition bool, a ...interface{}) {
 	if !condition {
-		fmtPanic(a...)
+		log.Panic(a...)
 	}
 }
 
@@ -80,7 +78,7 @@ func (p *EngineProvider) ensureEngine() {
 	// Find EngineProvider
 	engineProvider := engines.Engines()[p.Engine]
 	if engineProvider == nil {
-		fmtPanic("Couldn't find EngineProvider: ", p.Engine)
+		panic(fmt.Sprint("Couldn't find EngineProvider: ", p.Engine))
 	}
 
 	var jsonConfig interface{}
@@ -92,7 +90,7 @@ func (p *EngineProvider) ensureEngine() {
 	// Create Engine instance
 	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: p.environment,
-		Log:         p.environment.Log.WithField("engine", p.Engine),
+		Monitor:     p.environment.Monitor.WithTag("engine", p.Engine),
 		Config:      jsonConfig,
 	})
 	nilOrPanic(err, "Failed to create Engine")
@@ -104,10 +102,10 @@ func (p *EngineProvider) releaseEngine() {
 	defer p.m.Unlock()
 
 	if p.engine == nil {
-		fmtPanic("releaseEngine() but we don't have an active engine")
+		log.Panic("releaseEngine() but we don't have an active engine")
 	}
 	if p.refCount <= 0 {
-		fmtPanic("releaseEngine() but refCount <= 0")
+		log.Panic("releaseEngine() but refCount <= 0")
 	}
 	p.refCount--
 	if p.refCount <= 0 {
@@ -141,16 +139,10 @@ func newTestEnvironment() *runtime.Environment {
 		f.Remove()
 	})
 
-	logger, err := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating logger. %s", err)
-		os.Exit(1)
-	}
-
 	return &runtime.Environment{
 		GarbageCollector: &gc.GarbageCollector{},
 		TemporaryStorage: folder,
-		Log:              logger,
+		Monitor:          mocks.NewMockMonitor(true),
 	}
 }
 
@@ -208,6 +200,7 @@ func (r *run) NewSandboxBuilder(payload string) {
 	sandboxBuilder, err := r.provider.engine.NewSandboxBuilder(engines.SandboxOptions{
 		TaskContext: r.context,
 		Payload:     parseTestPayload(r.provider.engine, payload),
+		Monitor:     mocks.NewMockMonitor(true),
 	})
 	r.sandboxBuilder = sandboxBuilder
 	nilOrPanic(err, "Error creating SandboxBuilder")
@@ -239,8 +232,8 @@ func (r *run) OpenLogReader() {
 
 func (r *run) ReadLog() string {
 	reader, err := r.context.NewLogReader()
-	defer reader.Close()
 	nilOrPanic(err, "Failed to open log reader")
+	defer reader.Close()
 	data, err := ioutil.ReadAll(reader)
 	nilOrPanic(err, "Failed to read log")
 	return string(data)
@@ -270,7 +263,7 @@ func (r *run) Dispose() {
 			r.resultSet, _ = r.sandbox.WaitForResult()
 		}
 		if err != nil && err != engines.ErrSandboxTerminated {
-			fmtPanic("Sandbox.Abort() failed, error: ", err)
+			log.Panic("Sandbox.Abort() failed, error: ", err)
 		}
 		r.sandbox = nil
 	}

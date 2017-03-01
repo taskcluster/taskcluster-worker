@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/native/system"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -18,7 +17,7 @@ type sandbox struct {
 	engines.SandboxBase
 	engine        *engine
 	context       *runtime.TaskContext
-	log           *logrus.Entry
+	monitor       runtime.Monitor
 	workingFolder runtime.TemporaryFolder
 	user          *system.User
 	process       *system.Process
@@ -30,37 +29,51 @@ type sandbox struct {
 	wg            atomics.WaitGroup
 }
 
-func newSandbox(b *sandboxBuilder) (*sandbox, error) {
-	// Create temporary home folder for the task
-	workingFolder, err := b.engine.environment.TemporaryStorage.NewFolder()
-	if err != nil {
-		b.log.Error("Failed to create temporary folder: ", err)
-		return nil, fmt.Errorf("Failed to temporary folder, error: %s", err)
-	}
-
-	if b.payload.Context != "" {
-		if err = fetchContext(b.payload.Context, workingFolder.Path()); err != nil {
-			b.context.LogError(err)
-			return nil, engines.NewMalformedPayloadError(
-				fmt.Sprintf("Error downloading %s: %v", b.payload.Context, err),
-			)
-		}
-	}
-
+func newSandbox(b *sandboxBuilder) (s *sandbox, err error) {
 	var user *system.User
+	var workingFolder runtime.TemporaryFolder
+
+	defer func() {
+		if err != nil {
+			if b.engine.config.CreateUser && user != nil {
+				user.Remove()
+			}
+
+			if workingFolder != nil {
+				_ = workingFolder.Remove()
+			}
+		}
+	}()
 
 	if b.engine.config.CreateUser {
+		// Create temporary home folder for the task
+		workingFolder, err = b.engine.environment.TemporaryStorage.NewFolder()
+		if err != nil {
+			err = fmt.Errorf("Failed to temporary folder, error: %s", err)
+			b.monitor.Error(err)
+			return
+		}
+
 		// Create temporary user account
 		user, err = system.CreateUser(workingFolder.Path(), b.engine.groups)
 		if err != nil {
-			workingFolder.Remove() // best-effort clean-up this is a fatal error
-			return nil, fmt.Errorf("Failed to create temporary system user, error: %s", err)
+			err = fmt.Errorf("Failed to create temporary system user, error: %s", err)
+			return
 		}
 	} else {
 		user, err = system.CurrentUser()
 		if err != nil {
-			workingFolder.Remove()
-			return nil, err
+			return
+		}
+	}
+
+	if b.payload.Context != "" {
+		if err = fetchContext(b.payload.Context, user); err != nil {
+			err = engines.NewMalformedPayloadError(
+				fmt.Sprintf("Error downloading %s: %v", b.payload.Context, err),
+			)
+			b.context.LogError(err)
+			return
 		}
 	}
 
@@ -69,7 +82,7 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 		env[k] = v
 	}
 
-	env["HOME"] = workingFolder.Path()
+	env["HOME"] = user.Home()
 	env["USER"] = user.Name()
 	env["LOGNAME"] = user.Name()
 
@@ -78,29 +91,25 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 	process, err := system.StartProcess(system.ProcessOptions{
 		Arguments:     b.payload.Command,
 		Environment:   env,
-		WorkingFolder: workingFolder.Path(),
+		WorkingFolder: user.Home(),
 		Owner:         user,
 		Stdout:        ioext.WriteNopCloser(b.context.LogDrain()),
 		// Stderr defaults to Stdout when not specified
 	})
 	if err != nil {
-		if b.engine.config.CreateUser {
-			user.Remove()
-		}
-
-		workingFolder.Remove()
-
 		// StartProcess provides human-readable error messages (see docs)
 		// We'll convert it to a MalformedPayloadError
-		return nil, engines.NewMalformedPayloadError(
+		err = engines.NewMalformedPayloadError(
 			"Unable to start specified command: ", b.payload.Command, "error: ", err,
 		)
+		b.context.LogError(err)
+		return
 	}
 
-	s := &sandbox{
+	s = &sandbox{
 		engine:        b.engine,
 		context:       b.context,
-		log:           b.log,
+		monitor:       b.monitor,
 		workingFolder: workingFolder,
 		user:          user,
 		process:       process,
@@ -109,13 +118,13 @@ func newSandbox(b *sandboxBuilder) (*sandbox, error) {
 
 	go s.waitForTermination()
 
-	return s, nil
+	return
 }
 
-func fetchContext(context, destdir string) error {
+func fetchContext(context string, user *system.User) error {
 	// TODO: use future cache subsystem, when we have it
 	// TODO: use the soon to be merged fetcher subsystem
-	filename, err := util.Download(context, destdir)
+	filename, err := util.Download(context, user.Home())
 	if err != nil {
 		return fmt.Errorf("Error downloading '%s': %v", context, err)
 	}
@@ -124,6 +133,10 @@ func fetchContext(context, destdir string) error {
 	// TODO: abstract this away in system package
 	if err = os.Chmod(filename, 0700); err != nil {
 		return fmt.Errorf("Error setting file '%s' permissions: %v", filename, err)
+	}
+
+	if err = system.ChangeOwner(filename, user); err != nil {
+		return err
 	}
 
 	unpackedFile := ""
@@ -193,7 +206,7 @@ func (s *sandbox) waitForTermination() {
 		s.resultSet = &resultSet{
 			engine:        s.engine,
 			context:       s.context,
-			log:           s.log,
+			monitor:       s.monitor,
 			workingFolder: s.workingFolder,
 			user:          s.user,
 			success:       success,
@@ -222,7 +235,7 @@ func (s *sandbox) Abort() error {
 			// kill any process owned by it.
 			err := system.KillByOwner(s.user)
 			if err != nil {
-				s.log.Error("Failed to kill all processes by owner, error: ", err)
+				s.monitor.Error("Failed to kill all processes by owner, error: ", err)
 			}
 
 			// Remove temporary user (this will panic if unsuccessful)
@@ -230,9 +243,10 @@ func (s *sandbox) Abort() error {
 		}
 
 		// Remove temporary home folder
-		err := s.workingFolder.Remove()
-		if err != nil {
-			s.log.Error("Failed to remove temporary home directory, error: ", err)
+		if s.workingFolder != nil {
+			if err := s.workingFolder.Remove(); err != nil {
+				s.monitor.Error("Failed to remove temporary home directory, error: ", err)
+			}
 		}
 
 		// Set result

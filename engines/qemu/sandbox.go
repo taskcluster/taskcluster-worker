@@ -6,11 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
-	"github.com/taskcluster/taskcluster-worker/engines/qemu/network"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
@@ -27,7 +24,7 @@ type sandbox struct {
 	resultSet   engines.ResultSet // ResultSet for WaitForResult
 	resultError error             // Error for WaitForResult
 	resultAbort error             // Error for Abort
-	log         *logrus.Entry     // System log
+	monitor     runtime.Monitor   // System log / metrics / error reporting
 	sessions    *sessionManager
 }
 
@@ -36,17 +33,16 @@ func newSandbox(
 	command []string,
 	env map[string]string,
 	proxies map[string]http.Handler,
-	image *image.Instance,
-	network *network.Network,
+	image vm.Image,
+	network vm.Network,
 	c *runtime.TaskContext,
 	e *engine,
+	monitor runtime.Monitor,
 ) (*sandbox, error) {
-	log := e.Log.WithField("taskId", c.TaskID).WithField("runId", c.RunID)
-
 	vm, err := vm.NewVirtualMachine(
 		e.engineConfig.MachineOptions,
 		image, network, e.engineConfig.SocketFolder, "", "",
-		log.WithField("component", "vm"),
+		monitor.WithTag("component", "vm"),
 	)
 	if err != nil {
 		return nil, err
@@ -58,7 +54,7 @@ func newSandbox(
 		context: c,
 		engine:  e,
 		proxies: proxies,
-		log:     log,
+		monitor: monitor,
 	}
 
 	// Setup meta-data service

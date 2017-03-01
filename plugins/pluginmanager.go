@@ -41,25 +41,6 @@ func mergeErrors(errs ...error) error {
 	return nil
 }
 
-// waitForErrors returns when it has received count results from the errors
-// channel.
-//
-// Note, that errors might be nil, if all are nil it'll return nil otherwise
-// it'll merge the errors.
-func waitForErrors(errors <-chan error, count int) error {
-	errs := []error{}
-	for err := range errors {
-		if err != nil {
-			errs = append(errs, err)
-		}
-		count--
-		if count == 0 {
-			break
-		}
-	}
-	return mergeErrors(errs...)
-}
-
 // PluginManagerConfigSchema returns configuration for PluginOptions.Config for
 // NewPluginManager.
 func PluginManagerConfigSchema() schematypes.Object {
@@ -157,16 +138,16 @@ func NewPluginManager(options PluginOptions) (Plugin, error) {
 	plugins := make([]Plugin, len(enabled))
 	errors := make([]error, len(enabled))
 	wg.Add(len(enabled))
-	for index, name := range enabled {
+	for i, j := range enabled {
 		go func(index int, name string) {
 			plugins[index], errors[index] = pluginProviders[name].NewPlugin(PluginOptions{
 				Environment: options.Environment,
 				Engine:      options.Engine,
-				Log:         options.Log.WithField("plugin", name),
+				Monitor:     options.Monitor.WithPrefix(name).WithTag("plugin", name),
 				Config:      config[name],
 			})
 			wg.Done()
-		}(index, name) // needed to capture values not variables
+		}(i, j) // needed to capture values not variables
 	}
 	wg.Wait()
 
@@ -198,166 +179,105 @@ func (m *pluginManager) PayloadSchema() schematypes.Object {
 	return m.payloadSchema
 }
 
-func (m *pluginManager) NewTaskPlugin(options TaskPluginOptions) (TaskPlugin, error) {
+func (m *pluginManager) NewTaskPlugin(options TaskPluginOptions) (manager TaskPlugin, err error) {
 	// Input must be valid
 	if m.payloadSchema.Validate(options.Payload) != nil {
 		return nil, engines.ErrContractViolation
 	}
 
-	// Create a list of TaskPlugins and a mutex to guard access
-	taskPlugins := []TaskPlugin{}
-	mu := sync.Mutex{}
+	taskPlugins := make([]TaskPlugin, len(m.plugins))
+	errors := make([]error, len(m.plugins))
 
-	errors := make(chan error)
-	for i, p := range m.plugins {
-		go func(name string, p Plugin) {
-			taskPlugin, err := p.NewTaskPlugin(TaskPluginOptions{
+	var wg sync.WaitGroup
+	for i, j := range m.plugins {
+		wg.Add(1)
+		go func(index int, p Plugin) {
+			defer wg.Done()
+			taskPlugins[index], errors[index] = p.NewTaskPlugin(TaskPluginOptions{
 				TaskInfo: options.TaskInfo,
 				Payload:  p.PayloadSchema().Filter(options.Payload),
-				Log:      options.Log.WithField("plugin", name),
+				Monitor:  options.Monitor.WithPrefix(m.pluginNames[index]).WithTag("plugin", m.pluginNames[index]),
 			})
-			if taskPlugin != nil {
-				mu.Lock()
-				taskPlugins = append(taskPlugins, taskPlugin)
-				mu.Unlock()
-			}
-			errors <- err
-		}(m.pluginNames[i], p)
+		}(i, j)
+	}
+	wg.Wait()
+	err = mergeErrors(errors...)
+
+	manager = &taskPluginManager{
+		taskPlugins: taskPlugins,
 	}
 
-	// Wait for errors, if any we dispose and return a merged error
-	err := waitForErrors(errors, len(m.plugins))
-	manager := &taskPluginManager{taskPlugins: taskPlugins}
 	if err != nil {
 		err2 := manager.Dispose()
 		return nil, mergeErrors(err, err2)
 	}
-	return manager, nil
+	return
+}
+
+type taskPluginPhase func(TaskPlugin) error
+
+func (m *taskPluginManager) executePhase(f taskPluginPhase) error {
+	// Sanity check that no two methods on plugin is running in parallel, this way
+	// plugins don't have to be thread-safe, and we ensure nothing is called after
+	// Dispose() has been called.
+	if m.working.Swap(true) {
+		panic("Another plugin method is currently running, or Dispose() has been called!")
+	}
+	defer m.working.Set(false)
+
+	// Execute phase on plugins in parallel
+	errors := make([]error, len(m.taskPlugins))
+	var wg sync.WaitGroup
+	for i, j := range m.taskPlugins {
+		wg.Add(1)
+		go func(index int, tp TaskPlugin) {
+			defer wg.Done()
+			errors[index] = f(tp)
+		}(i, j)
+	}
+	wg.Wait()
+	// Returned error represents the merge of all errors which occurred against
+	// any plugin, or nil if no error occurred.
+	return mergeErrors(errors...)
 }
 
 func (m *taskPluginManager) Prepare(c *runtime.TaskContext) error {
-	// Sanity check that no two methods on plugin is running in parallel, this way
-	// plugins don't have to be thread-safe, and we ensure nothing is called after
-	// Dispose() has been called.
-	if m.working.Swap(true) {
-		panic("Another plugin method is currently running, or Dispose() has been called!")
-	}
-	defer m.working.Set(false)
-
-	// Run method on plugins in parallel
-	errors := make(chan error)
-	for _, p := range m.taskPlugins {
-		go func(p TaskPlugin) { errors <- p.Prepare(c) }(p)
-	}
-	return waitForErrors(errors, len(m.taskPlugins))
+	return m.executePhase(func(p TaskPlugin) error { return p.Prepare(c) })
 }
 
 func (m *taskPluginManager) BuildSandbox(b engines.SandboxBuilder) error {
-	// Sanity check that no two methods on plugin is running in parallel, this way
-	// plugins don't have to be thread-safe, and we ensure nothing is called after
-	// Dispose() has been called.
-	if m.working.Swap(true) {
-		panic("Another plugin method is currently running, or Dispose() has been called!")
-	}
-	defer m.working.Set(false)
-
-	// Run method on plugins in parallel
-	errors := make(chan error)
-	for _, p := range m.taskPlugins {
-		go func(p TaskPlugin) { errors <- p.BuildSandbox(b) }(p)
-	}
-	return waitForErrors(errors, len(m.taskPlugins))
+	return m.executePhase(func(p TaskPlugin) error { return p.BuildSandbox(b) })
 }
 
 func (m *taskPluginManager) Started(s engines.Sandbox) error {
-	// Sanity check that no two methods on plugin is running in parallel, this way
-	// plugins don't have to be thread-safe, and we ensure nothing is called after
-	// Dispose() has been called.
-	if m.working.Swap(true) {
-		panic("Another plugin method is currently running, or Dispose() has been called!")
-	}
-	defer m.working.Set(false)
-
-	// Run method on plugins in parallel
-	errors := make(chan error)
-	for _, p := range m.taskPlugins {
-		go func(p TaskPlugin) { errors <- p.Started(s) }(p)
-	}
-	return waitForErrors(errors, len(m.taskPlugins))
+	return m.executePhase(func(p TaskPlugin) error { return p.Started(s) })
 }
 
 func (m *taskPluginManager) Stopped(r engines.ResultSet) (bool, error) {
-	// Sanity check that no two methods on plugin is running in parallel, this way
-	// plugins don't have to be thread-safe, and we ensure nothing is called after
-	// Dispose() has been called.
-	if m.working.Swap(true) {
-		panic("Another plugin method is currently running, or Dispose() has been called!")
-	}
-	defer m.working.Set(false)
-
 	// Use atomic bool to return true, if no plugin returns false
 	result := atomics.NewBool(true)
 
 	// Run method on plugins in parallel
-	errors := make(chan error)
-	for _, p := range m.taskPlugins {
-		go func(p TaskPlugin) {
-			success, err := p.Stopped(r)
-			if !success {
-				result.Set(false)
-			}
-			errors <- err
-		}(p)
-	}
-	return result.Get(), waitForErrors(errors, len(m.taskPlugins))
+	err := m.executePhase(func(p TaskPlugin) error {
+		success, err := p.Stopped(r)
+		if !success {
+			result.Set(false)
+		}
+		return err
+	})
+	return result.Get(), err
 }
 
 func (m *taskPluginManager) Finished(s bool) error {
-	// Sanity check that no two methods on plugin is running in parallel, this way
-	// plugins don't have to be thread-safe, and we ensure nothing is called after
-	// Dispose() has been called.
-	if m.working.Swap(true) {
-		panic("Another plugin method is currently running, or Dispose() has been called!")
-	}
-	defer m.working.Set(false)
-
-	// Run method on plugins in parallel
-	errors := make(chan error)
-	for _, p := range m.taskPlugins {
-		go func(p TaskPlugin) { errors <- p.Finished(s) }(p)
-	}
-	return waitForErrors(errors, len(m.taskPlugins))
+	return m.executePhase(func(p TaskPlugin) error { return p.Finished(s) })
 }
 
 func (m *taskPluginManager) Exception(r runtime.ExceptionReason) error {
-	// Sanity check that no two methods on plugin is running in parallel, this way
-	// plugins don't have to be thread-safe, and we ensure nothing is called after
-	// Dispose() has been called.
-	if m.working.Swap(true) {
-		panic("Another plugin method is currently running, or Dispose() has been called!")
-	}
-	defer m.working.Set(false)
-
-	// Run method on plugins in parallel
-	errors := make(chan error)
-	for _, p := range m.taskPlugins {
-		go func(p TaskPlugin) { errors <- p.Exception(r) }(p)
-	}
-	return waitForErrors(errors, len(m.taskPlugins))
+	return m.executePhase(func(p TaskPlugin) error { return p.Exception(r) })
 }
 
 func (m *taskPluginManager) Dispose() error {
-	// Sanity check that no two methods on plugin is running in parallel
-	if m.working.Swap(true) {
-		panic("Another plugin method is currently running, or Dispose() has been called!")
-	}
-	// Notice that we don't call: defer w.working.Set(false), as we don't want to
-	// allow any calls to plugins after Dispose()
-
-	// Run method on plugins in parallel
-	errors := make(chan error)
-	for _, p := range m.taskPlugins {
-		go func(p TaskPlugin) { errors <- p.Dispose() }(p)
-	}
-	return waitForErrors(errors, len(m.taskPlugins))
+	// we don't want to allow any calls to plugins after Dispose()
+	defer m.working.Set(true)
+	return m.executePhase(func(p TaskPlugin) error { return p.Dispose() })
 }

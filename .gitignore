@@ -1,4 +1,5 @@
 /taskcluster-worker
+/taskcluster-worker.exe
 /.vagrant
 coverage.out
 /.bash_history
@@ -7,3 +8,4 @@ coverage.out
 /mock-config.yml
 /qemu-config.yml
 /vendor/*/
+/config.env

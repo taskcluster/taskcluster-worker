@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
+	tcclient "github.com/taskcluster/taskcluster-client-go"
+	"github.com/taskcluster/taskcluster-client-go/auth"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -21,12 +21,12 @@ import (
 // Worker is the center of taskcluster-worker and is responsible for managing resources, tasks,
 // and host level events.
 type Worker struct {
-	log    *logrus.Entry
-	done   chan struct{}
-	tm     *Manager
-	sm     runtime.ShutdownManager
-	env    *runtime.Environment
-	server *webhookserver.LocalServer
+	monitor runtime.Monitor
+	done    chan struct{}
+	tm      *Manager
+	sm      runtime.ShutdownManager
+	env     *runtime.Environment
+	server  *webhookserver.LocalServer
 }
 
 // New will create a worker given configuration matching the schema from
@@ -70,13 +70,32 @@ func New(config interface{}, log *logrus.Logger) (*Worker, error) {
 		return nil, err
 	}
 
+	// Setup monitor
+	tags := map[string]string{
+		"provisionerId": c.ProvisionerID,
+		"workerType":    c.WorkerType,
+		"workerGroup":   c.WorkerGroup,
+		"workerId":      c.WorkerID,
+	}
+	var monitor runtime.Monitor
+	if c.MonitorProject != "" {
+		a := auth.New(&tcclient.Credentials{
+			ClientID:    c.Credentials.ClientID,
+			AccessToken: c.Credentials.AccessToken,
+			Certificate: c.Credentials.Certificate,
+		})
+		monitor = runtime.NewMonitor(c.MonitorProject, a, c.LogLevel, tags)
+	} else {
+		monitor = runtime.NewLoggingMonitor(c.LogLevel, tags)
+	}
+
 	// Create environment
 	gc := gc.New(c.TemporaryFolder, c.MinimumDiskSpace, c.MinimumMemory)
 	env := &runtime.Environment{
 		GarbageCollector: gc,
-		Log:              log,
 		TemporaryStorage: tempStorage,
 		WebHookServer:    localServer,
+		Monitor:          monitor,
 	}
 
 	// Ensure that engine confiuguration was provided for the engine selected
@@ -89,7 +108,7 @@ func New(config interface{}, log *logrus.Logger) (*Worker, error) {
 	provider := engines.Engines()[c.Engine]
 	engine, err := provider.NewEngine(engines.EngineOptions{
 		Environment: env,
-		Log:         env.Log.WithField("engine", c.Engine),
+		Monitor:     env.Monitor.WithPrefix("engine").WithTag("engine", c.Engine),
 		Config:      c.Engines[c.Engine],
 	})
 	if err != nil {
@@ -100,7 +119,7 @@ func New(config interface{}, log *logrus.Logger) (*Worker, error) {
 	pm, err := plugins.NewPluginManager(plugins.PluginOptions{
 		Environment: env,
 		Engine:      engine,
-		Log:         env.Log.WithField("plugin", "plugin-manager"),
+		Monitor:     env.Monitor.WithPrefix("plugin").WithTag("plugin", "plugin-manager"),
 		Config:      c.Plugins,
 	})
 	if err != nil {
@@ -109,19 +128,19 @@ func New(config interface{}, log *logrus.Logger) (*Worker, error) {
 
 	tm, err := newTaskManager(
 		&c, engine, pm, env,
-		env.Log.WithField("component", "task-manager"), gc,
+		env.Monitor.WithPrefix("task-manager"), gc,
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Worker{
-		log:    env.Log.WithField("component", "worker"),
-		tm:     tm,
-		sm:     runtime.NewShutdownManager("local"),
-		env:    env,
-		server: localServer,
-		done:   make(chan struct{}),
+		monitor: env.Monitor.WithPrefix("worker"),
+		tm:      tm,
+		sm:      runtime.NewShutdownManager("local"),
+		env:     env,
+		server:  localServer,
+		done:    make(chan struct{}),
 	}, nil
 }
 
@@ -129,32 +148,26 @@ func New(config interface{}, log *logrus.Logger) (*Worker, error) {
 // will also being to respond to host level events such as shutdown notifications and
 // resource depletion events.
 func (w *Worker) Start() {
-	w.log.Info("worker starting up")
+	w.monitor.Info("worker starting up")
 
 	// Ensure that server is stopping gracefully
 	serverStopped := atomics.NewBool(false)
 	go func() {
 		err := w.server.ListenAndServe()
 		if !serverStopped.Get() {
-			w.log.Errorf("ListenAndServe failed for webhookserver, error: %s", err)
+			w.monitor.Errorf("ListenAndServe failed for webhookserver, error: %s", err)
 		}
 	}()
 
 	go w.tm.Start()
 
-	sigTerm := make(chan os.Signal, 1)
-	signal.Notify(sigTerm, os.Interrupt, os.Kill, syscall.SIGTERM)
-	go func() {
-		<-sigTerm
-		w.Stop()
-	}()
-
 	select {
+	case <-w.tm.doneExecutingTasks:
 	case <-w.sm.WaitForShutdown():
 	case <-w.done:
 	}
 
-	w.tm.Stop()
+	w.tm.ImmediateStop()
 
 	// Allow server to stop
 	serverStopped.Set(true)
@@ -162,10 +175,16 @@ func (w *Worker) Start() {
 	return
 }
 
-// Stop is a convenience method for stopping the worker loop.  Usually the worker will not be
-// stopped this way, but rather will listen for a shutdown event.
-func (w *Worker) Stop() {
+// ImmediateStop is a convenience method for stopping the worker loop.  Usually
+// the worker will not be stopped this way, but rather will listen for a
+// shutdown event.
+func (w *Worker) ImmediateStop() {
 	close(w.done)
+}
+
+// GracefulStop will allow the worker to complete its running task, before stopping.
+func (w *Worker) GracefulStop() {
+	w.tm.GracefulStop()
 }
 
 // PayloadSchema returns the payload schema for this worker.

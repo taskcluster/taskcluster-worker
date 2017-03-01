@@ -23,7 +23,6 @@ type configType struct {
 	WorkerGroup      string                 `json:"workerGroup"`
 	WorkerID         string                 `json:"workerId"`
 	TemporaryFolder  string                 `json:"temporaryFolder"`
-	LogLevel         string                 `json:"logLevel"`
 	ServerIP         string                 `json:"serverIp"`
 	ServerPort       int                    `json:"serverPort"`
 	NetworkInterface string                 `json:"networkInterface"`
@@ -35,6 +34,9 @@ type configType struct {
 	MaxLifeCycle     int                    `json:"maxLifeCycle"`
 	MinimumDiskSpace int64                  `json:"minimumDiskSpace"`
 	MinimumMemory    int64                  `json:"minimumMemory"`
+	MaxTasksToRun    int                    `json:"maxTasksToRun"`
+	LogLevel         string                 `json:"logLevel"`
+	MonitorProject   string                 `json:"monitorProject"`
 }
 
 type credentials struct {
@@ -186,16 +188,6 @@ func ConfigSchema() schematypes.Object {
 							overwritten.`,
 				},
 			},
-			"logLevel": schematypes.StringEnum{
-				Options: []string{
-					logrus.DebugLevel.String(),
-					logrus.InfoLevel.String(),
-					logrus.WarnLevel.String(),
-					logrus.ErrorLevel.String(),
-					logrus.FatalLevel.String(),
-					logrus.PanicLevel.String(),
-				},
-			},
 			"serverIp": schematypes.String{},
 			"serverPort": schematypes.Integer{
 				Minimum: 0,
@@ -219,8 +211,8 @@ func ConfigSchema() schematypes.Object {
 			"statelessDNSDomain": schematypes.String{},
 			"maxLifeCycle": schematypes.Integer{
 				MetaData: schematypes.MetaData{
-					Title:       "Max life cycle of worker",
-					Description: "Used to limit validity of hostname",
+					Title:       "Maximum lifetime of the worker in seconds",
+					Description: "Used to limit the time period for which the DNS server will return an IP for the given worker hostname",
 				},
 				Minimum: 5 * 60,
 				Maximum: 31 * 24 * 60 * 60,
@@ -228,7 +220,7 @@ func ConfigSchema() schematypes.Object {
 			"minimumDiskSpace": schematypes.Integer{
 				MetaData: schematypes.MetaData{
 					Title: "Minimum Disk Space",
-					Description: `The minimum amount of disk space to have available
+					Description: `The minimum amount of disk space in bytes to have available
 						before starting on the next task. Garbage collector will do a
 						best-effort attempt at releasing resources to satisfy this limit`,
 				},
@@ -238,12 +230,42 @@ func ConfigSchema() schematypes.Object {
 			"minimumMemory": schematypes.Integer{
 				MetaData: schematypes.MetaData{
 					Title: "Minimum Memory",
-					Description: `The minimum amount of memory to have available
+					Description: `The minimum amount of memory in bytes to have available
 						before starting on the next task. Garbage collector will do a
 						best-effort attempt at releasing resources to satisfy this limit`,
 				},
 				Minimum: 0,
 				Maximum: math.MaxInt64,
+			},
+			"maxTasksToRun": schematypes.Integer{
+				MetaData: schematypes.MetaData{
+					Title: "Number of tasks the worker should run before exiting",
+					Description: `If set to 0, the worker does not limit the number of tasks
+						it will claim and execute. For positive values > 0, the worker will
+						exit if it completes the given number of tasks.`,
+				},
+				Minimum: 0,
+				Maximum: math.MaxInt32,
+			},
+			"logLevel": schematypes.StringEnum{
+				Options: []string{
+					logrus.DebugLevel.String(),
+					logrus.InfoLevel.String(),
+					logrus.WarnLevel.String(),
+					logrus.ErrorLevel.String(),
+					logrus.FatalLevel.String(),
+					logrus.PanicLevel.String(),
+				},
+			},
+			"monitorProject": schematypes.String{
+				MetaData: schematypes.MetaData{
+					Title: "Sentry Statsum Project",
+					Description: "Project name to be used for statsum and sentry " +
+						"reporting. Requires scopes `auth:statsum:<project>` and " +
+						"`auth:sentry:<project>`. If not specified error reports and " +
+						"metrics will be logged and otherwise discarded.",
+				},
+				Pattern: "^[a-zA-Z0-9_-]{1,22}$",
 			},
 		},
 		Required: []string{

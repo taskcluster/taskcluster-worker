@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
@@ -50,15 +49,15 @@ func (provider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error)
 		c.DisplayToolURL = defaultDisplayToolURL
 	}
 	return &plugin{
-		config: c,
-		log:    options.Log,
+		config:  c,
+		monitor: options.Monitor,
 	}, nil
 }
 
 type plugin struct {
 	plugins.PluginBase
-	config config
-	log    *logrus.Entry
+	config  config
+	monitor runtime.Monitor
 }
 
 func (p *plugin) PayloadSchema() schematypes.Object {
@@ -128,16 +127,16 @@ func (p *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (
 	}
 
 	return &taskPlugin{
-		opts:   o,
-		log:    options.Log,
-		parent: p,
+		opts:    o,
+		monitor: options.Monitor,
+		parent:  p,
 	}, nil
 }
 
 type taskPlugin struct {
 	plugins.TaskPluginBase
 	parent           *plugin
-	log              *logrus.Entry
+	monitor          runtime.Monitor
 	opts             opts
 	sandbox          engines.Sandbox
 	context          *runtime.TaskContext
@@ -233,7 +232,7 @@ func (p *taskPlugin) setupShell() error {
 
 	// Create shell server and get a URL to reach it
 	p.shellServer = NewShellServer(
-		p.sandbox.NewShell, p.log.WithField("interactive", "shell"),
+		p.sandbox.NewShell, p.monitor.WithPrefix("shell-server"),
 	)
 	u := p.context.AttachWebHook(p.shellServer)
 	p.shellURL = urlProtocolToWebsocket(u)
@@ -261,7 +260,7 @@ func (p *taskPlugin) setupDisplay() error {
 
 	// Create display server
 	p.displayServer = NewDisplayServer(
-		p.sandbox, p.log.WithField("interactive", "display"),
+		p.sandbox, p.monitor.WithPrefix("display-server"),
 	)
 	u := p.context.AttachWebHook(p.displayServer)
 	p.displaysURL = u

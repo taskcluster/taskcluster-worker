@@ -1,7 +1,6 @@
 package plugins
 
 import (
-	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -15,7 +14,7 @@ import (
 type TaskPluginOptions struct {
 	TaskInfo *runtime.TaskInfo
 	Payload  map[string]interface{}
-	Log      *logrus.Entry
+	Monitor  runtime.Monitor
 	// Note: This is passed by-value for efficiency (and to prohibit nil), if
 	// adding any large fields please consider adding them as pointers.
 	// Note: This is intended to be a simple argument wrapper, do not add methods

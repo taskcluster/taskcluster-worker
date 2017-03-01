@@ -11,8 +11,8 @@ type Image interface {
 
 // A MutableImage is an instance of a virtual machine image similar to
 // to Image, except that it can also be packaged into a compressed image
-// tar archieve as used for input by image manager.
+// tar archive as used for input by image manager.
 type MutableImage interface {
 	Image
-	Package(targetFile string) error // Package the as zstd compressed tar archieve
+	Package(targetFile string) error // Package the as zstd compressed tar archive
 }

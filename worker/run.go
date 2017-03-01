@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
-	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-worker/engines"
@@ -27,7 +27,7 @@ type taskFlow struct {
 	environment runtime.Environment
 	engine      engines.Engine
 	plugin      plugins.Plugin
-	log         *logrus.Entry
+	monitor     runtime.Monitor
 	task        *queue.TaskDefinitionResponse
 
 	// TaskContext may be canceled when reason have been set
@@ -50,7 +50,7 @@ func runTask(
 	environment runtime.Environment,
 	engine engines.Engine,
 	plugin plugins.Plugin,
-	log *logrus.Entry,
+	monitor runtime.Monitor,
 	reclaimOffset int,
 	queueBaseURL string,
 ) error {
@@ -72,7 +72,7 @@ func runTask(
 		environment: environment,
 		engine:      engine,
 		plugin:      plugin,
-		log:         log,
+		monitor:     monitor,
 		task:        claim.definition,
 		taskContext: taskContext,
 		controller:  controller,
@@ -114,9 +114,24 @@ func runTask(
 		wg.Done()
 	}()
 
+	/*
+		stages := []struct {
+			name string
+			fn   func(runtime.Monitor) error
+		}{
+			{"prepare", t.prepare},
+			{"build", t.build},
+			{"start", t.start},
+			{"started", t.started},
+			{"waiting", t.waiting},
+			{"stopped", t.stopped},
+			{"finished", t.finished},
+		}
+	*/
+
 	// Stages the run has to transition through, each may be followed
 	// by resolve(), exception() and dispose(), if an error is returned.
-	stages := []func(*logrus.Entry) error{
+	stages := []func(runtime.Monitor) error{
 		t.prepare,
 		t.build,
 		t.start,
@@ -135,19 +150,19 @@ func runTask(
 		"finished",
 	}
 	for i, stage := range stages {
-		t.log.Debug("### Stage: ", stageNames[i])
-		if err = stage(t.log.WithField("stage", stageNames[i])); err != nil {
+		t.monitor.Debug("### Stage: ", stageNames[i])
+		if err = stage(t.monitor.WithTag("stage", stageNames[i])); err != nil {
 			if e, ok := err.(engines.MalformedPayloadError); ok {
 				t.controller.LogError("Malformed Payload Error: ", e.Error())
 				cancel(runtime.ReasonMalformedPayload)
 				break
 			}
-			t.environment.Sentry.CaptureErrorAndWait(err, map[string]string{
+			t.monitor.WithTags(map[string]string{
 				"stage":      stageNames[i],
 				"incidentId": "",
 				"taskId":     "",
 				"runId":      "",
-			})
+			}).ReportError(err)
 			t.controller.LogError("Internal Error, see incidentId: ")
 			cancel(runtime.ReasonInternalError)
 			break
@@ -166,13 +181,13 @@ func runTask(
 
 	// Final stages, that always have to go through, we'll return any error that
 	// throw, but we won't overwrite any existing error.
-	finalStages := []func(*logrus.Entry) error{
+	finalStages := []func(runtime.Monitor) error{
 		t.resolve,
 		t.exceptionIfAny,
 		t.dispose,
 	}
 	for _, stage := range finalStages {
-		if err2 := stage(); err == nil {
+		if err2 := stage(t.monitor); err == nil {
 			err = err2
 		}
 	}
@@ -197,14 +212,17 @@ func reclaimForever(
 	reclaimOffset int,
 ) runtime.ExceptionReason {
 	for {
-		<-controller.Done()
+		select {
+		case <-time.After(15 * time.Second):
+		case <-controller.Done():
+		}
 		controller.SetQueueClient(nil)
 		return runtime.ReasonInternalError // Or ReasonCanceled...
 	}
 }
 
-func (t *taskFlow) prepare(log *logrus.Entry) error {
-	t.log.Debug("### Prepare Stage")
+func (t *taskFlow) prepare(monitor runtime.Monitor) error {
+	monitor.Debug("### Prepare Stage")
 
 	// Parse payload
 	payload := map[string]interface{}{}
@@ -240,7 +258,7 @@ func (t *taskFlow) prepare(log *logrus.Entry) error {
 		t.taskPlugin, err2 = t.plugin.NewTaskPlugin(plugins.TaskPluginOptions{
 			TaskInfo: &t.taskContext.TaskInfo,
 			Payload:  t.plugin.PayloadSchema().Filter(payload),
-			Log:      t.log.WithField("plugin", "pluginManager"),
+			Monitor:  monitor.WithTag("something", "here"),
 		})
 		if err2 != nil {
 			return
@@ -256,46 +274,46 @@ func (t *taskFlow) prepare(log *logrus.Entry) error {
 	return err2
 }
 
-func (t *taskFlow) build(log *logrus.Entry) error {
-	t.log.Debug("### Build Stage")
+func (t *taskFlow) build(monitor runtime.Monitor) error {
+	monitor.Debug("### Build Stage")
 	return t.taskPlugin.BuildSandbox(t.sandboxBuilder)
 }
 
-func (t *taskFlow) start(log *logrus.Entry) error {
-	t.log.Debug("### Start Stage")
+func (t *taskFlow) start(monitor runtime.Monitor) error {
+	monitor.Debug("### Start Stage")
 	var err error
 	t.sandbox, err = t.sandboxBuilder.StartSandbox()
 	t.sandboxBuilder = nil
 	return err
 }
 
-func (t *taskFlow) started(log *logrus.Entry) error {
-	t.log.Debug("### Started Stage")
+func (t *taskFlow) started(monitor runtime.Monitor) error {
+	monitor.Debug("### Started Stage")
 	return t.taskPlugin.Started(t.sandbox)
 }
 
-func (t *taskFlow) waiting(log *logrus.Entry) error {
-	t.log.Debug("### Waiting Stage")
+func (t *taskFlow) waiting(monitor runtime.Monitor) error {
+	monitor.Debug("### Waiting Stage")
 	var err error
 	t.resultSet, err = t.sandbox.WaitForResult()
 	t.sandbox = nil
 	return err
 }
 
-func (t *taskFlow) stopped(log *logrus.Entry) error {
-	t.log.Debug("### Stopped Stage")
+func (t *taskFlow) stopped(monitor runtime.Monitor) error {
+	monitor.Debug("### Stopped Stage")
 	var err error
 	t.success, err = t.taskPlugin.Stopped(t.resultSet)
 	return err
 }
 
-func (t *taskFlow) finished(log *logrus.Entry) error {
-	t.log.Debug("### Finished Stage")
+func (t *taskFlow) finished(monitor runtime.Monitor) error {
+	monitor.Debug("### Finished Stage")
 
 	// Close log
 	err := t.controller.CloseLog()
 	if err != nil {
-		t.log.WithError(err).Error("Failed to close log, err: ", err)
+		monitor.Error("Failed to close log, err: ", err)
 		return err
 	}
 
@@ -303,24 +321,24 @@ func (t *taskFlow) finished(log *logrus.Entry) error {
 	return t.taskPlugin.Finished(t.success)
 }
 
-func (t *taskFlow) resolve(log *logrus.Entry) error {
-	t.log.Debug("### Resolve Stage")
+func (t *taskFlow) resolve(monitor runtime.Monitor) error {
+	monitor.Debug("### Resolve Stage")
 
 	return nil
 }
 
-func (t *taskFlow) exceptionIfAny(log *logrus.Entry) error {
+func (t *taskFlow) exceptionIfAny(monitor runtime.Monitor) error {
 	// Skip if there is no error
 	if t.reason == runtime.ReasonNoException {
 		return nil
 	}
-	t.log.Debug("### Exception Stage")
+	monitor.Debug("### Exception Stage")
 
 	return nil
 }
 
-func (t *taskFlow) dispose(log *logrus.Entry) error {
-	t.log.Debug("### Dispose Stage")
+func (t *taskFlow) dispose(monitor runtime.Monitor) error {
+	monitor.Debug("### Dispose Stage")
 
 	err := t.taskPlugin.Dispose()
 	t.taskPlugin = nil

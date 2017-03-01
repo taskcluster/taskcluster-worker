@@ -15,6 +15,8 @@ uname := $(shell uname)
 is_darwin := $(filter Darwin,$(uname))
 CGO_ENABLE := $(if $(is_darwin),1,0)
 
+.PHONY: all prechecks build rebuild check test dev-test tc-worker-env tc-worker
+
 all: rebuild
 
 prechecks:
@@ -24,19 +26,18 @@ prechecks:
 
 build:
 	go fmt $$(go list ./... | grep -v /vendor/)
-	CGO_ENABLED=$(CGO_ENABLE) go build
+	CGO_ENABLED=$(CGO_ENABLE) go install
 
-rebuild: prechecks build test
+rebuild: prechecks build test lint
 
 check: test
 	# tests should fail if go fmt results in uncommitted code
 	git status --porcelain
 	/bin/bash -c 'test $$(git status --porcelain | wc -l) == 0'
 test:
-	go get github.com/golang/lint/golint
+	# should run with -tags=system at some point..... i.e.:
+	# go test -tags=system -v -race $$(go list ./... | grep -v /vendor/)
 	go test -v -race $$(go list ./... | grep -v /vendor/)
-	go vet $$(go list ./... | grep -v /vendor/)
-	go list ./... | grep -v /vendor/ | xargs -n1 golint
 
 dev-test:
 	go test -race $$(go list ./... | grep -v /vendor/)
@@ -47,3 +48,9 @@ tc-worker-env:
 tc-worker:
 	CGO_ENABLED=$(CGO_ENABLE) GOARCH=amd64 go build
 	docker build -t taskcluster/tc-worker -f tc-worker.Dockerfile .
+
+lint:
+	go get github.com/alecthomas/gometalinter
+	gometalinter --install
+	# not enabled: aligncheck, deadcode, dupl, errcheck, gas, gocyclo, structcheck, unused, varcheck
+	gometalinter --deadline=10m --line-length=180 --vendor --vendored-linters --disable-all --enable=goconst --enable=gofmt --enable=goimports --enable=golint --enable=gosimple --enable=gotype --enable=ineffassign --enable=interfacer --enable=lll --enable=misspell --enable=staticcheck --enable=test --enable=testify --enable=unconvert --enable=vet --enable=vetshadow ./...

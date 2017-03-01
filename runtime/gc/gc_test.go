@@ -31,59 +31,59 @@ func (r *myResource) Dispose() error {
 }
 
 func TestGarbageCollector(t *testing.T) {
-	fmt.Println(" - Create GC")
+	t.Log(" - Create GC")
 	gc := &GarbageCollector{}
 	err := gc.CollectAll()
 	assert(err == nil, "Didn't expect error: ", err)
 
-	fmt.Println(" - Create r1")
+	t.Log(" - Create r1")
 	r1 := &myResource{}
 	gc.Register(r1)
-	assert(r1.disposed == false, "Not disposed")
+	assert(!r1.disposed, "Not disposed")
 
-	fmt.Println(" - CollectAll() disposing r1")
+	t.Log(" - CollectAll() disposing r1")
 	gc.CollectAll()
 	assert(r1.disposed, "Expected it to be disposed")
 
-	fmt.Println(" - Create r2 and Acquire")
+	t.Log(" - Create r2 and Acquire")
 	r2 := &myResource{}
 	r2.Acquire()
 	gc.Register(r2)
-	assert(r2.disposed == false, "Not disposed")
+	assert(!r2.disposed, "Not disposed")
 
-	fmt.Println(" - CollectAll() disposing nothing")
+	t.Log(" - CollectAll() disposing nothing")
 	gc.CollectAll()
-	assert(r2.disposed == false, "Not disposed")
+	assert(!r2.disposed, "Not disposed")
 
-	fmt.Println(" - Release and CollectAll()")
+	t.Log(" - Release and CollectAll()")
 	r2.Release()
-	assert(r2.disposed == false, "Not disposed")
+	assert(!r2.disposed, "Not disposed")
 	gc.CollectAll()
 	assert(r2.disposed, "disposed")
 
-	fmt.Println(" - Create r3 and Acquire")
+	t.Log(" - Create r3 and Acquire")
 	r3 := &myResource{}
 	r3.Acquire()
 	gc.Register(r3)
-	assert(r3.disposed == false, "Not disposed")
+	assert(!r3.disposed, "Not disposed")
 
-	fmt.Println(" - CollectAll() getting nothing")
+	t.Log(" - CollectAll() getting nothing")
 	gc.CollectAll()
-	assert(r3.disposed == false, "Not disposed")
+	assert(!r3.disposed, "Not disposed")
 
-	fmt.Println(" - Acquire() and CollectAll() getting nothing")
+	t.Log(" - Acquire() and CollectAll() getting nothing")
 	r3.Acquire()
 	gc.CollectAll()
-	assert(r3.disposed == false, "Not disposed")
+	assert(!r3.disposed, "Not disposed")
 
-	fmt.Println(" - Release() and CollectAll() getting nothing")
+	t.Log(" - Release() and CollectAll() getting nothing")
 	r3.Release()
 	gc.CollectAll()
-	assert(r3.disposed == false, "Not disposed")
+	assert(!r3.disposed, "Not disposed")
 
-	fmt.Println(" - Release and CollectAll() getting r3")
+	t.Log(" - Release and CollectAll() getting r3")
 	r3.Release()
-	assert(r3.disposed == false, "Not disposed")
+	assert(!r3.disposed, "Not disposed")
 	gc.CollectAll()
 	assert(r3.disposed, "disposed")
 }

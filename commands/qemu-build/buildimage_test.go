@@ -10,13 +10,12 @@ import (
 	"testing"
 
 	"github.com/taskcluster/slugid-go/slugid"
-	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 )
 
 func TestBuildImage(t *testing.T) {
 	// Setup logging
-	logger, _ := runtime.CreateLogger("info")
-	log := logger.WithField("component", "qemu-build")
+	monitor := mocks.NewMockMonitor(true)
 
 	inputImageFile, err := filepath.Abs("../../engines/qemu/test-image/tinycore-setup.tar.zst")
 	if err != nil {
@@ -47,7 +46,7 @@ func TestBuildImage(t *testing.T) {
 	}
 
 	err = buildImage(
-		log, inputImageFile, outputFile,
+		monitor, inputImageFile, outputFile,
 		true, novnc, isofile, cdrom, 1,
 	)
 	if err != nil {

@@ -113,8 +113,7 @@ func LoadFromFile(filename string) (interface{}, error) {
 	// Read config file
 	configFile, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read config file: '%s' error: %s\n",
-			filename, err)
+		return nil, fmt.Errorf("failed to read config file '%s': %s", filename, err)
 	}
 
 	return Load(configFile)

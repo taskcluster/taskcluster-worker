@@ -17,6 +17,7 @@ type sandboxBuilder struct {
 	payload map[string]interface{}
 	engine  *engine
 	context *runtime.TaskContext
+	monitor runtime.Monitor
 }
 
 func (b *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
@@ -51,7 +52,7 @@ func (b *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
 	s := &sandbox{
 		cmd:     cmd,
 		folder:  folder,
-		log:     b.engine.Log,
+		monitor: b.monitor,
 		context: b.context,
 		engine:  b.engine,
 		done:    make(chan struct{}),

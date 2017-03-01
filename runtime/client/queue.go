@@ -39,47 +39,62 @@ type MockQueue struct {
 	mock.Mock
 }
 
+// ReportCompleted is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.ReportCompleted
 func (m *MockQueue) ReportCompleted(taskID, runID string) (*queue.TaskStatusResponse, error) {
 	args := m.Called(taskID, runID)
 	return args.Get(0).(*queue.TaskStatusResponse), args.Error(1)
 }
 
+// ReclaimTask is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.ReclaimTask
 func (m *MockQueue) ReclaimTask(taskID, runID string) (*queue.TaskReclaimResponse, error) {
 	args := m.Called(taskID, runID)
 	return args.Get(0).(*queue.TaskReclaimResponse), args.Error(1)
 }
 
+// PollTaskUrls is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.PollTaskUrls
 func (m *MockQueue) PollTaskUrls(provisionerID, workerType string) (*queue.PollTaskUrlsResponse, error) {
 	args := m.Called(provisionerID, workerType)
 	return args.Get(0).(*queue.PollTaskUrlsResponse), args.Error(1)
 }
+
+// CancelTask is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.CancelTask
 func (m *MockQueue) CancelTask(taskID string) (*queue.TaskStatusResponse, error) {
 	args := m.Called(taskID)
 	return args.Get(0).(*queue.TaskStatusResponse), args.Error(1)
 }
+
+// ClaimTask is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.ClaimTask
 func (m *MockQueue) ClaimTask(taskID, runID string, payload *queue.TaskClaimRequest) (*queue.TaskClaimResponse, error) {
 	args := m.Called(taskID, runID, payload)
 	return args.Get(0).(*queue.TaskClaimResponse), args.Error(1)
 }
+
+// ReportFailed is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.ReportFailed
 func (m *MockQueue) ReportFailed(taskID, runID string) (*queue.TaskStatusResponse, error) {
 	args := m.Called(taskID, runID)
 	return args.Get(0).(*queue.TaskStatusResponse), args.Error(1)
 }
+
+// ReportException is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.ReportException
 func (m *MockQueue) ReportException(taskID, runID string, payload *queue.TaskExceptionRequest) (*queue.TaskStatusResponse, error) {
 	args := m.Called(taskID, runID, payload)
 	return args.Get(0).(*queue.TaskStatusResponse), args.Error(1)
 }
 
+// CreateArtifact is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.CreateArtifact
 func (m *MockQueue) CreateArtifact(taskID, runID, name string, payload *queue.PostArtifactRequest) (*queue.PostArtifactResponse, error) {
 	args := m.Called(taskID, runID, name, payload)
 	return args.Get(0).(*queue.PostArtifactResponse), args.Error(1)
 }
 
+// PostAnyArtifactRequest matches if queue.PostArtifactRequest is called
 var PostAnyArtifactRequest = mock.MatchedBy(func(i interface{}) bool {
 	_, ok := i.(*queue.PostArtifactRequest)
 	return ok
 })
 
+// PostS3ArtifactRequest matches if queue.PostS3ArtifactRequest is called with
+// an s3 artifact
 var PostS3ArtifactRequest = mock.MatchedBy(func(i interface{}) bool {
 	r, ok := i.(*queue.PostArtifactRequest)
 	if !ok {

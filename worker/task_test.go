@@ -18,9 +18,8 @@ import (
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
+	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 )
-
-var logger, _ = runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
 
 var taskDefinitions = map[string]struct {
 	definition string
@@ -91,11 +90,12 @@ func ensureEnvironment(t *testing.T) (*runtime.Environment, engines.Engine, plug
 
 	environment := &runtime.Environment{
 		TemporaryStorage: tempStorage,
+		Monitor:          mocks.NewMockMonitor(true),
 	}
 	engineProvider := engines.Engines()["mock"]
 	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: environment,
-		Log:         logger.WithField("engine", "mock"),
+		Monitor:     mocks.NewMockMonitor(true),
 	})
 	if err != nil {
 		t.Fatal(err.Error())
@@ -104,7 +104,7 @@ func ensureEnvironment(t *testing.T) (*runtime.Environment, engines.Engine, plug
 	pluginOptions := plugins.PluginOptions{
 		Environment: environment,
 		Engine:      engine,
-		Log:         logger.WithField("component", "Plugin Manager"),
+		Monitor:     mocks.NewMockMonitor(true),
 	}
 
 	pm, err := plugins.Plugins()["success"].NewPlugin(pluginOptions)
@@ -117,7 +117,7 @@ func ensureEnvironment(t *testing.T) (*runtime.Environment, engines.Engine, plug
 
 func TestRunTask(t *testing.T) {
 	environment, engine, pluginManager := ensureEnvironment(t)
-	tr, err := newTaskRun(&configType{}, claim, environment, engine, pluginManager, logger.WithField("test", "TestRunTask"))
+	tr, err := newTaskRun(&configType{}, claim, environment, engine, pluginManager, mocks.NewMockMonitor(true))
 	assert.Nil(t, err)
 
 	mockedQueue := &client.MockQueue{}
@@ -139,7 +139,7 @@ func TestRunFailedTask(t *testing.T) {
 	}
 
 	environment, engine, pluginManager := ensureEnvironment(t)
-	tr, err := newTaskRun(&configType{}, claim, environment, engine, pluginManager, logger.WithField("test", "TestRunTask"))
+	tr, err := newTaskRun(&configType{}, claim, environment, engine, pluginManager, mocks.NewMockMonitor(true))
 	assert.Nil(t, err)
 
 	mockedQueue := &client.MockQueue{}
@@ -161,7 +161,7 @@ func TestRunMalformedEnginePayloadTask(t *testing.T) {
 	}
 
 	environment, engine, pluginManager := ensureEnvironment(t)
-	tr, err := newTaskRun(&configType{}, claim, environment, engine, pluginManager, logger.WithField("test", "TestRunTask"))
+	tr, err := newTaskRun(&configType{}, claim, environment, engine, pluginManager, mocks.NewMockMonitor(true))
 	assert.Nil(t, err)
 
 	mockedQueue := &client.MockQueue{}
@@ -215,7 +215,7 @@ func TestReclaimTask(t *testing.T) {
 		QueueBaseURL: s.URL,
 	}
 
-	tr, err := newTaskRun(cfg, claim, environment, engine, pluginManager, logger.WithField("test", "TestRunTask"))
+	tr, err := newTaskRun(cfg, claim, environment, engine, pluginManager, mocks.NewMockMonitor(true))
 	assert.Nil(t, err)
 
 	oldClient := tr.context.Queue()

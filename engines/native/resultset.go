@@ -1,11 +1,11 @@
 package nativeengine
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/native/system"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -16,7 +16,7 @@ type resultSet struct {
 	engines.ResultSetBase
 	engine        *engine
 	context       *runtime.TaskContext
-	log           *logrus.Entry
+	monitor       runtime.Monitor
 	workingFolder runtime.TemporaryFolder
 	user          *system.User
 	success       bool
@@ -28,7 +28,7 @@ func (r *resultSet) Success() bool {
 
 func (r *resultSet) ExtractFile(path string) (ioext.ReadSeekCloser, error) {
 	// Evaluate symlinks
-	p, err := filepath.EvalSymlinks(filepath.Join(r.workingFolder.Path(), path))
+	p, err := filepath.EvalSymlinks(filepath.Join(r.user.Home(), path))
 	if err != nil {
 		if _, ok := err.(*os.PathError); ok {
 			return nil, engines.ErrResourceNotFound
@@ -41,7 +41,7 @@ func (r *resultSet) ExtractFile(path string) (ioext.ReadSeekCloser, error) {
 	// Cleanup the path
 	p = filepath.Clean(p)
 
-	prefix, err := filepath.EvalSymlinks(r.workingFolder.Path() + string(filepath.Separator))
+	prefix, err := filepath.EvalSymlinks(r.user.Home() + string(filepath.Separator))
 	if err != nil {
 		panic(err)
 	}
@@ -72,7 +72,7 @@ func (r *resultSet) ExtractFile(path string) (ioext.ReadSeekCloser, error) {
 
 func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) error {
 	// Evaluate symlinks
-	p, err := filepath.EvalSymlinks(filepath.Join(r.workingFolder.Path(), path))
+	p, err := filepath.EvalSymlinks(filepath.Join(r.user.Home(), path))
 	if err != nil {
 		if _, ok := err.(*os.PathError); ok {
 			return engines.ErrResourceNotFound
@@ -85,7 +85,7 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 	// Cleanup the path
 	p = filepath.Clean(p)
 
-	prefix, err := filepath.EvalSymlinks(r.workingFolder.Path() + string(filepath.Separator))
+	prefix, err := filepath.EvalSymlinks(r.user.Home() + string(filepath.Separator))
 	if err != nil {
 		panic(err)
 	}
@@ -117,10 +117,10 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 		relpath, err := filepath.Rel(p, abspath)
 		if err != nil {
 			// TODO: Send error to sentry
-			r.log.Errorf(
+			r.monitor.ReportError(err, fmt.Sprintf(
 				"ExtractFolder from %s, filepath.Rel('%s', '%s') returns error: %s",
 				path, p, abspath, err,
-			)
+			))
 			return nil
 		}
 
@@ -146,7 +146,7 @@ func (r *resultSet) Dispose() error {
 		// Halt all other sub-processes owned by this user
 		err = system.KillByOwner(r.user)
 		if err != nil {
-			r.log.Error("Failed to kill all processes by owner, error: ", err)
+			r.monitor.Error("Failed to kill all processes by owner, error: ", err)
 		}
 
 		// Remove temporary user (this will panic if unsuccessful)
@@ -154,9 +154,11 @@ func (r *resultSet) Dispose() error {
 	}
 
 	// Remove temporary home folder
-	if rerr := r.workingFolder.Remove(); rerr != nil {
-		r.log.Error("Failed to remove temporary home directory, error: ", rerr)
-		err = rerr
+	if r.workingFolder != nil {
+		if rerr := r.workingFolder.Remove(); rerr != nil {
+			r.monitor.Error("Failed to remove temporary home directory, error: ", rerr)
+			err = rerr
+		}
 	}
 
 	return err

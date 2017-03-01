@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-client-go"
 	tcqueue "github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-worker/engines"
@@ -19,27 +18,27 @@ import (
 // time and are aborted if a cancellation message is received.
 type Manager struct {
 	sync.RWMutex
-	wg            sync.WaitGroup
-	done          chan struct{}
-	config        *configType
-	engine        engines.Engine
-	environment   *runtime.Environment
-	pluginManager plugins.Plugin
-	pluginOptions *plugins.PluginOptions
-	log           *logrus.Entry
-	queue         QueueService
-	provisionerID string
-	workerGroup   string
-	workerID      string
-	tasks         map[string]*TaskRun
-	gc            *gc.GarbageCollector
+	doneClaimingTasks  chan struct{}
+	doneExecutingTasks chan struct{}
+	config             *configType
+	engine             engines.Engine
+	environment        *runtime.Environment
+	pluginManager      plugins.Plugin
+	pluginOptions      *plugins.PluginOptions
+	monitor            runtime.Monitor
+	queue              QueueService
+	provisionerID      string
+	workerGroup        string
+	workerID           string
+	tasks              map[string]*TaskRun
+	gc                 *gc.GarbageCollector
 }
 
 // Create a new instance of the task manager that will be responsible for claiming,
 // executing, and resolving units of work (tasks).
 func newTaskManager(
 	config *configType, engine engines.Engine, pluginManager plugins.Plugin,
-	environment *runtime.Environment, log *logrus.Entry, gc *gc.GarbageCollector,
+	environment *runtime.Environment, monitor runtime.Monitor, gc *gc.GarbageCollector,
 ) (*Manager, error) {
 	queue := tcqueue.New(
 		&tcclient.Credentials{
@@ -61,22 +60,24 @@ func newTaskManager(
 		workerGroup:      config.WorkerGroup,
 		workerID:         config.WorkerID,
 		workerType:       config.WorkerType,
-		log:              log.WithField("component", "Queue Service"),
+		monitor:          monitor.WithPrefix("queue-service"),
 		expirationOffset: config.ReclaimOffset,
+		maxTasksToRun:    config.MaxTasksToRun,
 	}
 
 	m := &Manager{
-		tasks:         make(map[string]*TaskRun),
-		done:          make(chan struct{}),
-		config:        config,
-		engine:        engine,
-		environment:   environment,
-		log:           log,
-		queue:         service,
-		provisionerID: config.ProvisionerID,
-		workerGroup:   config.WorkerGroup,
-		workerID:      config.WorkerID,
-		gc:            gc,
+		tasks:              make(map[string]*TaskRun),
+		doneClaimingTasks:  make(chan struct{}),
+		doneExecutingTasks: make(chan struct{}),
+		config:             config,
+		engine:             engine,
+		environment:        environment,
+		monitor:            monitor,
+		queue:              service,
+		provisionerID:      config.ProvisionerID,
+		workerGroup:        config.WorkerGroup,
+		workerID:           config.WorkerID,
+		gc:                 gc,
 	}
 
 	m.pluginManager = pluginManager
@@ -87,28 +88,41 @@ func newTaskManager(
 // claims that are returned by the queue service.
 func (m *Manager) Start() {
 	tc := m.queue.Start()
+	var wg sync.WaitGroup
 	go func() {
 		for t := range tc {
-			go m.run(t)
+			wg.Add(1)
+			go func(t *taskClaim) {
+				defer wg.Done()
+				m.run(t)
+			}(t)
 		}
-		close(m.done)
+		close(m.doneClaimingTasks)
+		wg.Wait()
+		close(m.doneExecutingTasks)
 	}()
 	return
 }
 
-// Stop should be called when the worker should gracefully end the execution of
-// all running tasks before completely shutting down.
-func (m *Manager) Stop() {
+// ImmediateStop should be called when the worker should aggressively terminate
+// all running tasks and then gracefully terminate.
+func (m *Manager) ImmediateStop() {
 	m.queue.Stop()
-	<-m.done
+	<-m.doneClaimingTasks
 
 	m.Lock()
+	defer m.Unlock()
 	for _, task := range m.tasks {
 		task.Abort()
 	}
+	<-m.doneExecutingTasks
+}
 
-	m.Unlock()
-	m.wg.Wait()
+// GracefulStop should be called when the worker should stop claiming new
+// tasks, but wait for existing tasks to complete naturally
+func (m *Manager) GracefulStop() {
+	m.queue.Stop()
+	<-m.doneExecutingTasks
 }
 
 // RunningTasks returns the list of task names that are currently running. This could
@@ -147,23 +161,23 @@ func (m *Manager) CancelTask(taskID string, runID int) {
 func (m *Manager) run(claim *taskClaim) {
 	// Always do a best-effort GCing before we run a task
 	if err := m.gc.Collect(); err != nil {
-		m.log.Error("Failed to run garbage collector, error: ", err)
+		m.monitor.Error("Failed to run garbage collector, error: ", err)
 	}
 
-	log := m.log.WithFields(logrus.Fields{
+	monitor := m.monitor.WithTags(map[string]string{
 		"taskID": claim.taskID,
-		"runID":  claim.runID,
+		"runID":  fmt.Sprintf("%d", claim.runID),
 	})
 
-	task, err := newTaskRun(m.config, claim, m.environment, m.engine, m.pluginManager, log)
+	task, err := newTaskRun(m.config, claim, m.environment, m.engine, m.pluginManager, monitor)
 	if err != nil {
 		// This is a fatal call because creating a task run should never fail.
-		log.WithField("error", err.Error()).Fatal("Could not successfully run the task")
+		monitor.WithTag("error", err.Error()).Panic("Could not successfully run the task")
 	}
 
 	err = m.registerTask(task)
 	if err != nil {
-		log.WithField("error", err.Error()).Warn("Could not register task")
+		monitor.WithTag("error", err.Error()).Warn("Could not register task")
 		panic(err)
 	}
 
@@ -175,15 +189,14 @@ func (m *Manager) run(claim *taskClaim) {
 
 func (m *Manager) registerTask(task *TaskRun) error {
 	name := fmt.Sprintf("%s/%d", task.TaskID, task.RunID)
-	m.log.Debugf("Registered task: %s", name)
+	m.monitor.Debugf("Registered task: %s", name)
 
 	m.Lock()
 	defer m.Unlock()
 
-	m.wg.Add(1)
 	_, exists := m.tasks[name]
 	if exists {
-		return fmt.Errorf("Cannot register task %s. Task already exists.", name)
+		return fmt.Errorf("cannot register task %s since it already exists", name)
 	}
 
 	m.tasks[name] = task
@@ -192,18 +205,17 @@ func (m *Manager) registerTask(task *TaskRun) error {
 
 func (m *Manager) deregisterTask(task *TaskRun) error {
 	name := fmt.Sprintf("%s/%d", task.TaskID, task.RunID)
-	m.log.Debugf("Deregistered task: %s", name)
+	m.monitor.Debugf("Deregistered task: %s", name)
 
 	m.Lock()
 	defer m.Unlock()
 
 	_, exists := m.tasks[name]
 	if !exists {
-		return fmt.Errorf("Cannot deregister task %s. Task does not exist", name)
+		return fmt.Errorf("cannot deregister task %s since it does not exist", name)
 	}
 
 	delete(m.tasks, name)
 	m.queue.Done()
-	m.wg.Done()
 	return nil
 }

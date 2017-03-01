@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	logrus "github.com/Sirupsen/logrus"
 	"github.com/taskcluster/httpbackoff"
 	"github.com/taskcluster/taskcluster-client-go"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 )
@@ -72,8 +72,10 @@ type (
 		workerType       string
 		workerID         string
 		workerGroup      string
-		log              *logrus.Entry
+		monitor          runtime.Monitor
 		halt             atomics.Bool
+		maxTasksToRun    int
+		claimedTasks     int
 	}
 )
 
@@ -85,16 +87,43 @@ func (q *queueService) Start() <-chan *taskClaim {
 
 	go func() {
 		for !q.halt.Get() {
-			q.mu.RLock()
-			capacity := q.capacity
-			q.mu.RUnlock()
-			tasks := q.retrieveTasksFromQueue(capacity)
+			claimSize, finished := q.claimSize()
+			if finished {
+				break
+			}
+			tasks := q.retrieveTasksFromQueue(claimSize)
 			q.claimTasks(tasks)
 			time.Sleep(time.Duration(q.interval) * time.Second)
 		}
 		close(q.tc)
 	}()
 	return q.tc
+}
+
+// claimSize returns the number of tasks that should be claimed, based on
+// available capacity, and the number of tasks already claimed versus the
+// maximum claim total. Additionally it returns a boolean indicating if
+// the maximum total of claimed tasks is equal to the number of claimed
+// tasks (which also implies size == 0).
+func (q *queueService) claimSize() (size int, finished bool) {
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+	if q.maxTasksToRun > 0 {
+		remaining := q.maxTasksToRun - q.claimedTasks
+		size = min(remaining, q.capacity)
+		finished = remaining == 0
+		return
+	}
+	size = q.capacity
+	return
+}
+
+// math.Min is for floats, let's avoid casting and float arithmetic...
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // Stop will set the current capacity to 0 so no tasks are claimed.
@@ -119,15 +148,16 @@ func (q *queueService) claimTasks(tasks []*taskMessage) {
 			defer wg.Done()
 			claim, err := q.claimTask(task)
 			if err != nil {
-				q.log.WithFields(logrus.Fields{
+				q.monitor.WithTags(map[string]string{
 					"taskID": task.TaskID,
-					"runID":  task.RunID,
+					"runID":  fmt.Sprintf("%d", task.RunID),
 					"error":  err.Error(),
 				}).Warn("Could not claim task")
 				return
 			}
 			q.mu.Lock()
 			q.capacity--
+			q.claimedTasks++
 			q.mu.Unlock()
 			q.tc <- claim
 		}(task)
@@ -137,14 +167,14 @@ func (q *queueService) claimTasks(tasks []*taskMessage) {
 }
 
 func (q *queueService) claimTask(task *taskMessage) (*taskClaim, error) {
-	claim, err := claimTask(q.client, task.TaskID, task.RunID, q.workerID, q.workerGroup, q.log)
+	claim, err := claimTask(q.client, task.TaskID, task.RunID, q.workerID, q.workerGroup, q.monitor)
 	if err != nil {
 		switch err := err.(type) {
 		case *updateError:
 			if err.statusCode == 401 || err.statusCode == 403 || err.statusCode >= 500 {
 				// Do not delete the message if task could not be claimed because of server
 				// or authorization failures
-				return nil, errors.New("Error when attempting to claim task.  Task was *not* deleted from Azure.")
+				return nil, errors.New("error claiming task: task was *not* deleted from Azure")
 			}
 		}
 
@@ -168,7 +198,7 @@ func (q *queueService) deleteFromAzure(deleteURL string) error {
 	// either case the worker should delete the message as we don't want
 	// another worker to receive message later.
 
-	q.log.Info("Deleting task from Azure queue")
+	q.monitor.Info("Deleting task from Azure queue")
 	httpCall := func() (*http.Response, error, error) {
 		req, err := http.NewRequest("DELETE", deleteURL, nil)
 		if err != nil {
@@ -191,14 +221,14 @@ func (q *queueService) deleteFromAzure(deleteURL string) error {
 	// reasons outlined above it's strongly advised that workers logs failures
 	// to delete messages from Azure queues.
 	if err != nil {
-		q.log.WithFields(logrus.Fields{
-			"error": err,
+		q.monitor.WithTags(map[string]string{
+			"error": err.Error(),
 			"url":   deleteURL,
 		}).Warn("Not able to delete task from azure queue")
 		return err
 	}
 
-	q.log.Info("Successfully deleted task from azure queue")
+	q.monitor.Info("Successfully deleted task from azure queue")
 	return nil
 }
 
@@ -239,15 +269,15 @@ func (q *queueService) pollTaskURL(messageQueue *messageQueue, ntasks int) ([]*t
 	data, _ := ioutil.ReadAll(resp.Body)
 	if err := xml.Unmarshal(data, &r); err != nil {
 		//if err := xml.NewDecoder(resp.Body).Decode(&queueMessagesList); err != nil {
-		q.log.WithFields(logrus.Fields{
-			"body":  resp.Body,
+		q.monitor.WithTags(map[string]string{
+			"body":  string(data),
 			"error": err.Error(),
 		}).Debugf("Not able to xml decode the response from the Azure queue")
 		return nil, fmt.Errorf("Not able to xml decode the response from the Azure queue. Body: %s, Error: %s", resp.Body, err)
 	}
 
 	if len(r.QueueMessages) == 0 {
-		q.log.Debug("Zero tasks returned in Azure XML queueMessagesList")
+		q.monitor.Debug("Zero tasks returned in Azure XML queueMessagesList")
 		return []*taskMessage{}, nil
 	}
 
@@ -281,10 +311,10 @@ func (q *queueService) pollTaskURL(messageQueue *messageQueue, ntasks int) ([]*t
 		// that alert the operator if a message has been dequeued a significant
 		// number of times, for example 15 or more.
 		if qm.DequeueCount >= 15 {
-			q.log.Warnf("Queue Message with message id %v has been dequeued %v times!", qm.MessageID, qm.DequeueCount)
+			q.monitor.Warnf("Queue Message with message id %v has been dequeued %v times!", qm.MessageID, qm.DequeueCount)
 			err := q.deleteFromAzure(signedDeleteURL)
 			if err != nil {
-				q.log.Warnf("Not able to call Azure delete URL %v. %v", signedDeleteURL, err)
+				q.monitor.Warnf("Not able to call Azure delete URL %v. %v", signedDeleteURL, err)
 			}
 		}
 
@@ -295,14 +325,14 @@ func (q *queueService) pollTaskURL(messageQueue *messageQueue, ntasks int) ([]*t
 		if err != nil {
 			// try to delete from Azure, if it fails, nothing we can do about it
 			// not very serious - another worker will try to delete it
-			q.log.WithField("messageText", qm.MessageText).Errorf("Not able to base64 decode the Message Text in Azure message response.")
-			q.log.WithField("messageID", qm.MessageID).Info("Deleting from Azure queue as other workers will have the same problem.")
+			q.monitor.WithTag("messageText", qm.MessageText).Errorf("Not able to base64 decode the Message Text in Azure message response.")
+			q.monitor.WithTag("messageID", qm.MessageID).Info("Deleting from Azure queue as other workers will have the same problem.")
 			err2 := q.deleteFromAzure(signedDeleteURL)
 			if err2 != nil {
-				q.log.WithFields(logrus.Fields{
+				q.monitor.WithTags(map[string]string{
 					"messageID": qm.MessageID,
 					"url":       signedDeleteURL,
-					"error":     err2,
+					"error":     err2.Error(),
 				}).Warn("Not able to call Azure delete URL")
 			}
 			return nil, err2
@@ -316,15 +346,15 @@ func (q *queueService) pollTaskURL(messageQueue *messageQueue, ntasks int) ([]*t
 		// now populate remaining json fields of TaskMessage from json string m
 		err = json.Unmarshal(m, &tm)
 		if err != nil {
-			q.log.WithFields(logrus.Fields{
-				"error":   err,
-				"message": m,
+			q.monitor.WithTags(map[string]string{
+				"error":   err.Error(),
+				"message": string(m),
 			}).Warn("Not able to unmarshal json from base64 decoded MessageText")
 			err := q.deleteFromAzure(signedDeleteURL)
 			if err != nil {
-				q.log.WithFields(logrus.Fields{
+				q.monitor.WithTags(map[string]string{
 					"url":   signedDeleteURL,
-					"error": err,
+					"error": err.Error(),
 				}).Warn("Not able to call Azure delete URL")
 			}
 			continue
@@ -344,12 +374,12 @@ func (q *queueService) refreshMessageQueueURLs() error {
 		return nil
 	}
 
-	q.log.Debug("Refreshing Azure message queue urls")
+	q.monitor.Debug("Refreshing Azure message queue urls")
 
 	signedURLs, err := q.client.PollTaskUrls(q.provisionerID, q.workerType)
 	if err != nil {
-		q.log.WithField("error", err).Warn("Error retrieving message queue urls.")
-		return errors.New("Error retrieving message queue urls.")
+		q.monitor.WithTag("error", err.Error()).Warn("Error retrieving message queue urls.")
+		return errors.New("error retrieving message queue urls")
 	}
 
 	messageQueues := []messageQueue{}
@@ -361,7 +391,7 @@ func (q *queueService) refreshMessageQueueURLs() error {
 	q.queues = messageQueues
 	q.expires = signedURLs.Expires
 	q.mu.Unlock()
-	q.log.Debugf("Refreshed %d Azure queue task urls", len(messageQueues))
+	q.monitor.Debugf("Refreshed %d Azure queue task urls", len(messageQueues))
 	return nil
 }
 
@@ -380,7 +410,7 @@ func (q *queueService) retrieveTasksFromQueue(ntasks int) []*taskMessage {
 			}
 			messages, err := q.pollTaskURL(&queue, ntasks-len(tasks))
 			if err != nil {
-				q.log.Warnf("Could not retrieve tasks from the Azure queue. %s", err)
+				q.monitor.Warnf("Could not retrieve tasks from the Azure queue. %s", err)
 				break
 			}
 

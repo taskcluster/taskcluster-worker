@@ -15,6 +15,7 @@ import (
 
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 )
 
 func TestGuestToolsSuccess(t *testing.T) {
@@ -25,6 +26,7 @@ func TestGuestToolsSuccess(t *testing.T) {
 	}
 	environment := &runtime.Environment{
 		TemporaryStorage: storage,
+		Monitor:          mocks.NewMockMonitor(true),
 	}
 
 	// Setup a new MetaService
@@ -52,19 +54,15 @@ func TestGuestToolsSuccess(t *testing.T) {
 		panic("Expected a url we can parse")
 	}
 
-	// Create a logger
-	logger, _ := runtime.CreateLogger("info")
-	log := logger.WithField("component", "guest-tools-tests")
-
 	// Create an run guest-tools
-	g := new(u.Host, log)
+	g := new(u.Host, mocks.NewMockMonitor(true))
 	g.Run()
 
 	// Check the state
 	if !resolved {
 		t.Error("Expected the metadata to have resolved the task")
 	}
-	if result != true {
+	if !result {
 		t.Error("Expected the metadata to get successful result")
 	}
 	if !strings.Contains(logTask.String(), "Hello world") {
@@ -80,6 +78,7 @@ func TestGuestToolsFailed(t *testing.T) {
 	}
 	environment := &runtime.Environment{
 		TemporaryStorage: storage,
+		Monitor:          mocks.NewMockMonitor(true),
 	}
 
 	// Setup a new MetaService
@@ -107,19 +106,15 @@ func TestGuestToolsFailed(t *testing.T) {
 		panic("Expected a url we can parse")
 	}
 
-	// Create a logger
-	logger, _ := runtime.CreateLogger("info")
-	log := logger.WithField("component", "guest-tools-tests")
-
 	// Create an run guest-tools
-	g := new(u.Host, log)
+	g := new(u.Host, mocks.NewMockMonitor(true))
 	g.Run()
 
 	// Check the state
 	if !resolved {
 		t.Error("Expected the metadata to have resolved the task")
 	}
-	if result != false {
+	if result {
 		t.Error("Expected the metadata to get failed result")
 	}
 	if !strings.Contains(logTask.String(), "Hello world") {
@@ -173,10 +168,6 @@ func TestGuestToolsLiveLog(t *testing.T) {
 		panic("Expected a url we can parse")
 	}
 
-	// Create a logger
-	logger, _ := runtime.CreateLogger("info")
-	log := logger.WithField("component", "guest-tools-tests")
-
 	// Wait for
 	logTask := bytes.NewBuffer(nil)
 	logDone := sync.WaitGroup{}
@@ -196,7 +187,7 @@ func TestGuestToolsLiveLog(t *testing.T) {
 	}()
 
 	// Create an run guest-tools
-	g := new(u.Host, log)
+	g := new(u.Host, mocks.NewMockMonitor(true))
 	g.Run()
 	writer.Close()
 	logDone.Wait()
@@ -205,7 +196,7 @@ func TestGuestToolsLiveLog(t *testing.T) {
 	if !resolved {
 		t.Error("Expected the metadata to have resolved the task")
 	}
-	if result != true {
+	if !result {
 		t.Error("Expected the metadata to get successful result")
 	}
 	if !strings.Contains(logTask.String(), "request-ok") {

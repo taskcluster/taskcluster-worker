@@ -2,8 +2,8 @@ package plugintest
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -19,6 +19,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
+	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 )
 
@@ -92,7 +93,7 @@ func (c Case) Test() {
 	engineProvider := engines.Engines()["mock"]
 	engine, err := engineProvider.NewEngine(engines.EngineOptions{
 		Environment: runtimeEnvironment,
-		Log:         runtimeEnvironment.Log.WithField("engine", "mock"),
+		Monitor:     runtimeEnvironment.Monitor.WithTag("engine", "mock"),
 		// TODO: Add engine config
 	})
 	nilOrPanic(err, "engineProvider.NewEngine failed")
@@ -115,6 +116,7 @@ func (c Case) Test() {
 	sandboxBuilder, err := engine.NewSandboxBuilder(engines.SandboxOptions{
 		TaskContext: context,
 		Payload:     parseEnginePayload(engine, c.Payload),
+		Monitor:     mocks.NewMockMonitor(true),
 	})
 	nilOrPanic(err, "engine.NewSandboxBuilder failed")
 
@@ -123,7 +125,7 @@ func (c Case) Test() {
 	p, err := provider.NewPlugin(plugins.PluginOptions{
 		Environment: runtimeEnvironment,
 		Engine:      engine,
-		Log:         runtimeEnvironment.Log.WithField("plugin", c.Plugin),
+		Monitor:     runtimeEnvironment.Monitor.WithTag("plugin", c.Plugin),
 		Config:      parsePluginConfig(provider, c.PluginConfig),
 	})
 	nilOrPanic(err, "pluginProvider.NewPlugin failed")
@@ -131,7 +133,7 @@ func (c Case) Test() {
 	tp, err := p.NewTaskPlugin(plugins.TaskPluginOptions{
 		TaskInfo: &context.TaskInfo,
 		Payload:  parsePluginPayload(p, c.Payload),
-		Log:      runtimeEnvironment.Log.WithField("plugin", c.Plugin).WithField("taskId", taskID),
+		Monitor:  runtimeEnvironment.Monitor.WithTag("plugin", c.Plugin).WithTag("taskId", taskID),
 	})
 	nilOrPanic(err, "plugin.NewTaskPlugin failed")
 	// taskPlugin can be nil, if the plugin doesn't want any hooks
@@ -241,16 +243,10 @@ func newTestEnvironment() *runtime.Environment {
 		f.Remove()
 	})
 
-	logger, err := runtime.CreateLogger(os.Getenv("LOGGING_LEVEL"))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating logger. %s", err)
-		os.Exit(1)
-	}
-
 	return &runtime.Environment{
 		GarbageCollector: &gc.GarbageCollector{},
 		TemporaryStorage: folder,
-		Log:              logger,
+		Monitor:          mocks.NewMockMonitor(true),
 	}
 }
 
@@ -286,22 +282,14 @@ func parsePluginPayload(plugin plugins.Plugin, payload string) map[string]interf
 	return jsonPayload
 }
 
-func fmtPanic(a ...interface{}) {
-	panic(fmt.Sprintln(a...))
-}
-
 func nilOrPanic(err error, a ...interface{}) {
 	if err != nil {
-		fmtPanic(append(a, err)...)
+		log.Panic(append(a, err)...)
 	}
-}
-
-func evalNilOrPanic(f func() error, a ...interface{}) {
-	nilOrPanic(f(), a...)
 }
 
 func assert(condition bool, a ...interface{}) {
 	if !condition {
-		fmtPanic(a...)
+		log.Panic(a...)
 	}
 }

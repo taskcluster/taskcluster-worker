@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/queue"
@@ -24,7 +23,7 @@ type TaskRun struct {
 	RunID      int
 	definition *queue.TaskDefinitionResponse
 	plugin     plugins.Plugin
-	log        *logrus.Entry
+	monitor    runtime.Monitor
 	// Internal state
 	m              sync.Mutex
 	taskPlugin     plugins.TaskPlugin
@@ -48,7 +47,7 @@ func newTaskRun(
 	environment *runtime.Environment,
 	engine engines.Engine,
 	plugin plugins.Plugin,
-	log *logrus.Entry,
+	monitor runtime.Monitor,
 ) (*TaskRun, error) {
 
 	tp := environment.TemporaryStorage.NewFilePath()
@@ -81,7 +80,7 @@ func newTaskRun(
 		TaskID:       claim.taskID,
 		RunID:        claim.runID,
 		definition:   claim.definition,
-		log:          log,
+		monitor:      monitor,
 		context:      ctxt,
 		controller:   ctxtctl,
 		engine:       engine,
@@ -108,9 +107,9 @@ func (t *TaskRun) reclaim(until time.Time) {
 			return
 		case <-time.After(time.Duration(nextReclaim * 1e+9)):
 			client := t.controller.Queue()
-			claim, err := reclaimTask(client, t.TaskID, t.RunID, t.log)
+			claim, err := reclaimTask(client, t.TaskID, t.RunID, t.monitor)
 			if err != nil {
-				t.log.WithError(err).Error("Error reclaiming task")
+				t.monitor.WithTag("error", err.Error()).Error("Error reclaiming task")
 				t.Abort()
 				close(t.reclaimsDone)
 				return
@@ -147,7 +146,7 @@ func (t *TaskRun) Abort() {
 // Cancel will set the status of the task to cancelled and abort the task execution
 // environment if one has been created.
 func (t *TaskRun) Cancel() {
-	t.log.Info("Cancelling task")
+	t.monitor.Info("Cancelling task")
 	t.m.Lock()
 	defer t.m.Unlock()
 
@@ -186,7 +185,7 @@ func (t *TaskRun) Run() {
 
 	err := t.resolveTask()
 	if err != nil || t.context.IsAborted() || t.context.IsCancelled() {
-		t.log.WithField("error", err.Error()).Warn("Could not resolve task properly")
+		t.monitor.WithTag("error", err.Error()).Warn("Could not resolve task properly")
 		return
 	}
 
@@ -194,7 +193,7 @@ func (t *TaskRun) Run() {
 
 // prepareStage is where task plugins are prepared and a sandboxbuilder is created.
 func (t *TaskRun) prepareStage() error {
-	t.log.Debug("Preparing task run")
+	t.monitor.Debug("Preparing task run")
 
 	// Parse payload
 	payload := map[string]interface{}{}
@@ -231,7 +230,7 @@ func (t *TaskRun) prepareStage() error {
 			RunID:  t.RunID,
 		},
 		Payload: t.plugin.PayloadSchema().Filter(payload),
-		Log:     t.log.WithField("plugin", "pluginManager"),
+		Monitor: t.monitor.WithPrefix("plugin").WithTag("plugin", "plugin-manager"),
 	})
 	if err != nil {
 		// TODO: We need to review all this... t.context.LogError is for task errors
@@ -250,6 +249,10 @@ func (t *TaskRun) prepareStage() error {
 	sandboxBuilder, err := t.engine.NewSandboxBuilder(engines.SandboxOptions{
 		TaskContext: t.context,
 		Payload:     t.engine.PayloadSchema().Filter(payload),
+		Monitor: t.monitor.WithPrefix("sandbox").WithTags(map[string]string{
+			"taskId": t.TaskID,
+			"runId":  fmt.Sprintf("%d", t.RunID),
+		}),
 	})
 	t.m.Lock()
 	t.sandboxBuilder = sandboxBuilder
@@ -264,7 +267,7 @@ func (t *TaskRun) prepareStage() error {
 
 // buildStage is responsible for configuring the environment for building a sandbox (task execution environment).
 func (t *TaskRun) buildStage() error {
-	t.log.Debug("Building task run")
+	t.monitor.Debug("Building task run")
 
 	err := t.taskPlugin.BuildSandbox(t.sandboxBuilder)
 	if err != nil {
@@ -277,7 +280,7 @@ func (t *TaskRun) buildStage() error {
 
 // startStage is responsible for starting the execution environment and waiting for a result.
 func (t *TaskRun) startStage() error {
-	t.log.Debug("Running task")
+	t.monitor.Debug("Running task")
 
 	sandbox, err := t.sandboxBuilder.StartSandbox()
 	if err != nil {
@@ -310,7 +313,7 @@ func (t *TaskRun) startStage() error {
 // stopStage will run once the sandbox has terminated.  This stage will be responsible
 // for uploading artifacts, cleaning up of resources, etc.
 func (t *TaskRun) stopStage() error {
-	t.log.Debug("Stopping task execution")
+	t.monitor.Debug("Stopping task execution")
 	var err error
 	t.success, err = t.taskPlugin.Stopped(t.resultSet)
 
@@ -325,16 +328,16 @@ func (t *TaskRun) stopStage() error {
 // finishStage is responsible for finalizing the execution of a task, close and
 // upload tasks logs, etc.
 func (t *TaskRun) finishStage() error {
-	t.log.Debug("Finishing task run")
+	t.monitor.Debug("Finishing task run")
 
 	err := t.controller.CloseLog()
 	if err != nil {
-		t.log.WithField("error", err.Error()).Warn("Could not properly close task log")
+		t.monitor.WithTag("error", err.Error()).Warn("Could not properly close task log")
 	}
 
 	err = t.taskPlugin.Finished(t.success)
 	if err != nil {
-		t.log.Error(fmt.Sprintf("Could not finish cleaning up task execution. %s", err))
+		t.monitor.Error(fmt.Sprintf("Could not finish cleaning up task execution. %s", err))
 		return err
 	}
 
@@ -361,13 +364,13 @@ func (t *TaskRun) exceptionStage(taskError error) {
 
 	err := t.controller.CloseLog()
 	if err != nil {
-		t.log.WithField("error", err.Error()).Warn("Could not properly close task log")
+		t.monitor.WithTag("error", err.Error()).Warn("Could not properly close task log")
 	}
 
 	if t.taskPlugin != nil {
 		err = t.taskPlugin.Exception(reason)
 		if err != nil {
-			t.log.WithField("error", err.Error()).Warn("Could not finalize task plugins as exception.")
+			t.monitor.WithTag("error", err.Error()).Warn("Could not finalize task plugins as exception.")
 		}
 	}
 
@@ -375,9 +378,9 @@ func (t *TaskRun) exceptionStage(taskError error) {
 		return
 	}
 
-	e := reportException(t.context.Queue(), t, reason, t.log)
+	e := reportException(t.context.Queue(), t, reason, t.monitor)
 	if e != nil {
-		t.log.WithField("error", e.Error()).Warn("Could not resolve task as exception.")
+		t.monitor.WithTag("error", e.Error()).Warn("Could not resolve task as exception.")
 	}
 
 	return
@@ -393,7 +396,7 @@ func (t *TaskRun) resolveTask() error {
 		resolve = reportFailed
 	}
 
-	err := resolve(t.context.Queue(), t, t.log)
+	err := resolve(t.context.Queue(), t, t.monitor)
 	if err != nil {
 		return errors.New(err.Error())
 	}
@@ -406,20 +409,20 @@ func (t *TaskRun) disposeStage() {
 	if t.taskPlugin != nil {
 		err := t.taskPlugin.Dispose()
 		if err != nil {
-			t.log.WithError(err).Warn("Could not dispose plugin")
+			t.monitor.WithTag("error", err.Error()).Warn("Could not dispose plugin")
 		}
 	}
 
 	if t.resultSet != nil {
 		err := t.resultSet.Dispose()
 		if err != nil {
-			t.log.WithError(err).Warn("Could not dispose result set")
+			t.monitor.WithTag("error", err.Error()).Warn("Could not dispose result set")
 		}
 	}
 
 	err := t.controller.Dispose()
 	if err != nil {
-		t.log.WithError(err).Warn("Could not dispose of task context")
+		t.monitor.WithTag("error", err.Error()).Warn("Could not dispose of task context")
 	}
 
 	return

@@ -1,14 +1,15 @@
 package interactive
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellconsts"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
@@ -24,16 +25,16 @@ type ShellServer struct {
 	done          chan struct{}
 	refCount      int
 	instanceCount int
-	log           *logrus.Entry
+	monitor       runtime.Monitor
 }
 
 // NewShellServer returns a new ShellServer which creates shells using the
 // makeShell function.
-func NewShellServer(makeShell ShellFactory, log *logrus.Entry) *ShellServer {
+func NewShellServer(makeShell ShellFactory, monitor runtime.Monitor) *ShellServer {
 	s := &ShellServer{
 		makeShell: makeShell,
 		done:      make(chan struct{}),
-		log:       log,
+		monitor:   monitor,
 	}
 	s.c.L = &s.m
 	return s
@@ -129,7 +130,7 @@ func (s *ShellServer) handleShell(ws *websocket.Conn, shell engines.Shell) {
 
 	// Create a shell handler
 	s.updateRefCount(1)
-	handler := NewShellHandler(ws, s.log.WithField("shell-instance-id", s.nextID()))
+	handler := NewShellHandler(ws, s.monitor.WithTag("shell-instance-id", fmt.Sprintf("%d", s.nextID())))
 
 	// Connect pipes
 	go ioext.CopyAndClose(shell.StdinPipe(), handler.StdinPipe())

@@ -17,7 +17,7 @@ func CreateLogger(level string) (*logrus.Logger, error) {
 
 	lvl, err := logrus.ParseLevel(level)
 	if err != nil {
-		return nil, fmt.Errorf("Error: Invalid logging level '%s'.\n", level)
+		return nil, fmt.Errorf("invalid logging level: '%s'", level)
 	}
 
 	logger := logrus.New()

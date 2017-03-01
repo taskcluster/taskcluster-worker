@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
@@ -21,7 +20,7 @@ var (
 // properties without breaking source compatibility.
 type EngineOptions struct {
 	Environment *runtime.Environment
-	Log         *logrus.Entry
+	Monitor     runtime.Monitor
 	Config      interface{}
 	// Note: This is passed by-value for efficiency (and to prohibit nil), if
 	// adding any large fields please consider adding them as pointers.

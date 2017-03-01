@@ -16,6 +16,8 @@ type SandboxOptions struct {
 	// PayloadSchema(). Implementors can safely assume that it validates against
 	// this schema.
 	Payload map[string]interface{}
+	// Monitor object tagged with task identifiers for logging and error reporting
+	Monitor runtime.Monitor
 }
 
 // An Engine implementation provides a backend upon which tasks can be
