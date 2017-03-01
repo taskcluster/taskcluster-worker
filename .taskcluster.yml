@@ -51,7 +51,7 @@ tasks:
           make rebuild check
       artifacts:
         public/build/taskcluster-worker-linux-amd64:
-          path: "/go/src/github.com/taskcluster/taskcluster-worker/taskcluster-worker"
+          path: "/go/bin/taskcluster-worker"
           expires: "{{ '2 weeks' | $fromNow }}"
           type: file
       cache:
@@ -84,7 +84,7 @@ tasks:
           path: public/build/taskcluster-worker-windows-amd64.exe
       command:
         - 'mkdir public\build'
-        - 'mklink public\build\taskcluster-worker-windows-amd64.exe go\src\github.com\taskcluster\taskcluster-worker\taskcluster-worker.exe'
+        - 'mklink public\build\taskcluster-worker-windows-amd64.exe go\bin\taskcluster-worker.exe'
         - 'set GOPATH=%CD%\go'
         - 'set PATH=%GOPATH%\bin;%PATH%'
         - ':: source "${TASKCLUSTER_CREDS_BOOTSTRAP}"'
@@ -153,7 +153,7 @@ tasks:
             git clean -d -f -e '/vendor/*' -x
             govendor sync
             make rebuild check
-            mv go/src/github.com/taskcluster/taskcluster-worker/taskcluster-worker public/build/taskcluster-worker-darwin-amd64
+            mv go/bin/taskcluster-worker public/build/taskcluster-worker-darwin-amd64
       mounts:
         - cacheName: taskcluster-worker-checkout
           directory: go/src

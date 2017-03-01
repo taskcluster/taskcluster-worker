@@ -26,7 +26,7 @@ prechecks:
 
 build:
 	go fmt $$(go list ./... | grep -v /vendor/)
-	CGO_ENABLED=$(CGO_ENABLE) go build
+	CGO_ENABLED=$(CGO_ENABLE) go install
 
 rebuild: prechecks build test lint
 
