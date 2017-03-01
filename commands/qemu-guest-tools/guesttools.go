@@ -12,9 +12,6 @@ import (
 	goruntime "runtime"
 	"time"
 
-	"gopkg.in/djherbis/buffer.v1"
-	"gopkg.in/djherbis/nio.v2"
-
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/go-got"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
@@ -24,6 +21,8 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
+	buffer "gopkg.in/djherbis/buffer.v1"
+	nio "gopkg.in/djherbis/nio.v2"
 )
 
 type guestTools struct {

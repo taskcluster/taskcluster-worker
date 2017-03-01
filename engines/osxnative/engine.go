@@ -5,15 +5,15 @@ package osxnative
 import (
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 type engine struct {
 	engines.EngineBase
-	config *configType
-	log    *logrus.Entry
+	config  *configType
+	monitor runtime.Monitor
 }
 
 type engineProvider struct {
@@ -23,13 +23,13 @@ type engineProvider struct {
 func (e engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine, error) {
 	var c configType
 	if err := schematypes.MustMap(configSchema, options.Config, &c); err != nil {
-		options.Log.WithError(err).Error("Invalid configuration")
+		options.Monitor.ReportError(err, "Invalid configuration")
 		return nil, engines.ErrContractViolation
 	}
 
 	return &engine{
-		config: &c,
-		log:    options.Log,
+		config:  &c,
+		monitor: options.Monitor,
 	}, nil
 }
 

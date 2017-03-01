@@ -14,6 +14,7 @@ import (
 )
 
 type resultset struct {
+	monitor runtime.Monitor
 	engines.ResultSetBase
 	taskUser user
 	context  *runtime.TaskContext
@@ -110,10 +111,10 @@ func (r resultset) ExtractFolder(path string, handler engines.FileHandler) error
 func (r resultset) Dispose() error {
 	err := r.taskUser.delete()
 	if err != nil {
-		r.engine.log.WithField("user", r.taskUser.name).WithError(err).Error("Error removing user")
+		r.monitor.Error("Error removing user: ", err)
 		exitError, ok := err.(*exec.ExitError)
 		if ok {
-			r.engine.log.Error(string(exitError.Stderr))
+			r.monitor.Error(string(exitError.Stderr))
 		}
 
 		return engines.ErrNonFatalInternalError

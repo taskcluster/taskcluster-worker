@@ -75,7 +75,7 @@ func (c *ArtifactTestCase) TestExtractFolderNotFound() {
 	err := r.resultSet.ExtractFolder(c.FolderNotFoundPath, func(
 		path string, reader ioext.ReadSeekCloser,
 	) error {
-		return errors.New("File was found, didn't expect that!!!")
+		return errors.New("file was found, didn't expect that")
 	})
 	assert(err == engines.ErrResourceNotFound, "Expected ErrResourceNotFound ",
 		"but got :", err)

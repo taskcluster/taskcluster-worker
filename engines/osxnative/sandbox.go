@@ -44,6 +44,7 @@ type sandbox struct {
 	env         []string
 	aborted     bool
 	engine      *engine
+	monitor     runtime.Monitor
 }
 
 func newSandbox(context *runtime.TaskContext, taskPayload *payloadType, env []string, engine *engine) *sandbox {
@@ -53,6 +54,7 @@ func newSandbox(context *runtime.TaskContext, taskPayload *payloadType, env []st
 		env:         env,
 		aborted:     false,
 		engine:      engine,
+		monitor:     engine.monitor,
 	}
 }
 
@@ -93,7 +95,6 @@ func downloadLink(destdir string, link string) (string, error) {
 }
 
 func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
-	log := s.engine.log
 
 	if s.aborted {
 		return nil, engines.ErrSandboxAborted
@@ -118,7 +119,7 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 
 	userInfo, err := osuser.Current()
 	if err != nil {
-		log.WithError(err).Error("Error getting user information: ")
+		s.monitor.Error("Error getting user information: ", err)
 		return nil, engines.NewInternalError(err.Error())
 	}
 
@@ -126,10 +127,10 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 
 	if s.engine.config.CreateUser {
 		if err = u.create(s.engine.config.UserGroups); err != nil {
-			log.WithError(err).Error("Could not create user")
+			s.monitor.Error("Could not create user", err)
 			exitError, ok := err.(*exec.ExitError)
 			if ok {
-				log.Error(string(exitError.Stderr))
+				s.monitor.Error(string(exitError.Stderr))
 			}
 
 			return nil, engines.NewInternalError("Could not create temporary user")
@@ -143,21 +144,21 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 
 		userInfo, err = osuser.Lookup(u.name)
 		if err != nil {
-			log.WithError(err).Error("Error looking up for user \"" + u.name + "\"")
+			s.monitor.Error("Error looking up for user \""+u.name+"\"", err)
 			return nil, engines.NewInternalError(err.Error())
 		}
 
 		var uid uint64
 		uid, err = strconv.ParseUint(userInfo.Uid, 10, 32)
 		if err != nil {
-			log.WithError(err).Error("ParseUint failed to convert ", userInfo.Uid)
+			s.monitor.Error("ParseUint failed to convert ", userInfo.Uid, err)
 			return nil, engines.ErrNonFatalInternalError
 		}
 
 		var gid uint64
 		gid, err = strconv.ParseUint(userInfo.Gid, 10, 32)
 		if err != nil {
-			log.WithError(err).Error("ParseUint failed to convert ", userInfo.Gid)
+			s.monitor.Error("ParseUint failed to convert ", userInfo.Gid, err)
 			return nil, engines.ErrNonFatalInternalError
 		}
 
@@ -195,7 +196,7 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 		defer os.Remove(filename)
 
 		if err = os.Chmod(filename, 0777); err != nil {
-			log.WithError(err).Error("Could not set permissions in the file")
+			s.monitor.Error("Could not set permissions in the file", err)
 			return nil, engines.ErrNonFatalInternalError
 		}
 	}

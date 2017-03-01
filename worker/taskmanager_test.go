@@ -324,7 +324,7 @@ func TestWorkerShutdown(t *testing.T) {
 	}
 
 	claims := []*taskClaim{
-		&taskClaim{
+		{
 			taskID: "abc",
 			runID:  1,
 			definition: &queue.TaskDefinitionResponse{
@@ -343,7 +343,7 @@ func TestWorkerShutdown(t *testing.T) {
 				TakenUntil: tcclient.Time(time.Now().Add(time.Minute * 5)),
 			},
 		},
-		&taskClaim{
+		{
 			taskID: "def",
 			runID:  0,
 			definition: &queue.TaskDefinitionResponse{

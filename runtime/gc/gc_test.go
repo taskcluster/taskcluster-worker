@@ -39,7 +39,7 @@ func TestGarbageCollector(t *testing.T) {
 	t.Log(" - Create r1")
 	r1 := &myResource{}
 	gc.Register(r1)
-	assert(r1.disposed == false, "Not disposed")
+	assert(!r1.disposed, "Not disposed")
 
 	t.Log(" - CollectAll() disposing r1")
 	gc.CollectAll()
@@ -49,15 +49,15 @@ func TestGarbageCollector(t *testing.T) {
 	r2 := &myResource{}
 	r2.Acquire()
 	gc.Register(r2)
-	assert(r2.disposed == false, "Not disposed")
+	assert(!r2.disposed, "Not disposed")
 
 	t.Log(" - CollectAll() disposing nothing")
 	gc.CollectAll()
-	assert(r2.disposed == false, "Not disposed")
+	assert(!r2.disposed, "Not disposed")
 
 	t.Log(" - Release and CollectAll()")
 	r2.Release()
-	assert(r2.disposed == false, "Not disposed")
+	assert(!r2.disposed, "Not disposed")
 	gc.CollectAll()
 	assert(r2.disposed, "disposed")
 
@@ -65,25 +65,25 @@ func TestGarbageCollector(t *testing.T) {
 	r3 := &myResource{}
 	r3.Acquire()
 	gc.Register(r3)
-	assert(r3.disposed == false, "Not disposed")
+	assert(!r3.disposed, "Not disposed")
 
 	t.Log(" - CollectAll() getting nothing")
 	gc.CollectAll()
-	assert(r3.disposed == false, "Not disposed")
+	assert(!r3.disposed, "Not disposed")
 
 	t.Log(" - Acquire() and CollectAll() getting nothing")
 	r3.Acquire()
 	gc.CollectAll()
-	assert(r3.disposed == false, "Not disposed")
+	assert(!r3.disposed, "Not disposed")
 
 	t.Log(" - Release() and CollectAll() getting nothing")
 	r3.Release()
 	gc.CollectAll()
-	assert(r3.disposed == false, "Not disposed")
+	assert(!r3.disposed, "Not disposed")
 
 	t.Log(" - Release and CollectAll() getting r3")
 	r3.Release()
-	assert(r3.disposed == false, "Not disposed")
+	assert(!r3.disposed, "Not disposed")
 	gc.CollectAll()
 	assert(r3.disposed, "disposed")
 }

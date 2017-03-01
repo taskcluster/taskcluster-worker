@@ -1,6 +1,7 @@
 package fetcher
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -49,7 +50,7 @@ func (urlFetcher) Scopes(ref interface{}) [][]string {
 	if urlSchema.Validate(ref) != nil {
 		panic(fmt.Sprintf("Reference: %#v doesn't satisfy Fetcher.Schema()", ref))
 	}
-	return [][]string{[]string{}} // Set containing the empty-scope-set
+	return [][]string{{}} // Set containing the empty-scope-set
 }
 
 func (urlFetcher) Fetch(ctx Context, ref interface{}, target WriteSeekReseter) error {
@@ -61,7 +62,7 @@ func (urlFetcher) Fetch(ctx Context, ref interface{}, target WriteSeekReseter) e
 	return fetchURLWithRetries(ctx, u, target)
 }
 
-func fetchURLWithRetries(ctx Context, u string, target WriteSeekReseter) error {
+func fetchURLWithRetries(ctx context.Context, u string, target WriteSeekReseter) error {
 	retry := 0
 	for {
 		// Fetch URL, if no error then we're done
@@ -100,7 +101,7 @@ func newPersistentError(format string, a ...interface{}) error {
 	return persistentError(fmt.Sprintf(format, a...))
 }
 
-func fetchURL(ctx Context, u string, target io.Writer) error {
+func fetchURL(ctx context.Context, u string, target io.Writer) error {
 	// Create a new request
 	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -23,23 +24,24 @@ type pluginProvider struct {
 type plugin struct {
 	plugins.PluginBase
 	monitor     runtime.Monitor
-	environment runtime.Environment
+	environment *runtime.Environment
 }
 
 type taskPlugin struct {
 	plugins.TaskPluginBase
 	context     *runtime.TaskContext
 	url         string
+	log         *logrus.Entry
+	environment *runtime.Environment
 	expiration  tcclient.Time
 	monitor     runtime.Monitor
-	environment runtime.Environment
 	uploaded    atomics.Bool
 }
 
 func (pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
 	return plugin{
 		monitor:     options.Monitor,
-		environment: *options.Environment,
+		environment: options.Environment,
 	}, nil
 }
 

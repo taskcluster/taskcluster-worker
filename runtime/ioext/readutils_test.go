@@ -14,7 +14,7 @@ func TestBoundedReadAll(t *testing.T) {
 	if err != nil {
 		t.Fatal("Failed to read 11 bytes, error: ", err)
 	}
-	if bytes.Compare(b, expected) != 0 {
+	if !bytes.Equal(b, expected) {
 		t.Fatal("Read the wrong thing: ", b, " expected: ", expected)
 	}
 
@@ -24,7 +24,7 @@ func TestBoundedReadAll(t *testing.T) {
 	if err != nil {
 		t.Fatal("Failed to read 11 bytes, error: ", err)
 	}
-	if bytes.Compare(b, expected) != 0 {
+	if !bytes.Equal(b, expected) {
 		t.Fatal("Read the wrong thing: ", b, " expected: ", expected)
 	}
 
