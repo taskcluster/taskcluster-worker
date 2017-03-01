@@ -39,7 +39,6 @@ import (
 	_ "github.com/taskcluster/taskcluster-worker/engines/enginetest"
 	_ "github.com/taskcluster/taskcluster-worker/engines/mock"
 	_ "github.com/taskcluster/taskcluster-worker/engines/native"
-	_ "github.com/taskcluster/taskcluster-worker/engines/osxnative"
 	_ "github.com/taskcluster/taskcluster-worker/engines/qemu"
 	_ "github.com/taskcluster/taskcluster-worker/engines/script"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/artifacts"
