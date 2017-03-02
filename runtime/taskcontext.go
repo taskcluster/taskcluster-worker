@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/taskcluster/taskcluster-client-go"
+	"github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
@@ -75,14 +76,18 @@ type TaskInfo struct {
 // properties, and abortion notifications.
 type TaskContext struct {
 	TaskInfo
-	webHookSet  *webhookserver.WebHookSet
-	logStream   *stream.Stream
-	logLocation string // Absolute path to log file
-	logClosed   bool
-	mu          sync.RWMutex
-	queue       client.Queue
-	status      TaskStatus
-	done        chan struct{}
+	webHookSet        *webhookserver.WebHookSet
+	logStream         *stream.Stream
+	logLocation       string // Absolute path to log file
+	logClosed         bool
+	mu                sync.RWMutex
+	queue             client.Queue
+	status            TaskStatus
+	done              chan struct{}
+	artifactMutex     sync.RWMutex
+	errorArtifacts    []queue.ErrorArtifactRequest
+	redirectArtifacts []queue.RedirectArtifactRequest
+	s3Artifacts       []queue.S3ArtifactRequest
 }
 
 // TaskContextController exposes logic for controlling the TaskContext.
