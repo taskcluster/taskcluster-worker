@@ -40,14 +40,57 @@ type RedirectArtifact struct {
 	Expires  tcclient.Time
 }
 
+// S3Artifacts returns a copy of all s3 artifact upload requests *made so far*
+// for the given task context. Note it does not guarantee that the upload was
+// successful. Typically this should be called during the Finished task phase,
+// since plugins will typically upload artifacts in the Stopped task phase.
+func (context *TaskContext) S3Artifacts() []queue.S3ArtifactRequest {
+	context.artifactMutex.RLock()
+	defer context.artifactMutex.Unlock()
+	s3ArtifactsCopy := make([]queue.S3ArtifactRequest, len(context.s3Artifacts))
+	copy(s3ArtifactsCopy, context.s3Artifacts)
+	return s3ArtifactsCopy
+}
+
+// ErrorArtifacts returns a copy of all error artifact upload requests *made so
+// far* for the given task context. Note it does not guarantee that the upload
+// was successful. Typically this should be called during the Finished task
+// phase, since plugins will typically upload artifacts in the Stopped task
+// phase.
+func (context *TaskContext) ErrorArtifacts() []queue.ErrorArtifactRequest {
+	context.artifactMutex.RLock()
+	defer context.artifactMutex.Unlock()
+	errorArtifactsCopy := make([]queue.ErrorArtifactRequest, len(context.errorArtifacts))
+	copy(errorArtifactsCopy, context.errorArtifacts)
+	return errorArtifactsCopy
+}
+
+// RedirectArtifacts returns a copy of all redirect artifact upload requests
+// *made so far* for the given task context. Note it does not guarantee that
+// the upload was successful. Typically this should be called during the
+// Finished task phase, since plugins will typically upload artifacts in the
+// Stopped task phase.
+func (context *TaskContext) RedirectArtifacts() []queue.RedirectArtifactRequest {
+	context.artifactMutex.RLock()
+	defer context.artifactMutex.Unlock()
+	redirectArtifactsCopy := make([]queue.RedirectArtifactRequest, len(context.redirectArtifacts))
+	copy(redirectArtifactsCopy, context.redirectArtifacts)
+	return redirectArtifactsCopy
+}
+
 // UploadS3Artifact is responsible for creating new artifacts
 // in the queue and then performing the upload to s3.
 func (context *TaskContext) UploadS3Artifact(artifact S3Artifact) error {
-	req, err := json.Marshal(queue.S3ArtifactRequest{
+	s3Artifact := queue.S3ArtifactRequest{
 		ContentType: artifact.Mimetype,
 		Expires:     artifact.Expires,
 		StorageType: "s3",
-	})
+	}
+	context.artifactMutex.Lock()
+	context.s3Artifacts = append(context.s3Artifacts, s3Artifact)
+	context.artifactMutex.Unlock()
+
+	req, err := json.Marshal(s3Artifact)
 	if err != nil {
 		return err
 	}
@@ -68,12 +111,17 @@ func (context *TaskContext) UploadS3Artifact(artifact S3Artifact) error {
 // CreateErrorArtifact is responsible for inserting error
 // artifacts into the queue.
 func (context *TaskContext) CreateErrorArtifact(artifact ErrorArtifact) error {
-	req, err := json.Marshal(queue.ErrorArtifactRequest{
+	errorArtifact := queue.ErrorArtifactRequest{
 		Message:     artifact.Message,
 		Reason:      artifact.Reason,
 		Expires:     artifact.Expires,
 		StorageType: "error",
-	})
+	}
+	context.artifactMutex.Lock()
+	context.errorArtifacts = append(context.errorArtifacts, errorArtifact)
+	context.artifactMutex.Unlock()
+
+	req, err := json.Marshal(errorArtifact)
 	if err != nil {
 		return err
 	}
@@ -90,12 +138,17 @@ func (context *TaskContext) CreateErrorArtifact(artifact ErrorArtifact) error {
 // CreateRedirectArtifact is responsible for inserting redirect
 // artifacts into the queue.
 func (context *TaskContext) CreateRedirectArtifact(artifact RedirectArtifact) error {
-	req, err := json.Marshal(queue.RedirectArtifactRequest{
+	redirectArtifact := queue.RedirectArtifactRequest{
 		ContentType: artifact.Mimetype,
 		URL:         artifact.URL,
 		Expires:     artifact.Expires,
 		StorageType: "reference",
-	})
+	}
+	context.artifactMutex.Lock()
+	context.redirectArtifacts = append(context.redirectArtifacts, redirectArtifact)
+	context.artifactMutex.Unlock()
+
+	req, err := json.Marshal(redirectArtifact)
 	if err != nil {
 		return err
 	}
