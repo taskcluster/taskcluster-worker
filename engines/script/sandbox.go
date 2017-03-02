@@ -127,12 +127,12 @@ func (s *sandbox) uploadArtifacts() error {
 		}
 
 		// Upload artifact
-		err = runtime.UploadS3Artifact(runtime.S3Artifact{
+		err = s.context.UploadS3Artifact(runtime.S3Artifact{
 			Name:     filepath.ToSlash(name),
 			Mimetype: mimeType,
 			Expires:  tcclient.Time(expires),
 			Stream:   f,
-		}, s.context)
+		})
 
 		// Ensure that we close the file
 		cerr := f.Close()

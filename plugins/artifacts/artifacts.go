@@ -117,12 +117,12 @@ func (tp taskPlugin) errorHandled(name string, expires time.Time, err error) boo
 
 	if reason != "" {
 		tp.context.Log("Artifact upload error handled. Continuing...", name, err.Error())
-		runtime.CreateErrorArtifact(runtime.ErrorArtifact{
+		tp.context.CreateErrorArtifact(runtime.ErrorArtifact{
 			Name:    name,
 			Message: err.Error(),
 			Reason:  reason,
 			Expires: tcclient.Time(expires),
-		}, tp.context)
+		})
 		return true
 	}
 	return false
@@ -140,12 +140,12 @@ func (tp taskPlugin) attemptUpload(fileReader ioext.ReadSeekCloser, path string,
 		// application/octet-stream is the mime type for "unknown"
 		mimeType = "application/octet-stream"
 	}
-	return runtime.UploadS3Artifact(runtime.S3Artifact{
+	return tp.context.UploadS3Artifact(runtime.S3Artifact{
 		Name:     name,
 		Mimetype: mimeType,
 		Stream:   fileReader,
 		Expires:  tcclient.Time(expires),
-	}, tp.context)
+	})
 }
 
 func init() {
