@@ -41,12 +41,10 @@ func (engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine, 
 	for _, name := range c.Groups {
 		group, err := system.FindGroup(name)
 		if err != nil {
-			errorMsg := fmt.Sprintf(
-				"Unable to find system user-group: %s from engine config.",
-				name,
+			return nil, fmt.Errorf(
+				"unable to find system user-group: %s from engine config, error: %s",
+				name, err,
 			)
-			options.Monitor.ReportError(err, errorMsg)
-			return nil, engines.NewInternalError(errorMsg)
 		}
 		groups = append(groups, group)
 	}

@@ -111,25 +111,3 @@ func MergeMalformedPayload(errors ...MalformedPayloadError) MalformedPayloadErro
 	}
 	return MalformedPayloadError{messages: messages}
 }
-
-// InternalError are errors that could not be completed because of issues related to the
-// host.  These issues could include issues with the engine, host resources, and worker
-// configuration.
-type InternalError struct {
-	message string
-}
-
-// Error returns the error message and adheres to the Error interface
-func (e InternalError) Error() string {
-	return e.message
-}
-
-// NewInternalError creates an InternalError object, please
-// make sure to include a detailed description of the error, preferably using
-// multiple lines and with examples.
-//
-// These will be printed in the logs and end-users will rely on them to debug
-// their tasks.
-func NewInternalError(message string) InternalError {
-	return InternalError{message: message}
-}

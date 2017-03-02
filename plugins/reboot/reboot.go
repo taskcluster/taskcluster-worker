@@ -4,6 +4,8 @@
 package reboot
 
 import (
+	"fmt"
+
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
@@ -59,7 +61,7 @@ func (plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlug
 func (tp taskPlugin) Dispose() error {
 	if tp.reboot {
 		if err := reboot(); err != nil {
-			return engines.NewInternalError(err.Error())
+			return fmt.Errorf("Failed to force reboot, error: %s", err)
 		}
 	}
 
