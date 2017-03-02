@@ -42,7 +42,7 @@ type RedirectArtifact struct {
 
 // UploadS3Artifact is responsible for creating new artifacts
 // in the queue and then performing the upload to s3.
-func UploadS3Artifact(artifact S3Artifact, context *TaskContext) error {
+func (context *TaskContext) UploadS3Artifact(artifact S3Artifact) error {
 	req, err := json.Marshal(queue.S3ArtifactRequest{
 		ContentType: artifact.Mimetype,
 		Expires:     artifact.Expires,
@@ -52,7 +52,7 @@ func UploadS3Artifact(artifact S3Artifact, context *TaskContext) error {
 		return err
 	}
 
-	parsed, err := createArtifact(context, artifact.Name, req)
+	parsed, err := context.createArtifact(artifact.Name, req)
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func UploadS3Artifact(artifact S3Artifact, context *TaskContext) error {
 
 // CreateErrorArtifact is responsible for inserting error
 // artifacts into the queue.
-func CreateErrorArtifact(artifact ErrorArtifact, context *TaskContext) error {
+func (context *TaskContext) CreateErrorArtifact(artifact ErrorArtifact) error {
 	req, err := json.Marshal(queue.ErrorArtifactRequest{
 		Message:     artifact.Message,
 		Reason:      artifact.Reason,
@@ -78,7 +78,7 @@ func CreateErrorArtifact(artifact ErrorArtifact, context *TaskContext) error {
 		return err
 	}
 
-	parsed, err := createArtifact(context, artifact.Name, req)
+	parsed, err := context.createArtifact(artifact.Name, req)
 	if err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func CreateErrorArtifact(artifact ErrorArtifact, context *TaskContext) error {
 
 // CreateRedirectArtifact is responsible for inserting redirect
 // artifacts into the queue.
-func CreateRedirectArtifact(artifact RedirectArtifact, context *TaskContext) error {
+func (context *TaskContext) CreateRedirectArtifact(artifact RedirectArtifact) error {
 	req, err := json.Marshal(queue.RedirectArtifactRequest{
 		ContentType: artifact.Mimetype,
 		URL:         artifact.URL,
@@ -100,7 +100,7 @@ func CreateRedirectArtifact(artifact RedirectArtifact, context *TaskContext) err
 		return err
 	}
 
-	parsed, err := createArtifact(context, artifact.Name, req)
+	parsed, err := context.createArtifact(artifact.Name, req)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func CreateRedirectArtifact(artifact RedirectArtifact, context *TaskContext) err
 	return json.Unmarshal(parsed, &resp)
 }
 
-func createArtifact(context *TaskContext, name string, req []byte) ([]byte, error) {
+func (context *TaskContext) createArtifact(name string, req []byte) ([]byte, error) {
 	par := queue.PostArtifactRequest(req)
 	parsp, err := context.Queue().CreateArtifact(
 		context.TaskID,

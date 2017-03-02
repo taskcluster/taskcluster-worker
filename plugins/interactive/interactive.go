@@ -243,12 +243,12 @@ func (p *taskPlugin) setupShell() error {
 	query.Set("runId", fmt.Sprintf("%d", p.context.RunID))
 	query.Set("socketUrl", p.shellURL)
 
-	return runtime.CreateRedirectArtifact(runtime.RedirectArtifact{
+	return p.context.CreateRedirectArtifact(runtime.RedirectArtifact{
 		Name:     p.opts.ArtifactPrefix + "shell.html",
 		Mimetype: "text/html",
 		URL:      p.parent.config.ShellToolURL + "?" + query.Encode(),
 		Expires:  p.context.TaskInfo.Deadline,
-	}, p.context)
+	})
 }
 
 func (p *taskPlugin) setupDisplay() error {
@@ -277,12 +277,12 @@ func (p *taskPlugin) setupDisplay() error {
 	//       URLs. Hence, introducing v=2, so leaving it for later.
 	query.Set("shared", "true")
 
-	return runtime.CreateRedirectArtifact(runtime.RedirectArtifact{
+	return p.context.CreateRedirectArtifact(runtime.RedirectArtifact{
 		Name:     p.opts.ArtifactPrefix + "display.html",
 		Mimetype: "text/html",
 		URL:      p.parent.config.DisplayToolURL + "?" + query.Encode(),
 		Expires:  p.context.TaskInfo.Deadline,
-	}, p.context)
+	})
 }
 
 func (p *taskPlugin) createSocketsFile() error {
@@ -301,12 +301,12 @@ func (p *taskPlugin) createSocketsFile() error {
 		sockets["displaySocketUrl"] = p.displaySocketURL
 	}
 	data, _ := json.MarshalIndent(sockets, "", "  ")
-	return runtime.UploadS3Artifact(runtime.S3Artifact{
+	return p.context.UploadS3Artifact(runtime.S3Artifact{
 		Name:     p.opts.ArtifactPrefix + "sockets.json",
 		Mimetype: "application/json",
 		Expires:  p.context.TaskInfo.Deadline,
 		Stream:   ioext.NopCloser(bytes.NewReader(data)),
-	}, p.context)
+	})
 }
 
 func urlProtocolToWebsocket(u string) string {

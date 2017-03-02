@@ -77,12 +77,12 @@ func (tp *taskPlugin) Prepare(context *runtime.TaskContext) error {
 		ioext.CopyAndFlush(wf, logReader, 100*time.Millisecond)
 	}))
 
-	err := runtime.CreateRedirectArtifact(runtime.RedirectArtifact{
+	err := tp.context.CreateRedirectArtifact(runtime.RedirectArtifact{
 		Name:     "public/logs/live.log",
 		Mimetype: "text/plain",
 		URL:      tp.url,
 		Expires:  tp.context.TaskInfo.Expires,
-	}, tp.context)
+	})
 	if err != nil {
 		tp.context.LogError(fmt.Sprintf("Could not initialize live log plugin. Error: %s", err))
 	}
@@ -130,7 +130,7 @@ func (tp *taskPlugin) uploadLog() error {
 		return err
 	}
 
-	err = runtime.UploadS3Artifact(runtime.S3Artifact{
+	err = tp.context.UploadS3Artifact(runtime.S3Artifact{
 		Name:     "public/logs/live_backing.log",
 		Mimetype: "text/plain",
 		Expires:  tp.context.TaskInfo.Expires,
@@ -138,19 +138,19 @@ func (tp *taskPlugin) uploadLog() error {
 		AdditionalHeaders: map[string]string{
 			"Content-Encoding": "gzip",
 		},
-	}, tp.context)
+	})
 
 	if err != nil {
 		return err
 	}
 
 	backingURL := fmt.Sprintf("https://queue.taskcluster.net/v1/task/%s/runs/%d/artifacts/public/logs/live_backing.log", tp.context.TaskInfo.TaskID, tp.context.TaskInfo.RunID)
-	err = runtime.CreateRedirectArtifact(runtime.RedirectArtifact{
+	err = tp.context.CreateRedirectArtifact(runtime.RedirectArtifact{
 		Name:     "public/logs/live.log",
 		Mimetype: "text/plain",
 		URL:      backingURL,
 		Expires:  tp.context.TaskInfo.Expires,
-	}, tp.context)
+	})
 	if err != nil {
 		tp.monitor.Error(err)
 		return err
