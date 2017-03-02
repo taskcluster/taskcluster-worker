@@ -26,6 +26,7 @@ func TestGuestToolsSuccess(t *testing.T) {
 	}
 	environment := &runtime.Environment{
 		TemporaryStorage: storage,
+		Monitor:          mocks.NewMockMonitor(true),
 	}
 
 	// Setup a new MetaService
@@ -77,6 +78,7 @@ func TestGuestToolsFailed(t *testing.T) {
 	}
 	environment := &runtime.Environment{
 		TemporaryStorage: storage,
+		Monitor:          mocks.NewMockMonitor(true),
 	}
 
 	// Setup a new MetaService
@@ -112,7 +114,7 @@ func TestGuestToolsFailed(t *testing.T) {
 	if !resolved {
 		t.Error("Expected the metadata to have resolved the task")
 	}
-	if !result {
+	if result {
 		t.Error("Expected the metadata to get failed result")
 	}
 	if !strings.Contains(logTask.String(), "Hello world") {
