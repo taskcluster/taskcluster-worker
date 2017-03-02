@@ -55,7 +55,7 @@ func TestS3Artifact(t *testing.T) {
 
 	context, mockedQueue := setupArtifactTest(artifact.Name, s3resp)
 
-	UploadS3Artifact(*artifact, context)
+	context.UploadS3Artifact(*artifact)
 	mockedQueue.AssertExpectations(t)
 }
 
@@ -72,7 +72,7 @@ func TestErrorArtifact(t *testing.T) {
 
 	context, mockedQueue := setupArtifactTest(artifact.Name, errorResp)
 
-	CreateErrorArtifact(*artifact, context)
+	context.CreateErrorArtifact(*artifact)
 	mockedQueue.AssertExpectations(t)
 }
 
@@ -89,7 +89,7 @@ func TestRedirectArtifact(t *testing.T) {
 
 	context, mockedQueue := setupArtifactTest(artifact.Name, redirResp)
 
-	CreateRedirectArtifact(*artifact, context)
+	context.CreateRedirectArtifact(*artifact)
 	mockedQueue.AssertExpectations(t)
 }
 
