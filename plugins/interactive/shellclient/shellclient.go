@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellconsts"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
@@ -92,7 +93,7 @@ func (s *ShellClient) send(message []byte) bool {
 		s.resolve.Do(func() {
 			debug("Resolving internal error: Failed to send message, error: %s", err)
 			s.success = false
-			s.err = engines.ErrNonFatalInternalError
+			s.err = runtime.ErrNonFatalInternalError
 			s.dispose()
 		})
 		return false
@@ -116,7 +117,7 @@ func (s *ShellClient) sendPings() {
 			s.resolve.Do(func() {
 				debug("Resolving with internal-error, failed to send ping, error: %s", err)
 				s.success = false
-				s.err = engines.ErrNonFatalInternalError
+				s.err = runtime.ErrNonFatalInternalError
 				s.dispose()
 			})
 			return
@@ -185,7 +186,7 @@ func (s *ShellClient) writeMessages() {
 			s.resolve.Do(func() {
 				debug("Resolving internal error: Failed to read stdin, error: %s", err)
 				s.success = false
-				s.err = engines.ErrNonFatalInternalError
+				s.err = runtime.ErrNonFatalInternalError
 				s.dispose()
 			})
 			return
@@ -200,7 +201,7 @@ func (s *ShellClient) readMessages() {
 			s.resolve.Do(func() {
 				debug("Resolving internal error: Failed to read message, error: %s", err)
 				s.success = false
-				s.err = engines.ErrNonFatalInternalError
+				s.err = runtime.ErrNonFatalInternalError
 				s.dispose()
 			})
 			return
@@ -243,7 +244,7 @@ func (s *ShellClient) readMessages() {
 				s.resolve.Do(func() {
 					debug("Resolving internal error: Failed to write streamID: %d, error: %s", mStream, err)
 					s.success = false
-					s.err = engines.ErrNonFatalInternalError
+					s.err = runtime.ErrNonFatalInternalError
 					s.dispose()
 				})
 				return
@@ -312,7 +313,7 @@ func (s *ShellClient) SetSize(columns, rows uint16) error {
 		case <-s.done:
 			return s.err
 		default:
-			return engines.ErrNonFatalInternalError
+			return runtime.ErrNonFatalInternalError
 		}
 	}
 

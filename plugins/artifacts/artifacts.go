@@ -109,7 +109,7 @@ func (tp taskPlugin) errorHandled(name string, expires time.Time, err error) boo
 	var reason string
 	if _, ok := err.(*engines.MalformedPayloadError); ok {
 		reason = "invalid-resource-on-worker"
-	} else if err == engines.ErrFeatureNotSupported || err == engines.ErrNonFatalInternalError || err == engines.ErrHandlerInterrupt {
+	} else if err == engines.ErrFeatureNotSupported || err == runtime.ErrNonFatalInternalError || err == engines.ErrHandlerInterrupt {
 		reason = "invalid-resource-on-worker"
 	} else if err == engines.ErrResourceNotFound {
 		reason = "file-missing-on-worker"

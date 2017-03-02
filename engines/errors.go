@@ -55,10 +55,6 @@ var ErrNoSuchDisplay = errors.New("No such display exists")
 // ErrNamingConflict is used to indicate that a name is already in use.
 var ErrNamingConflict = errors.New("Conflicting name is already in use")
 
-// ErrNonFatalInternalError is used to indicate that the operation failed
-// because of internal error that isn't expected to affect other tasks.
-var ErrNonFatalInternalError = errors.New("Engine encountered a non-fatal internal error")
-
 // ErrContractViolation is returned when a contract with the engine has been
 // violated.
 var ErrContractViolation = errors.New("Engine has detected a contract violation")
