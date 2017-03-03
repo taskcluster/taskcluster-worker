@@ -1,3 +1,5 @@
+// Package test includes all integration tests (typically that talk to Queue
+// service). Unit tests go in package they are testing.
 package test
 
 import (
