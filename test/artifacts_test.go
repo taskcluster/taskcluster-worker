@@ -3,6 +3,7 @@ package test
 import (
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -108,7 +109,7 @@ func TestUpload(t *testing.T) {
 	// now check content was uploaded to Amazon, and is correct
 
 	for artifact, content := range expectedArtifacts {
-		var url string
+		var url *url.URL
 		url, err = q.GetLatestArtifact_SignedURL(taskID, artifact, 10*time.Minute)
 		if err != nil {
 			t.Fatalf("Error trying to fetch artifacts from Amazon...\n%s", err)
