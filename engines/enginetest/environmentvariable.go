@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 // The EnvVarTestCase contains information sufficient to setting an environment
@@ -56,7 +57,7 @@ func (c *EnvVarTestCase) TestInvalidVariableNames() {
 	r.NewSandboxBuilder(c.Payload)
 	for _, name := range c.InvalidVariableNames {
 		err := r.sandboxBuilder.SetEnvironmentVariable(name, "hello world")
-		if _, ok := err.(*engines.MalformedPayloadError); ok {
+		if _, ok := runtime.IsMalformedPayloadError(err); !ok {
 			log.Panic("Expected MalformedPayloadError from invalid variable name: ", name)
 		}
 	}

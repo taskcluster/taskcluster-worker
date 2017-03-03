@@ -1,6 +1,9 @@
 package runtime
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // ErrNonFatalInternalError is used to indicate that the operation failed
 // because of internal error that isn't expected to affect other tasks.
@@ -27,3 +30,53 @@ var ErrNonFatalInternalError = errors.New("Encountered a non-fatal internal erro
 // This is only useful for plugins and engines that wishes to manually handle
 // error reporting.
 var ErrFatalInternalError = errors.New("Encountered a fatal internal error")
+
+// The MalformedPayloadError error type is used to indicate that some operation
+// failed because of malformed-payload.
+//
+// For example a string expected to be path contained invalid characters, a
+// required property was missing, or an integer was outside the permitted range.
+type MalformedPayloadError struct {
+	messages []string
+}
+
+// Error returns the error message and adheres to the Error interface
+func (e MalformedPayloadError) Error() string {
+	if len(e.messages) == 1 {
+		return e.messages[0]
+	}
+	//TODO: Make this smarter in some way please!
+	msg := ""
+	for _, m := range e.messages {
+		msg += m + "\n"
+	}
+	return msg
+}
+
+// NewMalformedPayloadError creates a MalformedPayloadError object, please
+// make sure to include a detailed description of the error, preferably using
+// multiple lines and with examples.
+//
+// These will be printed in the logs and end-users will rely on them to debug
+// their tasks.
+func NewMalformedPayloadError(a ...interface{}) MalformedPayloadError {
+	return MalformedPayloadError{messages: []string{fmt.Sprint(a...)}}
+}
+
+// MergeMalformedPayload merges a list of MalformedPayloadError objects
+func MergeMalformedPayload(errors ...MalformedPayloadError) MalformedPayloadError {
+	messages := []string{}
+	for _, e := range errors {
+		messages = append(messages, e.messages...)
+	}
+	return MalformedPayloadError{messages: messages}
+}
+
+// IsMalformedPayloadError casts error to MalformedPayloadError.
+//
+// This is mostly because it's hard to remember that error isn't supposed to be
+// cast to *MalformedPayloadError.
+func IsMalformedPayloadError(err error) (e MalformedPayloadError, ok bool) {
+	e, ok = err.(MalformedPayloadError)
+	return
+}

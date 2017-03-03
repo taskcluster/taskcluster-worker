@@ -1,9 +1,6 @@
 package engines
 
-import (
-	"errors"
-	"fmt"
-)
+import "errors"
 
 // ErrFeatureNotSupported is a common error that may be returned from optional
 // Engine methods to indicate the engine implementation doesn't support the
@@ -67,47 +64,3 @@ var ErrMaxConcurrencyExceeded = errors.New("Engine is cannot run more than " +
 // ErrEngineNotSupported is used to indicate that the engine isn't supported in
 // the current configuration.
 var ErrEngineNotSupported = errors.New("Engine is not available in the current configuration")
-
-// TODO: MalformedPayloadError should be define in the runtime
-// TODO: MalformedPayloadError should have a merge to join two of these
-//       errors (useful if we have multiple of them)
-
-// The MalformedPayloadError error type is used to indicate that some operation
-// failed because of malformed-payload. For example a string expected to be
-// path contained invalid characters, a required property was missing, or an
-// integer was outside the permitted range.
-type MalformedPayloadError struct {
-	messages []string
-}
-
-// Error returns the error message and adheres to the Error interface
-func (e MalformedPayloadError) Error() string {
-	if len(e.messages) == 1 {
-		return e.messages[0]
-	}
-	//TODO: Make this smarter in some way please!
-	msg := ""
-	for _, m := range e.messages {
-		msg += m + "\n"
-	}
-	return msg
-}
-
-// NewMalformedPayloadError creates a MalformedPayloadError object, please
-// make sure to include a detailed description of the error, preferably using
-// multiple lines and with examples.
-//
-// These will be printed in the logs and end-users will rely on them to debug
-// their tasks.
-func NewMalformedPayloadError(a ...interface{}) MalformedPayloadError {
-	return MalformedPayloadError{messages: []string{fmt.Sprint(a...)}}
-}
-
-// MergeMalformedPayload merges a list of MalformedPayloadError objects
-func MergeMalformedPayload(errors ...MalformedPayloadError) MalformedPayloadError {
-	messages := []string{}
-	for _, e := range errors {
-		messages = append(messages, e.messages...)
-	}
-	return MalformedPayloadError{messages: messages}
-}

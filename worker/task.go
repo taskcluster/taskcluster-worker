@@ -199,7 +199,7 @@ func (t *TaskRun) prepareStage() error {
 	payload := map[string]interface{}{}
 	err := json.Unmarshal([]byte(t.definition.Payload), &payload)
 	if err != nil {
-		err = engines.NewMalformedPayloadError(fmt.Sprintf("Invalid task payload. %s", err))
+		err = runtime.NewMalformedPayloadError(fmt.Sprintf("Invalid task payload. %s", err))
 		t.context.LogError(err.Error())
 		return err
 	}
@@ -218,7 +218,7 @@ func (t *TaskRun) prepareStage() error {
 	// Validate payload against schema
 	err = payloadSchema.Validate(payload)
 	if err != nil {
-		err = engines.NewMalformedPayloadError("Schema violation: ", err)
+		err = runtime.NewMalformedPayloadError("Schema violation: ", err)
 		t.context.LogError(err.Error())
 		return err
 	}
@@ -355,7 +355,7 @@ func (t *TaskRun) exceptionStage(taskError error) {
 		reason = runtime.WorkerShutdown
 	} else {
 		switch taskError.(type) {
-		case engines.MalformedPayloadError:
+		case runtime.MalformedPayloadError:
 			reason = runtime.MalformedPayload
 		default:
 			reason = runtime.InternalError

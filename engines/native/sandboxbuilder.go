@@ -20,7 +20,7 @@ var envVarPattern = regexp.MustCompile("^[a-zA-Z0-9_-]+$")
 
 func (b *sandboxBuilder) SetEnvironmentVariable(name string, value string) error {
 	if !envVarPattern.MatchString(name) {
-		return engines.NewMalformedPayloadError(
+		return runtime.NewMalformedPayloadError(
 			"Environment variables name: '", name, "' doesn't match: ",
 			envVarPattern.String(),
 		)
