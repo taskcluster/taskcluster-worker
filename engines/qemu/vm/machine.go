@@ -238,7 +238,7 @@ func (m *Machine) Validate() error {
 
 // validateMAC ensures that MAC address has local bit set, and multicast bit
 // unset. This is important as we shouldn't use globally registered MAC
-// addreses in our virtual machines.
+// addresses in our virtual machines.
 func validateMAC(mac string) error {
 	m := make([]byte, 6)
 	n, err := fmt.Sscanf(
