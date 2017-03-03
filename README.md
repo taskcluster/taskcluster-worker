@@ -30,7 +30,7 @@ Installing From Source
 1. [Install go 1.7](https://golang.org/doc/install) or higher
 2. `go get -u -t -d github.com/taskclustertaskcluster-worker/...`
 3. `cd "${GOPATH}/src/github.com/taskcluster-worker"`
-4. `go get -u https://github.com/kardianos/govendor`
+4. `go get -u github.com/kardianos/govendor`
 5. `govendor sync`
 6. `make rebuild`
 
