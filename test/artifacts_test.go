@@ -121,7 +121,8 @@ func TestUpload(t *testing.T) {
 			DisableCompression: true,
 		}
 		client := &http.Client{Transport: tr}
-		rawResp, _, err := httpbackoff.ClientGet(client, url.String())
+		var rawResp *http.Response
+		rawResp, _, err = httpbackoff.ClientGet(client, url.String())
 		if err != nil {
 			t.Fatalf("Error trying to fetch decompressed artifact from signed URL %s ...\n%s", url.String(), err)
 		}
