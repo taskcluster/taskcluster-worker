@@ -108,7 +108,8 @@ func TestUpload(t *testing.T) {
 	// now check content was uploaded to Amazon, and is correct
 
 	for artifact, content := range expectedArtifacts {
-		url, err := q.GetLatestArtifact_SignedURL(taskID, artifact, 10*time.Minute)
+		var url string
+		url, err = q.GetLatestArtifact_SignedURL(taskID, artifact, 10*time.Minute)
 		if err != nil {
 			t.Fatalf("Error trying to fetch artifacts from Amazon...\n%s", err)
 		}
@@ -130,7 +131,7 @@ func TestUpload(t *testing.T) {
 			t.Fatalf("Error trying to read response body of artifact from signed URL %s ...\n%s", url.String(), err)
 		}
 		for _, requiredSubstring := range content.extracts {
-			if strings.Index(string(b), requiredSubstring) < 0 {
+			if !strings.Contains(string(b), requiredSubstring) {
 				t.Errorf("Artifact '%s': Could not find substring %q in '%s'", artifact, requiredSubstring, string(b))
 			}
 		}
