@@ -25,5 +25,5 @@ func (c Case) Test(t *testing.T) {
 	err := transform.Transform(c.Input)
 	require.NoError(t, err, "Transform(Input) failed")
 
-	require.Equal(t, c.Input, c.Result, "Unexpected result")
+	require.Equal(t, c.Result, c.Input, "Unexpected result")
 }

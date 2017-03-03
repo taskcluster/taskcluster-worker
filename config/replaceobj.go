@@ -31,7 +31,7 @@ func inject(
 			val[i] = v2
 		}
 	case map[string]interface{}:
-		if _, ok := val["$"+key].(string); ok {
+		if _, ok := val["$"+key].(interface{}); ok {
 			return replacement(val)
 		}
 		for k, v := range val {
