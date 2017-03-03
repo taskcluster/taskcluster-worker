@@ -79,7 +79,7 @@ func (tp *taskPlugin) Prepare(context *runtime.TaskContext) error {
 
 	err := tp.context.CreateRedirectArtifact(runtime.RedirectArtifact{
 		Name:     "public/logs/live.log",
-		Mimetype: "text/plain",
+		Mimetype: "text/plain; charset=utf-8",
 		URL:      tp.url,
 		Expires:  tp.context.TaskInfo.Expires,
 	})
@@ -132,7 +132,7 @@ func (tp *taskPlugin) uploadLog() error {
 
 	err = tp.context.UploadS3Artifact(runtime.S3Artifact{
 		Name:     "public/logs/live_backing.log",
-		Mimetype: "text/plain",
+		Mimetype: "text/plain; charset=utf-8",
 		Expires:  tp.context.TaskInfo.Expires,
 		Stream:   tempFile,
 		AdditionalHeaders: map[string]string{
@@ -147,7 +147,7 @@ func (tp *taskPlugin) uploadLog() error {
 	backingURL := fmt.Sprintf("https://queue.taskcluster.net/v1/task/%s/runs/%d/artifacts/public/logs/live_backing.log", tp.context.TaskInfo.TaskID, tp.context.TaskInfo.RunID)
 	err = tp.context.CreateRedirectArtifact(runtime.RedirectArtifact{
 		Name:     "public/logs/live.log",
-		Mimetype: "text/plain",
+		Mimetype: "text/plain; charset=utf-8",
 		URL:      backingURL,
 		Expires:  tp.context.TaskInfo.Expires,
 	})

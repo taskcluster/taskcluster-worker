@@ -3,7 +3,9 @@ package test
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
+	"os/user"
 	"path/filepath"
 	"testing"
 	"time"
@@ -33,7 +35,16 @@ func testdataDir() string {
 	if err != nil {
 		panic(fmt.Errorf("Could not get current directory during test package initialisation: %v", err))
 	}
-	return filepath.Join(cwd, "testdata")
+	u, err := user.Current()
+	if err != nil {
+		panic("Cannot establish who the current user is, needed for tests")
+	}
+	testdataRelativeDir, err := filepath.Rel(u.HomeDir, filepath.Join(cwd, "testdata"))
+	if err != nil {
+		log.Println("GOPATH needs to be somewhere under user home directory for these tests to work")
+		panic(err)
+	}
+	return testdataRelativeDir
 }
 
 // TaskPayload is generated from running

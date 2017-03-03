@@ -49,7 +49,7 @@ func TestS3Artifact(t *testing.T) {
 
 	artifact := &S3Artifact{
 		Name:     "public/test.txt",
-		Mimetype: "text/plain",
+		Mimetype: "text/plain; charset=utf-8",
 		Stream:   ioext.NopCloser(&bytes.Reader{}),
 	}
 
@@ -84,7 +84,7 @@ func TestRedirectArtifact(t *testing.T) {
 	artifact := &RedirectArtifact{
 		Name:     "public/test.txt",
 		URL:      "something.ontheweb.com",
-		Mimetype: "text/plain",
+		Mimetype: "text/plain; charset=utf-8",
 	}
 
 	context, mockedQueue := setupArtifactTest(artifact.Name, redirResp)
@@ -99,7 +99,7 @@ func TestPutArtifact200(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	err := putArtifact(ts.URL, "text/plain", ioext.NopCloser(&bytes.Reader{}), map[string]string{})
+	err := putArtifact(ts.URL, "text/plain; charset=utf-8", ioext.NopCloser(&bytes.Reader{}), map[string]string{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -111,7 +111,7 @@ func TestPutArtifact400(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	err := putArtifact(ts.URL, "text/plain", ioext.NopCloser(&bytes.Reader{}), map[string]string{})
+	err := putArtifact(ts.URL, "text/plain; charset=utf-8", ioext.NopCloser(&bytes.Reader{}), map[string]string{})
 	if err == nil {
 		t.Fail()
 	}
@@ -129,7 +129,7 @@ func TestPutArtifact500(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	err := putArtifact(ts.URL, "text/plain", ioext.NopCloser(&bytes.Reader{}), map[string]string{})
+	err := putArtifact(ts.URL, "text/plain; charset=utf-8", ioext.NopCloser(&bytes.Reader{}), map[string]string{})
 	if err != nil {
 		t.Error(err)
 	}

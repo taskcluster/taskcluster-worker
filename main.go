@@ -17,11 +17,14 @@
 // by commands.
 package main
 
-import "github.com/taskcluster/taskcluster-worker/commands"
-
-// Import all sub-packages from commands/, config/, engines/ and plugins/
-// as they will register themselves using extension registries.
 import (
+	"os"
+
+	"github.com/taskcluster/taskcluster-worker/commands"
+
+	// Import all sub-packages from commands/, config/, engines/ and plugins/
+	// as they will register themselves using extension registries.
+
 	_ "github.com/taskcluster/taskcluster-worker/commands/daemon"
 	_ "github.com/taskcluster/taskcluster-worker/commands/help"
 	_ "github.com/taskcluster/taskcluster-worker/commands/qemu-build"
@@ -52,5 +55,5 @@ import (
 )
 
 func main() {
-	commands.Run(nil)
+	os.Exit(commands.Run(nil))
 }
