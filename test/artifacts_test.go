@@ -14,6 +14,7 @@ import (
 
 	"github.com/taskcluster/httpbackoff"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
+	"github.com/taskcluster/taskcluster-client-go/queue"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/artifacts"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/livelog"
 )
@@ -126,11 +127,13 @@ func TestUpload(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error trying to fetch decompressed artifact from signed URL %s ...\n%s", url.String(), err)
 		}
-		resp, _, err := httpbackoff.Get(url.String())
+		var resp *http.Response
+		resp, _, err = httpbackoff.Get(url.String())
 		if err != nil {
 			t.Fatalf("Error trying to fetch artifact from signed URL %s ...\n%s", url.String(), err)
 		}
-		b, err := ioutil.ReadAll(resp.Body)
+		var b []byte
+		b, err = ioutil.ReadAll(resp.Body)
 		if err != nil {
 			t.Fatalf("Error trying to read response body of artifact from signed URL %s ...\n%s", url.String(), err)
 		}
@@ -147,7 +150,8 @@ func TestUpload(t *testing.T) {
 		}
 	}
 
-	status, err := q.Status(taskID)
+	var status *queue.TaskStatusResponse
+	status, err = q.Status(taskID)
 	if err != nil {
 		t.Fatal("Error retrieving status from queue")
 	}
