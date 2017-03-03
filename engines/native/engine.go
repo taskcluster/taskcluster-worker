@@ -31,10 +31,7 @@ func (engineProvider) ConfigSchema() schematypes.Schema {
 
 func (engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine, error) {
 	var c config
-
-	if schematypes.MustMap(configSchema, options.Config, &c) != nil {
-		return nil, engines.ErrContractViolation
-	}
+	schematypes.MustValidateAndMap(configSchema, options.Config, &c)
 
 	// Load user-groups
 	groups := []*system.Group{}
@@ -63,9 +60,8 @@ func (e *engine) PayloadSchema() schematypes.Object {
 
 func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {
 	var p payload
-	if schematypes.MustMap(payloadSchema, options.Payload, &p) != nil {
-		return nil, engines.ErrContractViolation
-	}
+	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &p)
+
 	b := &sandboxBuilder{
 		engine:  e,
 		payload: p,

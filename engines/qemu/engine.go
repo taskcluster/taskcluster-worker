@@ -69,12 +69,7 @@ func (p engineProvider) ConfigSchema() schematypes.Schema {
 
 func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine, error) {
 	var c configType
-	err := configSchema.Map(options.Config, &c)
-	if err == schematypes.ErrTypeMismatch {
-		panic("Type mismatch")
-	} else if err != nil {
-		return nil, engines.ErrContractViolation
-	}
+	schematypes.MustValidateAndMap(configSchema, options.Config, &c)
 
 	// Create image manager
 	imageManager, err := image.NewManager(
@@ -141,9 +136,7 @@ func (e *engine) PayloadSchema() schematypes.Object {
 
 func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {
 	var p payloadType
-	if schematypes.MustMap(payloadSchema, options.Payload, &p) != nil {
-		return nil, engines.ErrContractViolation
-	}
+	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &p)
 
 	// Get an idle network
 	net, err := e.networkPool.Network()

@@ -53,17 +53,7 @@ func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sandb
 	}
 
 	var p payloadType
-	err := e.PayloadSchema().Map(options.Payload, &p)
-	if err == schematypes.ErrTypeMismatch {
-		// This should pretty much either always happen or never happen.
-		// So while this runtime error is bad we're pretty sure it'll get caught
-		// during testing.
-		panic("TypeMismatch: PayloadSchema doesn't work with payloadType")
-	}
-	if err != nil {
-		// TODO: Write to some sort of log if the type assertion fails
-		return nil, engines.ErrContractViolation
-	}
+	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &p)
 	return &sandbox{
 		payload: p,
 		context: options.TaskContext,

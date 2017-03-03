@@ -52,9 +52,7 @@ func (plugin) PayloadSchema() schematypes.Object {
 
 func (plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
 	var p payloadType
-	if err := schematypes.MustMap(payloadSchema, options.Payload, &p); err != nil {
-		return nil, engines.ErrContractViolation
-	}
+	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &p)
 
 	return &taskPlugin{
 		TaskPluginBase: plugins.TaskPluginBase{},

@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	schematypes "github.com/taskcluster/go-schematypes"
-	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 )
 
@@ -45,12 +44,7 @@ func (plugin) PayloadSchema() schematypes.Object {
 
 func (plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
 	var p payloadType
-	err := payloadSchema.Map(options.Payload, &p)
-	if err == schematypes.ErrTypeMismatch {
-		panic("internal error -- type mismatch")
-	} else if err != nil {
-		return nil, engines.ErrContractViolation
-	}
+	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &p)
 
 	return taskPlugin{
 		TaskPluginBase: plugins.TaskPluginBase{},
