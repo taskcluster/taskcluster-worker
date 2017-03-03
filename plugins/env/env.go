@@ -9,6 +9,7 @@ import (
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 type plugin struct {
@@ -87,9 +88,9 @@ func (p *taskPlugin) BuildSandbox(sandboxBuilder engines.SandboxBuilder) error {
 		// We can only return MalFormedPayloadError
 		switch err {
 		case engines.ErrNamingConflict:
-			return engines.NewMalformedPayloadError("Environment variable ", k, " has already been set.")
+			return runtime.NewMalformedPayloadError("Environment variable ", k, " has already been set.")
 		case engines.ErrFeatureNotSupported:
-			return engines.NewMalformedPayloadError(
+			return runtime.NewMalformedPayloadError(
 				"Cannot set environment variable ",
 				k,
 				". Engine does not support this operation")

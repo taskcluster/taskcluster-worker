@@ -58,7 +58,7 @@ func (tp *taskPlugin) Prepare(context *runtime.TaskContext) error {
 }
 
 func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
-	nonFatalErrs := []engines.MalformedPayloadError{}
+	nonFatalErrs := []runtime.MalformedPayloadError{}
 
 	for _, artifact := range tp.artifacts {
 		// If expires is set to this time it's the default value
@@ -70,7 +70,7 @@ func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
 			err := result.ExtractFolder(artifact.Path, tp.createUploadHandler(artifact.Name, artifact.Expires))
 			if err != nil {
 				if tp.errorHandled(artifact.Name, artifact.Expires, err) {
-					nonFatalErrs = append(nonFatalErrs, engines.NewMalformedPayloadError(err.Error()))
+					nonFatalErrs = append(nonFatalErrs, runtime.NewMalformedPayloadError(err.Error()))
 					continue
 				}
 				return false, err
@@ -79,7 +79,7 @@ func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
 			fileReader, err := result.ExtractFile(artifact.Path)
 			if err != nil {
 				if tp.errorHandled(artifact.Name, artifact.Expires, err) {
-					nonFatalErrs = append(nonFatalErrs, engines.NewMalformedPayloadError(err.Error()))
+					nonFatalErrs = append(nonFatalErrs, runtime.NewMalformedPayloadError(err.Error()))
 					continue
 				}
 				return false, err
@@ -97,7 +97,7 @@ func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
 		// expected for a succeeded run, but failed tasks might be missing
 		// some artifacts.
 		if result.Success() {
-			return false, engines.MergeMalformedPayload(nonFatalErrs...)
+			return false, runtime.MergeMalformedPayload(nonFatalErrs...)
 		}
 
 		return false, nil
@@ -107,9 +107,9 @@ func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
 
 func (tp taskPlugin) errorHandled(name string, expires time.Time, err error) bool {
 	var reason string
-	if _, ok := err.(*engines.MalformedPayloadError); ok {
+	if _, ok := runtime.IsMalformedPayloadError(err); ok {
 		reason = "invalid-resource-on-worker"
-	} else if err == engines.ErrFeatureNotSupported || err == engines.ErrNonFatalInternalError || err == engines.ErrHandlerInterrupt {
+	} else if err == engines.ErrFeatureNotSupported || err == runtime.ErrNonFatalInternalError || err == engines.ErrHandlerInterrupt {
 		reason = "invalid-resource-on-worker"
 	} else if err == engines.ErrResourceNotFound {
 		reason = "file-missing-on-worker"

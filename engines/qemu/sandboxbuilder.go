@@ -70,13 +70,13 @@ var proxyNamePattern = regexp.MustCompile("^[a-zA-Z0-9_-]+$")
 func (sb *sandboxBuilder) AttachProxy(hostname string, handler http.Handler) error {
 	// Validate hostname against allowed patterns
 	if !proxyNamePattern.MatchString(hostname) {
-		return engines.NewMalformedPayloadError("Proxy hostname: '", hostname, "'",
+		return runtime.NewMalformedPayloadError("Proxy hostname: '", hostname, "'",
 			" is not allowed for QEMU engine. The hostname must match: ",
 			proxyNamePattern.String())
 	}
 	// Ensure that we're not using the magic "engine" hostname
 	if hostname == "engine" {
-		return engines.NewMalformedPayloadError("Proxy hostname: 'engine' is " +
+		return runtime.NewMalformedPayloadError("Proxy hostname: 'engine' is " +
 			"reserved for internal use (meta-data service)")
 	}
 
@@ -100,7 +100,7 @@ var envVarPattern = regexp.MustCompile("^[a-zA-Z_][a-zA-Z0-9_]*$")
 func (sb *sandboxBuilder) SetEnvironmentVariable(name, value string) error {
 	// Simple sanity check of environment variable names
 	if !envVarPattern.MatchString(name) {
-		return engines.NewMalformedPayloadError("Environment variable name: '",
+		return runtime.NewMalformedPayloadError("Environment variable name: '",
 			name, "' is not allowed for QEMU engine. Environment variable names",
 			" must be on the form: ", envVarPattern.String())
 	}

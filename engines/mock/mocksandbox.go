@@ -61,7 +61,7 @@ func (s *sandbox) AttachVolume(mountpoint string, v engines.Volume, readOnly boo
 	s.Lock()
 	defer s.Unlock()
 	if strings.ContainsAny(mountpoint, " ") {
-		return engines.NewMalformedPayloadError("MockEngine mountpoints cannot contain space")
+		return runtime.NewMalformedPayloadError("MockEngine mountpoints cannot contain space")
 	}
 	if s.mounts[mountpoint] != nil {
 		return engines.ErrNamingConflict
@@ -78,7 +78,7 @@ func (s *sandbox) AttachProxy(name string, handler http.Handler) error {
 	s.Lock()
 	defer s.Unlock()
 	if strings.ContainsAny(name, " ") {
-		return engines.NewMalformedPayloadError(
+		return runtime.NewMalformedPayloadError(
 			"MockEngine proxy names cannot contain space.",
 			"Was given proxy name: '", name, "' which isn't allowed!",
 		)
@@ -94,7 +94,7 @@ func (s *sandbox) SetEnvironmentVariable(name string, value string) error {
 	s.Lock()
 	defer s.Unlock()
 	if strings.Contains(name, " ") {
-		return engines.NewMalformedPayloadError(
+		return runtime.NewMalformedPayloadError(
 			"MockEngine environment variable names cannot contain space.",
 			"Was given environment variable name: '", name, "' which isn't allowed!",
 		)
@@ -181,7 +181,7 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 		// No need to lock access mounts and proxies either
 		f := functions[s.payload.Function]
 		if f == nil {
-			return nil, engines.NewMalformedPayloadError("Unknown function")
+			return nil, runtime.NewMalformedPayloadError("Unknown function")
 		}
 		result := f(s, s.payload.Argument)
 		s.Lock()

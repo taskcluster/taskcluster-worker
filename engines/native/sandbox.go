@@ -69,7 +69,7 @@ func newSandbox(b *sandboxBuilder) (s *sandbox, err error) {
 
 	if b.payload.Context != "" {
 		if err = fetchContext(b.payload.Context, user); err != nil {
-			err = engines.NewMalformedPayloadError(
+			err = runtime.NewMalformedPayloadError(
 				fmt.Sprintf("Error downloading %s: %v", b.payload.Context, err),
 			)
 			b.context.LogError(err)
@@ -99,7 +99,7 @@ func newSandbox(b *sandboxBuilder) (s *sandbox, err error) {
 	if err != nil {
 		// StartProcess provides human-readable error messages (see docs)
 		// We'll convert it to a MalformedPayloadError
-		err = engines.NewMalformedPayloadError(
+		err = runtime.NewMalformedPayloadError(
 			"Unable to start specified command: ", b.payload.Command, "error: ", err,
 		)
 		b.context.LogError(err)
@@ -172,7 +172,7 @@ func (s *sandbox) NewShell(command []string, tty bool) (engines.Shell, error) {
 	if err != nil {
 		debug("Failed to start shell, error: %s", err)
 		s.wg.Done()
-		return nil, engines.NewMalformedPayloadError(
+		return nil, runtime.NewMalformedPayloadError(
 			"Unable to spawn command: ", command, " error: ", err,
 		)
 	}

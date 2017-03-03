@@ -355,7 +355,7 @@ func (s *MetaService) getArtifactWithoutRetry(path string) (
 	// Create result values to be set in the callback
 	var File ioext.ReadSeekCloser
 	var Err error
-	Err = engines.ErrNonFatalInternalError
+	Err = runtime.ErrNonFatalInternalError
 
 	s.asyncRequest(Action{
 		Type: "get-artifact",
@@ -416,7 +416,7 @@ func (s *MetaService) GetArtifact(path string) (ioext.ReadSeekCloser, error) {
 	for {
 		f, err := s.getArtifactWithoutRetry(path)
 		retries--
-		if err == engines.ErrNonFatalInternalError && retries > 0 {
+		if err == runtime.ErrNonFatalInternalError && retries > 0 {
 			continue
 		}
 		return f, err
@@ -426,7 +426,7 @@ func (s *MetaService) GetArtifact(path string) (ioext.ReadSeekCloser, error) {
 func (s *MetaService) listFolderWithoutRetries(path string) ([]string, error) {
 	var Result []string
 	var Err error
-	Err = engines.ErrNonFatalInternalError
+	Err = runtime.ErrNonFatalInternalError
 
 	s.asyncRequest(Action{
 		Type: "list-folder",
@@ -483,7 +483,7 @@ func (s *MetaService) ListFolder(path string) ([]string, error) {
 	for {
 		files, err := s.listFolderWithoutRetries(path)
 		retries--
-		if err == engines.ErrNonFatalInternalError && retries > 0 {
+		if err == runtime.ErrNonFatalInternalError && retries > 0 {
 			continue
 		}
 		return files, err
@@ -502,7 +502,7 @@ var upgrader = websocket.Upgrader{
 func (s *MetaService) ExecShell(command []string, tty bool) (engines.Shell, error) {
 	var Shell engines.Shell
 	var Err error
-	Err = engines.ErrNonFatalInternalError
+	Err = runtime.ErrNonFatalInternalError
 
 	s.asyncRequest(Action{
 		Type:    "exec-shell",
@@ -512,7 +512,7 @@ func (s *MetaService) ExecShell(command []string, tty bool) (engines.Shell, erro
 		ws, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			debug("Failed to upgrade request to websocket, error: %s", err)
-			Err = engines.ErrNonFatalInternalError
+			Err = runtime.ErrNonFatalInternalError
 			return
 		}
 

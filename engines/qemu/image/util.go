@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/taskcluster/go-got"
-	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 // copyFile copies source to destination, and returns an error if one occurs
@@ -84,7 +84,7 @@ func DownloadImage(url string) Downloader {
 				goto retry
 			}
 			if res.StatusCode != 200 {
-				return engines.NewMalformedPayloadError(
+				return runtime.NewMalformedPayloadError(
 					"Image download failed with status code: ", res.StatusCode,
 				)
 			}
