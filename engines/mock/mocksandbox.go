@@ -3,6 +3,7 @@ package mockengine
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -55,7 +56,7 @@ func (s *sandbox) AttachVolume(mountpoint string, v engines.Volume, readOnly boo
 	vol, valid := v.(*volume)
 	if !valid {
 		// TODO: Write to some sort of log if the type assertion fails
-		return engines.ErrContractViolation
+		return fmt.Errorf("invalid volume type")
 	}
 	// Lock before we access mounts as this method may be called concurrently
 	s.Lock()

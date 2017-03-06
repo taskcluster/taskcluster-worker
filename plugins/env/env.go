@@ -54,17 +54,12 @@ func (*plugin) PayloadSchema() schematypes.Object {
 }
 
 func (pl *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
-	p := &payloadType{
+	p := payloadType{
 		// Must explicitly create an empty map, so if payload does not include
 		// env vars, we'll still have a valid map to read from/write to.
 		Env: map[string]string{},
 	}
-	err := payloadSchema.Map(options.Payload, p)
-	if err == schematypes.ErrTypeMismatch {
-		panic("internal error -- type mismatch")
-	} else if err != nil {
-		return nil, engines.ErrContractViolation
-	}
+	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &p)
 
 	for k, v := range pl.extraVars {
 		p.Env[k] = v
@@ -110,9 +105,7 @@ type pluginProvider struct {
 
 func (*pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
 	var c config
-	if err := schematypes.MustMap(configSchema, options.Config, &c); err != nil {
-		return nil, engines.ErrContractViolation
-	}
+	schematypes.MustValidateAndMap(configSchema, options.Config, &c)
 
 	return &plugin{
 		PluginBase: plugins.PluginBase{},

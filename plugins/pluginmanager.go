@@ -105,17 +105,13 @@ func NewPluginManager(options PluginOptions) (Plugin, error) {
 	configSchema := PluginManagerConfigSchema()
 
 	// Ensure the config is valid
-	if err := configSchema.Validate(options.Config); err != nil {
-		return nil, fmt.Errorf("Invalid config, error: %s", err)
-	}
+	schematypes.MustValidate(configSchema, options.Config)
 	config := options.Config.(map[string]interface{})
 
 	// Find plugins to load
 	var enabled []string
 	var disabled []string
-	if configSchema.Properties["disabled"].Map(config["disabled"], &disabled) != nil {
-		panic("internal error -- shouldn't be possible")
-	}
+	schematypes.MustValidateAndMap(configSchema.Properties["disabled"], config["disabled"], &disabled)
 
 	// Find list of enabled plugins and ensure that config is present if required
 	for name, plugin := range pluginProviders {
@@ -181,9 +177,7 @@ func (m *pluginManager) PayloadSchema() schematypes.Object {
 
 func (m *pluginManager) NewTaskPlugin(options TaskPluginOptions) (manager TaskPlugin, err error) {
 	// Input must be valid
-	if m.payloadSchema.Validate(options.Payload) != nil {
-		return nil, engines.ErrContractViolation
-	}
+	schematypes.MustValidate(m.payloadSchema, options.Payload)
 
 	taskPlugins := make([]TaskPlugin, len(m.plugins))
 	errors := make([]error, len(m.plugins))

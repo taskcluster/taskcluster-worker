@@ -52,10 +52,6 @@ var ErrNoSuchDisplay = errors.New("No such display exists")
 // ErrNamingConflict is used to indicate that a name is already in use.
 var ErrNamingConflict = errors.New("Conflicting name is already in use")
 
-// ErrContractViolation is returned when a contract with the engine has been
-// violated.
-var ErrContractViolation = errors.New("Engine has detected a contract violation")
-
 // ErrMaxConcurrencyExceeded is returned when the engine has limitation on how
 // many sandboxes it can run in parallel and this limit is violated.
 var ErrMaxConcurrencyExceeded = errors.New("Engine is cannot run more than " +
