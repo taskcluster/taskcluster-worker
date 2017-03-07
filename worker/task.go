@@ -240,13 +240,6 @@ func (t *TaskRun) prepareStage() error {
 		return err
 	}
 
-	// Prepare TaskPlugin
-	err = t.taskPlugin.Prepare(t.context)
-	if err != nil {
-		t.context.LogError(fmt.Sprintf("Could not prepare task plugins. %s", err))
-		return err
-	}
-
 	sandboxBuilder, err := t.engine.NewSandboxBuilder(engines.SandboxOptions{
 		TaskContext: t.context,
 		Payload:     t.engine.PayloadSchema().Filter(payload),

@@ -150,9 +150,6 @@ func (c Case) Test() {
 		TaskPlugin:     tp,
 	}
 
-	err = tp.Prepare(context)
-	nilOrPanic(err, "taskPlugin.Prepare failed")
-
 	// Set environment variables and proxies
 	for key, val := range c.Env {
 		nilOrPanic(err, sandboxBuilder.SetEnvironmentVariable(key, val),

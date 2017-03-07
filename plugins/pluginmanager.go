@@ -236,10 +236,6 @@ func (m *taskPluginManager) executePhase(f taskPluginPhase) error {
 	return mergeErrors(errors...)
 }
 
-func (m *taskPluginManager) Prepare(c *runtime.TaskContext) error {
-	return m.executePhase(func(p TaskPlugin) error { return p.Prepare(c) })
-}
-
 func (m *taskPluginManager) BuildSandbox(b engines.SandboxBuilder) error {
 	return m.executePhase(func(p TaskPlugin) error { return p.BuildSandbox(b) })
 }

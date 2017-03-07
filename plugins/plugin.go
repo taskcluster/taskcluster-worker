@@ -73,12 +73,6 @@ type Plugin interface {
 // Exception() which may be called following any method, and Dispose() which
 // will always be called as a final step allowing you to clean up.
 type TaskPlugin interface {
-	// Prepare is now deprecated, you should just do any operations in
-	// NewTaskPlugin.
-	//
-	// Non-fatal errors: MalformedPayloadError
-	Prepare(context *runtime.TaskContext) error
-
 	// BuildSandbox is called once NewSandboxBuilder() has returned.
 	//
 	// This is the place to wait for downloads and other expensive operations to
@@ -163,11 +157,6 @@ func (PluginBase) NewTaskPlugin(TaskPluginOptions) (TaskPlugin, error) {
 // Implementors should embed this to ensure forward compatibility when we add
 // new optional methods.
 type TaskPluginBase struct{}
-
-// Prepare ignores the sandbox preparation stage.
-func (TaskPluginBase) Prepare(*runtime.TaskContext) error {
-	return nil
-}
 
 // BuildSandbox ignores the sandbox building stage.
 func (TaskPluginBase) BuildSandbox(engines.SandboxBuilder) error {
