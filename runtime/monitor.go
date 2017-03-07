@@ -1,10 +1,13 @@
 package runtime
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
+
+	godebug "runtime/debug"
 
 	"github.com/Sirupsen/logrus"
 	raven "github.com/getsentry/raven-go"
@@ -51,6 +54,9 @@ type Monitor interface {
 	// can be included in task-logs, if relevant.
 	ReportError(err error, message ...interface{}) string
 	ReportWarning(err error, message ...interface{}) string
+
+	// CapturePanic reports panics to log/sentry and returns incidentID, if any
+	CapturePanic(fn func()) (incidentID string)
 
 	// Write log messages to system log
 	Debug(...interface{})
@@ -183,23 +189,37 @@ func (m *monitor) Time(name string, fn func()) {
 	m.Statsum.Time(name, fn)
 }
 
+func (m *monitor) CapturePanic(fn func()) (incidentID string) {
+	defer func() {
+		if crash := recover(); crash != nil {
+			message := fmt.Sprint(crash)
+			id := uuid.NewRandom()
+			incidentID = id.String()
+			m.Entry.WithField("incidentId", incidentID).WithField("panic", crash).Error("Recovered from panic:\n " + message)
+			m.submitError(fmt.Errorf("PANIC: %s", message), fmt.Sprint("Recovered from panic", message), raven.ERROR, id, 1)
+		}
+	}()
+	fn()
+	return
+}
+
 func (m *monitor) ReportError(err error, message ...interface{}) string {
-	incidentID := uuid.NewRandom().String()
-	m.Entry.WithField("incidentId", incidentID).WithError(err).Error(message...)
-	m.submitError(err, fmt.Sprint(message...), raven.ERROR, incidentID)
-	return incidentID
+	incidentID := uuid.NewRandom()
+	m.Entry.WithField("incidentId", incidentID.String()).WithError(err).Error(message...)
+	m.submitError(err, fmt.Sprint(message...), raven.ERROR, incidentID, 1)
+	return incidentID.String()
 }
 
 func (m *monitor) ReportWarning(err error, message ...interface{}) string {
-	incidentID := uuid.NewRandom().String()
-	m.Entry.WithField("incidentId", incidentID).WithError(err).Warn(message...)
-	m.submitError(err, fmt.Sprint(message...), raven.WARNING, incidentID)
-	return incidentID
+	incidentID := uuid.NewRandom()
+	m.Entry.WithField("incidentId", incidentID.String()).WithError(err).Warn(message...)
+	m.submitError(err, fmt.Sprint(message...), raven.WARNING, incidentID, 1)
+	return incidentID.String()
 }
 
-func (m *monitor) submitError(err error, message string, level raven.Severity, incidentID string) {
+func (m *monitor) submitError(err error, message string, level raven.Severity, incidentID uuid.UUID, skipFrames int) {
 	// Capture stack trace
-	exception := raven.NewException(err, raven.NewStacktrace(2, 5, []string{
+	exception := raven.NewException(err, raven.NewStacktrace(1+skipFrames, 5, []string{
 		"github.com/taskcluster/",
 	}))
 
@@ -207,14 +227,14 @@ func (m *monitor) submitError(err error, message string, level raven.Severity, i
 	text := fmt.Sprintf("Error: %s\nMessage: %s", err.Error(), message)
 	packet := raven.NewPacket(text, nil, exception)
 	packet.Level = level
-	packet.EventID = incidentID
+	packet.EventID = hex.EncodeToString(incidentID)
 
 	// Add incidentID and prefix to tags
 	tags := make(map[string]string, len(m.tags)+2)
 	for tag, value := range m.tags {
 		tags[tag] = value
 	}
-	tags["incidentId"] = incidentID
+	tags["incidentId"] = incidentID.String()
 	tags["prefix"] = m.prefix
 
 	// Get client with fresh sentry DSN (if cached is old)
@@ -326,6 +346,21 @@ func (m *loggingMonitor) Time(name string, fn func()) {
 	start := time.Now()
 	fn()
 	m.Measure(name, time.Since(start).Seconds()*1000)
+}
+
+func (m *loggingMonitor) CapturePanic(fn func()) (incidentID string) {
+	defer func() {
+		if crash := recover(); crash != nil {
+			message := fmt.Sprint(crash)
+			incidentID = uuid.NewRandom().String()
+			trace := godebug.Stack()
+			m.Entry.WithField("incidentId", incidentID).WithField("panic", crash).Error(
+				"Recovered from panic: ", message, "\nAt:\n", string(trace),
+			)
+		}
+	}()
+	fn()
+	return
 }
 
 func (m *loggingMonitor) ReportError(err error, message ...interface{}) string {
