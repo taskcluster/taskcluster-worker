@@ -125,6 +125,7 @@ func (p *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (
 	}
 
 	return &taskPlugin{
+		context: options.TaskContext,
 		opts:    o,
 		monitor: options.Monitor,
 		parent:  p,
@@ -143,11 +144,6 @@ type taskPlugin struct {
 	displaysURL      string
 	displaySocketURL string
 	displayServer    *DisplayServer
-}
-
-func (p *taskPlugin) Prepare(context *runtime.TaskContext) error {
-	p.context = context
-	return nil
 }
 
 func (p *taskPlugin) Started(sandbox engines.Sandbox) error {
