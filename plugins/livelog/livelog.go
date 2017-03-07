@@ -90,9 +90,9 @@ func (tp *taskPlugin) setup() {
 	if err != nil {
 		incidentID := tp.monitor.ReportError(err, "Failed to setup live logging")
 		tp.context.LogError("Failed to setup livelogging: ", incidentID)
+		// This isn't good, but let's not consider it fatal...
+		tp.setupErr = runtime.ErrNonFatalInternalError
 	}
-	// This isn't good, but let's not consider it fatal...
-	tp.setupErr = runtime.ErrNonFatalInternalError
 	tp.setupDone.Done()
 }
 
