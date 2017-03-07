@@ -1,5 +1,5 @@
 package reboot
 
-func reboot() error {
+func initiateReboot(command []string) {
 	panic("Not implemented on Windows")
 }
