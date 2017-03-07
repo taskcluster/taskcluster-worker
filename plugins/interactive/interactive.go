@@ -112,7 +112,7 @@ func (p *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (
 
 	// If not always enabled or no options are given then this is disabled
 	if P.Interactive == nil && !p.config.AlwaysEnabled {
-		return nil, nil
+		return plugins.TaskPluginBase{}, nil
 	}
 
 	// Extract options

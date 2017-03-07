@@ -31,6 +31,7 @@ func init() {
 
 func (plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
 	assert(options.Monitor != nil, "TaskPluginOptions.Monitor is nil!")
+	assert(options.TaskContext != nil, "TaskPluginOptions.TaskContext is nil!")
 	return taskPlugin{}, nil
 }
 

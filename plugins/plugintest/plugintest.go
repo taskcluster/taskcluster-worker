@@ -131,14 +131,15 @@ func (c Case) Test() {
 	nilOrPanic(err, "pluginProvider.NewPlugin failed")
 
 	tp, err := p.NewTaskPlugin(plugins.TaskPluginOptions{
-		TaskInfo: &context.TaskInfo,
-		Payload:  parsePluginPayload(p, c.Payload),
-		Monitor:  runtimeEnvironment.Monitor.WithTag("plugin", c.Plugin).WithTag("taskId", taskID),
+		TaskInfo:    &context.TaskInfo,
+		TaskContext: context,
+		Payload:     parsePluginPayload(p, c.Payload),
+		Monitor:     runtimeEnvironment.Monitor.WithTag("plugin", c.Plugin).WithTag("taskId", taskID),
 	})
 	nilOrPanic(err, "plugin.NewTaskPlugin failed")
 	// taskPlugin can be nil, if the plugin doesn't want any hooks
 	if tp == nil {
-		tp = plugins.TaskPluginBase{}
+		panic("if not relevant NewTaskPlugin should just return TaskPluginBase{}")
 	}
 
 	options := Options{

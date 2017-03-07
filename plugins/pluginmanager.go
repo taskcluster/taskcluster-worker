@@ -188,9 +188,10 @@ func (m *pluginManager) NewTaskPlugin(options TaskPluginOptions) (manager TaskPl
 		go func(index int, p Plugin) {
 			defer wg.Done()
 			taskPlugins[index], errors[index] = p.NewTaskPlugin(TaskPluginOptions{
-				TaskInfo: options.TaskInfo,
-				Payload:  p.PayloadSchema().Filter(options.Payload),
-				Monitor:  options.Monitor.WithPrefix(m.pluginNames[index]).WithTag("plugin", m.pluginNames[index]),
+				TaskInfo:    options.TaskInfo,
+				TaskContext: options.TaskContext,
+				Payload:     p.PayloadSchema().Filter(options.Payload),
+				Monitor:     options.Monitor.WithPrefix(m.pluginNames[index]).WithTag("plugin", m.pluginNames[index]),
 			})
 		}(i, j)
 	}

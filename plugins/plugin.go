@@ -12,9 +12,10 @@ import (
 // We wrap the arguments in a single argument to maintain source compatibility
 // when introducing additional arguments.
 type TaskPluginOptions struct {
-	TaskInfo *runtime.TaskInfo
-	Payload  map[string]interface{}
-	Monitor  runtime.Monitor
+	TaskInfo    *runtime.TaskInfo
+	TaskContext *runtime.TaskContext
+	Payload     map[string]interface{}
+	Monitor     runtime.Monitor
 	// Note: This is passed by-value for efficiency (and to prohibit nil), if
 	// adding any large fields please consider adding them as pointers.
 	// Note: This is intended to be a simple argument wrapper, do not add methods
@@ -38,17 +39,18 @@ type Plugin interface {
 	// NewTaskPlugin method will be called once for each task. The TaskPlugin
 	// instance returned will be called for each stage in the task execution.
 	//
-	// This is a poor place to do any processing, and not a great place to start
-	// long-running operations as you don't have a place to write log messages.
-	// Consider waiting until Prepare() is called with TaskContext that you can
-	// write log messages to.
+	// NewTaskPlugin will be called in parallel with NewSandboxBuilder(), making
+	// it a good place to start long-running operations, you then have to take
+	// care to clean-up in Dispose() if they are still running.
+	// You should wait for your long-running operations to finish in
+	//  BuildSandbox() or whatever hook you need them in.
 	//
 	// Plugins implementing logging should not return an error here, as it
 	// naturally follows that such an error can't be logged if no logging plugin
 	// is created.
 	//
-	// Implementors may return nil, if the plugin doesn't have any hooks for the
-	// given tasks.
+	// Implementors may return TaskPluginBase{}, if the plugin doesn't have any
+	// hooks for the given tasks.
 	//
 	// Non-fatal errors: MalformedPayloadError
 	NewTaskPlugin(options TaskPluginOptions) (TaskPlugin, error)
@@ -71,12 +73,8 @@ type Plugin interface {
 // Exception() which may be called following any method, and Dispose() which
 // will always be called as a final step allowing you to clean up.
 type TaskPlugin interface {
-	// Prepare will be called in parallel with NewSandboxBuilder().
-	//
-	// Notice that this method is a good place to start long-running operations,
-	// you then have to take care to clean-up in Dispose() if they are still
-	// running. You should wait for your long-running operations to finish in
-	// BuildSandbox() or whatever hook you need them in.
+	// Prepare is now deprecated, you should just do any operations in
+	// NewTaskPlugin.
 	//
 	// Non-fatal errors: MalformedPayloadError
 	Prepare(context *runtime.TaskContext) error
