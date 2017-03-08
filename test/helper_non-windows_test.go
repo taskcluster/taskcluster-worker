@@ -8,3 +8,9 @@ func helloGoodbye() []string {
 		"hello world!\ngoodbye world!",
 	}
 }
+
+func failCommand() []string {
+	return []string{
+		"false",
+	}
+}

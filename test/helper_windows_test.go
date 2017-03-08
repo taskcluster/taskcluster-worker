@@ -7,3 +7,9 @@ func helloGoodbye() []string {
 		"echo hello world! && echo goodbye world!",
 	}
 }
+
+func failCommand() []string {
+	return []string{
+		"exit 1",
+	}
+}
