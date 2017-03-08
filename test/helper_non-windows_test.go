@@ -2,6 +2,8 @@
 
 package test
 
+import "strconv"
+
 func helloGoodbye() []string {
 	return []string{
 		"echo",
@@ -9,6 +11,12 @@ func helloGoodbye() []string {
 	}
 }
 
+func sleep(seconds uint) []string {
+	return []string{
+		"sleep",
+		strconv.Itoa(int(seconds)),
+	}
+}
 func failCommand() []string {
 	return []string{
 		"false",

@@ -21,6 +21,7 @@ import (
 	_ "github.com/taskcluster/taskcluster-worker/config/hostcredentials"
 	_ "github.com/taskcluster/taskcluster-worker/config/secrets"
 	_ "github.com/taskcluster/taskcluster-worker/engines/native"
+	_ "github.com/taskcluster/taskcluster-worker/plugins/maxruntime"
 )
 
 var (
@@ -92,6 +93,9 @@ type TaskPayload struct {
 
 	// If true, reboot the machine after task is finished.
 	Reboot bool `json:"reboot,omitempty"`
+
+	// Kill the task if it exceedes the timeout value.
+	MaxRunTime int `json:"maxRunTime,omitempty"`
 }
 
 // RunTestWorker will start up the taskcluster-worker, claim one task, and then
