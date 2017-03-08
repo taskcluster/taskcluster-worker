@@ -19,6 +19,41 @@ import (
 	_ "github.com/taskcluster/taskcluster-worker/plugins/livelog"
 )
 
+func TestMissingArtifactFailsTest(t *testing.T) {
+
+	expires := tcclient.Time(time.Now().Add(time.Minute * 30))
+
+	payload := TaskPayload{
+		Command:    helloGoodbye(),
+		MaxRunTime: 30,
+		Artifacts: []struct {
+			Expires tcclient.Time `json:"expires,omitempty"`
+			Name    string        `json:"name"`
+			Path    string        `json:"path"`
+			Type    string        `json:"type"`
+		}{
+			{
+				Expires: expires,
+				Name:    "public/pretend/artifact",
+				Path:    "Nonexistent/art i fact.txt",
+				Type:    "file",
+			},
+		},
+	}
+
+	task, workerType := NewTestTask("TestMissingArtifactFailsTest")
+
+	taskID, q := SubmitTask(t, task, payload)
+	RunTestWorker(workerType)
+	status, err := q.Status(taskID)
+	if err != nil {
+		t.Fatal("Error retrieving status from queue")
+	}
+	if status.Status.State != "failed" {
+		t.Fatalf("Expected state 'failed' but got state '%v'", status.Status.State)
+	}
+}
+
 func TestUpload(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Currently not supported on Windows")
