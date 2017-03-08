@@ -229,20 +229,14 @@ func (t *TaskRun) prepareStage() error {
 			TaskID: t.TaskID,
 			RunID:  t.RunID,
 		},
-		Payload: t.plugin.PayloadSchema().Filter(payload),
-		Monitor: t.monitor.WithPrefix("plugin").WithTag("plugin", "plugin-manager"),
+		TaskContext: t.context,
+		Payload:     t.plugin.PayloadSchema().Filter(payload),
+		Monitor:     t.monitor.WithPrefix("plugin").WithTag("plugin", "plugin-manager"),
 	})
 	if err != nil {
 		// TODO: We need to review all this... t.context.LogError is for task errors
 		// hence MalformedPayloadError only, not for internal-errors!!!
 		t.context.LogError(err.Error())
-		return err
-	}
-
-	// Prepare TaskPlugin
-	err = t.taskPlugin.Prepare(t.context)
-	if err != nil {
-		t.context.LogError(fmt.Sprintf("Could not prepare task plugins. %s", err))
 		return err
 	}
 

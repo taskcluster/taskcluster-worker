@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -36,6 +37,8 @@ type taskPlugin struct {
 	expiration  tcclient.Time
 	monitor     runtime.Monitor
 	uploaded    atomics.Bool
+	setupDone   sync.WaitGroup
+	setupErr    error
 }
 
 func (pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
@@ -46,17 +49,18 @@ func (pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, 
 }
 
 func (p plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
-	return &taskPlugin{
-		TaskPluginBase: plugins.TaskPluginBase{},
-		monitor:        options.Monitor,
-		environment:    p.environment,
-		uploaded:       atomics.NewBool(false),
-	}, nil
+	tp := &taskPlugin{
+		context:     options.TaskContext,
+		monitor:     options.Monitor,
+		environment: p.environment,
+		uploaded:    atomics.NewBool(false),
+	}
+	tp.setupDone.Add(1)
+	go tp.setup()
+	return tp, nil
 }
 
-func (tp *taskPlugin) Prepare(context *runtime.TaskContext) error {
-	tp.context = context
-
+func (tp *taskPlugin) setup() {
 	tp.url = tp.context.AttachWebHook(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// TODO (garndt): add support for range headers.  Might not be used at all currently
 		logReader, err := tp.context.NewLogReader()
@@ -84,18 +88,30 @@ func (tp *taskPlugin) Prepare(context *runtime.TaskContext) error {
 		Expires:  tp.context.TaskInfo.Expires,
 	})
 	if err != nil {
-		tp.context.LogError(fmt.Sprintf("Could not initialize live log plugin. Error: %s", err))
+		incidentID := tp.monitor.ReportError(err, "Failed to setup live logging")
+		tp.context.LogError("Failed to setup livelogging: ", incidentID)
+		// This isn't good, but let's not consider it fatal...
+		tp.setupErr = runtime.ErrNonFatalInternalError
 	}
-
-	return err
+	tp.setupDone.Done()
 }
 
 func (tp *taskPlugin) Finished(success bool) error {
-	return tp.uploadLog()
+	tp.setupDone.Wait()
+	err := tp.uploadLog()
+	if err == nil {
+		return tp.setupErr
+	}
+	return err
 }
 
 func (tp *taskPlugin) Exception(runtime.ExceptionReason) error {
-	return tp.uploadLog()
+	tp.setupDone.Wait()
+	err := tp.uploadLog()
+	if err == nil {
+		return tp.setupErr
+	}
+	return err
 }
 
 func (tp *taskPlugin) uploadLog() error {

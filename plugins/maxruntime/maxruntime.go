@@ -56,15 +56,11 @@ func (plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlug
 
 	return &taskPlugin{
 		TaskPluginBase: plugins.TaskPluginBase{},
+		context:        options.TaskContext,
 		maxRunTime:     p.MaxRunTime,
 		done:           make(chan bool),
 		monitor:        options.Monitor,
 	}, nil
-}
-
-func (tp *taskPlugin) Prepare(context *runtime.TaskContext) error {
-	tp.context = context
-	return nil
 }
 
 func (tp *taskPlugin) Started(sandbox engines.Sandbox) error {
