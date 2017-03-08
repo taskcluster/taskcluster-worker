@@ -37,7 +37,7 @@ install:
 script:
 # note - below, || is used rather than && to ensure we only get zero exit code if all is ok
   - "test $GOOS != windows || make build"
-  - "test $GOOS == windows || (go get github.com/axw/gocov/gocov github.com/mattn/goveralls golang.org/x/tools/cmd/cover github.com/pierrre/gotestcover && make rebuild check && ${GOPATH}/bin/gotestcover -v -coverprofile=coverage.report $(go list ./... | grep -v /vendor/) && go tool cover -func=coverage.report)"
+  - "test $GOOS == windows || (go get github.com/axw/gocov/gocov github.com/mattn/goveralls golang.org/x/tools/cmd/cover github.com/pierrre/gotestcover && travis_wait make rebuild check && ${GOPATH}/bin/gotestcover -v -coverprofile=coverage.report $(go list ./... | grep -v /vendor/) && go tool cover -func=coverage.report)"
 
 after_script:
   - "if test $GOOS != windows; then $HOME/gopath/bin/goveralls -coverprofile=coverage.report -service=travis-ci; fi"
