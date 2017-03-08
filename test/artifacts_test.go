@@ -42,6 +42,7 @@ func TestUpload(t *testing.T) {
 				Type:    "file",
 			},
 		},
+		MaxRunTime: 30,
 	}
 	taskID, q := SubmitTask(t, task, payload)
 	t.Logf("Task ID: %v", taskID)

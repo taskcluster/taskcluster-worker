@@ -13,7 +13,8 @@ import (
 func TestFailureResolvesAsFailure(t *testing.T) {
 	task, workerType := NewTestTask("TestFailureResolvesAsFailure")
 	payload := TaskPayload{
-		Command: failCommand(),
+		Command:    failCommand(),
+		MaxRunTime: 10,
 	}
 	taskID, q := SubmitTask(t, task, payload)
 	RunTestWorker(workerType)
