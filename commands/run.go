@@ -3,7 +3,6 @@ package commands
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -11,7 +10,7 @@ import (
 )
 
 // Run will parse command line arguments and run available commands.
-func Run(argv []string) {
+func Run(argv []string) (exitCode int) {
 	// Construct usage string
 	usage := "usage: taskcluster-worker <command> [<args>...]\n"
 	usage += "\n"
@@ -43,12 +42,12 @@ func Run(argv []string) {
 	if provider == nil {
 		fmt.Println("Unknown command: ", cmd)
 		fmt.Print(usage)
-		os.Exit(1)
+		return 1
 	}
 
 	if cmd == "help" && len(arguments["<args>"].([]string)) == 0 {
 		fmt.Print(usage)
-		os.Exit(0)
+		return 0
 	}
 
 	// Parse args for command provider
@@ -58,9 +57,9 @@ func Run(argv []string) {
 	)
 	// Execute provider with parsed args
 	if !provider.Execute(subArguments) {
-		os.Exit(1)
+		return 1
 	}
-	os.Exit(0)
+	return 0
 }
 
 func pad(s string, length int) string {

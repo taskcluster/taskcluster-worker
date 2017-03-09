@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/auth"
 )
@@ -20,6 +21,16 @@ func TestLoggingMonitor(t *testing.T) {
 	m.WithPrefix("my-prefix").Info("info message")
 	m.WithTag("myTag", "myValue").Warn("some warning")
 	m.WithTag("myTag", "myValue").ReportWarning(fmt.Errorf("error message"), "this is a warning")
+
+	incidentID := m.CapturePanic(func() {
+		t.Log("No panicing happens here")
+	})
+	require.True(t, incidentID == "")
+
+	incidentID = m.CapturePanic(func() {
+		callingSomethingBad()
+	})
+	require.True(t, incidentID != "")
 }
 
 func TestMonitor(t *testing.T) {
@@ -40,5 +51,23 @@ func TestMonitor(t *testing.T) {
 	m.WithPrefix("my-prefix").Count("counter-2", 1)
 	m.WithPrefix("my-prefix").Info("info message")
 	m.WithTag("myTag", "myValue").Warn("some warning")
-	m.WithTag("myTag", "myValue").ReportWarning(fmt.Errorf("error message"), "this is a warning")
+	m.WithTag("myTag", "myValue").ReportWarning(fmt.Errorf("some test error message"), "this is a warning")
+
+	incidentID := m.CapturePanic(func() {
+		t.Log("No panicing happens here")
+	})
+	require.True(t, incidentID == "")
+
+	incidentID = m.CapturePanic(func() {
+		callingSomethingBad()
+	})
+	require.True(t, incidentID != "")
+}
+
+func badThingHappens() {
+	panic("Oh, this is bad")
+}
+
+func callingSomethingBad() {
+	badThingHappens()
 }

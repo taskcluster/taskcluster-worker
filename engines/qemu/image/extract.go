@@ -6,8 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
@@ -47,7 +47,7 @@ func extractImage(imageFile, imageFolder string) (*vm.Machine, error) {
 		return nil, fmt.Errorf("extractImage: imageFile is not a file")
 	}
 	if !ioext.IsFileLessThan(imageFile, maxImageSize) {
-		return nil, engines.NewMalformedPayloadError("Image file is larger than ", maxImageSize, " bytes")
+		return nil, runtime.NewMalformedPayloadError("Image file is larger than ", maxImageSize, " bytes")
 	}
 
 	// Using zstd | tar so we get sparse files (sh to get OS pipes)
@@ -58,7 +58,7 @@ func extractImage(imageFile, imageFolder string) (*vm.Machine, error) {
 	_, err := tar.Output()
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok {
-			return nil, engines.NewMalformedPayloadError(
+			return nil, runtime.NewMalformedPayloadError(
 				"Failed to extract image archive, error: ", string(ee.Stderr),
 			)
 		}
@@ -71,10 +71,10 @@ func extractImage(imageFile, imageFolder string) (*vm.Machine, error) {
 	for _, name := range []string{"disk.img", "layer.qcow2", "machine.json"} {
 		f := filepath.Join(imageFolder, name)
 		if !ioext.IsPlainFile(f) {
-			return nil, engines.NewMalformedPayloadError("Image file is missing '", name, "'")
+			return nil, runtime.NewMalformedPayloadError("Image file is missing '", name, "'")
 		}
 		if !ioext.IsFileLessThan(f, maxImageSize) {
-			return nil, engines.NewMalformedPayloadError("Image file contains '",
+			return nil, runtime.NewMalformedPayloadError("Image file contains '",
 				name, "' larger than ", maxImageSize, " bytes")
 		}
 	}
@@ -90,19 +90,19 @@ func extractImage(imageFile, imageFolder string) (*vm.Machine, error) {
 	diskFile := filepath.Join(imageFolder, "disk.img")
 	diskInfo := inspectImageFile(diskFile, imageRawFormat)
 	if diskInfo == nil || diskInfo.Format != formatRaw {
-		return nil, engines.NewMalformedPayloadError("Image file contains ",
+		return nil, runtime.NewMalformedPayloadError("Image file contains ",
 			"'disk.img' which is not a RAW image file")
 	}
 	if diskInfo.VirtualSize > maxImageSize {
-		return nil, engines.NewMalformedPayloadError("Image file contains ",
+		return nil, runtime.NewMalformedPayloadError("Image file contains ",
 			"'disk.img' has virtual size larger than ", maxImageSize, " bytes")
 	}
 	if diskInfo.DirtyFlag {
-		return nil, engines.NewMalformedPayloadError("Image file contains ",
+		return nil, runtime.NewMalformedPayloadError("Image file contains ",
 			"'disk.img' which has the dirty-flag set")
 	}
 	if diskInfo.BackingFile != "" {
-		return nil, engines.NewMalformedPayloadError("Image file contains ",
+		return nil, runtime.NewMalformedPayloadError("Image file contains ",
 			"'disk.img' which has a backing file, this is not permitted")
 	}
 
@@ -110,23 +110,23 @@ func extractImage(imageFile, imageFolder string) (*vm.Machine, error) {
 	layerFile := filepath.Join(imageFolder, "layer.qcow2")
 	layerInfo := inspectImageFile(layerFile, imageQCOW2Format)
 	if layerInfo == nil || layerInfo.Format != formatQCOW2 {
-		return nil, engines.NewMalformedPayloadError("Image file contains ",
+		return nil, runtime.NewMalformedPayloadError("Image file contains ",
 			"'layer.qcow2' which is not a QCOW2 file")
 	}
 	if layerInfo.VirtualSize > maxImageSize {
-		return nil, engines.NewMalformedPayloadError("Image file contains ",
+		return nil, runtime.NewMalformedPayloadError("Image file contains ",
 			"'layer.qcow2' has virtual size larger than ", maxImageSize, " bytes")
 	}
 	if layerInfo.DirtyFlag {
-		return nil, engines.NewMalformedPayloadError("Image file contains ",
+		return nil, runtime.NewMalformedPayloadError("Image file contains ",
 			"'layer.qcow2' which has the dirty-flag set")
 	}
 	if layerInfo.BackingFile != "disk.img" {
-		return nil, engines.NewMalformedPayloadError("Image file contains ",
+		return nil, runtime.NewMalformedPayloadError("Image file contains ",
 			"'layer.qcow2' which has a backing file that isn't: 'disk.img'")
 	}
 	if layerInfo.BackingFormat != formatRaw {
-		return nil, engines.NewMalformedPayloadError("Image file contains ",
+		return nil, runtime.NewMalformedPayloadError("Image file contains ",
 			"'layer.qcow2' which has a backing file format that isn't 'raw'")
 	}
 

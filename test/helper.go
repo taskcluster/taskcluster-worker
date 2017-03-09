@@ -3,7 +3,9 @@ package test
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
+	"os/user"
 	"path/filepath"
 	"testing"
 	"time"
@@ -16,6 +18,7 @@ import (
 	// needed so that these components register themselves
 	_ "github.com/taskcluster/taskcluster-worker/commands/work"
 	_ "github.com/taskcluster/taskcluster-worker/config/env"
+	_ "github.com/taskcluster/taskcluster-worker/config/hostcredentials"
 	_ "github.com/taskcluster/taskcluster-worker/config/secrets"
 	_ "github.com/taskcluster/taskcluster-worker/engines/native"
 )
@@ -33,7 +36,16 @@ func testdataDir() string {
 	if err != nil {
 		panic(fmt.Errorf("Could not get current directory during test package initialisation: %v", err))
 	}
-	return filepath.Join(cwd, "testdata")
+	u, err := user.Current()
+	if err != nil {
+		panic("Cannot establish who the current user is, needed for tests")
+	}
+	testdataRelativeDir, err := filepath.Rel(u.HomeDir, filepath.Join(cwd, "testdata"))
+	if err != nil {
+		log.Println("GOPATH needs to be somewhere under user home directory for these tests to work")
+		panic(err)
+	}
+	return testdataRelativeDir
 }
 
 // TaskPayload is generated from running

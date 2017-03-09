@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"github.com/xeipuuv/gojsonschema"
 )
@@ -165,7 +165,7 @@ func LoadMachine(machineFile string) (*Machine, error) {
 	// Load the machine configuration
 	machineData, err := ioext.BoundedReadFile(machineFile, 1024*1024)
 	if err == ioext.ErrFileTooBig {
-		return nil, engines.NewMalformedPayloadError(
+		return nil, runtime.NewMalformedPayloadError(
 			"The file 'machine.json' larger than 1MiB. JSON files must be small.")
 	}
 	if err != nil {
@@ -176,7 +176,7 @@ func LoadMachine(machineFile string) (*Machine, error) {
 	m := &Machine{}
 	err = json.Unmarshal(machineData, m)
 	if err != nil {
-		return nil, engines.NewMalformedPayloadError(
+		return nil, runtime.NewMalformedPayloadError(
 			"Invalid JSON in 'machine.json', error: ", err)
 	}
 
@@ -231,14 +231,14 @@ func (m *Machine) Validate() error {
 
 	// Return any errors collected
 	if hasError {
-		return engines.NewMalformedPayloadError(errs)
+		return runtime.NewMalformedPayloadError(errs)
 	}
 	return nil
 }
 
 // validateMAC ensures that MAC address has local bit set, and multicast bit
 // unset. This is important as we shouldn't use globally registered MAC
-// addreses in our virtual machines.
+// addresses in our virtual machines.
 func validateMAC(mac string) error {
 	m := make([]byte, 6)
 	n, err := fmt.Sscanf(
@@ -264,7 +264,7 @@ func (m *Machine) SetDefaults(options MachineOptions) error {
 
 	// Validate limitations
 	if m.Memory > options.MaxMemory {
-		return engines.NewMalformedPayloadError(
+		return runtime.NewMalformedPayloadError(
 			"Image memory ", m.Memory, " MiB is larger than allowed machine memory ",
 			options.MaxMemory, " MiB",
 		)

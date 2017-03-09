@@ -53,4 +53,5 @@ lint:
 	go get github.com/alecthomas/gometalinter
 	gometalinter --install
 	# not enabled: aligncheck, deadcode, dupl, errcheck, gas, gocyclo, structcheck, unused, varcheck
-	gometalinter --deadline=10m --line-length=180 --vendor --vendored-linters --disable-all --enable=goconst --enable=gofmt --enable=goimports --enable=golint --enable=gosimple --enable=gotype --enable=ineffassign --enable=interfacer --enable=lll --enable=misspell --enable=staticcheck --enable=test --enable=testify --enable=unconvert --enable=vet --enable=vetshadow ./...
+	# Disabled: testify, test (these two show test errors, hence, they run tests)
+	gometalinter -j4 --deadline=15m --line-length=180 --vendor --vendored-linters --disable-all --enable=goconst --enable=gofmt --enable=goimports --enable=golint --enable=gosimple --enable=gotype --enable=ineffassign --enable=interfacer --enable=lll --enable=misspell --enable=staticcheck --enable=unconvert --enable=vet --enable=vetshadow --tests ./...

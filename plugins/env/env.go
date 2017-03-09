@@ -9,6 +9,7 @@ import (
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 type plugin struct {
@@ -53,17 +54,12 @@ func (*plugin) PayloadSchema() schematypes.Object {
 }
 
 func (pl *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
-	p := &payloadType{
+	p := payloadType{
 		// Must explicitly create an empty map, so if payload does not include
 		// env vars, we'll still have a valid map to read from/write to.
 		Env: map[string]string{},
 	}
-	err := payloadSchema.Map(options.Payload, p)
-	if err == schematypes.ErrTypeMismatch {
-		panic("internal error -- type mismatch")
-	} else if err != nil {
-		return nil, engines.ErrContractViolation
-	}
+	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &p)
 
 	for k, v := range pl.extraVars {
 		p.Env[k] = v
@@ -87,9 +83,9 @@ func (p *taskPlugin) BuildSandbox(sandboxBuilder engines.SandboxBuilder) error {
 		// We can only return MalFormedPayloadError
 		switch err {
 		case engines.ErrNamingConflict:
-			return engines.NewMalformedPayloadError("Environment variable ", k, " has already been set.")
+			return runtime.NewMalformedPayloadError("Environment variable ", k, " has already been set.")
 		case engines.ErrFeatureNotSupported:
-			return engines.NewMalformedPayloadError(
+			return runtime.NewMalformedPayloadError(
 				"Cannot set environment variable ",
 				k,
 				". Engine does not support this operation")
@@ -109,9 +105,7 @@ type pluginProvider struct {
 
 func (*pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
 	var c config
-	if err := schematypes.MustMap(configSchema, options.Config, &c); err != nil {
-		return nil, engines.ErrContractViolation
-	}
+	schematypes.MustValidateAndMap(configSchema, options.Config, &c)
 
 	return &plugin{
 		PluginBase: plugins.PluginBase{},

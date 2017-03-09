@@ -52,21 +52,15 @@ func (plugin) PayloadSchema() schematypes.Object {
 
 func (plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
 	var p payloadType
-	if err := schematypes.MustMap(payloadSchema, options.Payload, &p); err != nil {
-		return nil, engines.ErrContractViolation
-	}
+	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &p)
 
 	return &taskPlugin{
 		TaskPluginBase: plugins.TaskPluginBase{},
+		context:        options.TaskContext,
 		maxRunTime:     p.MaxRunTime,
 		done:           make(chan bool),
 		monitor:        options.Monitor,
 	}, nil
-}
-
-func (tp *taskPlugin) Prepare(context *runtime.TaskContext) error {
-	tp.context = context
-	return nil
 }
 
 func (tp *taskPlugin) Started(sandbox engines.Sandbox) error {

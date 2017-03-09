@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	godebug "runtime/debug"
+
 	"github.com/pborman/uuid"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
@@ -82,6 +84,23 @@ func (m *MockMonitor) HasCounter(name string) bool {
 	defer m.cache.m.Unlock()
 
 	return m.cache.counters[m.prefix+name]
+}
+
+// CapturePanic recovers from panic in fn and returns incidentID, if any
+func (m *MockMonitor) CapturePanic(fn func()) (incidentID string) {
+	defer func() {
+		if crash := recover(); crash != nil {
+			incidentID = uuid.NewRandom().String()
+			trace := godebug.Stack()
+			text := fmt.Sprint("Recovered from panic: ", crash, "\nAt:\n", string(trace))
+			m.WithTag("incidentId", incidentID).(*MockMonitor).output("PANIC", text)
+			if m.panicOnError {
+				panic(fmt.Sprintf("Panic: %s", text))
+			}
+		}
+	}()
+	fn()
+	return
 }
 
 // ReportError records an error, and panics if panicOnError was set

@@ -33,7 +33,7 @@ func (r *resultSet) ExtractFile(path string) (ioext.ReadSeekCloser, error) {
 		if _, ok := err.(*os.PathError); ok {
 			return nil, engines.ErrResourceNotFound
 		}
-		return nil, engines.NewMalformedPayloadError(
+		return nil, runtime.NewMalformedPayloadError(
 			"Unable to evaluate path: ", path,
 		)
 	}
@@ -77,7 +77,7 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 		if _, ok := err.(*os.PathError); ok {
 			return engines.ErrResourceNotFound
 		}
-		return engines.NewMalformedPayloadError(
+		return runtime.NewMalformedPayloadError(
 			"Unable to evaluate path: ", path,
 		)
 	}

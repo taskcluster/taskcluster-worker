@@ -31,22 +31,17 @@ func (engineProvider) ConfigSchema() schematypes.Schema {
 
 func (engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine, error) {
 	var c config
-
-	if schematypes.MustMap(configSchema, options.Config, &c) != nil {
-		return nil, engines.ErrContractViolation
-	}
+	schematypes.MustValidateAndMap(configSchema, options.Config, &c)
 
 	// Load user-groups
 	groups := []*system.Group{}
 	for _, name := range c.Groups {
 		group, err := system.FindGroup(name)
 		if err != nil {
-			errorMsg := fmt.Sprintf(
-				"Unable to find system user-group: %s from engine config.",
-				name,
+			return nil, fmt.Errorf(
+				"unable to find system user-group: %s from engine config, error: %s",
+				name, err,
 			)
-			options.Monitor.ReportError(err, errorMsg)
-			return nil, engines.NewInternalError(errorMsg)
 		}
 		groups = append(groups, group)
 	}
@@ -65,9 +60,8 @@ func (e *engine) PayloadSchema() schematypes.Object {
 
 func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {
 	var p payload
-	if schematypes.MustMap(payloadSchema, options.Payload, &p) != nil {
-		return nil, engines.ErrContractViolation
-	}
+	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &p)
+
 	b := &sandboxBuilder{
 		engine:  e,
 		payload: p,

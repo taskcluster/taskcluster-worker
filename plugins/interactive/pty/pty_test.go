@@ -18,7 +18,7 @@ func TestSet(t *testing.T) {
 	var b []byte
 	done := make(chan struct{})
 	go func() {
-		b, err = ioutil.ReadAll(pty)
+		b, _ = ioutil.ReadAll(pty)
 		close(done)
 	}()
 

@@ -30,9 +30,8 @@ func (engineProvider) ConfigSchema() schematypes.Schema {
 
 func (engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine, error) {
 	var config configType
-	if schematypes.MustMap(configSchema, options.Config, &config) != nil {
-		return nil, engines.ErrContractViolation
-	}
+	schematypes.MustValidateAndMap(configSchema, options.Config, &config)
+
 	// Construct payload schema as schematypes.Object using schema.properties
 	properties := schematypes.Properties{}
 	for k, s := range config.Schema.Properties {
@@ -58,9 +57,8 @@ func (e *engine) PayloadSchema() schematypes.Object {
 }
 
 func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {
-	if e.schema.Validate(options.Payload) != nil {
-		return nil, engines.ErrContractViolation
-	}
+	schematypes.MustValidate(e.schema, options.Payload)
+
 	return &sandboxBuilder{
 		payload: options.Payload,
 		engine:  e,
