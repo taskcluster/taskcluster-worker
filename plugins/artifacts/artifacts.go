@@ -38,6 +38,7 @@ func (plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlug
 	return &taskPlugin{
 		TaskPluginBase: plugins.TaskPluginBase{},
 		artifacts:      p.Artifacts,
+		context:        options.TaskContext,
 	}, nil
 }
 
@@ -45,11 +46,6 @@ type taskPlugin struct {
 	plugins.TaskPluginBase
 	context   *runtime.TaskContext
 	artifacts []artifact
-}
-
-func (tp *taskPlugin) Prepare(context *runtime.TaskContext) error {
-	tp.context = context
-	return nil
 }
 
 func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {

@@ -188,9 +188,10 @@ func (m *pluginManager) NewTaskPlugin(options TaskPluginOptions) (manager TaskPl
 		go func(index int, p Plugin) {
 			defer wg.Done()
 			taskPlugins[index], errors[index] = p.NewTaskPlugin(TaskPluginOptions{
-				TaskInfo: options.TaskInfo,
-				Payload:  p.PayloadSchema().Filter(options.Payload),
-				Monitor:  options.Monitor.WithPrefix(m.pluginNames[index]).WithTag("plugin", m.pluginNames[index]),
+				TaskInfo:    options.TaskInfo,
+				TaskContext: options.TaskContext,
+				Payload:     p.PayloadSchema().Filter(options.Payload),
+				Monitor:     options.Monitor.WithPrefix(m.pluginNames[index]).WithTag("plugin", m.pluginNames[index]),
 			})
 		}(i, j)
 	}
@@ -233,10 +234,6 @@ func (m *taskPluginManager) executePhase(f taskPluginPhase) error {
 	// Returned error represents the merge of all errors which occurred against
 	// any plugin, or nil if no error occurred.
 	return mergeErrors(errors...)
-}
-
-func (m *taskPluginManager) Prepare(c *runtime.TaskContext) error {
-	return m.executePhase(func(p TaskPlugin) error { return p.Prepare(c) })
 }
 
 func (m *taskPluginManager) BuildSandbox(b engines.SandboxBuilder) error {

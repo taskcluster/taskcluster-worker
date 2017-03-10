@@ -11,8 +11,6 @@
 package reboot
 
 import (
-	"fmt"
-
 	"sync"
 	"time"
 
@@ -93,9 +91,7 @@ func (pluginProvider) ConfigSchema() schematypes.Schema {
 
 func (pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
 	var c config
-	if err := schematypes.MustMap(configSchema, options.Config, &c); err != nil {
-		return nil, fmt.Errorf("While reading reboot plugin config: %s", err)
-	}
+	schematypes.MustValidateAndMap(configSchema, options.Config, &c)
 
 	plugin := &plugin{
 		PluginBase:    plugins.PluginBase{},
@@ -141,12 +137,7 @@ func (*plugin) PayloadSchema() schematypes.Object {
 
 func (pl *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
 	var p payloadType
-	err := payloadSchema.Map(options.Payload, &p)
-	if err == schematypes.ErrTypeMismatch {
-		panic("internal error -- type mismatch")
-	} else if err != nil {
-		return nil, fmt.Errorf("While reading reboot plugin payload: %s", err)
-	}
+	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &p)
 
 	pl.runningTasks.RLock()
 	return &taskPlugin{
