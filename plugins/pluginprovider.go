@@ -51,11 +51,6 @@ func (PluginProviderBase) ConfigSchema() schematypes.Schema {
 	return nil
 }
 
-var reservedPluginNames = []string{
-	"disabled", // Config key used for configuration of disabled plugins
-	"manager",  // Used as monitor prefix for pluginManager
-}
-
 // Register will register a PluginProvider.
 // This is meant to be called from init(), and will panic if name is already
 // used by another plugin.
@@ -63,8 +58,8 @@ func Register(name string, provider PluginProvider) {
 	mPlugins.Lock()
 	defer mPlugins.Unlock()
 
-	if stringContains(reservedPluginNames, name) {
-		panic(fmt.Sprintf("Plugin name '%s' is reserved", name))
+	if name == "disabled" {
+		panic("Plugin name 'disabled' is reserved")
 	}
 	if _, ok := plugins[name]; ok {
 		panic(fmt.Sprintf("Plugin name '%s' is already in use", name))
