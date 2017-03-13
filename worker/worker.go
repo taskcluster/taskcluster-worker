@@ -119,7 +119,7 @@ func New(config interface{}, log *logrus.Logger) (*Worker, error) {
 	pm, err := plugins.NewPluginManager(plugins.PluginOptions{
 		Environment: env,
 		Engine:      engine,
-		Monitor:     env.Monitor.WithPrefix("plugin"),
+		Monitor:     env.Monitor.WithPrefix("plugin").WithTag("plugin", "plugin-manager"),
 		Config:      c.Plugins,
 	})
 	if err != nil {
