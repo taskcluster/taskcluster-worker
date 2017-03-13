@@ -3,9 +3,7 @@ package test
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
-	"os/user"
 	"path/filepath"
 	"testing"
 	"time"
@@ -37,16 +35,7 @@ func testdataDir() string {
 	if err != nil {
 		panic(fmt.Errorf("Could not get current directory during test package initialisation: %v", err))
 	}
-	u, err := user.Current()
-	if err != nil {
-		panic("Cannot establish who the current user is, needed for tests")
-	}
-	testdataRelativeDir, err := filepath.Rel(u.HomeDir, filepath.Join(cwd, "testdata"))
-	if err != nil {
-		log.Println("GOPATH needs to be somewhere under user home directory for these tests to work")
-		panic(err)
-	}
-	return testdataRelativeDir
+	return filepath.Join(cwd, "testdata")
 }
 
 // TaskPayload is generated from running
@@ -55,31 +44,9 @@ func testdataDir() string {
 // github.com/taskcluster/jsonschema2go.
 // It represents the structure expected when using the test config.yml
 type TaskPayload struct {
+
 	// Artifacts to be published
-	Artifacts []struct {
-		Expires tcclient.Time `json:"expires,omitempty"`
-
-		// This will be the leading path to directories and the full name for
-		// files that are uploaded to s3. It must not begin or end with "/" and
-		// must only contain printable ascii characters otherwise.
-		//
-		// Syntax:     ^([\x20-\x2e\x30-\x7e][\x20-\x7e]*)[\x20-\x2e\x30-\x7e]$
-		Name string `json:"name"`
-
-		// File system path of artifact
-		//
-		// Syntax:     ^.*[^/]$
-		Path string `json:"path"`
-
-		// Artifacts can be either an individual `file` or a `directory`
-		// containing potentially multiple files with recursively included
-		// subdirectories
-		//
-		// Possible values:
-		//   * "file"
-		//   * "directory"
-		Type string `json:"type"`
-	} `json:"artifacts,omitempty"`
+	Artifacts []PayloadArtifact `json:"artifacts,omitempty"`
 
 	// Command to execute
 	Command []string `json:"command"`
@@ -96,6 +63,67 @@ type TaskPayload struct {
 
 	// Kill the task if it exceedes the timeout value.
 	MaxRunTime int `json:"maxRunTime,omitempty"`
+}
+
+type PayloadArtifact struct {
+	Expires tcclient.Time `json:"expires,omitempty"`
+
+	// This will be the leading path to directories and the full name for
+	// files that are uploaded to s3. It must not begin or end with "/" and
+	// must only contain printable ascii characters otherwise.
+	//
+	// Syntax:     ^([\x20-\x2e\x30-\x7e][\x20-\x7e]*)[\x20-\x2e\x30-\x7e]$
+	Name string `json:"name"`
+
+	// File system path of artifact
+	//
+	// Syntax:     ^.*[^/]$
+	Path string `json:"path"`
+
+	// Artifacts can be either an individual `file` or a `directory`
+	// containing potentially multiple files with recursively included
+	// subdirectories
+	//
+	// Possible values:
+	//   * "file"
+	//   * "directory"
+	Type string `json:"type"`
+}
+
+type Artifact struct {
+
+	// Mimetype for the artifact that was created.
+	//
+	// Max length: 255
+	//
+	// See http://schemas.taskcluster.net/queue/v1/list-artifacts-response.json#/properties/artifacts/items/properties/contentType
+	ContentType string `json:"contentType"`
+
+	// Date and time after which the artifact created will be automatically
+	// deleted by the queue.
+	//
+	// See http://schemas.taskcluster.net/queue/v1/list-artifacts-response.json#/properties/artifacts/items/properties/expires
+	Expires tcclient.Time `json:"expires"`
+
+	// Name of the artifact that was created, this is useful if you want to
+	// attempt to fetch the artifact.
+	//
+	// Max length: 1024
+	//
+	// See http://schemas.taskcluster.net/queue/v1/list-artifacts-response.json#/properties/artifacts/items/properties/name
+	Name string `json:"name"`
+
+	// This is the `storageType` for the request that was used to create
+	// the artifact.
+	//
+	// Possible values:
+	//   * "s3"
+	//   * "azure"
+	//   * "reference"
+	//   * "error"
+	//
+	// See http://schemas.taskcluster.net/queue/v1/list-artifacts-response.json#/properties/artifacts/items/properties/storageType
+	StorageType string `json:"storageType"`
 }
 
 // RunTestWorker will start up the taskcluster-worker, claim one task, and then
