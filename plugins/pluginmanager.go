@@ -35,7 +35,7 @@ func spawn(n int, fn func(int)) {
 			fn(i)
 		}(index)
 	}
-	wg.Done()
+	wg.Wait()
 }
 
 // PluginManagerConfigSchema returns configuration for PluginOptions.Config for
@@ -139,6 +139,9 @@ func NewPluginManager(options PluginOptions) (Plugin, error) {
 				Monitor:     monitor,
 				Config:      config[name],
 			})
+			if errors[i] != nil && plugins[i] == nil {
+				panic(fmt.Sprintf("expected error or plugin from NewPlugin() from '%s'", name))
+			}
 		})
 		if incidentID != "" {
 			errors[i] = fmt.Errorf(
