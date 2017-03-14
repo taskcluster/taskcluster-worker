@@ -38,3 +38,11 @@ func copyArtifact(path string) []string {
 			"cp -pr '" + sourcePath + "' '" + path + "'",
 	}
 }
+
+func resolveTask() []string {
+	return []string{
+		"go",
+		"run",
+		filepath.Join(testdata, "..", "resolvetask", "resolvetask.go"),
+	}
+}

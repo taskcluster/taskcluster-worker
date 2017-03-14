@@ -37,7 +37,7 @@ func validateArtifacts(t *testing.T, testName string, payloadArtifacts []Payload
 	task, workerType := NewTestTask(testName)
 
 	taskID, q := SubmitTask(t, task, payload)
-	RunTestWorker(workerType)
+	RunTestWorker(workerType, 1)
 	resp, err := q.ListArtifacts(taskID, "0", "", "")
 	if err != nil {
 		t.Fatal("Error retrieving artifact metadata from queue")
@@ -205,7 +205,7 @@ func TestMissingArtifactFailsTest(t *testing.T) {
 	task, workerType := NewTestTask("TestMissingArtifactFailsTest")
 
 	taskID, q := SubmitTask(t, task, payload)
-	RunTestWorker(workerType)
+	RunTestWorker(workerType, 1)
 	status, err := q.Status(taskID)
 	if err != nil {
 		t.Fatal("Error retrieving status from queue")
@@ -234,7 +234,7 @@ func TestUpload(t *testing.T) {
 	}
 	taskID, q := SubmitTask(t, task, payload)
 	t.Logf("Task ID: %v", taskID)
-	RunTestWorker(workerType)
+	RunTestWorker(workerType, 1)
 
 	// now check results
 	// some required substrings - not all, just a selection

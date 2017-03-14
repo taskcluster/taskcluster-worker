@@ -41,3 +41,11 @@ func copyArtifact(path string) []string {
 			" && xcopy \"" + sourceFile + "\" \"" + targetFile + "\" /e /i /f /h /k /o /x /y",
 	}
 }
+
+func resolveTask() []string {
+	return []string{
+		"go",
+		"run",
+		filepath.Join(testdata, "..", "resolvetask", "resolvetask.go"),
+	}
+}

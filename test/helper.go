@@ -19,6 +19,7 @@ import (
 	_ "github.com/taskcluster/taskcluster-worker/config/hostcredentials"
 	_ "github.com/taskcluster/taskcluster-worker/config/secrets"
 	_ "github.com/taskcluster/taskcluster-worker/engines/native"
+	_ "github.com/taskcluster/taskcluster-worker/plugins/env"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/maxruntime"
 )
 
@@ -130,11 +131,11 @@ type Artifact struct {
 // return. This is useful in integration tests, such that tests can submit a
 // real task to the queue, then call this function to execute the task, and
 // then query the queue to get task results.
-func RunTestWorker(workerType string) {
+func RunTestWorker(workerType string, taskCount uint16) {
 	os.Setenv("TASKCLUSTER_CAPACITY", "1")
 	os.Setenv("TASKCLUSTER_WORKER_TYPE", workerType)
 	os.Setenv("TASKCLUSTER_WORKER_ID", workerType)
-	os.Setenv("TASKCLUSTER_MAX_TASKS", "1")
+	os.Setenv("TASKCLUSTER_MAX_TASKS", fmt.Sprintf("%v", taskCount))
 	commands.Run(
 		[]string{
 			"work",
@@ -202,7 +203,22 @@ func SubmitTask(
 	td *queue.TaskDefinitionRequest,
 	payload TaskPayload,
 ) (taskID string, q *queue.Queue) {
+
 	taskID = slugid.Nice()
+
+	// **************************************************************
+	// IF YOU UNCOMMENT THIS LINE, TestResolveResolvedTask WILL PASS.
+	// Note, this just sets TASK_ID env var in the task payload, but
+	// this should not be needed since worker should set this env var
+	// automatically.
+	//
+	// Please don't check in this file with this line uncommented,
+	// because we should fix the underlying problem. This code is
+	// simply included for convenience, to demonstrate that having
+	// the env var set correctly fixes the problem.
+	// **************************************************************
+	// SetTaskIDEnvVar(t, &payload.Env, taskID)
+
 	// check we have all the env vars we need to run this test
 	if os.Getenv("TASKCLUSTER_CLIENT_ID") == "" || os.Getenv("TASKCLUSTER_ACCESS_TOKEN") == "" {
 		t.Skip("Skipping test since TASKCLUSTER_CLIENT_ID and/or TASKCLUSTER_ACCESS_TOKEN env vars not set")
@@ -227,4 +243,47 @@ func SubmitTask(
 	_, err = q.CreateTask(taskID, td)
 	require.NoError(t, err, "Could not submit task")
 	return
+}
+
+func EnsureTaskResolution(t *testing.T, q *queue.Queue, taskID, state, reasonResolved string) {
+	tsr, err := q.Status(taskID)
+	if err != nil {
+		t.Fatalf("Task %v: could not retrieve task status - see https://tools.taskcluster.net/task-inspector/#%v/0", taskID, taskID)
+	}
+	if tsr.Status.State != state {
+		t.Fatalf("Task %v: was expecting task state %q but got %q - see https://tools.taskcluster.net/task-inspector/#%v/0", taskID, state, tsr.Status.State, taskID)
+	}
+	lastRun := tsr.Status.Runs[len(tsr.Status.Runs)-1]
+	if lastRun.State != state {
+		t.Fatalf("Task %v: was expecting task run state %q but got %q - see https://tools.taskcluster.net/task-inspector/#%v/0", taskID, state, lastRun.State, taskID)
+	}
+	if lastRun.ReasonResolved != reasonResolved {
+		t.Fatalf("Task %v: was expecting task run resolved reason %q but got %q - see https://tools.taskcluster.net/task-inspector/#%v/0", taskID, reasonResolved, lastRun.ReasonResolved, taskID)
+	}
+}
+
+// SetTaskIDEnvVar updates a json raw message containing an environment block,
+// adding/replacing TASK_ID environment variable to have value taskID. This is
+// just a temporary workaround until worker sets the environment variable
+// correctly - at that point, this function can be deleted.
+func SetTaskIDEnvVar(t *testing.T, rawEnv *json.RawMessage, taskID string) {
+	// extract existing env vars as bytes
+	bytes, err := json.Marshal(rawEnv)
+	require.NoError(t, err)
+	// now convert to map[string]string
+	var envVars map[string]string
+	err = json.Unmarshal(bytes, &envVars)
+	require.NoError(t, err)
+	// make sure we don't have a nil map
+	if envVars == nil {
+		envVars = map[string]string{}
+	}
+	// now set TASK_ID environment variable
+	envVars["TASK_ID"] = taskID
+	// convert to bytes
+	bytes, err = json.Marshal(&envVars)
+	require.NoError(t, err)
+	// convert to RawMessage, replacing original environment block
+	err = json.Unmarshal(bytes, rawEnv)
+	require.NoError(t, err)
 }

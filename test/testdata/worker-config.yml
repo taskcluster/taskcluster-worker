@@ -5,25 +5,26 @@ transforms:
   - env
 config:
   plugins:
-    disabled:       []
-  capacity:         {$env: TASKCLUSTER_CAPACITY, type: number}
+    disabled:         []
+    env:              {}
+  capacity:           {$env: TASKCLUSTER_CAPACITY, type: number}
   credentials:
-    clientId:       {$env: TASKCLUSTER_CLIENT_ID}
-    accessToken:    {$env: TASKCLUSTER_ACCESS_TOKEN}
-  provisionerId:    test-dummy-provisioner
-  workerType:       {$env: TASKCLUSTER_WORKER_TYPE}
-  workerGroup:      test-dummy-workers
-  workerId:         {$env: TASKCLUSTER_WORKER_ID}
-  engine:           native
+    clientId:         {$env: TASKCLUSTER_CLIENT_ID}
+    accessToken:      {$env: TASKCLUSTER_ACCESS_TOKEN}
+  provisionerId:      test-dummy-provisioner
+  workerType:         {$env: TASKCLUSTER_WORKER_TYPE}
+  workerGroup:        test-dummy-workers
+  workerId:           {$env: TASKCLUSTER_WORKER_ID}
+  engine:             native
   engines:
     native:
-      createUser: false
-      groups: []
-  logLevel:         debug
-  pollingInterval:  1
-  queueBaseUrl:     https://queue.taskcluster.net/v1
-  reclaimOffset:    120
-  temporaryFolder:  /var/tmp/tc-worker-tmp
+      createUser:     false
+      groups:         []
+  logLevel:           debug
+  pollingInterval:    1
+  queueBaseUrl:       https://queue.taskcluster.net/v1
+  reclaimOffset:      120
+  temporaryFolder:    /var/tmp/tc-worker-tmp
   serverIp:           127.0.0.1
   serverPort:         60000
   maxLifeCycle:       600
