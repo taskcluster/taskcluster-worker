@@ -135,10 +135,10 @@ func TestResolveResolvedTask(t *testing.T) {
 
 // Make sure that a malformed payload resolves correctly and uploads a log
 func TestMalformedPayload(t *testing.T) {
-	task, workerType := NewTestTask("TestMalformedPayload - task 1")
+	task, workerType := NewTestTask("TestMalformedPayload")
 	payload := TaskPayload{
 		Command:      helloGoodbye(),
-		MaxRunTime:   60,
+		MaxRunTime:   10,
 		InvalidField: 119,
 	}
 	taskID, q := SubmitTask(t, task, payload)
@@ -152,5 +152,12 @@ func TestMalformedPayload(t *testing.T) {
 
 // Make sure a task can run that has a command with a single token (i.e. just
 // program name, no program arguments)
-func TestNoProgramArgs(t *testing.T) {
+func TestNoMaxRunTime(t *testing.T) {
+	task, workerType := NewTestTask("TestNoMaxRunTime")
+	payload := TaskPayload{
+		Command: helloGoodbye(),
+	}
+	taskID, q := SubmitTask(t, task, payload)
+	RunTestWorker(workerType, 1)
+	EnsureTaskResolution(t, q, taskID, "completed", "completed")
 }
