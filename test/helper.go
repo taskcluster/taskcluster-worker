@@ -3,12 +3,14 @@ package test
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/taskcluster/httpbackoff"
 	"github.com/taskcluster/slugid-go/slugid"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/queue"
@@ -64,6 +66,10 @@ type TaskPayload struct {
 
 	// Kill the task if it exceedes the timeout value.
 	MaxRunTime int `json:"maxRunTime,omitempty"`
+
+	// For tests that want to have an invalid payload - not included in a valid
+	// task payload
+	InvalidField int `json:"invalidField,omitempty"`
 }
 
 type PayloadArtifact struct {
@@ -286,4 +292,22 @@ func SetTaskIDEnvVar(t *testing.T, rawEnv *json.RawMessage, taskID string) {
 	// convert to RawMessage, replacing original environment block
 	err = json.Unmarshal(bytes, rawEnv)
 	require.NoError(t, err)
+}
+
+// Returns the full log file of the given taskID as text in a string
+func LogText(t *testing.T, q *queue.Queue, taskID string) string {
+	url, err := q.GetLatestArtifact_SignedURL(taskID, "public/logs/live_backing.log", 10*time.Minute)
+	if err != nil {
+		t.Fatalf("Cannot retrieve url for live_backing.log: %v", err)
+	}
+	resp, _, err := httpbackoff.Get(url.String())
+	if err != nil {
+		t.Fatalf("Could not download log: %v", err)
+	}
+	defer resp.Body.Close()
+	bytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Error when trying to read log file over http: %v", err)
+	}
+	return string(bytes)
 }

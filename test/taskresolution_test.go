@@ -2,13 +2,11 @@ package test
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/taskcluster/httpbackoff"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
 )
 
@@ -35,23 +33,10 @@ func TestAbortAfterMaxRunTime(t *testing.T) {
 	RunTestWorker(workerType, 1)
 
 	EnsureTaskResolution(t, q, taskID, "failed", "failed")
+	logtext := LogText(t, q, taskID)
 	// check uploaded log mentions abortion
 	// note: we do this rather than local log, to check also log got uploaded
 	// as failure path requires that task is resolved before logs are uploaded
-	url, err := q.GetLatestArtifact_SignedURL(taskID, "public/logs/live_backing.log", 10*time.Minute)
-	if err != nil {
-		t.Fatalf("Cannot retrieve url for live_backing.log: %v", err)
-	}
-	resp, _, err := httpbackoff.Get(url.String())
-	if err != nil {
-		t.Fatalf("Could not download log: %v", err)
-	}
-	defer resp.Body.Close()
-	bytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Error when trying to read log file over http: %v", err)
-	}
-	logtext := string(bytes)
 	if !strings.Contains(logtext, "max run time exceeded") {
 		t.Fatalf("Was expecting log file to mention task abortion, but it doesn't")
 	}
@@ -146,4 +131,26 @@ func TestResolveResolvedTask(t *testing.T) {
 
 	EnsureTaskResolution(t, q, taskID1, "exception", "canceled")
 	EnsureTaskResolution(t, q, taskID2, "completed", "completed")
+}
+
+// Make sure that a malformed payload resolves correctly and uploads a log
+func TestMalformedPayload(t *testing.T) {
+	task, workerType := NewTestTask("TestMalformedPayload - task 1")
+	payload := TaskPayload{
+		Command:      helloGoodbye(),
+		MaxRunTime:   60,
+		InvalidField: 119,
+	}
+	taskID, q := SubmitTask(t, task, payload)
+	RunTestWorker(workerType, 1)
+	EnsureTaskResolution(t, q, taskID, "exception", "malformed-payload")
+	logtext := LogText(t, q, taskID)
+	if len(logtext) == 0 {
+		t.Fatal("log empty")
+	}
+}
+
+// Make sure a task can run that has a command with a single token (i.e. just
+// program name, no program arguments)
+func TestNoProgramArgs(t *testing.T) {
 }
