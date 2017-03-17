@@ -179,6 +179,16 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 		s.result = false
 		return s, errors.New("Task execution has been aborted")
 	case <-time.After(time.Duration(s.payload.Delay) * time.Millisecond):
+		switch s.payload.Function {
+		case "fatal-internal-error":
+			// Should normally only be used if error is reported with Monitor
+			return nil, runtime.ErrFatalInternalError
+		case "nonfatal-internal-error":
+			// Should normally only be used if error is reported with Monitor
+			return nil, runtime.ErrNonFatalInternalError
+		case "malformed-payload-after-start":
+			return nil, runtime.NewMalformedPayloadError(s.payload.Argument)
+		}
 		// No need to lock access mounts and proxies either
 		f := functions[s.payload.Function]
 		if f == nil {

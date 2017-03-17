@@ -79,7 +79,7 @@ type TaskPlugin interface {
 	// finished, before mounting caches, proxies, etc. and returning.
 	//
 	// Non-fatal errors: MalformedPayloadError
-	BuildSandbox(SandboxBuilder engines.SandboxBuilder) error
+	BuildSandbox(sandboxBuilder engines.SandboxBuilder) error
 
 	// Started is called once the sandbox has started execution. This is a good
 	// place to hook if you want to do interactive things.
@@ -145,10 +145,9 @@ func (PluginBase) PayloadSchema() schematypes.Object {
 	return schematypes.Object{}
 }
 
-// NewTaskPlugin returns nil ignoring the request to create a TaskPlugin for
-// the given task.
+// NewTaskPlugin returns TaskPluginBase{} which ignores all the stages.
 func (PluginBase) NewTaskPlugin(TaskPluginOptions) (TaskPlugin, error) {
-	return nil, nil
+	return TaskPluginBase{}, nil
 }
 
 // TaskPluginBase is a base implementation of the TaskPlugin interface, it just

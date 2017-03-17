@@ -230,13 +230,13 @@ func mockMonitorMetadata(tags map[string]string, prefix string) string {
 		prefix = prefix[:len(prefix)-1]
 	}
 
-	keys := make([]string, len(tags))
+	keys := make([]string, 0, len(tags))
 	for k := range tags {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
-	pairs := make([]string, len(tags)+1)
+	pairs := make([]string, 0, len(tags)+1)
 	pairs = append(pairs, fmt.Sprintf("prefix=%s", prefix))
 	for _, k := range keys {
 		pairs = append(pairs, fmt.Sprintf("%s=%s", k, tags[k]))

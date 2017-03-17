@@ -23,9 +23,6 @@ import (
 // while it is still open.
 var ErrLogNotClosed = errors.New("Log is still open")
 
-// ErrLogClosed raises when there is a double call to CloseLog.
-var ErrLogClosed = errors.New("Log already closed")
-
 // TaskStatus represents the current status of the task.
 type TaskStatus string // TODO: (jonasfj) TaskContext shouldn't track status
 
@@ -105,7 +102,7 @@ func (c *TaskContextController) CloseLog() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.logClosed {
-		return ErrLogClosed
+		return nil
 	}
 
 	c.logClosed = true
