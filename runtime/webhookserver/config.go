@@ -91,7 +91,7 @@ func NewServer(config interface{}) (Server, error) {
 		return NewTestServer()
 	}
 	if schematypes.MustMap(statelessDNSConfigSchema, config, &c) == nil {
-		return NewLocalServer(
+		s, err := NewLocalServer(
 			net.ParseIP(c.ServerIP), c.ServerPort,
 			c.NetworkInterface, c.ExposedPort,
 			c.StatelessDNSSecret,
@@ -100,6 +100,10 @@ func NewServer(config interface{}) (Server, error) {
 			c.TLSKey,
 			time.Duration(c.MaxLifeCycle)*time.Second,
 		)
+		if err == nil {
+			go s.ListenAndServe()
+		}
+		return s, err
 	}
 	panic("Invalid config shouldn't be valid")
 }
