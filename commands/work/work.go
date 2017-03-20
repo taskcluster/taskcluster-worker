@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/taskcluster/taskcluster-worker/commands"
 	"github.com/taskcluster/taskcluster-worker/config"
@@ -45,7 +46,7 @@ func (cmd) Execute(args map[string]interface{}) bool {
 		close(done)
 	}()
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	select {
 	case <-c:
 		signal.Stop(c)
