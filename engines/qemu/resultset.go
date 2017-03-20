@@ -48,7 +48,7 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 		}
 		// If guest uses backslashes our input paths should have that, but the ones
 		// we return should be intepreted as names.
-		p = strings.Replace(p[len(path):], "\\", "/", 0)
+		p = strings.Replace(p[len(path):], "\\", "/", -1)
 		if len(p) > 0 && p[0] == '\\' {
 			p = p[1:]
 		}

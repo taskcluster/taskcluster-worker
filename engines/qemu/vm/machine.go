@@ -190,8 +190,7 @@ func LoadMachine(machineFile string) (*Machine, error) {
 
 // Clone returns a copy of this machine definition
 func (m *Machine) Clone() *Machine {
-	var machine Machine
-	machine = *m
+	machine := *m
 	return &machine
 }
 
