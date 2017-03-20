@@ -31,7 +31,7 @@ func sleep(seconds uint) []string {
 
 func copyArtifact(path string) []string {
 	targetFile := strings.Replace(path, "/", "\\", -1)
-	sourceFile := filepath.Join(testdataDir, targetFile)
+	sourceFile := filepath.Join(testdata, targetFile)
 	return []string{
 		"cmd.exe",
 		"/c",
