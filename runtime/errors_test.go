@@ -7,8 +7,7 @@ import (
 )
 
 func TestIsMalformedPayloadError(t *testing.T) {
-	var err error
-	err = NewMalformedPayloadError("test")
+	err := NewMalformedPayloadError("test")
 	_, ok := IsMalformedPayloadError(err)
 	assert.True(t, ok)
 }
