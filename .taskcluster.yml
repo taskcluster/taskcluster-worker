@@ -104,7 +104,7 @@ tasks:
         - '"C:\mozilla-build\msys\bin\bash.exe" --login -c "cd ${GOPATH}/src/github.com/taskcluster/taskcluster-worker && make rebuild check"'
       mounts:
         - cacheName: taskcluster-worker-checkout
-          directory: go/src
+          directory: gopath/src
         - content:
             url: https://storage.googleapis.com/golang/go1.8.windows-amd64.zip
           directory: go1.8
@@ -163,7 +163,7 @@ tasks:
             mv "${GOPATH}/bin/taskcluster-worker" public/build/taskcluster-worker-darwin-amd64
       mounts:
         - cacheName: taskcluster-worker-checkout
-          directory: go/src
+          directory: gopath/src
         - content:
             url: https://storage.googleapis.com/golang/go1.8.darwin-amd64.tar.gz
           directory: go1.8
