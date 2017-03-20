@@ -97,7 +97,7 @@ func newTaskRun(
 
 func (t *TaskRun) reclaim(until time.Time) {
 	for {
-		duration := until.Sub(time.Now()).Seconds()
+		duration := time.Until(until).Seconds()
 		// Using a reclaim divisor of 1.3 with the default reclaim deadline (20 minutes),
 		// means that a reclaim event will happen with a few minutes left of the origin claim.
 		nextReclaim := duration / 1.3

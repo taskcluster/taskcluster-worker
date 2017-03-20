@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	graceful "gopkg.in/tylerb/graceful.v1"
@@ -152,7 +153,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 
 	// Wait for SIGINT/SIGKILL or vm.Done
 	c := make(chan os.Signal, 2)
-	signal.Notify(c, os.Interrupt, os.Kill) // This pattern leaks, acceptable here
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM) // This pattern leaks, acceptable here
 	select {
 	case <-c:
 		signal.Stop(c)
