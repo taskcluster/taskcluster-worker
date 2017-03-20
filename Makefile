@@ -55,7 +55,7 @@ lint:
 	# not enabled: aligncheck, deadcode, dupl, errcheck, gas, gocyclo, structcheck, unused, varcheck
 	# Disabled: testify, test (these two show test errors, hence, they run tests)
 	# Disabled: gotype (same as go compiler, also it has issues and was recently removed)
-	gometalinter -j4 --deadline=15m --line-length=180 --vendor --vendored-linters --disable-all \
+	gometalinter -j4 --deadline=30m --line-length=180 --vendor --vendored-linters --disable-all \
 		--enable=goconst \
 		--enable=gofmt \
 		--enable=goimports \
