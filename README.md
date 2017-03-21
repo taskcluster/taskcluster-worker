@@ -1,7 +1,8 @@
 TaskCluster Worker
 ==================
 
-<img src="https://tools.taskcluster.net/lib/assets/taskcluster-120.png" />
+[![logo](https://tools.taskcluster.net/lib/assets/taskcluster-120.png)](https://tools.taskcluster.net/lib/assets/taskcluster-120.png)
+
 [![Build Status](https://travis-ci.org/taskcluster/taskcluster-worker.svg?branch=master)](http://travis-ci.org/taskcluster/taskcluster-worker)
 [![GoDoc](https://godoc.org/github.com/taskcluster/taskcluster-worker?status.svg)](https://godoc.org/github.com/taskcluster/taskcluster-worker)
 [![Coverage Status](https://coveralls.io/repos/taskcluster/taskcluster-worker/badge.svg?branch=master&service=github)](https://coveralls.io/github/taskcluster/taskcluster-worker?branch=master)
@@ -27,7 +28,7 @@ See https://github.com/taskcluster/taskcluster-worker/releases
 Installing From Source
 ----------------------
 
-1. [Install go 1.7](https://golang.org/doc/install) or higher
+1. [Install go 1.8](https://golang.org/doc/install) or higher
 2. `go get -u -t -d github.com/taskclustertaskcluster-worker/...`
 3. `cd "${GOPATH}/src/github.com/taskcluster-worker"`
 4. `go get -u github.com/kardianos/govendor`

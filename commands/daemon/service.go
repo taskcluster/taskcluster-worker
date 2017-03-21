@@ -38,7 +38,7 @@ func (svc *service) Run() (string, error) {
 	}
 
 	sigTerm := make(chan os.Signal, 1)
-	signal.Notify(sigTerm, os.Interrupt, os.Kill, syscall.SIGTERM)
+	signal.Notify(sigTerm, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sigTerm
 		w.ImmediateStop()
