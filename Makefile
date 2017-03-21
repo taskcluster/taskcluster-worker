@@ -21,8 +21,8 @@ all: rebuild
 
 prechecks:
 	@test -n "$(GO_VERSION)" || (echo "Could not find go compiler, 'go version' returned no output" && false)
-	@test "$(GO_MAJ)" == "go1" || (echo "Require go version 1.x, where x >= 7; however found '$(GO_VERSION)'" && false)
-	@test "0$(GO_MIN)" -ge 7 || (echo "Require go version 1.x, where x>=7; however found '$(GO_VERSION)'" && false)
+	@test "$(GO_MAJ)" == "go1" || (echo "Require go version 1.x, where x >= 8; however found '$(GO_VERSION)'" && false)
+	@test "0$(GO_MIN)" -ge 8 || (echo "Require go version 1.x, where x>=8; however found '$(GO_VERSION)'" && false)
 
 build:
 	go fmt $$(go list ./... | grep -v /vendor/)
