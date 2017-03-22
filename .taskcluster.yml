@@ -176,7 +176,7 @@ tasks:
   - provisionerId: pmoore-manual
     workerType: raspberry-pi-3b
     metadata:
-      name: "Build/test 64 bit taskcluster-worker on linux armv6l"
+      name: "Build/test armv6l taskcluster-worker on Ubuntu 16.04 LTS (Raspberry Pi)"
       description: "This builds the armv6l linux version of taskcluster-worker"
       owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
       source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
