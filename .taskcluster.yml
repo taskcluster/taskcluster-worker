@@ -200,6 +200,7 @@ tasks:
             export GOROOT="$(pwd)/go1.8/go"
             export GOPATH="$(pwd)/gopath"
             export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
+            export CGO_ENABLED=0
             source "${TASKCLUSTER_CREDS_BOOTSTRAP}"
             go get -v "github.com/kardianos/govendor"
             mkdir -p "${GOPATH}/src/github.com/taskcluster"
