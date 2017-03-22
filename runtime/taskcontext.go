@@ -230,7 +230,7 @@ func (c *TaskContext) log(prefix string, a ...interface{}) {
 	a = append([]interface{}{prefix}, a...)
 	_, err := fmt.Fprintln(c.logStream, a...)
 	if err != nil {
-		//TODO: Forward this to the system log, it's not a critical error
+		_ = err //TODO: Forward this to the system log, it's not a critical error
 	}
 }
 

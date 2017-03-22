@@ -23,6 +23,7 @@ type Queue interface {
 	ReportException(string, string, *queue.TaskExceptionRequest) (*queue.TaskStatusResponse, error)
 	ReportFailed(string, string) (*queue.TaskStatusResponse, error)
 	ClaimTask(string, string, *queue.TaskClaimRequest) (*queue.TaskClaimResponse, error)
+	ClaimWork(provisionerID, workerType string, payload *queue.ClaimWorkRequest) (*queue.ClaimWorkResponse, error)
 	ReclaimTask(string, string) (*queue.TaskReclaimResponse, error)
 	PollTaskUrls(string, string) (*queue.PollTaskUrlsResponse, error)
 	CancelTask(string) (*queue.TaskStatusResponse, error)
@@ -67,6 +68,12 @@ func (m *MockQueue) CancelTask(taskID string) (*queue.TaskStatusResponse, error)
 func (m *MockQueue) ClaimTask(taskID, runID string, payload *queue.TaskClaimRequest) (*queue.TaskClaimResponse, error) {
 	args := m.Called(taskID, runID, payload)
 	return args.Get(0).(*queue.TaskClaimResponse), args.Error(1)
+}
+
+// ClaimWork is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue#Queue.ClaimWork
+func (m *MockQueue) ClaimWork(provisionerID, workerType string, payload *queue.ClaimWorkRequest) (*queue.ClaimWorkResponse, error) {
+	args := m.Called(provisionerID, workerType, payload)
+	return args.Get(0).(*queue.ClaimWorkResponse), args.Error(1)
 }
 
 // ReportFailed is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.ReportFailed
