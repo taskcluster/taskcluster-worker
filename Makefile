@@ -11,9 +11,12 @@ GO_VERSION := $(shell go version 2>/dev/null | cut -f3 -d' ')
 GO_MAJ := $(shell echo "$(GO_VERSION)" | cut -f1 -d'.')
 GO_MIN := $(shell echo "$(GO_VERSION)" | cut -f2 -d'.')
 
-uname := $(shell uname)
-is_darwin := $(filter Darwin,$(uname))
+HOST_OS := $(shell uname -s)
+HOST_ARCH := $(shell uname -p)
+is_darwin := $(filter Darwin,$(HOST_OS))
+is_armv7l := $(filter armv7l,$(HOST_ARCH))
 CGO_ENABLE := $(if $(is_darwin),1,0)
+RACE_ENABLE := $(if $(is_armv7l),,-race)
 
 .PHONY: all prechecks build rebuild check test dev-test tc-worker-env tc-worker
 
@@ -37,7 +40,7 @@ check: test
 test:
 	# should run with -tags=system at some point..... i.e.:
 	# go test -tags=system -v -race $$(go list ./... | grep -v /vendor/)
-	go test -v -race $$(go list ./... | grep -v /vendor/)
+	go test -v $(RACE_ENABLE) $$(go list ./... | grep -v /vendor/)
 
 dev-test:
 	go test -race $$(go list ./... | grep -v /vendor/)
