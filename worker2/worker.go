@@ -33,7 +33,7 @@ type Worker struct {
 	concurrency           int
 	// State
 	running        atomics.Bool
-	activeTasks    atomics.Counter
+	activeTasks    taskCounter
 	stopNow        atomics.Barrier
 	stopGracefully atomics.Barrier
 }
@@ -71,23 +71,6 @@ func (w *Worker) Start() error {
 		Worker:  w,
 	})
 
-	// Track idle time
-	idleTimer := atomics.StopWatch{}
-	go func() {
-		for {
-			select {
-			case <-w.activeTasks.Changed():
-				if w.activeTasks.Value() > 0 {
-					idleTimer.Reset() // Reset also stop the timer
-				} else {
-					idleTimer.Start()
-				}
-			case <-w.stopGracefully.Barrier():
-				break
-			}
-		}
-	}()
-
 	for !w.stopGracefully.IsFallen() {
 		// Claim tasks
 		claims, err := w.queue.ClaimWork(w.provisionerID, w.workerType, &queue.ClaimWorkRequest{
@@ -104,7 +87,7 @@ func (w *Worker) Start() error {
 		if claims != nil {
 			for _, claim := range claims.Tasks {
 				// Start processing tasks
-				w.activeTasks.Add(1)
+				w.activeTasks.Increment()
 				go w.processClaim(taskClaim{
 					TaskID: claim.Status.TaskID,
 					RunID:  claim.RunID,
@@ -133,7 +116,7 @@ func (w *Worker) Start() error {
 		}
 
 		// Wait for capacity to be available (delay is ticking while this happens)
-		w.activeTasks.WaitForLessThan(w.concurrency)
+		w.activeTasks.WaitForCapacity(w.concurrency)
 
 		// Wait for delay or stopGracefully
 		select {
@@ -142,14 +125,14 @@ func (w *Worker) Start() error {
 			break
 		}
 
-		idle := idleTimer.Elapsed()
+		idle := w.activeTasks.IdleTime()
 		if idle != 0 {
 			lifecycle.ReportIdle(idle)
 		}
 	}
 
 	// Wait for tasks to be done, or stopNow happens
-	w.activeTasks.WaitForZero()
+	w.activeTasks.WaitForIdle()
 
 	return nil
 }
@@ -167,7 +150,7 @@ type taskClaim struct {
 // activeTasks when done
 func (w *Worker) processClaim(claim taskClaim, lifecycle lifecyclepolicy.LifeCyclePolicy) {
 	// Decrement number of active tasks when we're done processing the task
-	defer w.activeTasks.Add(-1)
+	defer w.activeTasks.Decrement()
 	// Measure resolution time and report it
 	resolutionTimer := atomics.StopWatch{}
 	resolutionTimer.Start()
