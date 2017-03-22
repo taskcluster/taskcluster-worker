@@ -168,3 +168,57 @@ tasks:
             url: https://storage.googleapis.com/golang/go1.8.darwin-amd64.tar.gz
           directory: go1.8
           format: tar.gz
+
+  ##########################################################
+  ##################### Linux ARM build ####################
+  ##########################################################
+
+  - provisionerId: pmoore-manual
+    workerType: raspberry-pi-3b
+    metadata:
+      name: "Build/test 64 bit taskcluster-worker on linux armv6l"
+      description: "This builds the armv6l linux version of taskcluster-worker"
+      owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
+      source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
+    extra:
+      github:
+        # Events that will trigger this task
+        events:
+          - push
+    scopes:
+      - generic-worker:cache:taskcluster-worker-checkout
+    payload:
+      maxRunTime: 3600
+      artifacts:
+        - expires: "{{ '2 weeks' | $fromNow }}"
+          type: file
+          path: public/build/taskcluster-worker-linux-armv6l
+      command:
+        - - /bin/bash
+          - -vxec
+          - |
+            export GOROOT="$(pwd)/go1.8/go"
+            export GOPATH="$(pwd)/gopath"
+            export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
+            source "${TASKCLUSTER_CREDS_BOOTSTRAP}"
+            go get -v "github.com/kardianos/govendor"
+            mkdir -p "${GOPATH}/src/github.com/taskcluster"
+            cd "${GOPATH}/src/github.com/taskcluster"
+            if [ ! -d taskcluster-worker/.git ]; then rm -rf taskcluster-worker; git clone '{{ event.head.repo.url }}' 'taskcluster-worker'; fi
+            cd 'taskcluster-worker'
+            git fetch --tags
+            git checkout -f '{{ event.head.sha }}'
+            git clean -d -f -e '/vendor/*' -x
+            # sometimes `govendor sync` fails first time, so run again, if fails first time
+            govendor sync || govendor sync
+            make rebuild check
+            cd ../../../../..
+            mkdir -p public/build
+            mv "${GOPATH}/bin/taskcluster-worker" public/build/taskcluster-worker-linux-armv6l
+      mounts:
+        - cacheName: taskcluster-worker-checkout
+          directory: gopath/src
+        - content:
+            url: https://storage.googleapis.com/golang/go1.8.linux-armv6l.tar.gz
+          directory: go1.8
+          format: tar.gz
