@@ -66,7 +66,7 @@ func (d *DisplayHandler) sendPings() {
 				return
 			}
 
-			d.monitor.Error("Failed to send ping, error: ", err)
+			d.monitor.Warn("Failed to send ping, error: ", err)
 			d.Abort()
 			return
 		}
@@ -110,7 +110,7 @@ func (d *DisplayHandler) readMessages() {
 			if e, ok := err.(*websocket.CloseError); ok && e.Code == websocket.CloseNormalClosure {
 				debug("Websocket closed normally error: ", err)
 			} else {
-				d.monitor.Error("Failed to read message from websocket, error: ", err)
+				d.monitor.Warn("Failed to read message from websocket, error: ", err)
 			}
 			d.Abort()
 			return
