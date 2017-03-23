@@ -85,3 +85,4 @@ Contributing
 We welcome Pull Requests and Issues!
 
 Find us in `#taskcluster-worker` on `irc.mozilla.org`
+
