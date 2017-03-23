@@ -160,6 +160,12 @@
 			"revisionTime": "2015-02-23T21:27:18Z"
 		},
 		{
+			"checksumSHA1": "Grz0paMpctITy78Xtrqzp5MK4oA=",
+			"path": "github.com/jonasfj/go-localtunnel",
+			"revision": "b4dea4bbdea102d9a11b9568aca894cf87307949",
+			"revisionTime": "2017-03-19T06:52:38Z"
+		},
+		{
 			"checksumSHA1": "eIjJhEqZZmQwt++0jlQhbIhAcH4=",
 			"path": "github.com/kr/pty",
 			"revision": "ce7fa45920dc37a92de8377972e52bc55ffa8d57",

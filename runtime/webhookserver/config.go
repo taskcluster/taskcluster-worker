@@ -14,6 +14,14 @@ var localhostConfigSchema = schematypes.Object{
 	Required: []string{"provider"},
 }
 
+var localtunnelConfigSchema = schematypes.Object{
+	Properties: schematypes.Properties{
+		"provider": schematypes.StringEnum{Options: []string{"localtunnel"}},
+		"baseUrl":  schematypes.URI{},
+	},
+	Required: []string{"provider"},
+}
+
 var statelessDNSConfigSchema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"provider": schematypes.StringEnum{Options: []string{"stateless-dns"}},
@@ -60,6 +68,7 @@ var statelessDNSConfigSchema = schematypes.Object{
 // ConfigSchema specifies schema for configuration passed to NewServer.
 var ConfigSchema schematypes.Schema = schematypes.OneOf{
 	localhostConfigSchema,
+	localtunnelConfigSchema,
 	statelessDNSConfigSchema,
 }
 
@@ -85,13 +94,17 @@ func NewServer(config interface{}) (Server, error) {
 		StatelessDNSSecret string `json:"statelessDNSSecret"`
 		StatelessDNSDomain string `json:"statelessDNSDomain"`
 		MaxLifeCycle       int    `json:"maxLifeCycle"`
+		BaseURL            string `json:"baseUrl"`
 	}
 	schematypes.MustValidate(ConfigSchema, config)
 	if schematypes.MustMap(localhostConfigSchema, config, &c) == nil {
 		return NewTestServer()
 	}
+	if schematypes.MustMap(localtunnelConfigSchema, config, &c) == nil {
+		return NewLocalTunnel(c.BaseURL)
+	}
 	if schematypes.MustMap(statelessDNSConfigSchema, config, &c) == nil {
-		return NewLocalServer(
+		s, err := NewLocalServer(
 			net.ParseIP(c.ServerIP), c.ServerPort,
 			c.NetworkInterface, c.ExposedPort,
 			c.StatelessDNSSecret,
@@ -100,6 +113,10 @@ func NewServer(config interface{}) (Server, error) {
 			c.TLSKey,
 			time.Duration(c.MaxLifeCycle)*time.Second,
 		)
+		if err == nil {
+			go s.ListenAndServe()
+		}
+		return s, err
 	}
 	panic("Invalid config shouldn't be valid")
 }
