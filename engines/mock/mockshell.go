@@ -57,6 +57,11 @@ func newShell() *shell {
 			resultValue = false
 		case "sleep":
 			time.Sleep(time.Second / 10)
+		default:
+			_, werr := stdoutWriter.Write([]byte("unknown command"))
+			if werr != nil && resultError == nil {
+				resultError = fmt.Errorf("Error while writing stdout: %s", werr)
+			}
 		}
 
 		// Close stdout/stderr

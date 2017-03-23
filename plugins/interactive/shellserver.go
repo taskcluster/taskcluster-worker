@@ -2,6 +2,7 @@ package interactive
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -125,6 +126,11 @@ func (s *ShellServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	go s.handleShell(ws, shell)
 }
 
+func copyCloseDone(w io.WriteCloser, r io.Reader, wg *sync.WaitGroup) {
+	ioext.CopyAndClose(w, r)
+	wg.Done()
+}
+
 func (s *ShellServer) handleShell(ws *websocket.Conn, shell engines.Shell) {
 	done := make(chan struct{})
 
@@ -133,9 +139,11 @@ func (s *ShellServer) handleShell(ws *websocket.Conn, shell engines.Shell) {
 	handler := NewShellHandler(ws, s.monitor.WithTag("shell-instance-id", fmt.Sprintf("%d", s.nextID())))
 
 	// Connect pipes
-	go ioext.CopyAndClose(shell.StdinPipe(), handler.StdinPipe())
-	go ioext.CopyAndClose(handler.StdoutPipe(), shell.StdoutPipe())
-	go ioext.CopyAndClose(handler.StderrPipe(), shell.StderrPipe())
+	wg := sync.WaitGroup{}
+	wg.Add(3)
+	go copyCloseDone(shell.StdinPipe(), handler.StdinPipe(), &wg)
+	go copyCloseDone(handler.StdoutPipe(), shell.StdoutPipe(), &wg)
+	go copyCloseDone(handler.StderrPipe(), shell.StderrPipe(), &wg)
 
 	// Start streaming
 	handler.Communicate(shell.SetSize, shell.Abort)
@@ -151,15 +159,12 @@ func (s *ShellServer) handleShell(ws *websocket.Conn, shell engines.Shell) {
 
 	// Wait for the shell to terminate
 	success, _ := shell.Wait()
+	wg.Wait() // Wait for pipes to be copied before terminating
 	handler.Terminated(success)
 	s.updateRefCount(-1)
 
 	// Close done so we stop waiting for abort on all shells
-	select {
-	case <-done:
-	default:
-		close(done)
-	}
+	close(done)
 }
 
 func (s *ShellServer) updateRefCount(change int) {
