@@ -47,7 +47,8 @@ tasks:
           git fetch --tags
           git checkout -f '{{ event.head.sha }}'
           git clean -d -f -e '/vendor/*' -x
-          govendor sync
+          # sometimes `govendor sync` fails first time, so run again, if fails first time
+          govendor sync || govendor sync
           make rebuild check
       artifacts:
         public/build/taskcluster-worker-linux-amd64:
@@ -83,11 +84,11 @@ tasks:
           type: file
           path: public/build/taskcluster-worker-windows-amd64.exe
       command:
+        - 'set GOROOT=%CD%\go1.8\go'
+        - 'set GOPATH=%CD%\gopath'
+        - 'set PATH=%GOPATH%\bin;%GOROOT%\bin;%PATH%'
         - 'mkdir public\build'
-        - 'mklink public\build\taskcluster-worker-windows-amd64.exe go\bin\taskcluster-worker.exe'
-        - 'set GOPATH=%CD%\go'
-        - 'set PATH=%GOPATH%\bin;%PATH%'
-        - ':: source "${TASKCLUSTER_CREDS_BOOTSTRAP}"'
+        - 'mklink public\build\taskcluster-worker-windows-amd64.exe "%GOPATH%\bin\taskcluster-worker.exe"'
         - 'go get -v github.com/kardianos/govendor'
         - 'if not exist "%GOPATH%\src\github.com\taskcluster" mkdir "%GOPATH%\src\github.com\taskcluster"'
         - 'cd "%GOPATH%\src\github.com\taskcluster"'
@@ -97,15 +98,16 @@ tasks:
         - 'git fetch --tags'
         - 'git checkout -f {{ event.head.sha }}'
         - 'git clean -d -f -e /vendor/* -x'
-        - 'govendor sync'
+        - ':: sometimes `govendor sync` fails first time, so run again, if fails first time'
+        - 'govendor sync || govendor sync'
         - 'C:\taskcluster-worker-test-creds.cmd'
         - '"C:\mozilla-build\msys\bin\bash.exe" --login -c "cd ${GOPATH}/src/github.com/taskcluster/taskcluster-worker && make rebuild check"'
       mounts:
         - cacheName: taskcluster-worker-checkout
-          directory: go/src
+          directory: gopath/src
         - content:
-            url: https://storage.googleapis.com/golang/go1.7.5.windows-amd64.zip
-          directory: .
+            url: https://storage.googleapis.com/golang/go1.8.windows-amd64.zip
+          directory: go1.8
           format: zip
         - content:
             url: https://github.com/git-for-windows/git/releases/download/v2.11.0.windows.3/MinGit-2.11.0.3-64-bit.zip
@@ -141,7 +143,9 @@ tasks:
         - - /bin/bash
           - -vxec
           - |
-            export GOPATH="$(pwd)/go"
+            export GOROOT="$(pwd)/go1.8/go"
+            export GOPATH="$(pwd)/gopath"
+            export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
             source "${TASKCLUSTER_CREDS_BOOTSTRAP}"
             go get -v "github.com/kardianos/govendor"
             mkdir -p "${GOPATH}/src/github.com/taskcluster"
@@ -151,11 +155,16 @@ tasks:
             git fetch --tags
             git checkout -f '{{ event.head.sha }}'
             git clean -d -f -e '/vendor/*' -x
-            govendor sync
+            # sometimes `govendor sync` fails first time, so run again, if fails first time
+            govendor sync || govendor sync
             make rebuild check
             cd ../../../../..
             mkdir -p public/build
-            mv go/bin/taskcluster-worker public/build/taskcluster-worker-darwin-amd64
+            mv "${GOPATH}/bin/taskcluster-worker" public/build/taskcluster-worker-darwin-amd64
       mounts:
         - cacheName: taskcluster-worker-checkout
-          directory: go/src
+          directory: gopath/src
+        - content:
+            url: https://storage.googleapis.com/golang/go1.8.darwin-amd64.tar.gz
+          directory: go1.8
+          format: tar.gz

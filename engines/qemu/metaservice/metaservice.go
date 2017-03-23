@@ -353,8 +353,10 @@ func (s *MetaService) getArtifactWithoutRetry(path string) (
 	ioext.ReadSeekCloser, error,
 ) {
 	// Create result values to be set in the callback
-	var File ioext.ReadSeekCloser
-	var Err error
+	var (
+		File ioext.ReadSeekCloser
+		Err  error
+	)
 	Err = runtime.ErrNonFatalInternalError
 
 	s.asyncRequest(Action{
@@ -424,8 +426,10 @@ func (s *MetaService) GetArtifact(path string) (ioext.ReadSeekCloser, error) {
 }
 
 func (s *MetaService) listFolderWithoutRetries(path string) ([]string, error) {
-	var Result []string
-	var Err error
+	var (
+		Result []string
+		Err    error
+	)
 	Err = runtime.ErrNonFatalInternalError
 
 	s.asyncRequest(Action{
@@ -500,8 +504,10 @@ var upgrader = websocket.Upgrader{
 // for guest-tools to callback establish a websocket and connect to an
 // implementation of engines.Shell
 func (s *MetaService) ExecShell(command []string, tty bool) (engines.Shell, error) {
-	var Shell engines.Shell
-	var Err error
+	var (
+		Shell engines.Shell
+		Err   error
+	)
 	Err = runtime.ErrNonFatalInternalError
 
 	s.asyncRequest(Action{

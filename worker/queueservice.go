@@ -433,7 +433,7 @@ func (q *queueService) shouldRefreshQueueUrls() bool {
 	}
 	// If the duration between Expiration and current time is less than the expiration
 	// off set then it's time to refresh the urls
-	if int(time.Time(q.expires).Sub(time.Now()).Seconds()) < q.expirationOffset {
+	if int(time.Until(time.Time(q.expires)).Seconds()) < q.expirationOffset {
 		return true
 	}
 	return false
