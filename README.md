@@ -53,8 +53,8 @@ Tests that fall into one or more of these categories are enabled with build
 tags. Below is a list of such build tags and description of what they test and
 why these tests are disabled by default.
 
- * `localtunnel`, tests a `WebHookServer` implmentation based on
-   [localtunnel.me](https://localtunnel.me) tests are somewhat buggy, and due
+ * `localtunnel`, tests a `WebHookServer` implementation based on
+   [localtunnel.me](https://localtunnel.me), tests are somewhat buggy and due
    to the nature of using a remote service this isn't reliable.
  * `native`, tests the native-engine, disabled because tests cleans up system
    folders such as HOME.
