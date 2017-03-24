@@ -44,12 +44,11 @@ make rebuild
 
 ### Conditional Tests
 Certain tests are disabled by default because they are:
- * very slow,
- * very noisy,
  * only runs under certain conditions (e.g. requires root credentials),
  * requires special configuration (for example secret tokens),  
  * have system-wide side-effects (like deleting the $HOME folder), or,
- * needs fixing.
+ * very slow, noisy or needs fixing.
+
 Tests that fall into one or more of these categories are enabled with build
 tags. Below is a list of such build tags and description of what they test and
 why these tests are disabled by default.
