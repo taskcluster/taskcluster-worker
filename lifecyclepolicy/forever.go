@@ -26,26 +26,36 @@ func (foreverProvider) ConfigSchema() schematypes.Object {
 
 func (foreverProvider) NewLifeCyclePolicy(options Options) LifeCyclePolicy {
 	var c struct {
-		StopError bool `json:"stopOnError"`
+		StopOnError bool `json:"stopOnError"`
 	}
 	schematypes.MustValidateAndMap(foreverProvider{}.ConfigSchema(), options.Config, &c)
 	return &ForeverLifeCyclePolicy{
-		Stoppable: options.Worker,
-		StopError: c.StopError,
+		StopOnError: c.StopOnError,
 	}
 }
 
 // A ForeverLifeCyclePolicy never stops the worker.
 type ForeverLifeCyclePolicy struct {
-	Base
-	runtime.Stoppable
-	StopError bool
+	StopOnError bool
 }
 
-// ReportNonFatalError will gracefully stop the worker if StopError is true
-func (p *ForeverLifeCyclePolicy) ReportNonFatalError() {
-	if p.StopError && p.Stoppable != nil {
-		p.StopGracefully()
+// NewController returns a Controller implemeting the ForeverLifeCyclePolicy
+func (p *ForeverLifeCyclePolicy) NewController(worker runtime.Stoppable) Controller {
+	return &foreverController{
+		Stoppable:   worker,
+		StopOnError: p.StopOnError,
+	}
+}
+
+type foreverController struct {
+	Base
+	runtime.Stoppable
+	StopOnError bool
+}
+
+func (c *foreverController) ReportNonFatalError() {
+	if c.StopOnError {
+		c.StopGracefully()
 	}
 }
 

@@ -32,7 +32,6 @@ func ConfigSchema() schematypes.Schema {
 }
 
 // New returns a new LifeCyclePolicy from config matching ConfigSchema().
-// The resulting LifeCyclePolicy will control the given worker.
 func New(options Options) LifeCyclePolicy {
 	schematypes.MustValidate(ConfigSchema(), options.Config)
 	// This cast must pass as the config must match ConfigSchema, this is the
@@ -44,7 +43,6 @@ func New(options Options) LifeCyclePolicy {
 	mProviders.Unlock()
 
 	return p.NewLifeCyclePolicy(Options{
-		Worker:  &StoppableOnce{Stoppable: options.Worker},
 		Monitor: options.Monitor.WithTag("life-cycle-policy", provider),
 		Config:  p.ConfigSchema().Filter(options.Config.(map[string]interface{})),
 	})

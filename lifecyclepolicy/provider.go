@@ -15,7 +15,6 @@ var (
 
 // Options for creating a LifeCyclePolicy
 type Options struct {
-	Worker  runtime.Stoppable
 	Monitor runtime.Monitor
 	Config  interface{}
 }
