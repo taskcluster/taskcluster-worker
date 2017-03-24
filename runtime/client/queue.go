@@ -137,8 +137,11 @@ func (m *MockQueue) ExpectS3Artifact(taskID string, runID int, name string) <-ch
 		}
 		w.WriteHeader(200)
 		c <- d
-		//TODO: Close the server, doing it from in here can cause intermittent bugs!
-		//go s.Close() // Close when all requests are done (don't block the request)
+		//TODO: Close the server somewhere else, doing it from in here can cause intermittent bugs!
+		go func() {
+			time.Sleep(60 * time.Second)
+			s.Close() // Close when all requests are done (don't block the request)
+		}()
 	}))
 	data, _ := json.Marshal(queue.S3ArtifactResponse{
 		StorageType: "s3",
