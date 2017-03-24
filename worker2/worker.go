@@ -116,7 +116,7 @@ func (w *Worker) Start() error {
 		}
 
 		// Wait for capacity to be available (delay is ticking while this happens)
-		w.activeTasks.WaitForCapacity(w.concurrency)
+		w.activeTasks.WaitForLessThan(w.concurrency)
 
 		// Wait for delay or stopGracefully
 		select {

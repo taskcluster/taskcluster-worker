@@ -7,7 +7,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 )
 
-// taskCounter keeps count of number of active tasks as well as pending time.
+// taskCounter keeps count of number of active tasks as well as idle time.
 type taskCounter struct {
 	m         sync.Mutex
 	c         sync.Cond
@@ -15,6 +15,7 @@ type taskCounter struct {
 	idleTimer atomics.StopWatch
 }
 
+// initialize the taskCounter, if not already initialized
 func (c *taskCounter) init() {
 	c.m.Lock()
 	defer c.m.Unlock()
@@ -25,11 +26,14 @@ func (c *taskCounter) init() {
 	}
 }
 
+// IdleTime returns the duration since last time the worker was working on a
+// task. Zero if the worker is currently working.
 func (c *taskCounter) IdleTime() time.Duration {
 	c.init()
 	return c.idleTimer.Elapsed()
 }
 
+// WaitForIdle blocks until the active task count is zero
 func (c *taskCounter) WaitForIdle() {
 	c.init()
 	c.m.Lock()
@@ -40,16 +44,18 @@ func (c *taskCounter) WaitForIdle() {
 	}
 }
 
-func (c *taskCounter) WaitForCapacity(maxConcurrency int) {
+// WaitForLessThan blocks until the active task count is less than given value
+func (c *taskCounter) WaitForLessThan(value int) {
 	c.init()
 	c.m.Lock()
 	defer c.m.Unlock()
 
-	for c.value >= maxConcurrency {
+	for !(value < c.value) {
 		c.c.Wait()
 	}
 }
 
+// Increment the active task count
 func (c *taskCounter) Increment() {
 	c.init()
 	c.m.Lock()
@@ -59,6 +65,7 @@ func (c *taskCounter) Increment() {
 	c.idleTimer.Reset()
 }
 
+// Decrement the active task count
 func (c *taskCounter) Decrement() {
 	c.init()
 	c.m.Lock()
@@ -73,6 +80,7 @@ func (c *taskCounter) Decrement() {
 	}
 }
 
+// Value returns the number active tasks
 func (c *taskCounter) Value() int {
 	c.init()
 	c.m.Lock()
