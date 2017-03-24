@@ -1,3 +1,5 @@
+// +build localtunnel
+
 package webhookserver
 
 import (
