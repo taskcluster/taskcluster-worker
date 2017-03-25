@@ -28,7 +28,7 @@ See https://github.com/taskcluster/taskcluster-worker/releases
 Installing From Source
 ----------------------
 
-1. [Install go 1.7](https://golang.org/doc/install) or higher
+1. [Install go 1.8](https://golang.org/doc/install) or higher
 2. `go get -u -t -d github.com/taskclustertaskcluster-worker/...`
 3. `cd "${GOPATH}/src/github.com/taskcluster-worker"`
 4. `go get -u github.com/kardianos/govendor`
@@ -41,6 +41,31 @@ Testing
 ```
 make rebuild
 ```
+
+### Conditional Tests
+Certain tests are disabled by default because they are:
+ * only runs under certain conditions (e.g. requires root credentials),
+ * requires special configuration (for example secret tokens),  
+ * have system-wide side-effects (like deleting the $HOME folder), or,
+ * very slow, noisy or needs fixing.
+
+Tests that fall into one or more of these categories are enabled with build
+tags. Below is a list of such build tags and description of what they test and
+why these tests are disabled by default.
+
+ * `localtunnel`, tests a `WebHookServer` implementation based on
+   [localtunnel.me](https://localtunnel.me), tests are somewhat buggy and due
+   to the nature of using a remote service this isn't reliable.
+ * `native`, tests the native-engine, disabled because tests cleans up system
+   folders such as HOME.
+ * `qemu`, tests qemu-engine, disabled because it requires QEMU installed and
+   needs to run as root (run tests with `./docker-tests.sh`).
+ * `network`, tests network configuration for qemu-engine, disabled because it
+   can leave the system in a dirty state and requires root
+   (run tests with `./docker-tests.sh`).
+ * `monitor`, tests sentry reporting, statsum submission and logging, requires
+   credentials to run successfully.
+
 
 Releasing
 ---------

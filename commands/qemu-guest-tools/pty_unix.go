@@ -3,8 +3,10 @@
 package qemuguesttools
 
 import (
+	"io"
 	"os"
 	"os/exec"
+	"sync"
 	"syscall"
 	"unsafe"
 
@@ -13,39 +15,51 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
+func copyCloseDone(w io.WriteCloser, r io.Reader, wg *sync.WaitGroup) {
+	ioext.CopyAndClose(w, r)
+	wg.Done()
+}
+
 func pipePty(cmd *exec.Cmd, handler *interactive.ShellHandler) error {
 	// Start the shell as TTY
 	f, err := pty.Start(cmd)
-	if err == nil {
-		// Connect pipes (close stderr as tty only has two streams)
-		go ioext.CopyAndClose(f, handler.StdinPipe())
-		go ioext.CopyAndClose(handler.StdoutPipe(), f)
-		go handler.StderrPipe().Close()
-
-		// Start communication
-		handler.Communicate(func(cols, rows uint16) error {
-			return setTTYSize(f, cols, rows)
-		}, func() error {
-			if cmd.Process != nil {
-				return cmd.Process.Kill()
-			}
-			return nil
-		})
-	}
-	// If pty wasn't supported for some reason we fall back to normal execution
-	if err == pty.ErrUnsupported {
-		return pipeCommand(cmd, handler)
-	}
 	if err != nil {
+		// If pty wasn't supported for some reason we fall back to normal execution
+		if err == pty.ErrUnsupported {
+			return pipeCommand(cmd, handler)
+		}
+
+		// If cmd.Start() failed, then we don't have a process, but we start
+		// the communication flow anyways.
 		handler.Communicate(nil, func() error {
-			// If cmd.Start() failed, then we don't have a process, but we start
-			// the communication flow anyways.
 			if cmd.Process != nil {
 				return cmd.Process.Kill()
 			}
 			return nil
 		})
+		return err
 	}
+
+	// Connect pipes (close stderr as tty only has two streams)
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go copyCloseDone(f, handler.StdinPipe(), &wg)
+	go copyCloseDone(handler.StdoutPipe(), f, &wg)
+	go handler.StderrPipe().Close()
+
+	// Start communication
+	handler.Communicate(func(cols, rows uint16) error {
+		return setTTYSize(f, cols, rows)
+	}, func() error {
+		if cmd.Process != nil {
+			return cmd.Process.Kill()
+		}
+		return nil
+	})
+
+	// If starting the shell didn't fail, then we wait for the shell to terminate
+	err = cmd.Wait()
+	wg.Wait() // wait for pipes to be copied out before returning
 	return err
 }
 

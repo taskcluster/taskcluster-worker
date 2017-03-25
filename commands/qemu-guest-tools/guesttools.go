@@ -326,10 +326,6 @@ func (g *guestTools) doExecShell(ID string, command []string, tty bool) {
 		err = pipeCommand(shell, handler)
 	}
 
-	// If starting the shell didn't fail, then we wait for the shell to terminate
-	if err == nil {
-		err = shell.Wait()
-	}
 	// If we didn't any error starting or waiting for the shell, then it was a
 	// success.
 	handler.Terminated(err == nil)
@@ -353,6 +349,10 @@ func pipeCommand(cmd *exec.Cmd, handler *interactive.ShellHandler) error {
 		}
 		return nil
 	})
+
+	if err == nil {
+		err = cmd.Wait()
+	}
 
 	return err
 }

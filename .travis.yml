@@ -1,6 +1,6 @@
 language: go
 
-go: 1.7
+go: 1.8
 
 env:
   - MY_GOOS=linux
@@ -30,6 +30,8 @@ before_install:
   - export GOARCH=${MY_GOARCH}
   - go version
   - go env
+  # install cover tools if not on windows
+  - "test $GOOS == windows || go get github.com/axw/gocov/gocov github.com/mattn/goveralls golang.org/x/tools/cmd/cover github.com/pierrre/gotestcover"
 
 install:
   - "echo No go get steps since we have vendored packages..."
@@ -37,10 +39,10 @@ install:
 script:
 # note - below, || is used rather than && to ensure we only get zero exit code if all is ok
   - "test $GOOS != windows || make build"
-  - "test $GOOS == windows || (go get github.com/axw/gocov/gocov github.com/mattn/goveralls golang.org/x/tools/cmd/cover github.com/pierrre/gotestcover && make rebuild check && ${GOPATH}/bin/gotestcover -v -coverprofile=coverage.report $(go list ./... | grep -v /vendor/) && go tool cover -func=coverage.report)"
+  - "test $GOOS == windows || (make prechecks build check && ${GOPATH}/bin/gotestcover -v -coverprofile=coverage.report $(go list ./... | grep -v /vendor/) && go tool cover -func=coverage.report)"
 
 after_script:
-  - "if test $GOOS != windows; then $HOME/gopath/bin/goveralls -coverprofile=coverage.report -service=travis-ci; fi"
+  - "test $GOOS == windows || ($HOME/gopath/bin/goveralls -coverprofile=coverage.report -service=travis-ci)"
 
 before_deploy:
   - "source .travis_rename_releases.sh"
