@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 )
 
 func TestConfigSchema(t *testing.T) {
@@ -24,20 +25,22 @@ func TestNewForeverPolicy(t *testing.T) {
 		stopGracefully: make(chan struct{}),
 	}
 	policy := New(Options{
-		Worker: s,
-		Config: c,
+		Monitor: mocks.NewMockMonitor(true),
+		Config:  c,
 	})
+
+	controller := policy.NewController(s)
 
 	// Let's just try some random operations...
 	for i := 0; i < 100; i++ {
-		policy.ReportIdle(500 * time.Second)
-		policy.ReportTaskClaimed(10)
-		policy.ReportTaskResolved(500 * time.Second)
+		controller.ReportIdle(500 * time.Second)
+		controller.ReportTaskClaimed(10)
+		controller.ReportTaskResolved(500 * time.Second)
 	}
 	assert.False(t, isClosed(s.stopGracefully))
 	assert.False(t, isClosed(s.stopNow))
 
-	policy.ReportNonFatalError()
+	controller.ReportNonFatalError()
 	assert.True(t, isClosed(s.stopGracefully))
 	assert.False(t, isClosed(s.stopNow))
 

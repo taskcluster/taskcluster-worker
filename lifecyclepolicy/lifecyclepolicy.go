@@ -1,9 +1,20 @@
 package lifecyclepolicy
 
-import "time"
+import (
+	"time"
 
-// A LifeCyclePolicy implements the logic for when to stop a worker.
+	"github.com/taskcluster/taskcluster-worker/runtime"
+)
+
+// A LifeCyclePolicy provides a way to construct a Controller for a Stoppable
+// worker.
 type LifeCyclePolicy interface {
+	NewController(worker runtime.Stoppable) Controller
+}
+
+// A Controller implements a life-cycle policy for the worker given when it
+// was created in NewController()
+type Controller interface {
 	// ReportIdle is called when the worker has been idle for some time.
 	// The parameter d is the time since the worker was last busy.
 	ReportIdle(d time.Duration)
@@ -22,7 +33,7 @@ type LifeCyclePolicy interface {
 	ReportNonFatalError()
 }
 
-// Base provides a base implemetation of LifeCyclePolicy, implementors should
+// Base provides a base implemetation of Controller, implementors should
 // always embed this to ensure forward compatibility.
 type Base struct{}
 
