@@ -35,6 +35,10 @@ var payloadSchema = schematypes.Object{
 				"write-error-log",
 				"write-files",
 				"print-env-var",
+				"malformed-payload-initial",
+				"malformed-payload-after-start",
+				"fatal-internal-error",
+				"nonfatal-internal-error",
 			},
 		},
 		"argument": schematypes.String{

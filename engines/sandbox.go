@@ -110,6 +110,13 @@ type Sandbox interface {
 	//
 	// Non-fatal errors: ErrSandboxTerminated
 	Abort() error
+
+	// Kill all processes running in the sandbox. This should cause
+	// WaitForResult() to return a ResultSet with ResultSet.Success() returning
+	// false.
+	//
+	// Non-fatal errors: ErrSandboxTerminated, ErrFeatureNotSupported
+	Kill() error
 }
 
 // SandboxBase is a base implemenation of Sandbox. It will implement all
@@ -142,4 +149,11 @@ func (SandboxBase) OpenDisplay(string) (io.ReadWriteCloser, error) {
 // Abort returns nil indicating that resources have been released.
 func (SandboxBase) Abort() error {
 	return nil
+}
+
+// Kill returns ErrFeatureNotSupported
+func (SandboxBase) Kill() error {
+	// TODO: Make implementation required, and disallow ErrFeatureNotSupported
+	// panic("Not implemented: Sandbox.Kill()")
+	return ErrFeatureNotSupported
 }

@@ -3,6 +3,7 @@ package runtime
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // ErrNonFatalInternalError is used to indicate that the operation failed
@@ -42,15 +43,7 @@ type MalformedPayloadError struct {
 
 // Error returns the error message and adheres to the Error interface
 func (e MalformedPayloadError) Error() string {
-	if len(e.messages) == 1 {
-		return e.messages[0]
-	}
-	//TODO: Make this smarter in some way please!
-	msg := ""
-	for _, m := range e.messages {
-		msg += m + "\n"
-	}
-	return msg
+	return fmt.Sprintf("malformed-payload error: %s", strings.Join(e.messages, "\n"))
 }
 
 // NewMalformedPayloadError creates a MalformedPayloadError object, please

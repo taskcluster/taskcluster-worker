@@ -346,13 +346,13 @@ func (t *TaskRun) exceptionStage(taskError error) {
 	<-t.reclaimsDone
 	var reason runtime.ExceptionReason
 	if t.shutdown {
-		reason = runtime.WorkerShutdown
+		reason = runtime.ReasonWorkerShutdown
 	} else {
 		switch taskError.(type) {
 		case runtime.MalformedPayloadError:
-			reason = runtime.MalformedPayload
+			reason = runtime.ReasonMalformedPayload
 		default:
-			reason = runtime.InternalError
+			reason = runtime.ReasonInternalError
 		}
 	}
 

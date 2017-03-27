@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -40,6 +41,24 @@ type temporaryFolder struct {
 type temporaryFile struct {
 	*os.File
 	path string
+}
+
+// NewTemporaryTestFolderOrPanic creates a TemporaryFolder as in a subfolder
+// of os.TempDir, or panics.
+//
+// This intended to for use when writing tests using the following pattern:
+//     storage := runtime.NewTemporaryTestFolderOrPanic()
+//     defer storage.Remove()
+func NewTemporaryTestFolderOrPanic() TemporaryFolder {
+	storage, err := NewTemporaryStorage(os.TempDir())
+	if err != nil {
+		panic(fmt.Sprintf("runtime.NewTemporaryTestStorageOrPanic(): failed to create test storage: %s", err))
+	}
+	folder, err := storage.NewFolder()
+	if err != nil {
+		panic(fmt.Sprintf("runtime.NewTemporaryTestStorageOrPanic(): failed to create test storage: %s", err))
+	}
+	return folder
 }
 
 // NewTemporaryStorage TemporaryStorage rooted in the given path.
