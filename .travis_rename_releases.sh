@@ -13,4 +13,4 @@ FILE_EXT=""
 # github releases, and therefore the name for each platform needs to be unique so that
 # they don't overwrite each other. Set a variable that can be used in .travis.yml
 export RELEASE_FILE="${TRAVIS_BUILD_DIR}/taskcluster-worker-${TRAVIS_TAG:1}-${GOOS}-${GOARCH}${FILE_EXT}"
-mv "${TRAVIS_BUILD_DIR}/taskcluster-worker${FILE_EXT}" "${RELEASE_FILE}"
+mv "${GOPATH}/bin/${GOOS}_${GOARCH}/taskcluster-worker${FILE_EXT}" "${RELEASE_FILE}"
