@@ -13,5 +13,10 @@ FILE_EXT=""
 # github releases, and therefore the name for each platform needs to be unique so that
 # they don't overwrite each other. Set a variable that can be used in .travis.yml
 export RELEASE_FILE="${TRAVIS_BUILD_DIR}/taskcluster-worker-${TRAVIS_TAG:1}-${GOOS}-${GOARCH}${FILE_EXT}"
-find "${GOPATH}/bin"
-mv "${GOPATH}/bin/${GOOS}_${GOARCH}/taskcluster-worker${FILE_EXT}" "${RELEASE_FILE}"
+
+# when `go install` cross-copmiled, this will be in a subdir; otherwise, it will be in GOPATH/bin. So take
+# whichever one we can find
+for INSTALLED_FILE in "${GOPATH}/bin/${GOOS}_${GOARCH}/taskcluster-worker${FILE_EXT}" "${GOPATH}/bin/taskcluster-worker${FILE_EXT}" ; do
+    [ -f  "${INSTALLED_FILE}" ] && break
+done
+mv  "${INSTALLED_FILE}" "${RELEASE_FILE}"
