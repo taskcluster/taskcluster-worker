@@ -76,11 +76,11 @@ func (s *ShellHandler) Communicate(setSize SetSizeFunc, abort func() error) {
 	go s.sendPings()
 	go s.waitForSuccess()
 
-	s.streamingDone.Add(2)
+	go s.readMessages()
+
+	s.streamingDone.Add(3)
 	go s.transmitStream(s.stdoutReader, shellconsts.StreamStdout)
 	go s.transmitStream(s.stderrReader, shellconsts.StreamStderr)
-
-	go s.readMessages()
 	go s.sendAcks()
 }
 
@@ -356,4 +356,5 @@ func (s *ShellHandler) sendAcks() {
 		s.send(ack)
 	}
 	debug("Final ack for stdin sent, size: %d", size)
+	s.streamingDone.Done()
 }

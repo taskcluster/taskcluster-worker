@@ -108,7 +108,7 @@ func (d *DisplayHandler) readMessages() {
 		if err != nil {
 			// This is expected to happen when the loop breaks
 			if e, ok := err.(*websocket.CloseError); ok && e.Code == websocket.CloseNormalClosure {
-				debug("Websocket closed normally error: ", err)
+				debug("Websocket closed normally error: %s", err)
 			} else {
 				d.monitor.Error("Failed to read message from websocket, error: ", err)
 			}
