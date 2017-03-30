@@ -2,6 +2,7 @@ package taskrun
 
 import (
 	"fmt"
+	"strconv"
 
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
@@ -80,7 +81,7 @@ func prepare(t *TaskRun) error {
 			Payload:     t.engine.PayloadSchema().Filter(t.payload),
 			Monitor: t.environment.Monitor.WithPrefix("engine").WithTags(map[string]string{
 				"taskId": t.taskInfo.TaskID,
-				"runId":  fmt.Sprintf("%d", t.taskInfo.RunID),
+				"runId":  strconv.Itoa(t.taskInfo.RunID),
 			}),
 		})
 	}, func() {
@@ -91,7 +92,7 @@ func prepare(t *TaskRun) error {
 			Payload:     t.plugin.PayloadSchema().Filter(t.payload),
 			Monitor: t.environment.Monitor.WithPrefix("plugin").WithTags(map[string]string{
 				"taskId": t.taskInfo.TaskID,
-				"runId":  fmt.Sprintf("%d", t.taskInfo.RunID),
+				"runId":  strconv.Itoa(t.taskInfo.RunID),
 			}),
 		})
 		if err2 != nil {

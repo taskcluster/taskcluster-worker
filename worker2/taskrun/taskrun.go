@@ -130,12 +130,12 @@ func (t *TaskRun) Abort(reason AbortReason) {
 // This will not rerun previous stages, the TaskRun structure always knows what
 // stage it has executed. This is only useful for testing, the WaitForResult()
 // method will run all stages before returning.
-func (t *TaskRun) RunToStage(stage Stage) {
+func (t *TaskRun) RunToStage(targetStage Stage) {
 	t.m.Lock()
 	defer t.m.Unlock()
 
 	// Validate input for santiy
-	if stage > StageFinished {
+	if targetStage > StageFinished {
 		panic("RunToStage: stage > StageFinished is not allowed")
 	}
 
@@ -143,22 +143,23 @@ func (t *TaskRun) RunToStage(stage Stage) {
 	// wait till running is false
 	for t.running {
 		// if t.stage has advanced beyond stage, then we're done
-		if t.stage > stage {
+		if t.stage > targetStage {
 			return
 		}
 		t.c.Wait() // wait for state change
 	}
 
 	t.running = true // set running while we're inside the for-loop
-	for t.stage <= stage {
+	for t.stage <= targetStage {
 
 		// Unlock so cancel can happen while we're running
+		stage := t.stage // take stage first, so we don't race
 		t.m.Unlock()
-		monitor := t.monitor.WithTag("stage", t.stage.String())
-		monitor.Debug("running stage: ", t.stage.String())
+		monitor := t.monitor.WithTag("stage", stage.String())
+		monitor.Debug("running stage: ", stage.String())
 		var err error
 		incidentID := monitor.CapturePanic(func() {
-			err = stages[t.stage](t)
+			err = stages[stage](t)
 		})
 		t.m.Lock()
 

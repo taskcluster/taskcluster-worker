@@ -61,8 +61,8 @@ func NewTemporaryTestFolderOrPanic() TemporaryFolder {
 	return folder
 }
 
-// NewTemporaryStorage TemporaryStorage rooted in the given path.
-func NewTemporaryStorage(path string) (TemporaryStorage, error) {
+// NewTemporaryStorage return a TemporaryFolder rooted in the given path.
+func NewTemporaryStorage(path string) (TemporaryFolder, error) {
 	err := os.MkdirAll(path, 0777)
 	if err != nil {
 		return nil, err

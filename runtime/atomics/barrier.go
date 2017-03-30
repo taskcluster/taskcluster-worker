@@ -25,7 +25,9 @@ func (b *Barrier) init() {
 }
 
 // Fall lowers the barrier permanently unblocking anyone waiting for the barrier
-func (b *Barrier) Fall() {
+// Returns true, if the barrier up when this was called, false, if the barrier
+// was already down.
+func (b *Barrier) Fall() bool {
 	b.init()
 
 	b.m.Lock()
@@ -33,12 +35,14 @@ func (b *Barrier) Fall() {
 
 	select {
 	case <-b.b:
+		return false
 	default:
 		for _, cb := range b.callbacks {
 			cb()
 		}
 		b.callbacks = nil
 		close(b.b)
+		return true
 	}
 }
 

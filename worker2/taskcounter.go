@@ -39,7 +39,7 @@ func (c *taskCounter) WaitForIdle() {
 	c.m.Lock()
 	defer c.m.Unlock()
 
-	for c.value != 0 {
+	for c.value > 0 {
 		c.c.Wait()
 	}
 }
@@ -50,7 +50,7 @@ func (c *taskCounter) WaitForLessThan(value int) {
 	c.m.Lock()
 	defer c.m.Unlock()
 
-	for !(value < c.value) {
+	for c.value >= value {
 		c.c.Wait()
 	}
 }
@@ -63,6 +63,7 @@ func (c *taskCounter) Increment() {
 
 	c.value++
 	c.idleTimer.Reset()
+	c.c.Broadcast()
 }
 
 // Decrement the active task count
@@ -75,6 +76,7 @@ func (c *taskCounter) Decrement() {
 	if c.value == 0 {
 		c.idleTimer.Start()
 	}
+	c.c.Broadcast()
 	if c.value < 0 {
 		panic("worker.taskCounter should never be able to go below zero")
 	}

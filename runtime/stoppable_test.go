@@ -1,4 +1,4 @@
-package lifecyclepolicy
+package runtime
 
 import (
 	"testing"
