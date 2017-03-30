@@ -17,6 +17,7 @@ func check(cond bool, a ...interface{}) {
 }
 
 type mockPlugin struct {
+	plugins.PluginBase
 	mock.Mock
 }
 

@@ -45,7 +45,7 @@ type Worker struct {
 // New creates a new Worker
 func New(config interface{}) (w *Worker, err error) {
 	var c configType
-	schematypes.MustValidateAndMap(ConfigSchema(), config, c)
+	schematypes.MustValidateAndMap(ConfigSchema(), config, &c)
 
 	// Create monitor
 	a := auth.New(&c.Credentials)
