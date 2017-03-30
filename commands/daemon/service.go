@@ -31,7 +31,7 @@ func (svc *service) Run() (string, error) {
 		return "Failed to open configuration file", err
 	}
 
-	w, err := worker.New(config, logger)
+	w, err := worker.New(config)
 	if err != nil {
 		logger.WithError(err).Error("Could not create worker")
 		return "Could not create worker", err
@@ -41,7 +41,7 @@ func (svc *service) Run() (string, error) {
 	signal.Notify(sigTerm, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sigTerm
-		w.ImmediateStop()
+		w.StopNow()
 	}()
 
 	w.Start()

@@ -11,7 +11,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/httpbackoff"
 	"github.com/taskcluster/slugid-go/slugid"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
@@ -22,7 +21,6 @@ import (
 )
 
 func setupTestWorker(t *testing.T, queueBaseURL string, concurrency int) *Worker {
-	var data interface{}
 	raw := `{
 		"engine": "mock",
 		"engines": {
@@ -53,10 +51,9 @@ func setupTestWorker(t *testing.T, queueBaseURL string, concurrency int) *Worker
 			"concurrency": ` + strconv.Itoa(concurrency) + `
 		}
 	}`
-	require.NoError(t, json.Unmarshal([]byte(raw), &data))
-	var c Config
-	schematypes.MustValidateAndMap(ConfigSchema(), data, &c)
-	w, err := New(c)
+	var config interface{}
+	require.NoError(t, json.Unmarshal([]byte(raw), &config))
+	w, err := New(config)
 	require.NoError(t, err)
 	return w
 }

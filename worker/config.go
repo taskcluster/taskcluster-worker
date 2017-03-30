@@ -11,8 +11,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 )
 
-// Options for creating a Worker
-type Options struct {
+type options struct {
 	ProvisionerID       string `json:"provisionerId"`
 	WorkerType          string `json:"workerType"`
 	WorkerGroup         string `json:"workerGroup"`
@@ -23,8 +22,7 @@ type Options struct {
 	Concurrency         int    `json:"concurrency"`
 }
 
-// Config options to load a worker
-type Config struct {
+type configType struct {
 	Engine           string                 `json:"engine"`
 	EngineConfig     map[string]interface{} `json:"engines"`
 	Plugins          interface{}            `json:"plugins"`
@@ -36,7 +34,7 @@ type Config struct {
 	Credentials      tcclient.Credentials   `json:"credentials"`
 	QueueBaseURL     string                 `json:"queueBaseUrl"`
 	AuthBaseURL      string                 `json:"authBaseUrl"`
-	WorkerOptions    Options                `json:"worker"`
+	WorkerOptions    options                `json:"worker"`
 }
 
 // optionsSchema must be satisfied by Options used to construct a Worker
@@ -166,7 +164,7 @@ var credentialsSchema schematypes.Schema = schematypes.Object{
 }
 
 // ConfigSchema returns the schema for configuration.
-func ConfigSchema() schematypes.Schema {
+func ConfigSchema() schematypes.Object {
 	engineConfig := schematypes.Properties{}
 	engineNames := []string{}
 	for name, provider := range engines.Engines() {

@@ -20,7 +20,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 	"github.com/taskcluster/taskcluster-worker/runtime/monitoring"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
-	"github.com/taskcluster/taskcluster-worker/worker2/taskrun"
+	"github.com/taskcluster/taskcluster-worker/worker/taskrun"
 )
 
 // A Worker processes tasks
@@ -35,7 +35,7 @@ type Worker struct {
 	plugin           plugins.Plugin
 	queue            client.Queue
 	queueBaseURL     string
-	options          Options
+	options          options
 	monitor          runtime.Monitor
 	// State
 	started     atomics.Barrier
@@ -43,7 +43,10 @@ type Worker struct {
 }
 
 // New creates a new Worker
-func New(c Config) (w *Worker, err error) {
+func New(config interface{}) (w *Worker, err error) {
+	var c configType
+	schematypes.MustValidateAndMap(ConfigSchema(), config, c)
+
 	// Create monitor
 	a := auth.New(&c.Credentials)
 	if c.AuthBaseURL != "" {
