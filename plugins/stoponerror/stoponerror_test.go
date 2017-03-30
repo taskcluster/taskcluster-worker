@@ -11,7 +11,7 @@ import (
 )
 
 func TestStopOnError(t *testing.T) {
-	s := &runtime.StoppableBarriers{}
+	s := &runtime.LifeCycleTracker{}
 	p, err := plugins.Plugins()["stoponerror"].NewPlugin(plugins.PluginOptions{
 		Environment: &runtime.Environment{
 			Worker: s,
