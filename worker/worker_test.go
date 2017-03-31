@@ -21,6 +21,7 @@ import (
 )
 
 func setupTestWorker(t *testing.T, queueBaseURL string, concurrency int) *Worker {
+	tempFolder, _ := json.Marshal(path.Join(os.TempDir(), slugid.Nice()))
 	raw := `{
 		"engine": "mock",
 		"engines": {
@@ -31,7 +32,7 @@ func setupTestWorker(t *testing.T, queueBaseURL string, concurrency int) *Worker
 			"success": {}
 		},
 		"webHookServer": {"provider": "localhost"},
-		"temporaryFolder": "` + path.Join(os.TempDir(), slugid.Nice()) + `",
+		"temporaryFolder": ` + string(tempFolder) + `,
 		"minimumDiskSpace": 0,
 		"minimumMemory": 0,
 		"monitor": {"type": "mock", "panicOnError": true},
