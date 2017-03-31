@@ -136,6 +136,7 @@ func (s *sessionManager) OpenDisplay() (io.ReadWriteCloser, error) {
 	}
 
 	// Dial-up the socket
+	debug("connecting to display socket: %s", socket)
 	conn, err := net.DialTimeout("unix", socket, 15*time.Second)
 	if err != nil {
 		// TODO: Check if vm is still running, if so report an error
@@ -154,7 +155,7 @@ func (s *sessionManager) OpenDisplay() (io.ReadWriteCloser, error) {
 		s.m.Lock()
 		defer s.m.Unlock()
 
-		// Remove shell from s.shells
+		// Remove display from s.displays
 		displays := s.displays[:0]
 		for _, d := range s.displays {
 			if d != display {

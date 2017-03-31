@@ -1,4 +1,4 @@
-FROM ubuntu:16.04
+FROM ubuntu:17.04
 MAINTAINER Jonas Finnemann Jensen <jopsen@gmail.com>
 
 # Install dependencies
