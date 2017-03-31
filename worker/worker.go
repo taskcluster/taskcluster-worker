@@ -205,7 +205,6 @@ func (w *Worker) Start() error {
 		select {
 		case <-delay:
 		case <-w.lifeCycleTracker.StoppingGracefully.Barrier():
-			break
 		}
 
 		// Report idle time to plugins (so they can manage life-cycle)
