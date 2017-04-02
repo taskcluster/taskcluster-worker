@@ -248,14 +248,16 @@ func (t *TaskRun) capturePanicAndError(stage string, fn func() error) {
 // Any other error is reported/logged and runtime.ErrFatalInternalError is
 // returned instead.
 func (t *TaskRun) Dispose() error {
+	t.monitor.WithTag("stage", "dispose").Debug("running stage: dispose")
+
 	if t.controller != nil {
-		// Close log and cancel TaskContext
+		debug("canceling TaskContext and closing log")
 		t.controller.Cancel()
 		t.capturePanicAndError("dispose", t.controller.CloseLog)
 	}
 
 	if t.exception && t.taskPlugin != nil {
-		// Run Exception handler
+		debug("running exception stage")
 		t.capturePanicAndError("exception", func() error {
 			return t.taskPlugin.Exception(t.reason)
 		})
@@ -263,16 +265,19 @@ func (t *TaskRun) Dispose() error {
 
 	// Dispose of taskPlugin, if we have one
 	if t.taskPlugin != nil {
+		debug("disposing TaskPlugin")
 		t.capturePanicAndError("dispose", t.taskPlugin.Dispose)
 		t.taskPlugin = nil
 	}
 
 	if t.sandboxBuilder != nil {
+		debug("disposing SandboxBuilder")
 		t.capturePanicAndError("dispose", t.sandboxBuilder.Discard)
 		t.sandboxBuilder = nil
 	}
 
 	if t.sandbox != nil {
+		debug("disposing Sandbox")
 		t.capturePanicAndError("dispose", func() error {
 			err := t.sandbox.Abort()
 			if err == engines.ErrSandboxTerminated {
@@ -296,11 +301,13 @@ func (t *TaskRun) Dispose() error {
 	}
 
 	if t.resultSet != nil {
+		debug("disposing ResultSet")
 		t.capturePanicAndError("dispose", t.resultSet.Dispose)
 		t.resultSet = nil
 	}
 
 	if t.controller != nil {
+		debug("disposing TaskContext")
 		t.capturePanicAndError("dispose", t.controller.Dispose)
 		t.controller = nil
 	}

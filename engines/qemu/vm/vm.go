@@ -312,6 +312,7 @@ func (vm *VirtualMachine) Start() {
 	go func() {
 		// Wait for QEMU to be done
 		werr := vm.qemu.Wait()
+		debug("qemu terminated")
 
 		// Acquire lock
 		vm.m.Lock()
@@ -427,6 +428,7 @@ func (vm *VirtualMachine) Kill() {
 	case <-vm.Done:
 		return // We're obviously not running, so we must be done
 	default:
+		debug("terminating QEMU with SIGKILL")
 		vm.qemu.Process.Kill()
 		<-vm.Done
 	}
