@@ -16,7 +16,7 @@ RUN curl -L https://storage.googleapis.com/golang/go1.8.linux-amd64.tar.gz > /tm
 # Install zstd 1.1.4
 RUN curl -L https://github.com/facebook/zstd/archive/v1.1.4.tar.gz > /tmp/zstd.tar.gz \
  && tar -xvf /tmp/zstd.tar.gz -C /tmp \
- && make -C /tmp/zstd-1.1.4/programs install \
+ && make -j -C /tmp/zstd-1.1.4/programs install \
  && rm -rf /tmp/zstd-1.1.4/ /tmp/zstd.tar.gz
 
 ENV GOPATH      /go
