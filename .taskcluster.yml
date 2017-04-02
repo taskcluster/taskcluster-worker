@@ -216,7 +216,8 @@ tasks:
           # install taskcluster-lib-docs
           apt-get update -y
           apt-get install -y nodejs npm
-          npm install -g taskcluster-lib-docs
+          npm install -g taskcluster-lib-docs@3.3.1
+          # upload docs
           DOCS_PROJECT=taskcluster-worker DOCS_TIER=workers DOCS_FOLDER=docs DOCS_README=README.md upload-project-docs
       cache:
         taskcluster-worker-checkout: /go/src
