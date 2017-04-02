@@ -11,7 +11,6 @@ import (
 
 	"sync"
 
-	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
@@ -47,9 +46,9 @@ const (
 type TaskInfo struct {
 	TaskID   string
 	RunID    int
-	Created  tcclient.Time
-	Deadline tcclient.Time
-	Expires  tcclient.Time
+	Created  time.Time
+	Deadline time.Time
+	Expires  time.Time
 }
 
 // The TaskContext exposes generic properties and functionality related to a

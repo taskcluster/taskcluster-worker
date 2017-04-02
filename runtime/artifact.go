@@ -10,7 +10,7 @@ import (
 	"time"
 
 	got "github.com/taskcluster/go-got"
-	"github.com/taskcluster/taskcluster-client-go"
+	tcclient "github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
@@ -19,7 +19,7 @@ import (
 type S3Artifact struct {
 	Name              string
 	Mimetype          string
-	Expires           tcclient.Time
+	Expires           time.Time
 	Stream            ioext.ReadSeekCloser
 	AdditionalHeaders map[string]string
 }
@@ -29,7 +29,7 @@ type ErrorArtifact struct {
 	Name    string
 	Message string
 	Reason  string
-	Expires tcclient.Time
+	Expires time.Time
 }
 
 // RedirectArtifact wraps all of the needed fields to upload a redirect artifact
@@ -37,7 +37,7 @@ type RedirectArtifact struct {
 	Name     string
 	Mimetype string
 	URL      string
-	Expires  tcclient.Time
+	Expires  time.Time
 }
 
 // UploadS3Artifact is responsible for creating new artifacts
@@ -45,7 +45,7 @@ type RedirectArtifact struct {
 func (context *TaskContext) UploadS3Artifact(artifact S3Artifact) error {
 	req, err := json.Marshal(queue.S3ArtifactRequest{
 		ContentType: artifact.Mimetype,
-		Expires:     artifact.Expires,
+		Expires:     tcclient.Time(artifact.Expires),
 		StorageType: "s3",
 	})
 	if err != nil {
@@ -71,7 +71,7 @@ func (context *TaskContext) CreateErrorArtifact(artifact ErrorArtifact) error {
 	req, err := json.Marshal(queue.ErrorArtifactRequest{
 		Message:     artifact.Message,
 		Reason:      artifact.Reason,
-		Expires:     artifact.Expires,
+		Expires:     tcclient.Time(artifact.Expires),
 		StorageType: "error",
 	})
 	if err != nil {
@@ -93,7 +93,7 @@ func (context *TaskContext) CreateRedirectArtifact(artifact RedirectArtifact) er
 	req, err := json.Marshal(queue.RedirectArtifactRequest{
 		ContentType: artifact.Mimetype,
 		URL:         artifact.URL,
-		Expires:     artifact.Expires,
+		Expires:     tcclient.Time(artifact.Expires),
 		StorageType: "reference",
 	})
 	if err != nil {

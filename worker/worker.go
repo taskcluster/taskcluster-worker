@@ -295,8 +295,11 @@ func (w *Worker) processClaim(claim taskClaim) {
 		Queue:       q,
 		Payload:     payload,
 		TaskInfo: runtime.TaskInfo{
-			TaskID: claim.Status.TaskID,
-			RunID:  claim.RunID,
+			TaskID:   claim.Status.TaskID,
+			RunID:    claim.RunID,
+			Created:  time.Time(claim.Task.Created),
+			Deadline: time.Time(claim.Task.Deadline),
+			Expires:  time.Time(claim.Task.Expires),
 		},
 	})
 

@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
@@ -130,7 +129,7 @@ func (s *sandbox) uploadArtifacts() error {
 		err = s.context.UploadS3Artifact(runtime.S3Artifact{
 			Name:     filepath.ToSlash(name),
 			Mimetype: mimeType,
-			Expires:  tcclient.Time(expires),
+			Expires:  expires,
 			Stream:   f,
 		})
 
