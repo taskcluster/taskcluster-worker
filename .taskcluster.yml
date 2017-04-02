@@ -218,7 +218,7 @@ tasks:
           apt-get install -y nodejs npm
           npm install -g taskcluster-lib-docs@3.3.1
           # upload docs
-          export DOCS_PROJECT=taskcluster-worker DOCS_TIER=workers DOCS_FOLDER=docs DOCS_README=README.md
+          export DOCS_PROJECT=taskcluster-worker DOCS_TIER=integrations DOCS_FOLDER=docs DOCS_README=README.md
           # Hack because we forgot to wrap with node binary in taskcluster-lib-docs
           # See: https://github.com/taskcluster/taskcluster-lib-docs/pull/26
           nodejs `which upload-project-docs`
