@@ -3,7 +3,7 @@ package qemubuild
 import (
 	"strconv"
 
-	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/monitoring"
 )
 
 type cmd struct{}
@@ -33,7 +33,7 @@ options:
 
 func (cmd) Execute(arguments map[string]interface{}) bool {
 	// Setup logging
-	monitor := runtime.NewLoggingMonitor("info", nil).WithTag("component", "qemu-build")
+	monitor := monitoring.NewLoggingMonitor("info", nil).WithTag("component", "qemu-build")
 
 	// Parse arguments
 	outputFile := arguments["<result.tar.zst>"].(string)

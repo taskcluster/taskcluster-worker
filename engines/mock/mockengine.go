@@ -2,6 +2,7 @@ package mockengine
 
 import (
 	"net/http"
+	"time"
 
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
@@ -20,6 +21,12 @@ type engineProvider struct {
 func init() {
 	// Register the mock engine as an import side-effect
 	engines.Register("mock", engineProvider{})
+}
+
+// New creates a new MockEngine
+func New(options engines.EngineOptions) engines.Engine {
+	engine, _ := engineProvider{}.NewEngine(options)
+	return engine
 }
 
 func (e engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine, error) {
@@ -54,6 +61,10 @@ func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sandb
 
 	var p payloadType
 	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &p)
+	if p.Function == "malformed-payload-initial" {
+		<-time.After(time.Duration(p.Delay) * time.Millisecond)
+		return nil, runtime.NewMalformedPayloadError(p.Argument)
+	}
 	return &sandbox{
 		payload: p,
 		context: options.TaskContext,

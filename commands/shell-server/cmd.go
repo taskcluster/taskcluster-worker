@@ -10,7 +10,7 @@ import (
 
 	"github.com/taskcluster/taskcluster-worker/commands"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
-	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/monitoring"
 )
 
 var defaultShell = "sh"
@@ -44,7 +44,7 @@ options:
 }
 
 func (cmd) Execute(args map[string]interface{}) bool {
-	monitor := runtime.NewLoggingMonitor(args["--log-level"].(string), nil)
+	monitor := monitoring.NewLoggingMonitor(args["--log-level"].(string), nil)
 
 	// Create shell server
 	shellServer := interactive.NewShellServer(

@@ -17,7 +17,7 @@ import (
 	"os"
 
 	"github.com/taskcluster/taskcluster-worker/commands"
-	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/monitoring"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
@@ -58,7 +58,7 @@ Options:
 func (cmd) Execute(arguments map[string]interface{}) bool {
 	host := arguments["--host"].(string)
 
-	monitor := runtime.NewLoggingMonitor("info", nil).WithTag("component", "qemu-guest-tools")
+	monitor := monitoring.NewLoggingMonitor("info", nil).WithTag("component", "qemu-guest-tools")
 
 	g := new(host, monitor)
 

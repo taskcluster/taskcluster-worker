@@ -86,7 +86,7 @@ func (c *DisplayTestCase) TestDisplays() {
 
 		debug(" - Querying for resolution")
 		res, err2 := getDisplayResolution(c)
-		nilOrPanic(err2, "Failed to connect to display")
+		nilOrPanic(err2, "Failed to connect to display, err: ")
 		debug(" - Got resolution, width: %d, height: %d", res.width, res.height)
 
 		// If the actual resolution doesn't match what ListDisplays returned we

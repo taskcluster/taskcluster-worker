@@ -3,6 +3,7 @@ package plugins
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
@@ -12,10 +13,12 @@ import (
 )
 
 type pluginManager struct {
+	environment   runtime.Environment
 	payloadSchema schematypes.Object
 	monitor       runtime.Monitor
 	plugins       []Plugin
 	pluginNames   []string
+	monitors      []runtime.Monitor
 }
 
 type taskPluginManager struct {
@@ -52,17 +55,18 @@ func PluginManagerConfigSchema() schematypes.Object {
 		MetaData: schematypes.MetaData{
 			Title: "Plugin Configuration",
 			Description: `Mapping from plugin name to plugin configuration.
-                    The 'disabled' key is special and lists plugins that are
-                    disabled. Plugins that are disabled do not require
-                    configuration.`,
+										A plugin is enabled if it has an entry in this mapping, and
+										isn't explicitly listed as 'disabled'. Even plugins that
+										don't require configuration must have an entry, in these
+										cases, empty object will suffice.`,
 		},
 		Properties: schematypes.Properties{
 			"disabled": schematypes.Array{
 				MetaData: schematypes.MetaData{
 					Title: "Disabled Plugins",
 					Description: `List of disabled plugins. If a plugin is not listed
-												as disabled here, then its configuration key must be
-												specified, unless it doesn't take any configuration.`,
+												as disabled here, even if its configuration key is
+												present`,
 				},
 				Items: schematypes.StringEnum{
 					Options: pluginNames,
@@ -75,6 +79,8 @@ func PluginManagerConfigSchema() schematypes.Object {
 		cs := provider.ConfigSchema()
 		if cs != nil {
 			s.Properties[name] = cs
+		} else {
+			s.Properties[name] = schematypes.Object{}
 		}
 	}
 	return s
@@ -110,33 +116,26 @@ func NewPluginManager(options PluginOptions) (Plugin, error) {
 	var disabled []string
 	schematypes.MustValidateAndMap(configSchema.Properties["disabled"], config["disabled"], &disabled)
 
-	// Find list of enabled plugins and ensure that config is present if required
-	for name, plugin := range pluginProviders {
-		// Skip disabled plugins
-		if stringContains(disabled, name) {
-			continue
+	// Find list of enabled plugins
+	for name := range config {
+		// Ignore disabled plugins as well as the 'disabled' key
+		if !stringContains(disabled, name) && name != "disabled" {
+			enabled = append(enabled, name)
 		}
-		// Check that configuration is given if required
-		if plugin.ConfigSchema() != nil {
-			if _, ok := config[name]; !ok {
-				return nil, fmt.Errorf("Missing configuration for plugin: '%s'", name)
-			}
-		}
-		// List plugin as enabled
-		enabled = append(enabled, name)
 	}
 
 	// Initialize all the plugins
 	plugins := make([]Plugin, len(enabled))
 	errors := make([]error, len(enabled))
+	monitors := make([]runtime.Monitor, len(enabled))
 	spawn(len(enabled), func(i int) {
 		name := enabled[i]
-		monitor := options.Monitor.WithPrefix(name).WithTag("plugin", name)
-		incidentID := monitor.CapturePanic(func() {
+		monitors[i] = options.Monitor.WithPrefix(name).WithTag("plugin", name)
+		incidentID := monitors[i].CapturePanic(func() {
 			plugins[i], errors[i] = pluginProviders[name].NewPlugin(PluginOptions{
 				Environment: options.Environment,
 				Engine:      options.Engine,
-				Monitor:     monitor,
+				Monitor:     monitors[i],
 				Config:      config[name],
 			})
 			if errors[i] != nil && plugins[i] == nil {
@@ -173,11 +172,74 @@ func NewPluginManager(options PluginOptions) (Plugin, error) {
 	}
 
 	return &pluginManager{
+		environment:   *options.Environment,
 		plugins:       plugins,
 		pluginNames:   enabled,
 		payloadSchema: schema,
+		monitors:      monitors,
 		monitor:       options.Monitor.WithPrefix("manager").WithTag("plugin", "manager"),
 	}, nil
+}
+
+func (pm *pluginManager) ReportIdle(durationSinceBusy time.Duration) {
+	spawn(len(pm.plugins), func(i int) {
+		m := pm.monitors[i].WithTag("hook", "ReportIdle")
+		incidentID := m.CapturePanic(func() {
+			pm.plugins[i].ReportIdle(durationSinceBusy)
+		})
+		if incidentID != "" {
+			m.Errorf("stopping worker now due to panic reported as incidentID=%s", incidentID)
+			pm.environment.Worker.StopNow()
+		}
+	})
+}
+
+func (pm *pluginManager) ReportNonFatalError() {
+	spawn(len(pm.plugins), func(i int) {
+		m := pm.monitors[i].WithTag("hook", "ReportNonFatalError")
+		incidentID := m.CapturePanic(func() {
+			pm.plugins[i].ReportNonFatalError()
+		})
+		if incidentID != "" {
+			m.Errorf("stopping worker now due to panic reported as incidentID=%s", incidentID)
+			pm.environment.Worker.StopNow()
+		}
+	})
+}
+
+func (pm *pluginManager) Dispose() error {
+	fatal := atomics.NewBool(false)
+	nonfatal := atomics.NewBool(false)
+
+	spawn(len(pm.plugins), func(i int) {
+		m := pm.monitors[i].WithTag("hook", "Dispose")
+		var err error
+		incidentID := m.CapturePanic(func() {
+			err = pm.plugins[i].Dispose()
+		})
+		switch err {
+		case runtime.ErrFatalInternalError:
+			fatal.Set(true)
+		case runtime.ErrNonFatalInternalError:
+			nonfatal.Set(true)
+		case nil:
+		default:
+			incidentID = m.ReportError(err, "failed to dispose plugin")
+		}
+		if incidentID != "" {
+			fatal.Set(true)
+			m.Errorf("stopping worker now due to panic reported as incidentID=%s", incidentID)
+			pm.environment.Worker.StopNow()
+		}
+	})
+
+	if fatal.Get() {
+		return runtime.ErrFatalInternalError
+	}
+	if nonfatal.Get() {
+		return runtime.ErrNonFatalInternalError
+	}
+	return nil
 }
 
 func (pm *pluginManager) PayloadSchema() schematypes.Object {
@@ -229,7 +291,7 @@ func (pm *pluginManager) NewTaskPlugin(options TaskPluginOptions) (TaskPlugin, e
 // spawnEachPlugin will invoke fn(i) for each plugin 0 to N. Any error or panic
 // will be reported to sentry. MalformedPayloadErrors will be merged and returned,
 // unless overruled by a ErrFatalInternalError or ErrNonFatalInternalError.
-func (m *taskPluginManager) spawnEachPlugin(phase string, fn func(i int) error) error {
+func (m *taskPluginManager) spawnEachPlugin(hook string, fn func(i int) error) error {
 	N := len(m.taskPlugins)
 
 	// Sanity check that no two methods on plugin is running in parallel, this way
@@ -242,14 +304,14 @@ func (m *taskPluginManager) spawnEachPlugin(phase string, fn func(i int) error) 
 
 	errors := make([]error, N)
 	spawn(N, func(i int) {
-		monitor := m.monitors[i].WithTag("phase", phase)
+		monitor := m.monitors[i].WithTag("hook", hook)
 		incidentID := monitor.CapturePanic(func() {
 			errors[i] = fn(i)
 		})
 		if _, ok := runtime.IsMalformedPayloadError(errors[i]); !ok && errors[i] != nil {
 			// Both of these errors assumes that the error has been logged and recorded
 			if errors[i] != runtime.ErrFatalInternalError && errors[i] != runtime.ErrNonFatalInternalError {
-				incidentID = monitor.ReportError(errors[i], "Unhandled error during ", phase, " phase")
+				incidentID = monitor.ReportError(errors[i], "Unhandled error during ", hook, " hook")
 			}
 		}
 		if incidentID != "" {
@@ -348,7 +410,7 @@ func (m *taskPluginManager) Dispose() error {
 		err := m.taskPlugins[i].Dispose()
 		// Errors are not allowed from Dispose()
 		if err != nil && err != runtime.ErrFatalInternalError && err != runtime.ErrNonFatalInternalError {
-			incidentID := m.monitors[i].WithTag("phase", "Dispose").ReportError(err, "Dispose() may not return errors")
+			incidentID := m.monitors[i].WithTag("hook", "Dispose").ReportError(err, "Dispose() may not return errors")
 			m.context.LogError("Unhandled worker error encountered incidentID=", incidentID)
 			err = runtime.ErrFatalInternalError
 		}

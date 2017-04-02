@@ -92,7 +92,7 @@ func NewVirtualMachine(
 		"-S", // Wait for QMP command "continue" before starting execution
 		"-name", "qemu-guest",
 		"-cpu", "host", // Pass-through CPU from host
-		"-machine", arg("pc-i440fx-2.5", opts{
+		"-machine", arg("pc-i440fx-2.8", opts{
 			"accel": "kvm",
 			// TODO: Configure additional options")
 		}),
