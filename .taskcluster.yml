@@ -185,8 +185,8 @@ tasks:
         # Events that will trigger this task
         events:
           - push
-        #branches:
-        #  - master
+        branches:
+          - master
     scopes:
       - auth:aws-s3:read-write:taskcluster-raw-docs/taskcluster-worker/
       - docker-worker:cache:taskcluster-worker-checkout
