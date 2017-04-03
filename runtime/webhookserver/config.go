@@ -107,8 +107,8 @@ func NewServer(config interface{}) (Server, error) {
 		s, err := NewLocalServer(
 			net.ParseIP(c.ServerIP), c.ServerPort,
 			c.NetworkInterface, c.ExposedPort,
-			c.StatelessDNSSecret,
 			c.StatelessDNSDomain,
+			c.StatelessDNSSecret,
 			c.TLSCertificate,
 			c.TLSKey,
 			time.Duration(c.MaxLifeCycle)*time.Second,
