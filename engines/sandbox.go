@@ -115,7 +115,8 @@ type Sandbox interface {
 	// WaitForResult() to return a ResultSet with ResultSet.Success() returning
 	// false.
 	//
-	// Non-fatal errors: ErrSandboxTerminated, ErrFeatureNotSupported
+	// Non-fatal errors: ErrSandboxTerminated, ErrSandboxAborted,
+	// ErrFeatureNotSupported
 	Kill() error
 }
 
