@@ -12,6 +12,15 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
+// Timeout for all plugin hooks. If a plugin hook takes longer than this the
+// PluginManager will assume livelock and return ErrFatalInternalError
+//
+// No plugin hook should take more than 45 minutes. Note, it's not important to
+// lower this number. This is for livelock detection, we report this to sentry
+// and kill the worker. This is intended to detect lack of progress, such that
+// the underlying bug can be fixed.
+const pluginHookTimeout = 45 * time.Minute
+
 type pluginManager struct {
 	environment   runtime.Environment
 	payloadSchema schematypes.Object
@@ -39,6 +48,25 @@ func spawn(n int, fn func(int)) {
 		}(index)
 	}
 	wg.Wait()
+}
+
+// capturePanicOrTimeout will invoke fn and return incidentID if there is a
+// panic, or incidentID if it doesn't return within pluginHookTimeout
+func capturePanicOrTimeout(monitor runtime.Monitor, fn func()) string {
+	var incidentID string
+	var done atomics.Barrier
+	go func() {
+		incidentID = monitor.CapturePanic(fn)
+		done.Fall()
+	}()
+
+	select {
+	case <-done.Barrier():
+		return incidentID
+	case <-time.After(pluginHookTimeout):
+		// monitor has already been tagged with "hook" tag
+		return monitor.ReportError(fmt.Errorf("livelock detected in plugin hook"))
+	}
 }
 
 // PluginManagerConfigSchema returns configuration for PluginOptions.Config for
@@ -131,7 +159,7 @@ func NewPluginManager(options PluginOptions) (Plugin, error) {
 	spawn(len(enabled), func(i int) {
 		name := enabled[i]
 		monitors[i] = options.Monitor.WithPrefix(name).WithTag("plugin", name)
-		incidentID := monitors[i].CapturePanic(func() {
+		incidentID := capturePanicOrTimeout(monitors[i], func() {
 			plugins[i], errors[i] = pluginProviders[name].NewPlugin(PluginOptions{
 				Environment: options.Environment,
 				Engine:      options.Engine,
@@ -184,7 +212,7 @@ func NewPluginManager(options PluginOptions) (Plugin, error) {
 func (pm *pluginManager) ReportIdle(durationSinceBusy time.Duration) {
 	spawn(len(pm.plugins), func(i int) {
 		m := pm.monitors[i].WithTag("hook", "ReportIdle")
-		incidentID := m.CapturePanic(func() {
+		incidentID := capturePanicOrTimeout(m, func() {
 			pm.plugins[i].ReportIdle(durationSinceBusy)
 		})
 		if incidentID != "" {
@@ -197,7 +225,7 @@ func (pm *pluginManager) ReportIdle(durationSinceBusy time.Duration) {
 func (pm *pluginManager) ReportNonFatalError() {
 	spawn(len(pm.plugins), func(i int) {
 		m := pm.monitors[i].WithTag("hook", "ReportNonFatalError")
-		incidentID := m.CapturePanic(func() {
+		incidentID := capturePanicOrTimeout(m, func() {
 			pm.plugins[i].ReportNonFatalError()
 		})
 		if incidentID != "" {
@@ -214,7 +242,7 @@ func (pm *pluginManager) Dispose() error {
 	spawn(len(pm.plugins), func(i int) {
 		m := pm.monitors[i].WithTag("hook", "Dispose")
 		var err error
-		incidentID := m.CapturePanic(func() {
+		incidentID := capturePanicOrTimeout(m, func() {
 			err = pm.plugins[i].Dispose()
 		})
 		switch err {
@@ -305,7 +333,7 @@ func (m *taskPluginManager) spawnEachPlugin(hook string, fn func(i int) error) e
 	errors := make([]error, N)
 	spawn(N, func(i int) {
 		monitor := m.monitors[i].WithTag("hook", hook)
-		incidentID := monitor.CapturePanic(func() {
+		incidentID := capturePanicOrTimeout(monitor, func() {
 			errors[i] = fn(i)
 		})
 		if _, ok := runtime.IsMalformedPayloadError(errors[i]); !ok && errors[i] != nil {
