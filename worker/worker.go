@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -158,6 +159,25 @@ func (w *Worker) Start() error {
 	if !w.started.Fall() {
 		panic("Worker.Start() cannot be called twice, worker cannot restart")
 	}
+
+	// When StoppingNow is called, we give the worker 5 min to stop, or exit 1
+	// StoppingNow typically happens due to an internal error, it's no unlikely
+	// that this internal error caused a livelock by failing to release a lock, etc.
+	done := make(chan struct{})
+	defer close(done)
+	w.lifeCycleTracker.StoppingNow.Forward(func() {
+		go func() {
+			select {
+			case <-time.After(5 * time.Minute):
+				go w.monitor.ReportError(errors.New(
+					"Worker.Start(): livelock detected - didn't stop 5 min after StopNow()",
+				))
+				time.Sleep(30 * time.Second)
+				os.Exit(1)
+			case <-done:
+			}
+		}()
+	})
 
 	for !w.lifeCycleTracker.StoppingGracefully.IsFallen() {
 		// Claim tasks
