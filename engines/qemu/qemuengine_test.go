@@ -197,6 +197,7 @@ func TestDisplay(t *testing.T) {
 	c.TestListDisplays()
 	c.TestDisplays()
 	c.TestInvalidDisplayName()
+	c.TestKillDisplay()
 	c.Test()
 }
 

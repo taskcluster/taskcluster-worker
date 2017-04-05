@@ -37,6 +37,9 @@ type sandbox struct {
 	mounts    map[string]*mount
 	proxies   map[string]http.Handler
 	files     map[string][]byte
+	sessions  atomics.WaitGroup
+	shells    []engines.Shell
+	displays  []io.ReadWriteCloser
 	resolve   atomics.Once
 	result    bool
 	resultErr error
@@ -44,6 +47,19 @@ type sandbox struct {
 }
 
 ///////////////////////////// Implementation of SandboxBuilder interface
+
+func (s *sandbox) abortSessions() {
+	s.Lock()
+	defer s.Unlock()
+
+	s.sessions.Drain()
+	for _, shell := range s.shells {
+		shell.Abort()
+	}
+	for _, display := range s.displays {
+		display.Close()
+	}
+}
 
 func (s *sandbox) StartSandbox() (engines.Sandbox, error) {
 	s.Lock()
@@ -61,6 +77,7 @@ func (s *sandbox) StartSandbox() (engines.Sandbox, error) {
 		} else {
 			result, err = f(s, s.payload.Argument)
 		}
+		s.sessions.WaitAndDrain()
 		s.resolve.Do(func() {
 			s.result = result
 			s.resultErr = err
@@ -219,6 +236,7 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 
 func (s *sandbox) Kill() error {
 	s.resolve.Do(func() {
+		s.abortSessions()
 		s.result = false
 		s.abortErr = engines.ErrSandboxTerminated
 	})
@@ -228,6 +246,7 @@ func (s *sandbox) Kill() error {
 
 func (s *sandbox) Abort() error {
 	s.resolve.Do(func() {
+		s.abortSessions()
 		s.result = false
 		s.resultErr = engines.ErrSandboxAborted
 	})
@@ -236,10 +255,22 @@ func (s *sandbox) Abort() error {
 }
 
 func (s *sandbox) NewShell(command []string, tty bool) (engines.Shell, error) {
+	s.Lock()
+	defer s.Unlock()
+
 	if len(command) > 0 || tty {
 		return nil, engines.ErrFeatureNotSupported
 	}
-	return newShell(), nil
+	if s.sessions.Add(1) != nil {
+		return nil, engines.ErrSandboxTerminated
+	}
+	shell := newShell()
+	s.shells = append(s.shells, shell)
+	go func() {
+		shell.Wait()
+		s.sessions.Done()
+	}()
+	return shell, nil
 }
 
 func (s *sandbox) ListDisplays() ([]engines.Display, error) {
@@ -254,10 +285,20 @@ func (s *sandbox) ListDisplays() ([]engines.Display, error) {
 }
 
 func (s *sandbox) OpenDisplay(name string) (io.ReadWriteCloser, error) {
+	s.Lock()
+	defer s.Unlock()
+
 	if name != "MockDisplay" {
 		return nil, engines.ErrNoSuchDisplay
 	}
-	return newMockDisplay(), nil
+	if s.sessions.Add(1) != nil {
+		return nil, engines.ErrSandboxTerminated
+	}
+	d := ioext.WatchPipe(newMockDisplay(), func(error) {
+		s.sessions.Done()
+	})
+	s.displays = append(s.displays, d)
+	return d, nil
 }
 
 ///////////////////////////// Implementation of ResultSet interface

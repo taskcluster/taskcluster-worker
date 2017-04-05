@@ -150,7 +150,7 @@ func (c *ShellTestCase) TestAbortSleepCommand() {
 
 // TestKillSleepCommand checks we can Sandbox.Kill() the sleep command
 func (c *ShellTestCase) TestKillSleepCommand() {
-	debug("## TestAbortSleepCommand")
+	debug("## TestKillSleepCommand")
 	r := c.newRun()
 	defer r.Dispose()
 	r.NewSandboxBuilder(c.Payload)
