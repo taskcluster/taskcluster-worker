@@ -203,3 +203,83 @@ func TestGuestToolsLiveLog(t *testing.T) {
 		t.Error("Got unexpected taskLog: '", logTask.String(), "'")
 	}
 }
+
+func TestGuestToolsKill(t *testing.T) {
+	// Create temporary storage
+	storage, err := runtime.NewTemporaryStorage(os.TempDir())
+	if err != nil {
+		panic("Failed to create TemporaryStorage")
+	}
+	environment := &runtime.Environment{
+		TemporaryStorage: storage,
+		Monitor:          mocks.NewMockMonitor(true),
+	}
+
+	// Setup a new MetaService
+	reader, writer := io.Pipe()
+	result := false
+	resolved := false
+	m := sync.Mutex{}
+	s := metaservice.New([]string{"sh", "-c", "echo \"$TEST_TEXT\" && sleep 20 && true"}, map[string]string{
+		"TEST_TEXT": "kill-me-now",
+	}, writer, func(r bool) {
+		m.Lock()
+		defer m.Unlock()
+		if resolved {
+			panic("It shouldn't be possible to resolve twice")
+		}
+		resolved = true
+		result = r
+	}, environment)
+
+	// Create http server for testing
+	ts := httptest.NewServer(s)
+	defer ts.Close()
+	defer s.StopPollers() // HACK: stop pollers or they will hang
+	u, err := url.Parse(ts.URL)
+	if err != nil {
+		panic("Expected a url we can parse")
+	}
+
+	// Wait for
+	logTask := bytes.NewBuffer(nil)
+	logDone := sync.WaitGroup{}
+	logDone.Add(1)
+	go func() {
+		b := make([]byte, 1)
+		for !strings.Contains(logTask.String(), "kill-me-now") {
+			n, err := reader.Read(b)
+			logTask.Write(b[:n])
+			if err != nil {
+				panic("Unexpected error")
+			}
+		}
+		debug("reached 'kill-me-now'")
+		go func() {
+			if err := s.KillProcess(); err != nil {
+				panic(err)
+			}
+		}()
+		io.Copy(logTask, reader)
+		logDone.Done()
+	}()
+
+	// Create an run guest-tools
+	g := new(u.Host, mocks.NewMockMonitor(true))
+
+	// start processing actions
+	go g.ProcessActions()
+	defer g.StopProcessingActions()
+
+	g.Run()
+	writer.Close()
+	logDone.Wait()
+
+	// Check the state
+	if !resolved {
+		t.Error("Expected the metadata to have resolved the task")
+	}
+	if result {
+		t.Error("Expected the metadata to get failed result")
+	}
+}

@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	goruntime "runtime"
+	"syscall"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -18,6 +19,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellconsts"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
@@ -32,6 +34,7 @@ type guestTools struct {
 	taskLog       io.Writer
 	pollingCtx    context.Context
 	cancelPolling func()
+	killed        atomics.Barrier
 }
 
 var backOff = &got.BackOff{
@@ -99,14 +102,25 @@ func (g *guestTools) Run() {
 	cmd.Env = env
 	cmd.Stdout = taskLog
 	cmd.Stderr = taskLog
+	// Create new process group id
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	err := cmd.Start()
+	if err == nil {
+		g.killed.Forward(func() {
+			// kill all in the child process group id
+			syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		})
+		err = cmd.Wait()
+	}
 
 	result := "success"
-	if cmd.Run() != nil {
+	if err != nil {
 		result = "failed"
 	}
 
 	// Close/flush the task log
-	err := taskLog.Close()
+	err = taskLog.Close()
 	if err != nil {
 		g.monitor.Println("Failed to flush the log, error: ", err)
 		result = "failed"
@@ -171,11 +185,10 @@ func (g *guestTools) poll(ctx context.Context) {
 	res, err := ctxhttp.Do(c, nil, req)
 	//res, res := http.DefaultClient.Do(req)
 	if err != nil {
-		g.monitor.Info("Poll request failed, error: ", err)
-
 		// if this wasn't a deadline exceeded error, we'll sleep a second to avoid
 		// spinning the CPU while waiting for DHCP to come up.
 		if err != context.DeadlineExceeded && err != context.Canceled {
+			g.monitor.Info("Poll request failed, error: ", err)
 			time.Sleep(1 * time.Second)
 		}
 		return
@@ -210,6 +223,8 @@ func (g *guestTools) dispatchAction(action metaservice.Action) {
 		go g.doListFolder(action.ID, action.Path)
 	case "exec-shell":
 		go g.doExecShell(action.ID, action.Command, action.TTY)
+	case "kill-process":
+		go g.doKillProcess(action.ID)
 	default:
 		g.monitor.Error("Unknown action type: ", action.Type, " ID = ", action.ID)
 	}
@@ -288,6 +303,24 @@ func (g *guestTools) doListFolder(ID, path string) {
 	}
 	if res.StatusCode != http.StatusOK {
 		g.monitor.Error("Reply with list-folder for path: ", path, " got status: ", res.StatusCode)
+	}
+}
+
+func (g *guestTools) doKillProcess(ID string) {
+	g.monitor.Info("Sending kill-process confirmation")
+
+	// kill child process (from Run method)
+	g.killed.Fall()
+
+	// Send confirmation... We use got here, this means that we get retries...
+	// There is no harm in retries, server will just ignore them.
+	res, err := g.got.Post(g.url("engine/v1/reply?id="+ID), nil).Send()
+	if err != nil {
+		g.monitor.Error("Reply with confirmation for kill-process failed error:", err)
+		return
+	}
+	if res.StatusCode != http.StatusOK {
+		g.monitor.Error("Reply with confirmation for kill-process got status:", res.StatusCode)
 	}
 }
 

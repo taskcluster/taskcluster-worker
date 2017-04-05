@@ -114,6 +114,16 @@ func (s *sandbox) result(success bool) {
 	})
 }
 
+func (s *sandbox) Kill() error {
+	s.resolve.Do(func() {
+		s.metaService.KillProcess()
+		s.resultSet = newResultSet(false, s.vm, s.metaService)
+		s.resultAbort = engines.ErrSandboxTerminated
+	})
+	s.resolve.Wait()
+	return s.resultError
+}
+
 // waitForCrash will wait for a VM crash and resolve
 func (s *sandbox) waitForCrash() {
 	// Wait for the VM to finish

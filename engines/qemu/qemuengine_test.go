@@ -198,3 +198,16 @@ func TestDisplay(t *testing.T) {
 	c.TestInvalidDisplayName()
 	c.Test()
 }
+
+func TestKill(t *testing.T) {
+	c := enginetest.KillTestCase{
+		EngineProvider: provider,
+		Target:         "hello-world",
+		Payload: `{
+      "image": "` + s.URL + `",
+      "command": ["sh", "-c", "echo 'hello-world' && sleep 30 && true"]
+    }`,
+	}
+
+	c.Test()
+}
