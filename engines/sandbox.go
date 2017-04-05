@@ -111,7 +111,7 @@ type Sandbox interface {
 	// Non-fatal errors: ErrSandboxTerminated
 	Abort() error
 
-	// Kill all processes running in the sandbox, including shells. This should
+	// Kill all processes running in the sandbox, aborting shells. This should
 	// cause WaitForResult() to return a ResultSet with ResultSet.Success()
 	// returning false.
 	//

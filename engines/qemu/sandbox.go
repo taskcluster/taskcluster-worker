@@ -117,6 +117,7 @@ func (s *sandbox) result(success bool) {
 func (s *sandbox) Kill() error {
 	s.resolve.Do(func() {
 		s.metaService.KillProcess()
+		s.sessions.KillSessions()
 		s.resultSet = newResultSet(false, s.vm, s.metaService)
 		s.resultAbort = engines.ErrSandboxTerminated
 	})

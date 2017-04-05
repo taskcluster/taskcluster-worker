@@ -20,7 +20,8 @@ type ShellTestCase struct {
 	Stderr string
 	// Command to execute that exits the shell false
 	BadCommand string
-	// Command to execute that sleeps long enough for Terminate() to kill it
+	// Command to execute that sleeps long enough for Shell.Abort() or
+	// Sandbox.Kill() to terminate it. Should exit true, if not terminate.
 	SleepCommand string
 	// Payload for the engine that will contain an interactive environment as
 	// described above.
@@ -147,12 +148,53 @@ func (c *ShellTestCase) TestAbortSleepCommand() {
 	wg.Wait()
 }
 
+// TestKillSleepCommand checks we can Sandbox.Kill() the sleep command
+func (c *ShellTestCase) TestKillSleepCommand() {
+	debug("## TestAbortSleepCommand")
+	r := c.newRun()
+	defer r.Dispose()
+	r.NewSandboxBuilder(c.Payload)
+	r.StartSandbox()
+
+	shell, err := r.sandbox.NewShell(nil, false)
+	nilOrPanic(err, "NewShell Failed")
+
+	wg := sync.WaitGroup{}
+	wg.Add(3)
+	go func() {
+		_, err2 := shell.StdinPipe().Write([]byte(c.SleepCommand))
+		nilOrPanic(err2, "Failed to write command")
+		err2 = shell.StdinPipe().Close()
+		nilOrPanic(err2, "Failed to close stdin")
+		time.Sleep(1 * time.Millisecond)
+		err2 = r.sandbox.Kill()
+		nilOrPanic(err2, "Failed sandbox.Kill()")
+		wg.Done()
+	}()
+	go func() {
+		_, err2 := ioutil.ReadAll(shell.StdoutPipe())
+		nilOrPanic(err2, "Failed to read stdout")
+		wg.Done()
+	}()
+	go func() {
+		_, err2 := ioutil.ReadAll(shell.StderrPipe())
+		nilOrPanic(err2, "Failed to read stderr")
+		wg.Done()
+	}()
+
+	result, err := shell.Wait()
+	assert(!result, "Shell returns successfully, expected Sandbox.Kill() to cause false!")
+	assert(err == engines.ErrShellAborted, "Expected ErrShellAborted")
+	wg.Wait()
+}
+
 // Test runs all tests in parallel
 func (c *ShellTestCase) Test() {
 	wg := sync.WaitGroup{}
-	wg.Add(3)
+	wg.Add(4)
 	go func() { c.TestCommand(); wg.Done() }()
 	go func() { c.TestBadCommand(); wg.Done() }()
 	go func() { c.TestAbortSleepCommand(); wg.Done() }()
+	go func() { c.TestKillSleepCommand(); wg.Done() }()
 	wg.Wait()
 }

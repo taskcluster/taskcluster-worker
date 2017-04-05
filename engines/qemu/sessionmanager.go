@@ -57,6 +57,25 @@ func (s *sessionManager) AbortSessions() {
 	}
 }
 
+func (s *sessionManager) KillSessions() {
+	// Lock mShell
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	// Stop allowing new shells
+	s.newError = engines.ErrSandboxTerminated
+
+	// Call abort() on all shells
+	for _, sh := range s.shells {
+		sh.Abort()
+	}
+
+	// Call close on all display connections
+	for _, c := range s.displays {
+		c.Close()
+	}
+}
+
 func (s *sessionManager) WaitAndTerminate() {
 	// Wait for all shells to have finished
 	s.m.Lock()

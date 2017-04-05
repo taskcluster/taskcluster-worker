@@ -172,6 +172,7 @@ func TestShell(t *testing.T) {
 	c.TestCommand()
 	c.TestBadCommand()
 	c.TestAbortSleepCommand()
+	c.TestKillSleepCommand()
 	c.Test()
 }
 
