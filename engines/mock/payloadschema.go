@@ -33,6 +33,7 @@ var payloadSchema = schematypes.Object{
 				"ping-proxy",
 				"write-log",
 				"write-error-log",
+				"write-log-sleep",
 				"write-files",
 				"print-env-var",
 				"malformed-payload-initial",

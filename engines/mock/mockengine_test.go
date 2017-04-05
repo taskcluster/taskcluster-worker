@@ -153,3 +153,15 @@ func TestListDisplays(t *t.T)       { displayTestCase.TestListDisplays() }
 func TestDisplays(t *t.T)           { displayTestCase.TestDisplays() }
 func TestInvalidDisplayName(t *t.T) { displayTestCase.TestInvalidDisplayName() }
 func TestDisplayTestCase(t *t.T)    { displayTestCase.Test() }
+
+var killTestCase = enginetest.KillTestCase{
+	EngineProvider: provider,
+	Target:         "kill-now",
+	Payload: `{
+    "delay": 100,
+    "function": "write-log-sleep",
+    "argument": "kill-now"
+  }`,
+}
+
+func TestKill(t *t.T) { killTestCase.Test() }

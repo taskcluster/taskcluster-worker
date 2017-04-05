@@ -2,7 +2,6 @@ package mockengine
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
@@ -31,14 +31,16 @@ type sandbox struct {
 	engines.SandboxBuilderBase
 	engines.SandboxBase
 	engines.ResultSetBase
-	payload payloadType
-	context *runtime.TaskContext
-	env     map[string]string
-	mounts  map[string]*mount
-	proxies map[string]http.Handler
-	files   map[string][]byte
-	result  bool
-	done    chan struct{}
+	payload   payloadType
+	context   *runtime.TaskContext
+	env       map[string]string
+	mounts    map[string]*mount
+	proxies   map[string]http.Handler
+	files     map[string][]byte
+	resolve   atomics.Once
+	result    bool
+	resultErr error
+	abortErr  error
 }
 
 ///////////////////////////// Implementation of SandboxBuilder interface
@@ -46,7 +48,26 @@ type sandbox struct {
 func (s *sandbox) StartSandbox() (engines.Sandbox, error) {
 	s.Lock()
 	defer s.Unlock()
-	s.done = make(chan struct{})
+
+	go func() {
+		// No need to lock access to payload, as it can't be mutated at this point
+		time.Sleep(time.Duration(s.payload.Delay) * time.Millisecond)
+		// No need to lock access mounts and proxies either
+		f := functions[s.payload.Function]
+		var err error
+		var result bool
+		if f == nil {
+			err = runtime.NewMalformedPayloadError("Unknown function")
+		} else {
+			result, err = f(s, s.payload.Argument)
+		}
+		s.resolve.Do(func() {
+			s.result = result
+			s.resultErr = err
+			s.abortErr = engines.ErrSandboxTerminated
+		})
+	}()
+
 	return s, nil
 }
 
@@ -110,34 +131,34 @@ func (s *sandbox) SetEnvironmentVariable(name string, value string) error {
 ///////////////////////////// Implementation of Sandbox interface
 
 // List of functions implementing the task.payload.start.function functionality.
-var functions = map[string]func(*sandbox, string) bool{
-	"true":  func(s *sandbox, arg string) bool { return true },
-	"false": func(s *sandbox, arg string) bool { return false },
-	"set-volume": func(s *sandbox, arg string) bool {
+var functions = map[string]func(*sandbox, string) (bool, error){
+	"true":  func(s *sandbox, arg string) (bool, error) { return true, nil },
+	"false": func(s *sandbox, arg string) (bool, error) { return false, nil },
+	"set-volume": func(s *sandbox, arg string) (bool, error) {
 		mount := s.mounts[arg]
 		if mount == nil || mount.readOnly {
-			return false
+			return false, nil
 		}
 		mount.volume.value = true
-		return true
+		return true, nil
 	},
-	"get-volume": func(s *sandbox, arg string) bool {
+	"get-volume": func(s *sandbox, arg string) (bool, error) {
 		mount := s.mounts[arg]
 		if mount == nil {
-			return false
+			return false, nil
 		}
-		return mount.volume.value
+		return mount.volume.value, nil
 	},
-	"ping-proxy": func(s *sandbox, arg string) bool {
+	"ping-proxy": func(s *sandbox, arg string) (bool, error) {
 		u, err := url.Parse(arg)
 		if err != nil {
 			s.context.Log("Failed to parse url: ", arg, " got error: ", err)
-			return false
+			return false, nil
 		}
 		handler := s.proxies[u.Host]
 		if handler == nil {
 			s.context.Log("No proxy for hostname: ", u.Host, " in: ", arg)
-			return false
+			return false, nil
 		}
 		// Make a fake HTTP request and http response recorder
 		s.context.Log("Pinging")
@@ -149,62 +170,69 @@ var functions = map[string]func(*sandbox, string) bool{
 		handler.ServeHTTP(w, req)
 		// Log response
 		s.context.Log(w.Body.String())
-		return w.Code == http.StatusOK
+		return w.Code == http.StatusOK, nil
 	},
-	"write-log": func(s *sandbox, arg string) bool {
+	"write-log": func(s *sandbox, arg string) (bool, error) {
 		s.context.Log(arg)
-		return true
+		return true, nil
 	},
-	"write-error-log": func(s *sandbox, arg string) bool {
+	"write-error-log": func(s *sandbox, arg string) (bool, error) {
 		s.context.Log(arg)
-		return false
+		return false, nil
 	},
-	"write-files": func(s *sandbox, arg string) bool {
+	"write-log-sleep": func(s *sandbox, arg string) (bool, error) {
+		s.context.Log(arg)
+		time.Sleep(500 * time.Millisecond)
+		return true, nil
+	},
+	"write-files": func(s *sandbox, arg string) (bool, error) {
 		for _, path := range strings.Split(arg, " ") {
 			s.files[path] = []byte("Hello World")
 		}
-		return true
+		return true, nil
 	},
-	"print-env-var": func(s *sandbox, arg string) bool {
+	"print-env-var": func(s *sandbox, arg string) (bool, error) {
 		val, ok := s.env[arg]
 		s.context.Log(val)
-		return ok
+		return ok, nil
+	},
+	"fatal-interal-error": func(s *sandbox, arg string) (bool, error) {
+		// Should normally only be used if error is reported with Monitor
+		return false, runtime.ErrFatalInternalError
+	},
+	"nonfatal-internal-error": func(s *sandbox, arg string) (bool, error) {
+		// Should normally only be used if error is reported with Monitor
+		return false, runtime.ErrNonFatalInternalError
+	},
+	"malformed-payload-after-start": func(s *sandbox, arg string) (bool, error) {
+		return false, runtime.NewMalformedPayloadError(s.payload.Argument)
 	},
 }
 
 func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
-	// No need to lock access to payload, as it can't be mutated at this point
-	select {
-	case <-s.done:
-		s.result = false
-		return s, errors.New("Task execution has been aborted")
-	case <-time.After(time.Duration(s.payload.Delay) * time.Millisecond):
-		switch s.payload.Function {
-		case "fatal-internal-error":
-			// Should normally only be used if error is reported with Monitor
-			return nil, runtime.ErrFatalInternalError
-		case "nonfatal-internal-error":
-			// Should normally only be used if error is reported with Monitor
-			return nil, runtime.ErrNonFatalInternalError
-		case "malformed-payload-after-start":
-			return nil, runtime.NewMalformedPayloadError(s.payload.Argument)
-		}
-		// No need to lock access mounts and proxies either
-		f := functions[s.payload.Function]
-		if f == nil {
-			return nil, runtime.NewMalformedPayloadError("Unknown function")
-		}
-		result := f(s, s.payload.Argument)
-		s.Lock()
-		defer s.Unlock()
-		s.result = result
-		return s, nil
+	s.resolve.Wait()
+	if s.resultErr != nil {
+		return nil, s.resultErr
 	}
+	return s, nil
+}
+
+func (s *sandbox) Kill() error {
+	s.resolve.Do(func() {
+		s.result = false
+		s.abortErr = engines.ErrSandboxTerminated
+	})
+	s.resolve.Wait()
+	return s.resultErr
 }
 
 func (s *sandbox) Abort() error {
-	close(s.done)
-	return nil
+	s.resolve.Do(func() {
+		s.result = false
+		s.resultErr = engines.ErrSandboxAborted
+	})
+	s.resolve.Wait()
+	return s.abortErr
 }
 
 func (s *sandbox) NewShell(command []string, tty bool) (engines.Shell, error) {
