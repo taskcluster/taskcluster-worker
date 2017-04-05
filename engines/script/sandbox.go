@@ -63,6 +63,12 @@ func (s *sandbox) run() {
 	})
 }
 
+func (s *sandbox) Kill() error {
+	// TODO: Implement termination of all subprocesses
+	_ = s.cmd.Process.Kill()
+	return nil
+}
+
 func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 	s.resolve.Wait()
 	return s.resultSet, s.resultError
