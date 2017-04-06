@@ -213,7 +213,7 @@ var functions = map[string]func(*sandbox, string) (bool, error){
 		s.context.Log(val)
 		return ok, nil
 	},
-	"fatal-interal-error": func(s *sandbox, arg string) (bool, error) {
+	"fatal-internal-error": func(s *sandbox, arg string) (bool, error) {
 		// Should normally only be used if error is reported with Monitor
 		return false, runtime.ErrFatalInternalError
 	},

@@ -257,7 +257,7 @@ func (t *TaskRun) Dispose() error {
 	}
 
 	if t.exception && t.taskPlugin != nil {
-		debug("running exception stage")
+		debug("running exception stage, reason = %s", t.reason.String())
 		t.capturePanicAndError("exception", func() error {
 			return t.taskPlugin.Exception(t.reason)
 		})

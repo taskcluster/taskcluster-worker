@@ -50,13 +50,17 @@ func TestTaskRun(t *testing.T) {
 		Queue:   &client.MockQueue{},
 	}
 
+	var taskPluginOptions = mock.AnythingOfType("plugins.TaskPluginOptions")
+	var mockSandbox = mock.AnythingOfType("*mockengine.sandbox")
+	var mockSandboxBuilder = mock.AnythingOfType("*mockengine.sandbox")
+	var mockResultSet = mock.AnythingOfType("*mockengine.sandbox")
 	t.Run("success", func(t *testing.T) {
 		plugin := &mockPlugin{}
 		plugin.On("PayloadSchema").Return(schematypes.Object{})
-		plugin.On("NewTaskPlugin", mock.Anything).Return(plugin, nil)
-		plugin.On("BuildSandbox", mock.Anything).Return(nil)
-		plugin.On("Started", mock.Anything).Return(nil)
-		plugin.On("Stopped", mock.Anything).Return(func(result engines.ResultSet) bool {
+		plugin.On("NewTaskPlugin", taskPluginOptions).Return(plugin, nil)
+		plugin.On("BuildSandbox", mockSandboxBuilder).Return(nil)
+		plugin.On("Started", mockSandbox).Return(nil)
+		plugin.On("Stopped", mockResultSet).Return(func(result engines.ResultSet) bool {
 			return result.Success()
 		}, nil)
 		plugin.On("Finished", true).Return(nil)
@@ -81,10 +85,10 @@ func TestTaskRun(t *testing.T) {
 	t.Run("success with delay", func(t *testing.T) {
 		plugin := &mockPlugin{}
 		plugin.On("PayloadSchema").Return(schematypes.Object{})
-		plugin.On("NewTaskPlugin", mock.Anything).Return(plugin, nil)
-		plugin.On("BuildSandbox", mock.Anything).Return(nil)
-		plugin.On("Started", mock.Anything).Return(nil)
-		plugin.On("Stopped", mock.Anything).Return(func(result engines.ResultSet) bool {
+		plugin.On("NewTaskPlugin", taskPluginOptions).Return(plugin, nil)
+		plugin.On("BuildSandbox", mockSandboxBuilder).Return(nil)
+		plugin.On("Started", mockSandbox).Return(nil)
+		plugin.On("Stopped", mockResultSet).Return(func(result engines.ResultSet) bool {
 			return result.Success()
 		}, nil)
 		plugin.On("Finished", true).Return(nil)
@@ -109,10 +113,10 @@ func TestTaskRun(t *testing.T) {
 	t.Run("failed", func(t *testing.T) {
 		plugin := &mockPlugin{}
 		plugin.On("PayloadSchema").Return(schematypes.Object{})
-		plugin.On("NewTaskPlugin", mock.Anything).Return(plugin, nil)
-		plugin.On("BuildSandbox", mock.Anything).Return(nil)
-		plugin.On("Started", mock.Anything).Return(nil)
-		plugin.On("Stopped", mock.Anything).Return(func(result engines.ResultSet) bool {
+		plugin.On("NewTaskPlugin", taskPluginOptions).Return(plugin, nil)
+		plugin.On("BuildSandbox", mockSandboxBuilder).Return(nil)
+		plugin.On("Started", mockSandbox).Return(nil)
+		plugin.On("Stopped", mockResultSet).Return(func(result engines.ResultSet) bool {
 			return result.Success()
 		}, nil)
 		plugin.On("Finished", false).Return(nil)
@@ -137,7 +141,7 @@ func TestTaskRun(t *testing.T) {
 	t.Run("malformed-payload initial", func(t *testing.T) {
 		plugin := &mockPlugin{}
 		plugin.On("PayloadSchema").Return(schematypes.Object{})
-		plugin.On("NewTaskPlugin", mock.Anything).Return(plugin, nil)
+		plugin.On("NewTaskPlugin", taskPluginOptions).Return(plugin, nil)
 		plugin.On("Exception", runtime.ReasonMalformedPayload).Return(nil)
 		plugin.On("Dispose").Return(nil)
 		defer plugin.AssertExpectations(t)
@@ -161,9 +165,9 @@ func TestTaskRun(t *testing.T) {
 	t.Run("malformed-payload after start", func(t *testing.T) {
 		plugin := &mockPlugin{}
 		plugin.On("PayloadSchema").Return(schematypes.Object{})
-		plugin.On("NewTaskPlugin", mock.Anything).Return(plugin, nil)
-		plugin.On("BuildSandbox", mock.Anything).Return(nil)
-		plugin.On("Started", mock.Anything).Return(nil)
+		plugin.On("NewTaskPlugin", taskPluginOptions).Return(plugin, nil)
+		plugin.On("BuildSandbox", mockSandboxBuilder).Return(nil)
+		plugin.On("Started", mockSandbox).Return(nil)
 		plugin.On("Exception", runtime.ReasonMalformedPayload).Return(nil)
 		plugin.On("Dispose").Return(nil)
 		defer plugin.AssertExpectations(t)
@@ -187,9 +191,9 @@ func TestTaskRun(t *testing.T) {
 	t.Run("fatal internal engine error", func(t *testing.T) {
 		plugin := &mockPlugin{}
 		plugin.On("PayloadSchema").Return(schematypes.Object{})
-		plugin.On("NewTaskPlugin", mock.Anything).Return(plugin, nil)
-		plugin.On("BuildSandbox", mock.Anything).Return(nil)
-		plugin.On("Started", mock.Anything).Return(nil)
+		plugin.On("NewTaskPlugin", taskPluginOptions).Return(plugin, nil)
+		plugin.On("BuildSandbox", mockSandboxBuilder).Return(nil)
+		plugin.On("Started", mockSandbox).Return(nil)
 		plugin.On("Exception", runtime.ReasonInternalError).Return(nil)
 		plugin.On("Dispose").Return(nil)
 		defer plugin.AssertExpectations(t)
@@ -214,9 +218,9 @@ func TestTaskRun(t *testing.T) {
 	t.Run("non-fatal internal engine error", func(t *testing.T) {
 		plugin := &mockPlugin{}
 		plugin.On("PayloadSchema").Return(schematypes.Object{})
-		plugin.On("NewTaskPlugin", mock.Anything).Return(plugin, nil)
-		plugin.On("BuildSandbox", mock.Anything).Return(nil)
-		plugin.On("Started", mock.Anything).Return(nil)
+		plugin.On("NewTaskPlugin", taskPluginOptions).Return(plugin, nil)
+		plugin.On("BuildSandbox", mockSandboxBuilder).Return(nil)
+		plugin.On("Started", mockSandbox).Return(nil)
 		plugin.On("Exception", runtime.ReasonInternalError).Return(nil)
 		plugin.On("Dispose").Return(nil)
 		defer plugin.AssertExpectations(t)
@@ -241,9 +245,9 @@ func TestTaskRun(t *testing.T) {
 	t.Run("fatal internal plugin error", func(t *testing.T) {
 		plugin := &mockPlugin{}
 		plugin.On("PayloadSchema").Return(schematypes.Object{})
-		plugin.On("NewTaskPlugin", mock.Anything).Return(plugin, nil)
-		plugin.On("BuildSandbox", mock.Anything).Return(nil)
-		plugin.On("Started", mock.Anything).Return(runtime.ErrFatalInternalError)
+		plugin.On("NewTaskPlugin", taskPluginOptions).Return(plugin, nil)
+		plugin.On("BuildSandbox", mockSandboxBuilder).Return(nil)
+		plugin.On("Started", mockSandbox).Return(runtime.ErrFatalInternalError)
 		plugin.On("Exception", runtime.ReasonInternalError).Return(nil)
 		plugin.On("Dispose").Return(nil)
 		defer plugin.AssertExpectations(t)
@@ -268,9 +272,9 @@ func TestTaskRun(t *testing.T) {
 	t.Run("non-fatal internal plugin error", func(t *testing.T) {
 		plugin := &mockPlugin{}
 		plugin.On("PayloadSchema").Return(schematypes.Object{})
-		plugin.On("NewTaskPlugin", mock.Anything).Return(plugin, nil)
-		plugin.On("BuildSandbox", mock.Anything).Return(nil)
-		plugin.On("Started", mock.Anything).Return(runtime.ErrNonFatalInternalError)
+		plugin.On("NewTaskPlugin", taskPluginOptions).Return(plugin, nil)
+		plugin.On("BuildSandbox", mockSandboxBuilder).Return(nil)
+		plugin.On("Started", mockSandbox).Return(runtime.ErrNonFatalInternalError)
 		plugin.On("Exception", runtime.ReasonInternalError).Return(nil)
 		plugin.On("Dispose").Return(nil)
 		defer plugin.AssertExpectations(t)
@@ -297,12 +301,12 @@ func TestTaskRun(t *testing.T) {
 		var ctx *runtime.TaskContext
 		plugin := &mockPlugin{}
 		plugin.On("PayloadSchema").Return(schematypes.Object{})
-		plugin.On("NewTaskPlugin", mock.Anything).Return(plugin, func(options plugins.TaskPluginOptions) error {
+		plugin.On("NewTaskPlugin", taskPluginOptions).Return(plugin, func(options plugins.TaskPluginOptions) error {
 			ctx = options.TaskContext
 			return nil
 		})
-		plugin.On("BuildSandbox", mock.Anything).Return(nil)
-		plugin.On("Started", mock.Anything).Return(func(engines.Sandbox) error {
+		plugin.On("BuildSandbox", mockSandboxBuilder).Return(nil)
+		plugin.On("Started", mockSandbox).Return(func(engines.Sandbox) error {
 			assert.NotNil(t, ctx, "Expected TaskContext to be present")
 			assert.NoError(t, ctx.Err(), "TaskContext is already aborted!")
 			<-time.After(5 * time.Millisecond)
@@ -335,12 +339,12 @@ func TestTaskRun(t *testing.T) {
 		var ctx *runtime.TaskContext
 		plugin := &mockPlugin{}
 		plugin.On("PayloadSchema").Return(schematypes.Object{})
-		plugin.On("NewTaskPlugin", mock.Anything).Return(plugin, func(options plugins.TaskPluginOptions) error {
+		plugin.On("NewTaskPlugin", taskPluginOptions).Return(plugin, func(options plugins.TaskPluginOptions) error {
 			ctx = options.TaskContext
 			return nil
 		})
-		plugin.On("BuildSandbox", mock.Anything).Return(nil)
-		plugin.On("Started", mock.Anything).Return(func(engines.Sandbox) error {
+		plugin.On("BuildSandbox", mockSandboxBuilder).Return(nil)
+		plugin.On("Started", mockSandbox).Return(func(engines.Sandbox) error {
 			assert.NotNil(t, ctx, "Expected TaskContext to be present")
 			assert.NoError(t, ctx.Err(), "TaskContext is already aborted!")
 			<-time.After(5 * time.Millisecond)

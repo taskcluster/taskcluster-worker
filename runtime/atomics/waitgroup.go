@@ -2,6 +2,7 @@ package atomics
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 )
 
@@ -110,4 +111,16 @@ func (wg *WaitGroup) WaitAndDrain() {
 
 	// Set draining
 	wg.draining = true
+}
+
+// String returns a string representation of the WaitGroup useful for debugging
+func (wg *WaitGroup) String() string {
+	// Note: This is also useful if printing a type containing a WaitGroup which
+	// could otherwise cause a race condition. At-least this way you can do an
+	// unformatted print using fmt.Sprint(wg) and not have a race condition.
+
+	wg.m.Lock()
+	defer wg.m.Unlock()
+
+	return fmt.Sprintf("atomics.WaitGroup{count: %d, draining: %v}", wg.count, wg.draining)
 }

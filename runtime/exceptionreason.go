@@ -23,9 +23,9 @@ const (
 func (e ExceptionReason) String() string {
 	switch e {
 	case ReasonNoException:
-		panic("ExceptionReason: ReasonNoException has no valid API representation")
+		return "no-reason"
 	case ReasonCanceled:
-		panic("ExceptionReason: ReasonCanceled has no valid API representation")
+		return "canceled"
 	case ReasonWorkerShutdown:
 		return "worker-shutdown"
 	case ReasonMalformedPayload:
