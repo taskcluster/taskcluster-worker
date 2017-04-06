@@ -167,6 +167,7 @@ func (c *ShellTestCase) TestKillSleepCommand() {
 		err2 = shell.StdinPipe().Close()
 		nilOrPanic(err2, "Failed to close stdin")
 		time.Sleep(1 * time.Millisecond)
+		time.Sleep(20 * time.Second)
 		err2 = r.sandbox.Kill()
 		nilOrPanic(err2, "Failed sandbox.Kill()")
 		wg.Done()

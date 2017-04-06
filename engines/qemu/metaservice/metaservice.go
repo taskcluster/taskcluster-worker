@@ -164,7 +164,7 @@ func (s *MetaService) handleSuccess(w http.ResponseWriter, r *http.Request) {
 	debug("PUT /engine/v1/success")
 	if s.result {
 		if !resolved && s.resultCallback != nil {
-			s.resultCallback(true)
+			go s.resultCallback(true)
 		}
 		reply(w, http.StatusOK, nil)
 	} else {
@@ -193,7 +193,7 @@ func (s *MetaService) handleFailed(w http.ResponseWriter, r *http.Request) {
 	debug("PUT /engine/v1/failed")
 	if !s.result {
 		if !resolved && s.resultCallback != nil {
-			s.resultCallback(false)
+			go s.resultCallback(false)
 		}
 		reply(w, http.StatusOK, nil)
 	} else {
@@ -293,6 +293,7 @@ func (s *MetaService) asyncRequest(action Action, cb asyncCallback) {
 	// Send action
 	select {
 	case <-time.After(30 * time.Second):
+		debug("asyncRequest(): sending action time-out (type: %s)", action.Type)
 		// If sending times out we delete the record
 		s.mPendingRecords.Lock()
 		delete(s.pendingRecords, action.ID)

@@ -14,6 +14,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellconsts"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 )
 
 func TestMetaService(t *testing.T) {
@@ -26,13 +27,13 @@ func TestMetaService(t *testing.T) {
 	// Setup a new MetaService
 	log := bytes.NewBuffer(nil)
 	result := false
-	resolved := false
+	resolved := atomics.Barrier{}
 	s := New([]string{"bash", "-c", "whoami"}, make(map[string]string), log, func(r bool) {
-		if resolved {
+		if resolved.IsFallen() {
 			panic("It shouldn't be possible to resolve twice")
 		}
-		resolved = true
 		result = r
+		resolved.Fall()
 	}, &runtime.Environment{
 		TemporaryStorage: storage,
 	})
@@ -57,7 +58,7 @@ func TestMetaService(t *testing.T) {
 	assert(t, w.Code == http.StatusOK)
 
 	// Check result
-	assert(t, resolved)
+	<-resolved.Barrier()
 	assert(t, result)
 
 	// Check idempotency
@@ -239,13 +240,7 @@ func TestMetaServiceShell(t *testing.T) {
 
 	// Setup a new MetaService
 	log := bytes.NewBuffer(nil)
-	resolved := false
-	meta := New([]string{"bash", "-c", "whoami"}, make(map[string]string), log, func(r bool) {
-		if resolved {
-			panic("It shouldn't be possible to resolve twice")
-		}
-		resolved = true
-	}, &runtime.Environment{
+	meta := New([]string{"bash", "-c", "whoami"}, make(map[string]string), log, func(bool) {}, &runtime.Environment{
 		TemporaryStorage: storage,
 	})
 	s := httptest.NewServer(meta)

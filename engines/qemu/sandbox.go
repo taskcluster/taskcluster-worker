@@ -106,6 +106,7 @@ func (s *sandbox) handleRequest(w http.ResponseWriter, r *http.Request) {
 
 func (s *sandbox) result(success bool) {
 	// Wait for all sessions to be finished and stop issuing new sessions
+	debug("ready to resolve success=%v - waiting for shells/displays to finish", success)
 	s.sessions.WaitAndTerminate()
 
 	s.resolve.Do(func() {

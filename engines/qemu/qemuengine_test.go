@@ -165,7 +165,7 @@ func TestShell(t *testing.T) {
 		SleepCommand:   "sleep 30;\n",
 		Payload: `{
       "image": "` + s.URL + `",
-      "command": ["sh", "-c", "true"]
+      "command": ["sh", "-c", "sleep 5 && true"]
 	  }`,
 	}
 

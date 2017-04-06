@@ -15,6 +15,7 @@ import (
 
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 )
 
@@ -32,18 +33,15 @@ func TestGuestToolsSuccess(t *testing.T) {
 	// Setup a new MetaService
 	logTask := bytes.NewBuffer(nil)
 	result := false
-	resolved := false
-	m := sync.Mutex{}
+	resolved := atomics.Barrier{}
 	s := metaservice.New([]string{"sh", "-c", "echo \"$TEST_TEXT\" && true"}, map[string]string{
 		"TEST_TEXT": "Hello world",
 	}, logTask, func(r bool) {
-		m.Lock()
-		defer m.Unlock()
-		if resolved {
+		if resolved.IsFallen() {
 			panic("It shouldn't be possible to resolve twice")
 		}
-		resolved = true
 		result = r
+		resolved.Fall()
 	}, environment)
 
 	// Create http server for testing
@@ -59,9 +57,7 @@ func TestGuestToolsSuccess(t *testing.T) {
 	g.Run()
 
 	// Check the state
-	if !resolved {
-		t.Error("Expected the metadata to have resolved the task")
-	}
+	<-resolved.Barrier()
 	if !result {
 		t.Error("Expected the metadata to get successful result")
 	}
@@ -84,18 +80,15 @@ func TestGuestToolsFailed(t *testing.T) {
 	// Setup a new MetaService
 	logTask := bytes.NewBuffer(nil)
 	result := false
-	resolved := false
-	m := sync.Mutex{}
+	resolved := atomics.Barrier{}
 	s := metaservice.New([]string{"sh", "-c", "echo \"$TEST_TEXT\" && false"}, map[string]string{
 		"TEST_TEXT": "Hello world",
 	}, logTask, func(r bool) {
-		m.Lock()
-		defer m.Unlock()
-		if resolved {
+		if resolved.IsFallen() {
 			panic("It shouldn't be possible to resolve twice")
 		}
-		resolved = true
 		result = r
+		resolved.Fall()
 	}, environment)
 
 	// Create http server for testing
@@ -111,9 +104,7 @@ func TestGuestToolsFailed(t *testing.T) {
 	g.Run()
 
 	// Check the state
-	if !resolved {
-		t.Error("Expected the metadata to have resolved the task")
-	}
+	<-resolved.Barrier()
 	if result {
 		t.Error("Expected the metadata to get failed result")
 	}
@@ -146,18 +137,15 @@ func TestGuestToolsLiveLog(t *testing.T) {
 	// Setup a new MetaService
 	reader, writer := io.Pipe()
 	result := false
-	resolved := false
-	m := sync.Mutex{}
+	resolved := atomics.Barrier{}
 	s := metaservice.New([]string{"sh", "-c", "echo \"$TEST_TEXT\" && curl -s " + ps.URL}, map[string]string{
 		"TEST_TEXT": "ready-now",
 	}, writer, func(r bool) {
-		m.Lock()
-		defer m.Unlock()
-		if resolved {
+		if resolved.IsFallen() {
 			panic("It shouldn't be possible to resolve twice")
 		}
-		resolved = true
 		result = r
+		resolved.Fall()
 	}, environment)
 
 	// Create http server for testing
@@ -193,9 +181,7 @@ func TestGuestToolsLiveLog(t *testing.T) {
 	logDone.Wait()
 
 	// Check the state
-	if !resolved {
-		t.Error("Expected the metadata to have resolved the task")
-	}
+	<-resolved.Barrier()
 	if !result {
 		t.Error("Expected the metadata to get successful result")
 	}
@@ -218,18 +204,15 @@ func TestGuestToolsKill(t *testing.T) {
 	// Setup a new MetaService
 	reader, writer := io.Pipe()
 	result := false
-	resolved := false
-	m := sync.Mutex{}
+	resolved := atomics.Barrier{}
 	s := metaservice.New([]string{"sh", "-c", "echo \"$TEST_TEXT\" && sleep 20 && true"}, map[string]string{
 		"TEST_TEXT": "kill-me-now",
 	}, writer, func(r bool) {
-		m.Lock()
-		defer m.Unlock()
-		if resolved {
+		if resolved.IsFallen() {
 			panic("It shouldn't be possible to resolve twice")
 		}
-		resolved = true
 		result = r
+		resolved.Fall()
 	}, environment)
 
 	// Create http server for testing
@@ -276,9 +259,7 @@ func TestGuestToolsKill(t *testing.T) {
 	logDone.Wait()
 
 	// Check the state
-	if !resolved {
-		t.Error("Expected the metadata to have resolved the task")
-	}
+	<-resolved.Barrier()
 	if result {
 		t.Error("Expected the metadata to get failed result")
 	}

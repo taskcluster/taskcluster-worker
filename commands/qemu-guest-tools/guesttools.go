@@ -3,18 +3,18 @@ package qemuguesttools
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	goruntime "runtime"
-	"syscall"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/go-got"
+	"github.com/taskcluster/taskcluster-worker/engines/native/system"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellconsts"
@@ -91,32 +91,34 @@ func (g *guestTools) Run() {
 	// Start sending task log
 	taskLog, logSent := g.CreateTaskLog()
 
-	// Construct environment variables in golang format
-	env := os.Environ()
-	for key, value := range task.Env {
-		env = append(env, fmt.Sprintf("%s=%s", key, value))
+	// Construct environment variables
+	env := make(map[string]string, len(os.Environ())+len(task.Env))
+	for _, e := range os.Environ() {
+		parts := strings.SplitN(e, "=", 2)
+		env[parts[0]] = parts[1]
+	}
+	for k, v := range task.Env {
+		env[k] = v
 	}
 
 	// Execute the task
-	cmd := exec.Command(task.Command[0], task.Command[1:]...)
-	cmd.Env = env
-	cmd.Stdout = taskLog
-	cmd.Stderr = taskLog
-	// Create new process group id
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	proc, err := system.StartProcess(system.ProcessOptions{
+		Arguments:   task.Command,
+		Environment: env,
+		TTY:         true,
+		Stdout:      taskLog,
+		Stderr:      nil, // implies use stdout
+	})
 
-	err := cmd.Start()
+	result := "failed"
 	if err == nil {
 		g.killed.Forward(func() {
-			// kill all in the child process group id
-			syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			system.KillProcessTree(proc)
 		})
-		err = cmd.Wait()
-	}
 
-	result := "success"
-	if err != nil {
-		result = "failed"
+		if proc.Wait() {
+			result = "success"
+		}
 	}
 
 	// Close/flush the task log
@@ -349,19 +351,34 @@ func (g *guestTools) doExecShell(ID string, command []string, tty bool) {
 		}
 	}
 
-	// Create a shell
-	shell := exec.Command(command[0], command[1:]...)
-
-	// Attempt to start with a pty, if asked to use TTY
-	if tty {
-		err = pipePty(shell, handler)
-	} else {
-		err = pipeCommand(shell, handler)
+	var stderr io.WriteCloser
+	if !tty {
+		stderr = handler.StderrPipe()
 	}
 
-	// If we didn't any error starting or waiting for the shell, then it was a
-	// success.
-	handler.Terminated(err == nil)
+	// Create a shell
+	proc, err := system.StartProcess(system.ProcessOptions{
+		Arguments:   command,
+		Environment: nil, // TODO: Use env vars from command
+		TTY:         tty,
+		Stdin:       handler.StdinPipe(),
+		Stdout:      handler.StdoutPipe(),
+		Stderr:      stderr,
+	})
+
+	handler.Communicate(func(cols, rows uint16) error {
+		proc.SetSize(cols, rows)
+		return nil
+	}, func() error {
+		return system.KillProcessTree(proc)
+	})
+
+	result := false
+	if err == nil {
+		result = proc.Wait()
+	}
+
+	handler.Terminated(result)
 }
 
 func pipeCommand(cmd *exec.Cmd, handler *interactive.ShellHandler) error {

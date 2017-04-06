@@ -18,7 +18,7 @@ import (
 )
 
 // Note: Constants testGroup, testCat, testTrue, testFalse, testPrintDir, and
-//       testSleep, testGroups should be defined per platform
+//       testSleep, testChildren, testGroups should be defined per platform
 
 func TestSystem(t *testing.T) {
 	var err error
@@ -230,13 +230,13 @@ func TestSystem(t *testing.T) {
 		require.NoError(t, err)
 		done := make(chan bool)
 		go func() {
-			p.Wait()
-			close(done)
+			done <- p.Wait()
 		}()
 		time.Sleep(100 * time.Millisecond)
 		require.NoError(t, KillProcessTree(p))
 		select {
-		case <-done:
+		case result := <-done:
+			require.False(t, result, "killed process should result in false")
 		case <-time.After(10 * time.Second):
 			t.Fatal("Processes weren't killed")
 		}

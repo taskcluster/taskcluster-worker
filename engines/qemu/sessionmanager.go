@@ -23,7 +23,7 @@ type sessionManager struct {
 	meta     *metaservice.MetaService
 	vm       *vm.VirtualMachine
 	m        sync.Mutex           // Must be held for newShellError, shells, displays
-	empty    sync.Cond            // Condition signaled when shells/displays are empty
+	c        sync.Cond            // Condition signaled when shells/displays  are changed
 	newError error                // Error, if we don't allow new shells/displays
 	shells   []engines.Shell      // Active shells
 	displays []io.ReadWriteCloser // Active displays
@@ -34,7 +34,7 @@ func newSessionManager(meta *metaservice.MetaService, vm *vm.VirtualMachine) *se
 		meta: meta,
 		vm:   vm,
 	}
-	s.empty.L = &s.m
+	s.c.L = &s.m
 	return s
 }
 
@@ -79,8 +79,8 @@ func (s *sessionManager) KillSessions() {
 func (s *sessionManager) WaitAndTerminate() {
 	// Wait for all shells to have finished
 	s.m.Lock()
-	for len(s.shells) > 0 && len(s.displays) > 0 {
-		s.empty.Wait()
+	for len(s.shells) > 0 || len(s.displays) > 0 {
+		s.c.Wait()
 	}
 	// Do now allow new shells
 	s.newError = engines.ErrSandboxTerminated
@@ -113,6 +113,9 @@ func (s *sessionManager) NewShell(command []string, tty bool) (engines.Shell, er
 	// Wait for shell to finish and remove it
 	go s.waitForShell(shell)
 
+	// Notify listeners that shells have changed
+	s.c.Broadcast()
+
 	return shell, nil
 }
 
@@ -133,10 +136,8 @@ func (s *sessionManager) waitForShell(shell engines.Shell) {
 	}
 	s.shells = shells
 
-	// Notify threads waiting if all shells are done
-	if len(s.shells) == 0 && len(s.displays) == 0 {
-		s.empty.Broadcast()
-	}
+	// Notify threads of changes to shells
+	s.c.Broadcast()
 }
 
 func (s *sessionManager) OpenDisplay() (io.ReadWriteCloser, error) {
@@ -183,12 +184,11 @@ func (s *sessionManager) OpenDisplay() (io.ReadWriteCloser, error) {
 		}
 		s.displays = displays
 
-		// Signal threads if displays is empty
-		if len(s.shells) == 0 && len(s.displays) == 0 {
-			s.empty.Broadcast()
-		}
+		// Signal threads that displays have changed
+		s.c.Broadcast()
 	})
 	s.displays = append(s.displays, display)
+	s.c.Broadcast() // signal that we've changed displays
 
 	return display, nil
 }
