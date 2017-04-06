@@ -120,7 +120,7 @@ var shellTestCase = enginetest.ShellTestCase{
 	BadCommand:     "exit-false",
 	SleepCommand:   "sleep",
 	Payload: `{
-		"delay": 0,
+		"delay": 300,
 		"function": "true",
 		"argument": ""
 	}`,
@@ -129,6 +129,7 @@ var shellTestCase = enginetest.ShellTestCase{
 func TestCommand(t *t.T)           { shellTestCase.TestCommand() }
 func TestBadCommand(t *t.T)        { shellTestCase.TestBadCommand() }
 func TestAbortSleepCommand(t *t.T) { shellTestCase.TestAbortSleepCommand() }
+func TestKillSleepCommand(t *t.T)  { shellTestCase.TestKillSleepCommand() }
 func Test(t *t.T)                  { shellTestCase.Test() }
 
 var displayTestCase = enginetest.DisplayTestCase{
