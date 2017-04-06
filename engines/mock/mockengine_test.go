@@ -143,7 +143,7 @@ var displayTestCase = enginetest.DisplayTestCase{
 	},
 	InvalidDisplayName: "no-such-display",
 	Payload: `{
-		"delay": 0,
+		"delay": 500,
 		"function": "true",
 		"argument": ""
 	}`,
