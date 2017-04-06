@@ -148,6 +148,19 @@ func TestShell(t *testing.T) {
 	c.TestCommand()
 	c.TestBadCommand()
 	c.TestAbortSleepCommand()
+	c.TestKillSleepCommand()
+	c.Test()
+}
+
+func TestKill(t *testing.T) {
+	c := enginetest.KillTestCase{
+		EngineProvider: provider,
+		Target:         `hello-world`,
+		Payload: `{
+			"command": ["sh", "-c", "echo 'hello-world' && sleep 30 && true"]
+		}`,
+	}
+
 	c.Test()
 }
 
