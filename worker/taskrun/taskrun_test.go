@@ -50,6 +50,9 @@ func TestTaskRun(t *testing.T) {
 		Queue:   &client.MockQueue{},
 	}
 
+	// To work around a stupidity in mock.Mock where it creates a string from
+	// the values which causes a race condition we have to use AnythingOfType
+	// See: https://github.com/stretchr/testify/issues/173
 	var taskPluginOptions = mock.AnythingOfType("plugins.TaskPluginOptions")
 	var mockSandbox = mock.AnythingOfType("*mockengine.sandbox")
 	var mockSandboxBuilder = mock.AnythingOfType("*mockengine.sandbox")
