@@ -6,21 +6,25 @@ import (
 	"github.com/taskcluster/taskcluster-worker/plugins/plugintest"
 )
 
-func TestMaxRunRimeSuccess(t *testing.T) {
+func TestMaxRunTimeSuccess(t *testing.T) {
 	plugintest.Case{
 		Payload: `{
 			"delay": 100,
 			"function": "true",
 			"argument": "whatever",
-			"maxRunTime": 1
+			"maxRunTime": "1 minute"
 		}`,
-		Plugin:        "maxruntime",
+		Plugin: "maxruntime",
+		PluginConfig: `{
+			"maxRunTime": "10 minute",
+			"perTaskLimit": "require"
+		}`,
 		PluginSuccess: true,
 		EngineSuccess: true,
 	}.Test()
 }
 
-func TestMaxRunRimeExpired(t *testing.T) {
+func TestMaxRunTimeExpired(t *testing.T) {
 	plugintest.Case{
 		Payload: `{
 			"delay": 10000,
@@ -28,9 +32,12 @@ func TestMaxRunRimeExpired(t *testing.T) {
 			"argument": "whatever",
 			"maxRunTime": 1
 		}`,
-		Plugin:        "maxruntime",
-		PluginSuccess: true,
+		Plugin: "maxruntime",
+		PluginConfig: `{
+			"maxRunTime": "1 minute",
+			"perTaskLimit": "allow"
+		}`,
+		PluginSuccess: false,
 		EngineSuccess: false,
-		SandboxAbort:  true,
 	}.Test()
 }
