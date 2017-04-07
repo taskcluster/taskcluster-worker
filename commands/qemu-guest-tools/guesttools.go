@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	goruntime "runtime"
 	"strings"
@@ -379,30 +378,4 @@ func (g *guestTools) doExecShell(ID string, command []string, tty bool) {
 	}
 
 	handler.Terminated(result)
-}
-
-func pipeCommand(cmd *exec.Cmd, handler *interactive.ShellHandler) error {
-	// Set pipes
-	cmd.Stdin = handler.StdinPipe()
-	cmd.Stdout = handler.StdoutPipe()
-	cmd.Stderr = handler.StderrPipe()
-
-	// Start the shell, this must finished before we can call Kill()
-	err := cmd.Start()
-
-	// Start communication
-	handler.Communicate(nil, func() error {
-		// If cmd.Start() failed, then we don't have a process, but we start
-		// the communication flow anyways.
-		if cmd.Process != nil {
-			return cmd.Process.Kill()
-		}
-		return nil
-	})
-
-	if err == nil {
-		err = cmd.Wait()
-	}
-
-	return err
 }
