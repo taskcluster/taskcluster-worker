@@ -104,7 +104,7 @@ func (pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, 
 		// After rebootAfter hours, call the reboot method. If the lock is held by one or more
 		// running tasks, the reboot will not occur until they finish (but no further tasks will
 		// be able to start)
-		time.AfterFunc(time.Duration(c.RebootAfter)*time.Second, func() {
+		time.AfterFunc(time.Duration(c.RebootAfter)*time.Hour, func() {
 			plugin.environment.Monitor.Warn("Host rebootAfter has expired; scheduling reboot")
 			plugin.reboot()
 		})
