@@ -53,7 +53,7 @@ func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
 	for _, artifact := range tp.artifacts {
 		// If expires is set to this time it's the default value
 		if artifact.Expires.IsZero() {
-			artifact.Expires = time.Time(tp.context.TaskInfo.Expires)
+			artifact.Expires = tp.context.TaskInfo.Expires
 		}
 		switch artifact.Type {
 		case "directory":

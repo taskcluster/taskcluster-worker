@@ -127,8 +127,8 @@ func (s *sandbox) uploadArtifacts() error {
 
 		// Ensure expiration is no later than task.expires
 		expires := time.Now().Add(time.Duration(s.engine.config.Expiration) * 24 * time.Hour)
-		if time.Time(s.context.Expires).Before(expires) {
-			expires = time.Time(s.context.Expires)
+		if s.context.Expires.Before(expires) {
+			expires = s.context.Expires
 		}
 
 		// Upload artifact
