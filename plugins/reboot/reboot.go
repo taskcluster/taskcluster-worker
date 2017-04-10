@@ -1,161 +1,174 @@
-// Package reboot is a plugin that supports rebooting the host running the worker.
+// Package reboot provides a taskcluster-worker plugin that stops the worker
+// after certain number of tasks or given amount of time. This is useful if the
+// start-up scripts that launches the worker reboots when it exits.
 //
 // In some cases, especially running without a very tight
 // sandbox, this is desirable after specific tests.
 //
 // In other cases, reboots are useful after a configured uptime, to
 // cycle the host's configuration.
-//
-// To reboot after tasks, users must add the boolean "reboot" payload
-// attribute.
 package reboot
 
 import (
+	"os/exec"
 	"sync"
 	"time"
 
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
+
+type provider struct {
+	plugins.PluginProviderBase
+}
 
 type plugin struct {
 	plugins.PluginBase
-	environment *runtime.Environment
-
-	// the command to reboot the host
-	rebootCommand []string
-
-	// while this is held for reading, there are tasks running
-	runningTasks sync.RWMutex
-}
-
-type payloadType struct {
-	RebootWhenDone bool `json:"reboot"`
-}
-
-type config struct {
-	RebootAfter   int      `json:"rebootAfter"`
-	RebootCommand []string `json:"rebootCommand"`
+	Worker     runtime.Stoppable
+	Monitor    runtime.Monitor
+	Config     config
+	mTaskCount sync.Mutex      // guards taskCount
+	taskCount  int             // track number of tasks
+	doReboot   atomics.Barrier // track if this plugin initiated shutdown
 }
 
 type taskPlugin struct {
 	plugins.TaskPluginBase
-	plugin         *plugin
-	rebootWhenDone bool
-}
-
-type pluginProvider struct {
-	plugins.PluginProviderBase
-}
-
-var payloadSchema = schematypes.Object{
-	Properties: schematypes.Properties{
-		"reboot": schematypes.Boolean{
-			MetaData: schematypes.MetaData{
-				Title:       "Reboot machine",
-				Description: "If true, reboot the machine after task is finished.",
-			},
-		},
-	},
-}
-
-var configSchema = schematypes.Object{
-	Properties: schematypes.Properties{
-		"rebootAfter": schematypes.Integer{
-			MetaData: schematypes.MetaData{
-				Title: "Reboot After",
-				Description: `When the worker is idle after this many hours, it will reboot.
-					If zero, no idle reboot will occur.`,
-			},
-			Minimum: 0,
-			Maximum: 10000,
-		},
-		"rebootCommand": schematypes.Array{
-			MetaData: schematypes.MetaData{
-				Title:       "Reboot Command",
-				Description: `The command to use to reboot the host, as a list of strings`,
-			},
-			Items: schematypes.String{},
-		},
-	},
+	Plugin       *plugin
+	Monitor      runtime.Monitor
+	RebootAction string
 }
 
 func init() {
-	plugins.Register("reboot", pluginProvider{})
+	plugins.Register("reboot", provider{})
 }
 
-func (pluginProvider) ConfigSchema() schematypes.Schema {
+func (provider) ConfigSchema() schematypes.Schema {
 	return configSchema
 }
 
-func (pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
-	var c config
-	schematypes.MustValidateAndMap(configSchema, options.Config, &c)
+func (provider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
+	var C config
+	schematypes.MustValidateAndMap(configSchema, options.Config, &C)
 
-	plugin := &plugin{
-		PluginBase:    plugins.PluginBase{},
-		environment:   options.Environment,
-		rebootCommand: c.RebootCommand,
-		runningTasks:  sync.RWMutex{},
+	p := &plugin{
+		Worker:  options.Environment.Worker,
+		Monitor: options.Monitor,
+		Config:  C,
 	}
 
-	if c.RebootAfter > 0 {
-		// After rebootAfter hours, call the reboot method. If the lock is held by one or more
-		// running tasks, the reboot will not occur until they finish (but no further tasks will
-		// be able to start)
-		time.AfterFunc(time.Duration(c.RebootAfter)*time.Hour, func() {
-			plugin.environment.Monitor.Warn("Host rebootAfter has expired; scheduling reboot")
-			plugin.reboot()
+	// Start timer to stop worker gracefully, if MaxLifeCycle is given
+	if p.Config.MaxLifeCycle != 0 {
+		time.AfterFunc(p.Config.MaxLifeCycle, func() {
+			// Avoid initiating reboot if we already have
+			if p.doReboot.Fall() {
+				p.Monitor.Infof("MaxLifeCycle: %s exceeded stopping worker gracefully", p.Config.MaxLifeCycle.String())
+				p.Worker.StopGracefully()
+			}
 		})
 	}
 
-	return plugin, nil
+	return p, nil
 }
 
-// Try to reboot the host, waiting until it is running no tasks.  The reboot entails
-// signalling the worker, which will begin an orderly shutdown, so no further tasks
-// will be started once this function returns.
-func (pl *plugin) reboot() {
-	// Try to get a write lock on the mutex; this will wait until all read locks
-	// (running tasks) are complete, and will preclude any later read locks.
-	pl.runningTasks.Lock()
+const (
+	rebootAlways      = "always"
+	rebootOnFailure   = "on-failure"
+	rebootOnException = "on-exception"
+)
 
-	// By this time, we should have stopped accepting new tasks, so it is safe
-	// to unlock and continue any task completion
-	defer pl.runningTasks.Unlock()
+func (p *plugin) PayloadSchema() schematypes.Object {
+	s := schematypes.Object{}
+	if p.Config.AllowTaskReboots {
+		s.Properties = schematypes.Properties{
+			"reboot": schematypes.StringEnum{
+				MetaData: schematypes.MetaData{
+					Title: "Reboot After Task",
+					Description: util.Markdown(`
+						Reboot the worker after this task is resolved.
 
-	// Reboot and/or die trying. The lock is still held, so no other tasks can
-	// start while this process plays out
-	pl.environment.Monitor.Warn("Initiating reboot")
-	initiateReboot(pl.rebootCommand)
+						This option is useful if the task is known to leave the worker in
+						a dirty state. To spare resources it is possible to condition the
+						reboot on the task resolution, allowed values are:
+
+							* 'always', reboots the worker after the task is resolved,
+							* 'on-failure', reboots the worker if the task is resolved
+							_failed_ or _exception_.
+							* 'on-exception', reboots the worker if the tsak is resolved
+							_exception_.
+
+						Regardless of which option is given the worker will always reboot
+						gracefully, reporting task resolution and uploading artifacts before
+						rebooting.
+					`),
+				},
+				Options: []string{rebootAlways, rebootOnFailure, rebootOnException},
+			},
+		}
+	}
+	return s
 }
 
-func (*plugin) PayloadSchema() schematypes.Object {
-	return payloadSchema
+func (p *plugin) Dispose() error {
+	if p.doReboot.IsFallen() && len(p.Config.RebootCommand) > 0 {
+		p.Monitor.Infof("worker shutdown initiated by 'reboot' plugin, running rebootCommand: %v", p.Config.RebootCommand)
+		// Run the reboot command
+		log, err := exec.Command(p.Config.RebootCommand[0], p.Config.RebootCommand[1:]...).CombinedOutput()
+		if err != nil {
+			p.Monitor.Error("rebootCommand failed, error: ", err, ", log: ", string(log))
+		} else {
+			p.Monitor.Info("rebootCommand executed, log: ", string(log))
+		}
+	}
+	return nil
 }
 
-func (pl *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
-	var p payloadType
-	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &p)
+func (p *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
+	var P struct {
+		Reboot string `json:"reboot"`
+	}
+	schematypes.MustValidateAndMap(p.PayloadSchema(), options.Payload, &P)
 
-	pl.runningTasks.RLock()
+	// Increase taskCount, and StopGracefully if we've exceeded TaskLimit
+	p.mTaskCount.Lock()
+	defer p.mTaskCount.Unlock()
+	p.taskCount++
+	if p.Config.TaskLimit != 0 && p.taskCount >= p.Config.TaskLimit {
+		// Avoid initiating reboot if we already have
+		if p.doReboot.Fall() {
+			p.Monitor.Infof("Stopping worker after %d tasks as configured", p.Config.TaskLimit)
+			p.Worker.StopGracefully()
+		}
+	}
+
 	return &taskPlugin{
-		TaskPluginBase: plugins.TaskPluginBase{},
-		plugin:         pl,
-		rebootWhenDone: p.RebootWhenDone,
+		Plugin:       p,
+		Monitor:      options.Monitor,
+		RebootAction: P.Reboot,
 	}, nil
 }
 
-func (tp *taskPlugin) Dispose() error {
-	tp.plugin.runningTasks.RUnlock()
-
-	// Note: in a multi-task environment, this will not reboot immediately, but
-	// will wait until all tasks are complete.
-	if tp.rebootWhenDone {
-		tp.plugin.environment.Monitor.Warn("Task specified reboot after completion; scheduling reboot")
-		tp.plugin.reboot()
+func (p *taskPlugin) Finished(success bool) error {
+	if p.RebootAction == rebootAlways || (!success && p.RebootAction == rebootOnFailure) {
+		// Avoid initiating reboot if we already have
+		if p.Plugin.doReboot.Fall() {
+			p.Monitor.Infof("Stopping worker after task as instructed by task.payload.reboot = '%s'", p.RebootAction)
+			p.Plugin.Worker.StopGracefully()
+		}
 	}
+	return nil
+}
 
+func (p *taskPlugin) Exception(runtime.ExceptionReason) error {
+	if p.RebootAction == rebootOnFailure || p.RebootAction == rebootOnException {
+		// Avoid initiating reboot if we already have
+		if p.Plugin.doReboot.Fall() {
+			p.Monitor.Infof("Stopping worker after task as instructed by task.payload.reboot = '%s'", p.RebootAction)
+			p.Plugin.Worker.StopGracefully()
+		}
+	}
 	return nil
 }

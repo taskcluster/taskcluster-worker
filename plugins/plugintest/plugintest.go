@@ -53,6 +53,9 @@ type Case struct {
 	PluginSuccess bool
 	// Whether or not engine.ResultSet.Success() should return true
 	EngineSuccess bool
+	// Whether or not this test-case should propagate success from engine to
+	// Finished. This equivalent to running in parallel with the "success" plugin.
+	PropagateSuccess bool
 	// If a regular expression is specified here, it must be in the task log
 	MatchLog string
 	// If a regular expression is specified here, it must _not_ be in the task log
@@ -67,6 +70,10 @@ type Case struct {
 	TestStruct *testing.T // TODO: Remove this and make it an argument for .Test(t)
 	// If true, the sandbox is expected to be aborted
 	SandboxAbort bool
+	// If true, requires that the plugin called StopNow
+	StoppedNow bool
+	// If true, requires that the plugin called StopGracefully
+	StoppedGracefully bool
 
 	// Each of these functions is called at the time specified in the name
 	BeforeBuildSandbox func(Options)
@@ -92,7 +99,7 @@ func (c Case) Test() {
 
 	engineProvider := engines.Engines()["mock"]
 	engine, err := engineProvider.NewEngine(engines.EngineOptions{
-		Environment: runtimeEnvironment,
+		Environment: &runtimeEnvironment,
 		Monitor:     runtimeEnvironment.Monitor.WithTag("engine", "mock"),
 		// TODO: Add engine config
 	})
@@ -122,8 +129,12 @@ func (c Case) Test() {
 
 	provider := plugins.Plugins()[c.Plugin]
 	assert(provider != nil, "Plugin does not exist! You tried to load: ", c.Plugin)
+	// Overwrite Environment.Worker so we can test the result
+	pluginEnv := runtimeEnvironment
+	lifeCycle := runtime.LifeCycleTracker{}
+	pluginEnv.Worker = &lifeCycle
 	p, err := provider.NewPlugin(plugins.PluginOptions{
-		Environment: runtimeEnvironment,
+		Environment: &pluginEnv,
 		Engine:      engine,
 		Monitor:     runtimeEnvironment.Monitor.WithTag("plugin", c.Plugin),
 		Config:      parsePluginConfig(provider, c.PluginConfig),
@@ -143,7 +154,7 @@ func (c Case) Test() {
 	}
 
 	options := Options{
-		Environment:    runtimeEnvironment,
+		Environment:    &runtimeEnvironment,
 		SandboxBuilder: sandboxBuilder,
 		Engine:         engine,
 		Plugin:         p,
@@ -179,11 +190,14 @@ func (c Case) Test() {
 		assert(err != nil)
 	} else {
 		nilOrPanic(err, "sandbox.WaitForResult failed")
-		assert(resultSet.Success() == c.EngineSuccess)
+		assert(resultSet.Success() == c.EngineSuccess, "expected resultSet.Success(): ", c.EngineSuccess)
 		success, err = tp.Stopped(resultSet)
 		nilOrPanic(err, "taskPlugin.Stopped failed")
 		assert(success == c.PluginSuccess)
 		c.maybeRun(c.AfterStopped, options)
+	}
+	if c.PropagateSuccess {
+		success = success && resultSet.Success()
 	}
 
 	c.maybeRun(c.BeforeFinished, options)
@@ -198,6 +212,11 @@ func (c Case) Test() {
 	err = tp.Dispose()
 	nilOrPanic(err, "taskPlugin.Dispose failed")
 	c.maybeRun(c.AfterDisposed, options)
+
+	assert(c.StoppedNow == lifeCycle.StoppingNow.IsFallen(),
+		"Expected StoppingNow: ", c.StoppedNow)
+	assert((c.StoppedGracefully || c.StoppedNow) == lifeCycle.StoppingGracefully.IsFallen(),
+		"Expected StoppedNow or StoppedGracefully: ", c.StoppedGracefully || c.StoppedNow)
 }
 
 func (c *Case) maybeRun(f func(Options), o Options) {
@@ -227,7 +246,7 @@ func (c *Case) grepLog(context *runtime.TaskContext) {
 // NewTestEnvironment creates a new Environment suitable for use in tests.
 //
 // This function should only be used in testing
-func newTestEnvironment() *runtime.Environment {
+func newTestEnvironment() runtime.Environment {
 	storage, err := runtime.NewTemporaryStorage(os.TempDir())
 	nilOrPanic(err, "Failed to create temporary storage at: ", os.TempDir())
 
@@ -241,10 +260,11 @@ func newTestEnvironment() *runtime.Environment {
 		f.Remove()
 	})
 
-	return &runtime.Environment{
+	return runtime.Environment{
 		GarbageCollector: &gc.GarbageCollector{},
 		TemporaryStorage: folder,
 		Monitor:          mocks.NewMockMonitor(true),
+		Worker:           &runtime.LifeCycleTracker{},
 	}
 }
 
