@@ -82,11 +82,13 @@ func PluginManagerConfigSchema() schematypes.Object {
 	s := schematypes.Object{
 		MetaData: schematypes.MetaData{
 			Title: "Plugin Configuration",
-			Description: `Mapping from plugin name to plugin configuration.
-										A plugin is enabled if it has an entry in this mapping, and
-										isn't explicitly listed as 'disabled'. Even plugins that
-										don't require configuration must have an entry, in these
-										cases, empty object will suffice.`,
+			Description: `
+				Mapping from plugin name to plugin configuration.
+				A plugin is enabled if it has an entry in this mapping, and
+				isn't explicitly listed as 'disabled'. Even plugins that
+				don't require configuration must have an entry, in these
+				cases, empty object will suffice.
+			`,
 		},
 		Properties: schematypes.Properties{
 			"disabled": schematypes.Array{

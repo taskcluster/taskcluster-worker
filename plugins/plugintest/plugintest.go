@@ -53,9 +53,9 @@ type Case struct {
 	PluginSuccess bool
 	// Whether or not engine.ResultSet.Success() should return true
 	EngineSuccess bool
-	// If a regular expression is specified here, it must be in the sandbox log
+	// If a regular expression is specified here, it must be in the task log
 	MatchLog string
-	// If a regular expression is specified here, it must _not_ be in the sandbox log
+	// If a regular expression is specified here, it must _not_ be in the task log
 	NotMatchLog string
 	// A mocked out queue client
 	QueueMock *client.MockQueue
@@ -64,7 +64,7 @@ type Case struct {
 	// Override the default generated TaskID
 	RunID int
 	// A testing struct can be useful inside for assertions
-	TestStruct *testing.T
+	TestStruct *testing.T // TODO: Remove this and make it an argument for .Test(t)
 	// If true, the sandbox is expected to be aborted
 	SandboxAbort bool
 
