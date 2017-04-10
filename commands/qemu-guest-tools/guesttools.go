@@ -106,7 +106,7 @@ func (g *guestTools) Run() {
 		Environment: env,
 		TTY:         true,
 		Stdout:      taskLog,
-		Stderr:      nil, // implies use stdout
+		Stderr:      nil, // implies use of stdout
 	})
 
 	result := "failed"
@@ -313,7 +313,7 @@ func (g *guestTools) doKillProcess(ID string) {
 	// kill child process (from Run method)
 	g.killed.Fall()
 
-	// Send confirmation... We use got here, this means that we get retries...
+	// Send confirmation... If we got here, this means that we get retries...
 	// There is no harm in retries, server will just ignore them.
 	res, err := g.got.Post(g.url("engine/v1/reply?id="+ID), nil).Send()
 	if err != nil {

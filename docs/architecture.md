@@ -12,7 +12,7 @@ environments and configurable feature-sets.
 This does not mean that all thinkable workers can be implemented with
 `taskcluster-worker`. The architecture of `taskcluster-worker` aims to abstract
 the execution environment and features for any worker where the task specifies
-some form of sub-process to be executed. For example the task could specify a
+some form of sub-process to be executed. For example, the task could specify a
 command to be executed in a virtual machine, docker container or
 just an unconfined sub-process. The architecture of `taskcluster-worker` does
 not aim to facilitate more declarative tasks, such as sign a binary, where the
@@ -24,8 +24,8 @@ have two important abstractions:
  * `engines.Engine`, an abstraction of a sand-boxed execution environment, and,
  * `plugins.Plugin`, an plugin which can implement a complex feature.
 
-This allows for features to be implemented independently of what execution
-environment is used. Additionally, it means that we can add additionally
+This allows for features to be implemented independently of the execution
+environment that is used. Additionally, it means that we can add additionally
 execution environments without rewriting the worker from scratch.
 
 In the simple terms the worker loads a config file, and sets up some abstracted

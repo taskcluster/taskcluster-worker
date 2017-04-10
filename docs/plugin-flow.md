@@ -6,7 +6,7 @@ it will be passed configuration options and various runtime environment
 resources such as log, garbage collector, and life-cycle tracker.
 
 A plugin is usually only instantiated once during a worker process. For testing
-purposes is is, however, encouraged for plugins to be reentrant, though this
+purposes it is, however, encouraged for plugins to be reentrant, though this
 requirement can be avoided when writing testings.
 
 The methods on a plugin are called as part of the task-processing loop, this
@@ -24,7 +24,7 @@ As outlined in the diagram above `Plugin.NewTaskPlugin()` is called, whenever
 processing on a new tasks begins. This allows plugins to easily track context
 related to a specific tasks and hook into all the events related to that task.
 
-When `TaskPlugin.BuildSanbox(SandboxBuilder)` is called the plugin may operate
+When `TaskPlugin.BuildSandbox(SandboxBuilder)` is called the plugin may operate
 on the given `SandboxBuilder` this includes setting environment variables,
 attaching proxies, caches etc. Obviously, the plugin has no business calling
 `SandboxBuilder.Discard()` or `SandboxBuilder.StartSandbox()`.
@@ -44,7 +44,7 @@ immediately or gracefully. Hence, plugins can limit the worker life-cycle.
 
 To facilitate useful life-cycle logic in plugins each plugin is called when the
 worker is idle. The `Plugin.ReportIdle(duration)` method is given the `duration`
-of time that the worker have been idle. A plugin can use this initiate a
+of time that the worker has been idle. A plugin can use this initiate a
 graceful shutdown only if the machine is idle near the end of a billing cycle.
 
 Additionally, each plugin is also called when a non-fatal internal error occurs.

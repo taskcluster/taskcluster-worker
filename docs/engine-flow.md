@@ -6,7 +6,7 @@ it will be passed configuration options and various runtime environment
 resources such as log and garbage collector.
 
 An engine is usually only instantiated once during the startup process.
-For testing purposes it is encouraged that engines are be reentrant, through
+For testing purposes it is encouraged that engines be reentrant, through
 this requirement can be avoided when tests are written.
 
 When an `Engine` isn't needed anymore and all of sandbox builders, sandboxes and
@@ -25,7 +25,7 @@ Building a Sandbox
 Once an `Engine` has been instantiated the worker will claim tasks. Depending on
 configuration and capabilities of the engine, the worker may try to run multiple
 tasks at once. Engines can specify concurrency limitations as necessary, if
-concurrent sandboxes isn't supported.
+concurrent sandboxes aren't supported.
 
 To build a sandbox the worker will call `Engine.NewSandboxBuilder` passing in
 payload matching the JSON schema specified by the engine, and a `TaskContext`
@@ -46,7 +46,7 @@ Both starting the sandbox and discarding the sandbox builder invalidates the
 on to the `Sandbox` object. Notice that if `TaskContext` is canceled during the
 `SandboxBuilder.StartSandbox()` then the sandbox builder may choose to either
 return a `Sandbox` object, or return the `context.Canceled` error. As a race is
-unavoidable either behavior is permitted, so long as resources are either
+unavoidable either behavior is permitted, as long as resources are either
 released or transferred to the `Sandbox` object.
 
 
@@ -59,7 +59,7 @@ may be used by multiple plugins interacting with the task.
 The `Sandbox` object offers methods for creating interactive shells
 and displays through VNC connections, these methods may return
 `engines.ErrFeatureNotSupported` if not implemented. If implementation of these
-features are fragile implementors should strive to return
+features are fragile, implementors should strive to return
 `runtime.ErrNonFatalInternalError`, if the error isn't an indicator of an
 unhealthy system.
 
@@ -70,7 +70,7 @@ implement `Sandbox.Abort()` as a call to `Sandbox.Kill()` which causes
 
 When using a `Sandbox` consumers should be aware that there is an inherent race
 between `Sandbox.WaitForResult()` and `Sandbox.Abort()`, if task execution
-terminates before `Sandbox.Abort`() is called the `Sandbox` may refuse to abort
+terminates before `Sandbox.Abort`() is called, the `Sandbox` may refuse to abort
 and instead require the consumer calls `Sandbox.WaitForResult()` to obtain the
 result-set.
 
@@ -87,7 +87,7 @@ When task execution is finished the sandbox returns a `ResultSet` from
 `Sandbox.WaitForResult()`, this invalidates the `Sandbox` object and frees all
 resources held by the sandbox or transfers these resources to the `ResultSet`.
 
-The `ResultSet` object offers method for extracting results from the task
+The `ResultSet` object offers methods for extracting results from the task
 execution. Notably `ResultSet.Success()` which returns if the execution was
 successful, typically, equivalent to exit-code zero. As with the sandbox all
 methods must be thread-safe, as they may be called by multiple plugins

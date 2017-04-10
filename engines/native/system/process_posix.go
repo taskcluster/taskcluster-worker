@@ -79,7 +79,7 @@ func killProcesses(root *process.Process) error {
 
 	children, _ := root.Children()
 
-	// For reach child, we recursively kill all their children too.
+	// For each child, we recursively kill all their children too.
 	var err2 error
 	for _, child := range children {
 		err = killProcesses(child)
