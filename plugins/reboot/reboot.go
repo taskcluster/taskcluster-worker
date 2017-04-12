@@ -30,9 +30,9 @@ type plugin struct {
 	Worker     runtime.Stoppable
 	Monitor    runtime.Monitor
 	Config     config
-	mTaskCount sync.Mutex      // guards taskCount
-	taskCount  int             // track number of tasks
-	doReboot   atomics.Barrier // track if this plugin initiated shutdown
+	mTaskCount sync.Mutex   // guards taskCount
+	taskCount  int          // track number of tasks
+	rebooted   atomics.Once // track if this plugin initiated shutdown
 }
 
 type taskPlugin struct {
@@ -64,10 +64,10 @@ func (provider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error)
 	if p.Config.MaxLifeCycle != 0 {
 		time.AfterFunc(p.Config.MaxLifeCycle, func() {
 			// Avoid initiating reboot if we already have
-			if p.doReboot.Fall() {
+			p.rebooted.Do(func() {
 				p.Monitor.Infof("MaxLifeCycle: %s exceeded stopping worker gracefully", p.Config.MaxLifeCycle.String())
 				p.Worker.StopGracefully()
-			}
+			})
 		})
 	}
 
@@ -113,7 +113,7 @@ func (p *plugin) PayloadSchema() schematypes.Object {
 }
 
 func (p *plugin) Dispose() error {
-	if p.doReboot.IsFallen() && len(p.Config.RebootCommand) > 0 {
+	if p.rebooted.IsDone() && len(p.Config.RebootCommand) > 0 {
 		p.Monitor.Infof("worker shutdown initiated by 'reboot' plugin, running rebootCommand: %v", p.Config.RebootCommand)
 		// Run the reboot command
 		log, err := exec.Command(p.Config.RebootCommand[0], p.Config.RebootCommand[1:]...).CombinedOutput()
@@ -138,10 +138,10 @@ func (p *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskP
 	p.taskCount++
 	if p.Config.TaskLimit != 0 && p.taskCount >= p.Config.TaskLimit {
 		// Avoid initiating reboot if we already have
-		if p.doReboot.Fall() {
+		p.rebooted.Do(func() {
 			p.Monitor.Infof("Stopping worker after %d tasks as configured", p.Config.TaskLimit)
 			p.Worker.StopGracefully()
-		}
+		})
 	}
 
 	return &taskPlugin{
@@ -154,10 +154,10 @@ func (p *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskP
 func (p *taskPlugin) Finished(success bool) error {
 	if p.RebootAction == rebootAlways || (!success && p.RebootAction == rebootOnFailure) {
 		// Avoid initiating reboot if we already have
-		if p.Plugin.doReboot.Fall() {
+		p.Plugin.rebooted.Do(func() {
 			p.Monitor.Infof("Stopping worker after task as instructed by task.payload.reboot = '%s'", p.RebootAction)
 			p.Plugin.Worker.StopGracefully()
-		}
+		})
 	}
 	return nil
 }
@@ -165,10 +165,10 @@ func (p *taskPlugin) Finished(success bool) error {
 func (p *taskPlugin) Exception(runtime.ExceptionReason) error {
 	if p.RebootAction == rebootOnFailure || p.RebootAction == rebootOnException {
 		// Avoid initiating reboot if we already have
-		if p.Plugin.doReboot.Fall() {
+		p.Plugin.rebooted.Do(func() {
 			p.Monitor.Infof("Stopping worker after task as instructed by task.payload.reboot = '%s'", p.RebootAction)
 			p.Plugin.Worker.StopGracefully()
-		}
+		})
 	}
 	return nil
 }

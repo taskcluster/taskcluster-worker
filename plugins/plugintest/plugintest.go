@@ -213,9 +213,9 @@ func (c Case) Test() {
 	nilOrPanic(err, "taskPlugin.Dispose failed")
 	c.maybeRun(c.AfterDisposed, options)
 
-	assert(c.StoppedNow == lifeCycle.StoppingNow.IsFallen(),
+	assert(c.StoppedNow == lifeCycle.StoppingNow.IsDone(),
 		"Expected StoppingNow: ", c.StoppedNow)
-	assert((c.StoppedGracefully || c.StoppedNow) == lifeCycle.StoppingGracefully.IsFallen(),
+	assert((c.StoppedGracefully || c.StoppedNow) == lifeCycle.StoppingGracefully.IsDone(),
 		"Expected StoppedNow or StoppedGracefully: ", c.StoppedGracefully || c.StoppedNow)
 }
 
