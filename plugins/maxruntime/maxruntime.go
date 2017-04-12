@@ -24,7 +24,7 @@ type taskPlugin struct {
 	maxRunTime time.Duration
 	monitor    runtime.Monitor
 	context    *runtime.TaskContext
-	stopped    atomics.Barrier
+	stopped    atomics.Once
 	killed     atomics.Bool
 }
 
@@ -115,7 +115,7 @@ func (p *taskPlugin) Started(sandbox engines.Sandbox) error {
 			sandbox.Kill()
 		case <-p.context.Done():
 			// when task context is canceled, then we need not kill anything
-		case <-p.stopped.Barrier():
+		case <-p.stopped.Done():
 			// when task has stopped, we need not kill anything
 		}
 	}()
@@ -123,17 +123,17 @@ func (p *taskPlugin) Started(sandbox engines.Sandbox) error {
 }
 
 func (p *taskPlugin) Stopped(engines.ResultSet) (bool, error) {
-	p.stopped.Fall()
+	p.stopped.Do(nil)
 	// If we've killed the task, then we want to force a negative resolution
 	return !p.killed.Get(), nil
 }
 
 func (p *taskPlugin) Exception(runtime.ExceptionReason) error {
-	p.stopped.Fall() // shouldn't be necessary, but it's good for robustness
+	p.stopped.Do(nil) // shouldn't be necessary, but it's good for robustness
 	return nil
 }
 
 func (p *taskPlugin) Dispose() error {
-	p.stopped.Fall() // shouldn't be necessary, but just for good measure
+	p.stopped.Do(nil) // shouldn't be necessary, but just for good measure
 	return nil
 }

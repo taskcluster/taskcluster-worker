@@ -20,9 +20,9 @@ func TestStopOnError(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.False(t, s.StoppingGracefully.IsFallen())
-	assert.False(t, s.StoppingNow.IsFallen())
+	assert.False(t, s.StoppingGracefully.IsDone())
+	assert.False(t, s.StoppingNow.IsDone())
 	p.ReportNonFatalError()
-	assert.True(t, s.StoppingGracefully.IsFallen())
-	assert.False(t, s.StoppingNow.IsFallen())
+	assert.True(t, s.StoppingGracefully.IsDone())
+	assert.False(t, s.StoppingNow.IsDone())
 }

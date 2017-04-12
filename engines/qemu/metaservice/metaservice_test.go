@@ -27,13 +27,11 @@ func TestMetaService(t *testing.T) {
 	// Setup a new MetaService
 	log := bytes.NewBuffer(nil)
 	result := false
-	resolved := atomics.Barrier{}
+	var resolved atomics.Once
 	s := New([]string{"bash", "-c", "whoami"}, make(map[string]string), log, func(r bool) {
-		if resolved.IsFallen() {
+		if !resolved.Do(func() { result = r }) {
 			panic("It shouldn't be possible to resolve twice")
 		}
-		result = r
-		resolved.Fall()
 	}, &runtime.Environment{
 		TemporaryStorage: storage,
 	})
@@ -58,7 +56,7 @@ func TestMetaService(t *testing.T) {
 	assert(t, w.Code == http.StatusOK)
 
 	// Check result
-	<-resolved.Barrier()
+	resolved.Wait()
 	assert(t, result)
 
 	// Check idempotency

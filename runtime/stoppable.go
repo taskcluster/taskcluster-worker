@@ -16,21 +16,22 @@ type Stoppable interface {
 	StopGracefully()
 }
 
-// LifeCycleTracker implements Stoppable as two atomic.Barriers
+// LifeCycleTracker implements Stoppable as two atomics.Once that you can wait
+// for, or get a blocking channel from.
 type LifeCycleTracker struct {
-	StoppingNow        atomics.Barrier
-	StoppingGracefully atomics.Barrier
+	StoppingNow        atomics.Once
+	StoppingGracefully atomics.Once
 }
 
-// StopNow lowers StoppingNow and StoppingGracefully barrier
+// StopNow does StoppingNow and StoppingGracefully
 func (s *LifeCycleTracker) StopNow() {
-	s.StoppingGracefully.Fall()
-	s.StoppingNow.Fall()
+	s.StoppingGracefully.Do(nil)
+	s.StoppingNow.Do(nil)
 }
 
-// StopGracefully lowers the StoppingGracefully barrier
+// StopGracefully does StoppingGracefully
 func (s *LifeCycleTracker) StopGracefully() {
-	s.StoppingGracefully.Fall()
+	s.StoppingGracefully.Do(nil)
 }
 
 // StoppableOnce is a wrapper that ensures we only call StopGracefully and

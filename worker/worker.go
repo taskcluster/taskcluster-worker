@@ -39,7 +39,7 @@ type Worker struct {
 	options          options
 	monitor          runtime.Monitor
 	// State
-	started     atomics.Barrier
+	started     atomics.Once
 	activeTasks taskCounter
 }
 
@@ -156,7 +156,7 @@ var ErrWorkerStoppedNow = errors.New("worker was interrupted by StopNow")
 // Start process tasks, returns ErrWorkerStoppedNow if not stopped gracefully.
 func (w *Worker) Start() error {
 	// Ensure that we don't start running twice
-	if !w.started.Fall() {
+	if !w.started.Do(nil) {
 		panic("Worker.Start() cannot be called twice, worker cannot restart")
 	}
 
@@ -165,21 +165,21 @@ func (w *Worker) Start() error {
 	// that this internal error caused a livelock by failing to release a lock, etc.
 	done := make(chan struct{})
 	defer close(done)
-	w.lifeCycleTracker.StoppingNow.Forward(func() {
-		go func() {
-			select {
-			case <-time.After(5 * time.Minute):
-				go w.monitor.ReportError(errors.New(
-					"Worker.Start(): livelock detected - didn't stop 5 min after StopNow()",
-				))
-				time.Sleep(30 * time.Second)
-				os.Exit(1)
-			case <-done:
-			}
-		}()
-	})
+	go func() {
+		w.lifeCycleTracker.StoppingNow.Wait()
 
-	for !w.lifeCycleTracker.StoppingGracefully.IsFallen() {
+		select {
+		case <-done:
+		case <-time.After(5 * time.Minute):
+			go w.monitor.ReportError(errors.New(
+				"Worker.Start(): livelock detected - didn't stop 5 min after StopNow()",
+			))
+			time.Sleep(30 * time.Second)
+			os.Exit(1)
+		}
+	}()
+
+	for !w.lifeCycleTracker.StoppingGracefully.IsDone() {
 		// Claim tasks
 		N := w.options.Concurrency - w.activeTasks.Value()
 		debug("queue.claimWork(%s, %s) with capacity: %d", w.options.ProvisionerID, w.options.WorkerType, N)
@@ -224,7 +224,7 @@ func (w *Worker) Start() error {
 		debug("sleep before reclaiming, unless stopping gracefully")
 		select {
 		case <-delay:
-		case <-w.lifeCycleTracker.StoppingGracefully.Barrier():
+		case <-w.lifeCycleTracker.StoppingGracefully.Done():
 		}
 
 		// Report idle time to plugins (so they can manage life-cycle)
@@ -242,7 +242,7 @@ func (w *Worker) Start() error {
 	w.dispose()
 
 	// Return ErrWorkerStoppedNow if the worker was forcefully stopped
-	if w.lifeCycleTracker.StoppingNow.IsFallen() {
+	if w.lifeCycleTracker.StoppingNow.IsDone() {
 		return ErrWorkerStoppedNow
 	}
 	return nil
@@ -329,17 +329,17 @@ func (w *Worker) processClaim(claim taskClaim) {
 	runID := strconv.Itoa(claim.RunID)
 
 	// Start reclaiming
-	stopReclaiming := atomics.Barrier{}
-	reclaimingDone := atomics.Barrier{}
+	stopReclaiming := make(chan struct{})
+	reclaimingDone := make(chan struct{})
 	go func() {
-		defer reclaimingDone.Fall()
+		defer close(reclaimingDone)
 		takenUntil := time.Time(claim.TakenUntil)
 		for {
 			// Wait for reclaim delay, stop of reclaiming, or stopNow called
 			select {
-			case <-stopReclaiming.Barrier():
+			case <-stopReclaiming:
 				return
-			case <-w.lifeCycleTracker.StoppingNow.Barrier():
+			case <-w.lifeCycleTracker.StoppingNow.Done():
 				run.Abort(taskrun.WorkerShutdown)
 				return
 			case <-time.After(w.reclaimDelay(takenUntil)):
@@ -372,10 +372,10 @@ func (w *Worker) processClaim(claim taskClaim) {
 	success, exception, reason := run.WaitForResult()
 
 	// Stop reclaiming
-	stopReclaiming.Fall()
+	close(stopReclaiming)
 
 	// Wait for reclaiming to end (we can't use q while it may be updated)
-	<-reclaimingDone.Barrier()
+	<-reclaimingDone
 
 	// Report task resolution
 	debug("reporting task %s/%d resolved", claim.Status.TaskID, claim.RunID)
@@ -473,6 +473,6 @@ func (w *Worker) dispose() {
 	}
 
 	if hasErr {
-		w.lifeCycleTracker.StoppingNow.Fall()
+		w.lifeCycleTracker.StoppingNow.Do(nil)
 	}
 }

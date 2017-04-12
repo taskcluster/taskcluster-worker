@@ -33,7 +33,7 @@ type guestTools struct {
 	taskLog       io.Writer
 	pollingCtx    context.Context
 	cancelPolling func()
-	killed        atomics.Barrier
+	killed        atomics.Once
 }
 
 var backOff = &got.BackOff{
@@ -111,13 +111,20 @@ func (g *guestTools) Run() {
 
 	result := "failed"
 	if err == nil {
-		g.killed.Forward(func() {
-			system.KillProcessTree(proc)
-		})
+		// kill if 'killed' is done
+		done := make(chan struct{})
+		go func() {
+			select {
+			case <-g.killed.Done():
+				system.KillProcessTree(proc)
+			case <-done:
+			}
+		}()
 
 		if proc.Wait() {
 			result = "success"
 		}
+		close(done)
 	}
 
 	// Close/flush the task log
@@ -311,7 +318,7 @@ func (g *guestTools) doKillProcess(ID string) {
 	g.monitor.Info("Sending kill-process confirmation")
 
 	// kill child process (from Run method)
-	g.killed.Fall()
+	g.killed.Do(nil)
 
 	// Send confirmation... If we got here, this means that we get retries...
 	// There is no harm in retries, server will just ignore them.

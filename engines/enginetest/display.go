@@ -136,22 +136,21 @@ func (c *DisplayTestCase) TestKillDisplay() {
 	nilOrPanic(err, "Failed to OpenDisplay for: ", display.Name)
 
 	// get signal when conn is closed
-	closed := atomics.Barrier{}
-	go func() {
-		defer closed.Fall()
+	var closed atomics.Once
+	go closed.Do(func() {
 		io.Copy(ioutil.Discard, conn)
-	}()
+	})
 
 	// Sleep 100ms
 	time.Sleep(100 * time.Millisecond)
-	assert(!closed.IsFallen(), "display connection closed too soon")
+	assert(!closed.IsDone(), "display connection closed too soon")
 
 	// kill sandbox
 	err = r.sandbox.Kill()
 	nilOrPanic(err, "failed to kill sandbox")
 	// hoping 100ms is enough to read out the end-of-stream
 	time.Sleep(100 * time.Millisecond)
-	assert(closed.IsFallen(), "expected display connection to be closed")
+	assert(closed.IsDone(), "expected display connection to be closed")
 }
 
 // TestInvalidDisplayName test that IpenDisplay on InvalidDisplayName is

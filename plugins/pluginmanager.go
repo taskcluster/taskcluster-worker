@@ -54,14 +54,14 @@ func spawn(n int, fn func(int)) {
 // panic, or incidentID if it doesn't return within pluginHookTimeout
 func capturePanicOrTimeout(monitor runtime.Monitor, fn func()) string {
 	var incidentID string
-	var done atomics.Barrier
+	done := make(chan struct{})
 	go func() {
 		incidentID = monitor.CapturePanic(fn)
-		done.Fall()
+		close(done)
 	}()
 
 	select {
-	case <-done.Barrier():
+	case <-done:
 		return incidentID
 	case <-time.After(pluginHookTimeout):
 		// monitor has already been tagged with "hook" tag
