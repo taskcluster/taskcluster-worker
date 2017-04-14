@@ -77,15 +77,14 @@ func killProcesses(root *process.Process) error {
 		return err
 	}
 
-	children, err := root.Children()
+	children, _ := root.Children()
 
-	if err == nil {
-		// For reach child, we recursively kill all their children too.
-		for _, child := range children {
-			err = killProcesses(child)
-			if err != nil {
-				return err
-			}
+	// For each child, we recursively kill all their children too.
+	var err2 error
+	for _, child := range children {
+		err = killProcesses(child)
+		if err2 == nil {
+			err2 = err
 		}
 	}
 
@@ -107,7 +106,11 @@ func killProcesses(root *process.Process) error {
 		}()
 	}
 
-	return nil
+	// if there was an error somewhere we return it
+	if err != nil {
+		return err
+	}
+	return err2
 }
 
 // StartProcess starts a new process with given arguments, environment variables,

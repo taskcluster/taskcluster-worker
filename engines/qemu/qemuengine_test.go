@@ -165,13 +165,14 @@ func TestShell(t *testing.T) {
 		SleepCommand:   "sleep 30;\n",
 		Payload: `{
       "image": "` + s.URL + `",
-      "command": ["sh", "-c", "true"]
+      "command": ["sh", "-c", "sleep 5 && true"]
 	  }`,
 	}
 
 	c.TestCommand()
 	c.TestBadCommand()
 	c.TestAbortSleepCommand()
+	c.TestKillSleepCommand()
 	c.Test()
 }
 
@@ -196,5 +197,19 @@ func TestDisplay(t *testing.T) {
 	c.TestListDisplays()
 	c.TestDisplays()
 	c.TestInvalidDisplayName()
+	c.TestKillDisplay()
+	c.Test()
+}
+
+func TestKill(t *testing.T) {
+	c := enginetest.KillTestCase{
+		EngineProvider: provider,
+		Target:         "hello-world",
+		Payload: `{
+      "image": "` + s.URL + `",
+      "command": ["sh", "-c", "echo 'hello-world' && sleep 30 && true"]
+    }`,
+	}
+
 	c.Test()
 }

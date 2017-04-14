@@ -123,7 +123,7 @@ func (m *MockMonitor) ReportWarning(err error, message ...interface{}) string {
 }
 
 func (m *MockMonitor) output(kind string, a ...interface{}) {
-	mockMonitorLog("%s -- %s: %s", kind, m.metadata, fmt.Sprint(a...))
+	mockMonitorLog("%s: %s (%s)", kind, fmt.Sprint(a...), m.metadata)
 }
 
 // Debug writes a debug message

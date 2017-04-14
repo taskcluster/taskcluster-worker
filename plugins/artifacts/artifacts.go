@@ -8,7 +8,6 @@ import (
 	"time"
 
 	schematypes "github.com/taskcluster/go-schematypes"
-	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -54,7 +53,7 @@ func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
 	for _, artifact := range tp.artifacts {
 		// If expires is set to this time it's the default value
 		if artifact.Expires.IsZero() {
-			artifact.Expires = time.Time(tp.context.TaskInfo.Expires)
+			artifact.Expires = tp.context.TaskInfo.Expires
 		}
 		switch artifact.Type {
 		case "directory":
@@ -112,7 +111,7 @@ func (tp taskPlugin) errorHandled(name string, expires time.Time, err error) boo
 			Name:    name,
 			Message: err.Error(),
 			Reason:  reason,
-			Expires: tcclient.Time(expires),
+			Expires: expires,
 		})
 		return true
 	}
@@ -135,7 +134,7 @@ func (tp taskPlugin) attemptUpload(fileReader ioext.ReadSeekCloser, path string,
 		Name:     name,
 		Mimetype: mimeType,
 		Stream:   fileReader,
-		Expires:  tcclient.Time(expires),
+		Expires:  expires,
 	})
 }
 

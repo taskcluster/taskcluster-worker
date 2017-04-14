@@ -34,7 +34,7 @@ func (cmd) Execute(args map[string]interface{}) bool {
 		return false
 	}
 
-	w, err := worker.New(config, nil)
+	w, err := worker.New(config)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return false
@@ -50,7 +50,7 @@ func (cmd) Execute(args map[string]interface{}) bool {
 	select {
 	case <-c:
 		signal.Stop(c)
-		w.ImmediateStop()
+		w.StopNow()
 		<-done
 	case <-done:
 	}

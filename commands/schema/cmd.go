@@ -50,7 +50,7 @@ func (cmd) Execute(args map[string]interface{}) bool {
 			return false
 		}
 		// Create worker instance
-		w, err := worker.New(config, nil)
+		w, err := worker.New(config)
 		if err != nil {
 			fmt.Printf("Failed to initialize worker, error: %s\n", err)
 			return false

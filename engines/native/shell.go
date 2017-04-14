@@ -67,6 +67,7 @@ func newShell(s *sandbox, command []string, tty bool) (*shell, error) {
 func (s *shell) waitForResult() {
 	// wait for process to terminate
 	success := s.process.Wait()
+	debug("shell done")
 
 	s.resolve.Do(func() {
 		s.terminated.Set(true)
@@ -97,6 +98,8 @@ func (s *shell) SetSize(columns, rows uint16) error {
 	}
 	// Feature not supported if not tty
 	if s.isTTY {
+		//TODO: Write a test case in system/ package to check that SetSize()
+		//      doesn't cause issues if called after Kill()
 		s.process.SetSize(columns, rows)
 		return nil
 	}
@@ -105,8 +108,8 @@ func (s *shell) SetSize(columns, rows uint16) error {
 
 func (s *shell) Abort() error {
 	s.resolve.Do(func() {
-		s.aborted.Set(true)
-		s.process.Kill()
+		s.terminated.Set(true)
+		system.KillProcessTree(s.process)
 		s.resultErr = engines.ErrShellAborted
 	})
 	s.resolve.Wait()

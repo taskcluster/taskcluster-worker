@@ -120,7 +120,7 @@ var shellTestCase = enginetest.ShellTestCase{
 	BadCommand:     "exit-false",
 	SleepCommand:   "sleep",
 	Payload: `{
-		"delay": 0,
+		"delay": 300,
 		"function": "true",
 		"argument": ""
 	}`,
@@ -129,6 +129,7 @@ var shellTestCase = enginetest.ShellTestCase{
 func TestCommand(t *t.T)           { shellTestCase.TestCommand() }
 func TestBadCommand(t *t.T)        { shellTestCase.TestBadCommand() }
 func TestAbortSleepCommand(t *t.T) { shellTestCase.TestAbortSleepCommand() }
+func TestKillSleepCommand(t *t.T)  { shellTestCase.TestKillSleepCommand() }
 func Test(t *t.T)                  { shellTestCase.Test() }
 
 var displayTestCase = enginetest.DisplayTestCase{
@@ -143,7 +144,7 @@ var displayTestCase = enginetest.DisplayTestCase{
 	},
 	InvalidDisplayName: "no-such-display",
 	Payload: `{
-		"delay": 0,
+		"delay": 500,
 		"function": "true",
 		"argument": ""
 	}`,
@@ -153,3 +154,15 @@ func TestListDisplays(t *t.T)       { displayTestCase.TestListDisplays() }
 func TestDisplays(t *t.T)           { displayTestCase.TestDisplays() }
 func TestInvalidDisplayName(t *t.T) { displayTestCase.TestInvalidDisplayName() }
 func TestDisplayTestCase(t *t.T)    { displayTestCase.Test() }
+
+var killTestCase = enginetest.KillTestCase{
+	EngineProvider: provider,
+	Target:         "kill-now",
+	Payload: `{
+    "delay": 100,
+    "function": "write-log-sleep",
+    "argument": "kill-now"
+  }`,
+}
+
+func TestKill(t *t.T) { killTestCase.Test() }

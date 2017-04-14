@@ -23,7 +23,7 @@ type sessionManager struct {
 	meta     *metaservice.MetaService
 	vm       *vm.VirtualMachine
 	m        sync.Mutex           // Must be held for newShellError, shells, displays
-	empty    sync.Cond            // Condition signaled when shells/displays are empty
+	c        sync.Cond            // Condition signaled when shells/displays  are changed
 	newError error                // Error, if we don't allow new shells/displays
 	shells   []engines.Shell      // Active shells
 	displays []io.ReadWriteCloser // Active displays
@@ -34,7 +34,7 @@ func newSessionManager(meta *metaservice.MetaService, vm *vm.VirtualMachine) *se
 		meta: meta,
 		vm:   vm,
 	}
-	s.empty.L = &s.m
+	s.c.L = &s.m
 	return s
 }
 
@@ -57,11 +57,30 @@ func (s *sessionManager) AbortSessions() {
 	}
 }
 
+func (s *sessionManager) KillSessions() {
+	// Lock mShell
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	// Stop allowing new shells
+	s.newError = engines.ErrSandboxTerminated
+
+	// Call abort() on all shells
+	for _, sh := range s.shells {
+		sh.Abort()
+	}
+
+	// Call close on all display connections
+	for _, c := range s.displays {
+		c.Close()
+	}
+}
+
 func (s *sessionManager) WaitAndTerminate() {
 	// Wait for all shells to have finished
 	s.m.Lock()
-	for len(s.shells) > 0 && len(s.displays) > 0 {
-		s.empty.Wait()
+	for len(s.shells) > 0 || len(s.displays) > 0 {
+		s.c.Wait()
 	}
 	// Do now allow new shells
 	s.newError = engines.ErrSandboxTerminated
@@ -94,6 +113,9 @@ func (s *sessionManager) NewShell(command []string, tty bool) (engines.Shell, er
 	// Wait for shell to finish and remove it
 	go s.waitForShell(shell)
 
+	// Notify listeners that shells have changed
+	s.c.Broadcast()
+
 	return shell, nil
 }
 
@@ -114,10 +136,8 @@ func (s *sessionManager) waitForShell(shell engines.Shell) {
 	}
 	s.shells = shells
 
-	// Notify threads waiting if all shells are done
-	if len(s.shells) == 0 && len(s.displays) == 0 {
-		s.empty.Broadcast()
-	}
+	// Notify threads of changes to shells
+	s.c.Broadcast()
 }
 
 func (s *sessionManager) OpenDisplay() (io.ReadWriteCloser, error) {
@@ -136,6 +156,7 @@ func (s *sessionManager) OpenDisplay() (io.ReadWriteCloser, error) {
 	}
 
 	// Dial-up the socket
+	debug("connecting to display socket: %s", socket)
 	conn, err := net.DialTimeout("unix", socket, 15*time.Second)
 	if err != nil {
 		// TODO: Check if vm is still running, if so report an error
@@ -154,7 +175,7 @@ func (s *sessionManager) OpenDisplay() (io.ReadWriteCloser, error) {
 		s.m.Lock()
 		defer s.m.Unlock()
 
-		// Remove shell from s.shells
+		// Remove display from s.displays
 		displays := s.displays[:0]
 		for _, d := range s.displays {
 			if d != display {
@@ -163,12 +184,11 @@ func (s *sessionManager) OpenDisplay() (io.ReadWriteCloser, error) {
 		}
 		s.displays = displays
 
-		// Signal threads if displays is empty
-		if len(s.shells) == 0 && len(s.displays) == 0 {
-			s.empty.Broadcast()
-		}
+		// Signal threads that displays have changed
+		s.c.Broadcast()
 	})
 	s.displays = append(s.displays, display)
+	s.c.Broadcast() // signal that we've changed displays
 
 	return display, nil
 }

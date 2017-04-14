@@ -3,21 +3,22 @@ package qemuguesttools
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	goruntime "runtime"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/taskcluster/go-got"
+	"github.com/taskcluster/taskcluster-worker/engines/native/system"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive/shellconsts"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
@@ -32,6 +33,7 @@ type guestTools struct {
 	taskLog       io.Writer
 	pollingCtx    context.Context
 	cancelPolling func()
+	killed        atomics.Once
 }
 
 var backOff = &got.BackOff{
@@ -88,25 +90,45 @@ func (g *guestTools) Run() {
 	// Start sending task log
 	taskLog, logSent := g.CreateTaskLog()
 
-	// Construct environment variables in golang format
-	env := os.Environ()
-	for key, value := range task.Env {
-		env = append(env, fmt.Sprintf("%s=%s", key, value))
+	// Construct environment variables
+	env := make(map[string]string, len(os.Environ())+len(task.Env))
+	for _, e := range os.Environ() {
+		parts := strings.SplitN(e, "=", 2)
+		env[parts[0]] = parts[1]
+	}
+	for k, v := range task.Env {
+		env[k] = v
 	}
 
 	// Execute the task
-	cmd := exec.Command(task.Command[0], task.Command[1:]...)
-	cmd.Env = env
-	cmd.Stdout = taskLog
-	cmd.Stderr = taskLog
+	proc, err := system.StartProcess(system.ProcessOptions{
+		Arguments:   task.Command,
+		Environment: env,
+		TTY:         true,
+		Stdout:      taskLog,
+		Stderr:      nil, // implies use of stdout
+	})
 
-	result := "success"
-	if cmd.Run() != nil {
-		result = "failed"
+	result := "failed"
+	if err == nil {
+		// kill if 'killed' is done
+		done := make(chan struct{})
+		go func() {
+			select {
+			case <-g.killed.Done():
+				system.KillProcessTree(proc)
+			case <-done:
+			}
+		}()
+
+		if proc.Wait() {
+			result = "success"
+		}
+		close(done)
 	}
 
 	// Close/flush the task log
-	err := taskLog.Close()
+	err = taskLog.Close()
 	if err != nil {
 		g.monitor.Println("Failed to flush the log, error: ", err)
 		result = "failed"
@@ -171,11 +193,10 @@ func (g *guestTools) poll(ctx context.Context) {
 	res, err := ctxhttp.Do(c, nil, req)
 	//res, res := http.DefaultClient.Do(req)
 	if err != nil {
-		g.monitor.Info("Poll request failed, error: ", err)
-
 		// if this wasn't a deadline exceeded error, we'll sleep a second to avoid
 		// spinning the CPU while waiting for DHCP to come up.
 		if err != context.DeadlineExceeded && err != context.Canceled {
+			g.monitor.Info("Poll request failed, error: ", err)
 			time.Sleep(1 * time.Second)
 		}
 		return
@@ -210,6 +231,8 @@ func (g *guestTools) dispatchAction(action metaservice.Action) {
 		go g.doListFolder(action.ID, action.Path)
 	case "exec-shell":
 		go g.doExecShell(action.ID, action.Command, action.TTY)
+	case "kill-process":
+		go g.doKillProcess(action.ID)
 	default:
 		g.monitor.Error("Unknown action type: ", action.Type, " ID = ", action.ID)
 	}
@@ -291,6 +314,24 @@ func (g *guestTools) doListFolder(ID, path string) {
 	}
 }
 
+func (g *guestTools) doKillProcess(ID string) {
+	g.monitor.Info("Sending kill-process confirmation")
+
+	// kill child process (from Run method)
+	g.killed.Do(nil)
+
+	// Send confirmation... If we got here, this means that we get retries...
+	// There is no harm in retries, server will just ignore them.
+	res, err := g.got.Post(g.url("engine/v1/reply?id="+ID), nil).Send()
+	if err != nil {
+		g.monitor.Error("Reply with confirmation for kill-process failed error:", err)
+		return
+	}
+	if res.StatusCode != http.StatusOK {
+		g.monitor.Error("Reply with confirmation for kill-process got status:", res.StatusCode)
+	}
+}
+
 var dialer = websocket.Dialer{
 	HandshakeTimeout: shellconsts.ShellHandshakeTimeout,
 	ReadBufferSize:   shellconsts.ShellMaxMessageSize,
@@ -316,43 +357,32 @@ func (g *guestTools) doExecShell(ID string, command []string, tty bool) {
 		}
 	}
 
-	// Create a shell
-	shell := exec.Command(command[0], command[1:]...)
-
-	// Attempt to start with a pty, if asked to use TTY
-	if tty {
-		err = pipePty(shell, handler)
-	} else {
-		err = pipeCommand(shell, handler)
+	var stderr io.WriteCloser
+	if !tty {
+		stderr = handler.StderrPipe()
 	}
 
-	// If we didn't any error starting or waiting for the shell, then it was a
-	// success.
-	handler.Terminated(err == nil)
-}
-
-func pipeCommand(cmd *exec.Cmd, handler *interactive.ShellHandler) error {
-	// Set pipes
-	cmd.Stdin = handler.StdinPipe()
-	cmd.Stdout = handler.StdoutPipe()
-	cmd.Stderr = handler.StderrPipe()
-
-	// Start the shell, this must finished before we can call Kill()
-	err := cmd.Start()
-
-	// Start communication
-	handler.Communicate(nil, func() error {
-		// If cmd.Start() failed, then we don't have a process, but we start
-		// the communication flow anyways.
-		if cmd.Process != nil {
-			return cmd.Process.Kill()
-		}
-		return nil
+	// Create a shell
+	proc, err := system.StartProcess(system.ProcessOptions{
+		Arguments:   command,
+		Environment: nil, // TODO: Use env vars from command
+		TTY:         tty,
+		Stdin:       handler.StdinPipe(),
+		Stdout:      handler.StdoutPipe(),
+		Stderr:      stderr,
 	})
 
+	handler.Communicate(func(cols, rows uint16) error {
+		proc.SetSize(cols, rows)
+		return nil
+	}, func() error {
+		return system.KillProcessTree(proc)
+	})
+
+	result := false
 	if err == nil {
-		err = cmd.Wait()
+		result = proc.Wait()
 	}
 
-	return err
+	handler.Terminated(result)
 }

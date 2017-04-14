@@ -13,7 +13,11 @@ type pluginProvider struct {
 
 func (pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
 	assert(options.Monitor != nil, "PluginOptions.Monitor is nil!")
-	assert(options.Environment.Monitor != nil, "PluginOptions.Environment.Monitor is nil!")
+	e := options.Environment
+	assert(e.GarbageCollector != nil, "PluginOptions.Environment.GarbageCollector is nil!")
+	assert(e.Monitor != nil, "PluginOptions.Environment.Monitor is nil!")
+	assert(e.TemporaryStorage != nil, "PluginOptions.Environment.TemporaryStorage is nil!")
+	assert(e.WebHookServer != nil, "PluginOptions.Environment.WebHookServer is nil!")
 	return plugin{}, nil
 }
 

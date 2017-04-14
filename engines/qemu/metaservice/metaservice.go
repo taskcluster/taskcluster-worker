@@ -39,7 +39,7 @@ type MetaService struct {
 	resultCallback  func(bool)
 	environment     *runtime.Environment
 	resolved        bool
-	result          bool
+	result          bool // saved to support idempotency
 	mux             *http.ServeMux
 	actionOut       chan Action
 	pendingRecords  map[string]*asyncRecord
@@ -164,7 +164,7 @@ func (s *MetaService) handleSuccess(w http.ResponseWriter, r *http.Request) {
 	debug("PUT /engine/v1/success")
 	if s.result {
 		if !resolved && s.resultCallback != nil {
-			s.resultCallback(true)
+			go s.resultCallback(true)
 		}
 		reply(w, http.StatusOK, nil)
 	} else {
@@ -193,7 +193,7 @@ func (s *MetaService) handleFailed(w http.ResponseWriter, r *http.Request) {
 	debug("PUT /engine/v1/failed")
 	if !s.result {
 		if !resolved && s.resultCallback != nil {
-			s.resultCallback(false)
+			go s.resultCallback(false)
 		}
 		reply(w, http.StatusOK, nil)
 	} else {
@@ -252,7 +252,7 @@ func (s *MetaService) handlePoll(w http.ResponseWriter, r *http.Request) {
 			Type: "none",
 		})
 	case action := <-s.actionOut:
-		debug(" -> Sending action with id=%s", action.ID)
+		debug(" -> Sending action (type: %s) with id=%s", action.Type, action.ID)
 		if reply(w, http.StatusOK, action) != nil {
 			debug("Failed to send action id=%s", action.ID)
 
@@ -293,6 +293,7 @@ func (s *MetaService) asyncRequest(action Action, cb asyncCallback) {
 	// Send action
 	select {
 	case <-time.After(30 * time.Second):
+		debug("asyncRequest(): sending action time-out (type: %s)", action.Type)
 		// If sending times out we delete the record
 		s.mPendingRecords.Lock()
 		delete(s.pendingRecords, action.ID)
@@ -527,4 +528,39 @@ func (s *MetaService) ExecShell(command []string, tty bool) (engines.Shell, erro
 	})
 
 	return Shell, Err
+}
+
+func (s *MetaService) killProcessWithoutRetries() error {
+	Err := runtime.ErrNonFatalInternalError
+
+	s.asyncRequest(Action{
+		Type: "kill-process",
+	}, func(w http.ResponseWriter, r *http.Request) {
+		if !forceMethod(w, r, http.MethodPost) {
+			return
+		}
+
+		// If body parse we return OK
+		reply(w, http.StatusOK, nil)
+
+		Err = nil
+	})
+
+	return Err
+}
+
+// KillProcess will send an action to guest-tools to kill the process executing
+// the main command.
+//
+// Note: For robustness this shouldn't be relied upon.
+func (s *MetaService) KillProcess() error {
+	retries := 3
+	for {
+		err := s.killProcessWithoutRetries()
+		retries--
+		if err == runtime.ErrNonFatalInternalError && retries > 0 {
+			continue
+		}
+		return err
+	}
 }

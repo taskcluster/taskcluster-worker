@@ -1,21 +1,16 @@
 # Configuration file for tc-worker.Dockerfile
 transforms:
-  - packet
   - env
   - secrets
+  - packet
 config:
-  capacity:         1
   credentials:
     # Taskcluster credentials with scopes like:
     # - assume:project:taskcluster:worker-test-scopes
     # - secrets:get:project/taskcluster/taskcluster-worker/stateless-dns
     clientId:       {$env: TASKCLUSTER_CLIENT_ID}
     accessToken:    {$env: TASKCLUSTER_ACCESS_TOKEN}
-  provisionerId:    {$env: PROVISIONER_ID}
-  workerType:       {$env: WORKER_TYPE}
-  workerGroup:      {$env: WORKER_GROUP}
-  workerId:         {$env: WORKER_ID}
-  engine:           qemu
+  engine: qemu
   engines:
     qemu:
       maxConcurrency: 2
@@ -23,30 +18,45 @@ config:
       socketFolder:   /mnt/sockets
       machineOptions:
         maxMemory:    4096
-  logLevel:         debug
-  plugins:
-    interactive:    {}
-    disabled:       []
-  pollingInterval:  5
-  queueBaseUrl:     https://queue.taskcluster.net/v1
-  reclaimOffset:    120
-  temporaryFolder:  /mnt/tmp
-  serverIp:           {$packet: public-ipv4}
-  serverPort:         {$env: PORT, type: number}
-  networkInterface:   eth0
-  exposedPort:        {$env: PORT, type: number}
-  tlsCertificiate:
-    $secret:  project/taskcluster/taskcluster-worker/stateless-dns
-    key:      certificate
-  tlsKey:
-    $secret:  project/taskcluster/taskcluster-worker/stateless-dns
-    key:      tlsKey
-  statelessDNSSecret:
-    $secret:  project/taskcluster/taskcluster-worker/stateless-dns
-    key:      secret
-  statelessDNSDomain:
-    $secret:  project/taskcluster/taskcluster-worker/stateless-dns
-    key:      domain
-  maxLifeCycle:       3600      # 1 hour
   minimumDiskSpace:   10000000  # 10 GB
   minimumMemory:      1000000   # 1 GB
+  monitor:
+    logLevel:       debug
+    project:        test-dummy-worker
+  plugins:
+    disabled:       [reboot]
+    interactive:    {}
+    artifacts:      {}
+    env:            {}
+    livelog:        {}
+    maxruntime:     {}
+    success:        {}
+  temporaryFolder:  /mnt/tmp
+  webHookServer:
+    provider:           stateless-dns
+    maxLifeCycle:       345600  # 4 days
+    serverIp:           {$packet: public-ipv4}
+    serverPort:         {$env: PORT, type: number}
+    networkInterface:   eth0
+    exposedPort:        {$env: PORT, type: number}
+    tlsCertificate:
+      $secret:  project/taskcluster/taskcluster-worker/stateless-dns
+      key:      certificate
+    tlsKey:
+      $secret:  project/taskcluster/taskcluster-worker/stateless-dns
+      key:      tlsKey
+    statelessDNSSecret:
+      $secret:  project/taskcluster/taskcluster-worker/stateless-dns
+      key:      secret
+    statelessDNSDomain:
+      $secret:  project/taskcluster/taskcluster-worker/stateless-dns
+      key:      domain
+  worker:
+    concurrency:          2
+    minimumReclaimDelay:  30
+    pollingInterval:      5
+    reclaimOffset:        300
+    provisionerId:        {$env: PROVISIONER_ID}
+    workerType:           {$env: WORKER_TYPE}
+    workerGroup:          {$env: WORKER_GROUP}
+    workerId:             {$env: WORKER_ID}

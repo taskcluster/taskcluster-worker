@@ -1,6 +1,6 @@
 // +build monitor
 
-package runtime
+package monitoring
 
 import (
 	"fmt"

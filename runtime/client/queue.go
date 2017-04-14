@@ -8,9 +8,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"time"
 
 	"github.com/stretchr/testify/mock"
+	"github.com/taskcluster/httpbackoff"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/queue"
 )
@@ -23,6 +25,7 @@ type Queue interface {
 	ReportException(string, string, *queue.TaskExceptionRequest) (*queue.TaskStatusResponse, error)
 	ReportFailed(string, string) (*queue.TaskStatusResponse, error)
 	ClaimTask(string, string, *queue.TaskClaimRequest) (*queue.TaskClaimResponse, error)
+	ClaimWork(provisionerID, workerType string, payload *queue.ClaimWorkRequest) (*queue.ClaimWorkResponse, error)
 	ReclaimTask(string, string) (*queue.TaskReclaimResponse, error)
 	PollTaskUrls(string, string) (*queue.PollTaskUrlsResponse, error)
 	CancelTask(string) (*queue.TaskStatusResponse, error)
@@ -67,6 +70,12 @@ func (m *MockQueue) CancelTask(taskID string) (*queue.TaskStatusResponse, error)
 func (m *MockQueue) ClaimTask(taskID, runID string, payload *queue.TaskClaimRequest) (*queue.TaskClaimResponse, error) {
 	args := m.Called(taskID, runID, payload)
 	return args.Get(0).(*queue.TaskClaimResponse), args.Error(1)
+}
+
+// ClaimWork is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue#Queue.ClaimWork
+func (m *MockQueue) ClaimWork(provisionerID, workerType string, payload *queue.ClaimWorkRequest) (*queue.ClaimWorkResponse, error) {
+	args := m.Called(provisionerID, workerType, payload)
+	return args.Get(0).(*queue.ClaimWorkResponse), args.Error(1)
 }
 
 // ReportFailed is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.ReportFailed
@@ -183,4 +192,64 @@ func (m *MockQueue) ExpectRedirectArtifact(taskID string, runID int, name string
 	}).Return(&result, nil)
 
 	return c
+}
+
+var (
+	claimWorkURLPattern = regexp.MustCompile("^/claim-work/([^/]+)/([^/]+)$")
+	taskRunURLPattern   = regexp.MustCompile("^/task/([^/]+)/runs/([0-9]+)/([^/]+)(?:/(.*))?$")
+)
+
+// ServeHTTP handles a queue request by calling the mock implemetation
+func (m *MockQueue) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	data, _ := ioutil.ReadAll(r.Body)
+	r.Body.Close()
+	var result interface{}
+	var err error
+	if match := claimWorkURLPattern.FindStringSubmatch(r.URL.Path); match != nil {
+		var payload queue.ClaimWorkRequest
+		if err = json.Unmarshal(data, &payload); err == nil {
+			result, err = m.ClaimWork(match[1], match[2], &payload)
+		}
+	} else if match := taskRunURLPattern.FindStringSubmatch(r.URL.Path); match != nil {
+		switch match[3] {
+		case "reclaim":
+			result, err = m.ReclaimTask(match[1], match[2])
+		case "completed":
+			result, err = m.ReportCompleted(match[1], match[2])
+		case "failed":
+			result, err = m.ReportFailed(match[1], match[2])
+		case "exception":
+			var payload queue.TaskExceptionRequest
+			if err = json.Unmarshal(data, &payload); err == nil {
+				result, err = m.ReportException(match[1], match[2], &payload)
+			}
+		case "artifacts":
+			var payload queue.PostArtifactRequest
+			if err = json.Unmarshal(data, &payload); err == nil {
+				result, err = m.CreateArtifact(match[1], match[2], match[4], &payload)
+			}
+		}
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
+		data, _ = json.Marshal("unknown end-point: " + r.URL.Path)
+		w.Write(data)
+		return
+	}
+	if err != nil {
+		if e, ok := err.(httpbackoff.BadHttpResponseCode); ok {
+			w.WriteHeader(e.HttpResponseCode)
+			result = e.Message
+		} else if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			result = "internal-error"
+		}
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+	data, _ = json.Marshal(result)
+	w.Write(data)
 }
