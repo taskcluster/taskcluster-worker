@@ -40,8 +40,8 @@ func TestTaskRun(t *testing.T) {
 			Environment: &env,
 			Monitor:     env.Monitor.WithPrefix("engine"),
 		}),
-		Plugin:  nil, // overwritten in each test case
-		Monitor: env.Monitor.WithPrefix("taskrun"),
+		PluginManager: &plugins.PluginManager{}, // overwritten in each test case, after New
+		Monitor:       env.Monitor.WithPrefix("taskrun"),
 		TaskInfo: runtime.TaskInfo{
 			TaskID: "--test-task-id--",
 			RunID:  0,
@@ -69,7 +69,6 @@ func TestTaskRun(t *testing.T) {
 		plugin.On("Finished", true).Return(nil)
 		plugin.On("Dispose").Return(nil)
 		defer plugin.AssertExpectations(t)
-		options.Plugin = plugin
 
 		require.NoError(t, json.Unmarshal([]byte(`{
 			"delay":    0,
@@ -78,6 +77,7 @@ func TestTaskRun(t *testing.T) {
 		}`), &options.Payload), "unable to parse payload")
 
 		run := New(options)
+		run.pluginManager = plugin // hack to inject mock for PluginManager
 		success, exception, _ := run.WaitForResult()
 		assert.True(t, success, "expected success to be true")
 		assert.False(t, exception, "expected exception to be false")
@@ -97,7 +97,6 @@ func TestTaskRun(t *testing.T) {
 		plugin.On("Finished", true).Return(nil)
 		plugin.On("Dispose").Return(nil)
 		defer plugin.AssertExpectations(t)
-		options.Plugin = plugin
 
 		require.NoError(t, json.Unmarshal([]byte(`{
 			"delay":   10,
@@ -106,6 +105,7 @@ func TestTaskRun(t *testing.T) {
 		}`), &options.Payload), "unable to parse payload")
 
 		run := New(options)
+		run.pluginManager = plugin // hack to inject mock for PluginManager
 		success, exception, _ := run.WaitForResult()
 		assert.True(t, success, "expected success to be true")
 		assert.False(t, exception, "expected exception to be false")
@@ -125,7 +125,6 @@ func TestTaskRun(t *testing.T) {
 		plugin.On("Finished", false).Return(nil)
 		plugin.On("Dispose").Return(nil)
 		defer plugin.AssertExpectations(t)
-		options.Plugin = plugin
 
 		require.NoError(t, json.Unmarshal([]byte(`{
 			"delay":    10,
@@ -134,6 +133,7 @@ func TestTaskRun(t *testing.T) {
 		}`), &options.Payload), "unable to parse payload")
 
 		run := New(options)
+		run.pluginManager = plugin // hack to inject mock for PluginManager
 		success, exception, _ := run.WaitForResult()
 		assert.False(t, success, "expected success to be false")
 		assert.False(t, exception, "expected exception to be false")
@@ -148,7 +148,6 @@ func TestTaskRun(t *testing.T) {
 		plugin.On("Exception", runtime.ReasonMalformedPayload).Return(nil)
 		plugin.On("Dispose").Return(nil)
 		defer plugin.AssertExpectations(t)
-		options.Plugin = plugin
 
 		require.NoError(t, json.Unmarshal([]byte(`{
 			"delay":    10,
@@ -157,6 +156,7 @@ func TestTaskRun(t *testing.T) {
 		}`), &options.Payload), "unable to parse payload")
 
 		run := New(options)
+		run.pluginManager = plugin // hack to inject mock for PluginManager
 		success, exception, reason := run.WaitForResult()
 		assert.False(t, success, "expected success to be false")
 		assert.True(t, exception, "expected exception to be true")
@@ -174,7 +174,6 @@ func TestTaskRun(t *testing.T) {
 		plugin.On("Exception", runtime.ReasonMalformedPayload).Return(nil)
 		plugin.On("Dispose").Return(nil)
 		defer plugin.AssertExpectations(t)
-		options.Plugin = plugin
 
 		require.NoError(t, json.Unmarshal([]byte(`{
 			"delay":    10,
@@ -183,6 +182,7 @@ func TestTaskRun(t *testing.T) {
 		}`), &options.Payload), "unable to parse payload")
 
 		run := New(options)
+		run.pluginManager = plugin // hack to inject mock for PluginManager
 		success, exception, reason := run.WaitForResult()
 		assert.False(t, success, "expected success to be false")
 		assert.True(t, exception, "expected exception to be true")
@@ -200,7 +200,6 @@ func TestTaskRun(t *testing.T) {
 		plugin.On("Exception", runtime.ReasonInternalError).Return(nil)
 		plugin.On("Dispose").Return(nil)
 		defer plugin.AssertExpectations(t)
-		options.Plugin = plugin
 
 		require.NoError(t, json.Unmarshal([]byte(`{
 			"delay":    10,
@@ -209,6 +208,7 @@ func TestTaskRun(t *testing.T) {
 		}`), &options.Payload), "unable to parse payload")
 
 		run := New(options)
+		run.pluginManager = plugin // hack to inject mock for PluginManager
 		success, exception, reason := run.WaitForResult()
 		assert.False(t, success, "expected success to be false")
 		assert.True(t, exception, "expected exception to be true")
@@ -227,7 +227,6 @@ func TestTaskRun(t *testing.T) {
 		plugin.On("Exception", runtime.ReasonInternalError).Return(nil)
 		plugin.On("Dispose").Return(nil)
 		defer plugin.AssertExpectations(t)
-		options.Plugin = plugin
 
 		require.NoError(t, json.Unmarshal([]byte(`{
 			"delay":    10,
@@ -236,6 +235,7 @@ func TestTaskRun(t *testing.T) {
 		}`), &options.Payload), "unable to parse payload")
 
 		run := New(options)
+		run.pluginManager = plugin // hack to inject mock for PluginManager
 		success, exception, reason := run.WaitForResult()
 		assert.False(t, success, "expected success to be false")
 		assert.True(t, exception, "expected exception to be true")
@@ -254,7 +254,6 @@ func TestTaskRun(t *testing.T) {
 		plugin.On("Exception", runtime.ReasonInternalError).Return(nil)
 		plugin.On("Dispose").Return(nil)
 		defer plugin.AssertExpectations(t)
-		options.Plugin = plugin
 
 		require.NoError(t, json.Unmarshal([]byte(`{
 			"delay":    0,
@@ -263,6 +262,7 @@ func TestTaskRun(t *testing.T) {
 		}`), &options.Payload), "unable to parse payload")
 
 		run := New(options)
+		run.pluginManager = plugin // hack to inject mock for PluginManager
 		success, exception, reason := run.WaitForResult()
 		assert.False(t, success, "expected success to be false")
 		assert.True(t, exception, "expected exception to be true")
@@ -281,7 +281,6 @@ func TestTaskRun(t *testing.T) {
 		plugin.On("Exception", runtime.ReasonInternalError).Return(nil)
 		plugin.On("Dispose").Return(nil)
 		defer plugin.AssertExpectations(t)
-		options.Plugin = plugin
 
 		require.NoError(t, json.Unmarshal([]byte(`{
 			"delay":    0,
@@ -290,6 +289,7 @@ func TestTaskRun(t *testing.T) {
 		}`), &options.Payload), "unable to parse payload")
 
 		run := New(options)
+		run.pluginManager = plugin // hack to inject mock for PluginManager
 		success, exception, reason := run.WaitForResult()
 		assert.False(t, success, "expected success to be false")
 		assert.True(t, exception, "expected exception to be true")
@@ -320,7 +320,6 @@ func TestTaskRun(t *testing.T) {
 		plugin.On("Exception", runtime.ReasonWorkerShutdown).Return(nil)
 		plugin.On("Dispose").Return(nil)
 		defer plugin.AssertExpectations(t)
-		options.Plugin = plugin
 
 		require.NoError(t, json.Unmarshal([]byte(`{
 			"delay":    50,
@@ -329,6 +328,7 @@ func TestTaskRun(t *testing.T) {
 		}`), &options.Payload), "unable to parse payload")
 
 		run = New(options)
+		run.pluginManager = plugin // hack to inject mock for PluginManager
 		success, exception, reason := run.WaitForResult()
 		assert.False(t, success, "expected success to be false")
 		assert.True(t, exception, "expected exception to be true")
@@ -358,7 +358,6 @@ func TestTaskRun(t *testing.T) {
 		plugin.On("Exception", runtime.ReasonCanceled).Return(nil)
 		plugin.On("Dispose").Return(nil)
 		defer plugin.AssertExpectations(t)
-		options.Plugin = plugin
 
 		require.NoError(t, json.Unmarshal([]byte(`{
 			"delay":    50,
@@ -367,6 +366,7 @@ func TestTaskRun(t *testing.T) {
 		}`), &options.Payload), "unable to parse payload")
 
 		run = New(options)
+		run.pluginManager = plugin // hack to inject mock for PluginManager
 		success, exception, reason := run.WaitForResult()
 		assert.False(t, success, "expected success to be false")
 		assert.True(t, exception, "expected exception to be true")

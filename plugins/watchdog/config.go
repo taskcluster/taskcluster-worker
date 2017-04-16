@@ -21,7 +21,7 @@ var configSchema = schematypes.Object{
       to sentry and shutdown the worker immediately.
 
       This plugin is mainly useful to avoid stale workers cut in some livelock.
-      Note: that this plugin won't cause a timeout between Started() and
+      Note: This plugin won't cause a timeout between Started() and
       Stopped(), as this would limit task run time, for this purpose use the
       'maxruntime' plugin.
     `,

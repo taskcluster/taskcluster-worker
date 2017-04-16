@@ -31,19 +31,20 @@ type sandbox struct {
 	engines.SandboxBuilderBase
 	engines.SandboxBase
 	engines.ResultSetBase
-	payload   payloadType
-	context   *runtime.TaskContext
-	env       map[string]string
-	mounts    map[string]*mount
-	proxies   map[string]http.Handler
-	files     map[string][]byte
-	sessions  atomics.WaitGroup
-	shells    []engines.Shell
-	displays  []io.ReadWriteCloser
-	resolve   atomics.Once
-	result    bool
-	resultErr error
-	abortErr  error
+	environment runtime.Environment
+	payload     payloadType
+	context     *runtime.TaskContext
+	env         map[string]string
+	mounts      map[string]*mount
+	proxies     map[string]http.Handler
+	files       map[string][]byte
+	sessions    atomics.WaitGroup
+	shells      []engines.Shell
+	displays    []io.ReadWriteCloser
+	resolve     atomics.Once
+	result      bool
+	resultErr   error
+	abortErr    error
 }
 
 ///////////////////////////// Implementation of SandboxBuilder interface
@@ -223,6 +224,14 @@ var functions = map[string]func(*sandbox, string) (bool, error){
 	},
 	"malformed-payload-after-start": func(s *sandbox, arg string) (bool, error) {
 		return false, runtime.NewMalformedPayloadError(s.payload.Argument)
+	},
+	"stopNow-sleep": func(s *sandbox, arg string) (bool, error) {
+		// This is not really a reasonable thing for an engine to do. But it's
+		// useful for testing... StopNow causes all running tasks to be resolved
+		// 'exception' with reason: 'worker-shutdown'.
+		s.environment.Worker.StopNow()
+		time.Sleep(500 * time.Millisecond)
+		return true, nil
 	},
 }
 

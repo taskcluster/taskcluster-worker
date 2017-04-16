@@ -21,7 +21,16 @@ import (
 // the underlying bug can be fixed.
 const pluginHookTimeout = 45 * time.Minute
 
-type pluginManager struct {
+// A PluginManager combines a collection of plugins and implements an interface
+// similar to Plugin. The interface is not exactly the same, notably, if there
+// is an error, the PluginManager still returns a TaskPlugin wrapping plugins
+// that didn't fail, such that artifacts and logs can be uploaded.
+//
+// Furthermore, the PluginManager doesn't require that the task payload matches
+// the PayloadSchema(), as such a requirement would preclude running logging
+// plugins to upload logs for the task. Which is important as errors in the task
+// log makes no sense, if the task log isn't uploaded.
+type PluginManager struct {
 	environment   runtime.Environment
 	payloadSchema schematypes.Object
 	monitor       runtime.Monitor
@@ -131,7 +140,12 @@ func stringContains(list []string, element string) bool {
 //
 // This expects options.Config satisfying schema from
 // PluginManagerConfigSchema().
-func NewPluginManager(options PluginOptions) (Plugin, error) {
+//
+// Note. While the PluginManager implements the Plugin interface, it does have
+// different semantics for NewTaskPlugin(). This is because we need to run other
+// TaskPlugins (such as logging), even if one of the TaskPlugins fails to be
+// created or there is a schema validation error.
+func NewPluginManager(options PluginOptions) (*PluginManager, error) {
 	pluginProviders := Plugins()
 
 	// Construct config schema
@@ -201,7 +215,7 @@ func NewPluginManager(options PluginOptions) (Plugin, error) {
 		return nil, fmt.Errorf("Conflicting payload schema types, error: %s", err)
 	}
 
-	return &pluginManager{
+	return &PluginManager{
 		environment:   *options.Environment,
 		plugins:       plugins,
 		pluginNames:   enabled,
@@ -211,7 +225,8 @@ func NewPluginManager(options PluginOptions) (Plugin, error) {
 	}, nil
 }
 
-func (pm *pluginManager) ReportIdle(durationSinceBusy time.Duration) {
+// ReportIdle call ReportIdle on all the managed plugins.
+func (pm *PluginManager) ReportIdle(durationSinceBusy time.Duration) {
 	spawn(len(pm.plugins), func(i int) {
 		m := pm.monitors[i].WithTag("hook", "ReportIdle")
 		incidentID := capturePanicOrTimeout(m, func() {
@@ -224,7 +239,8 @@ func (pm *pluginManager) ReportIdle(durationSinceBusy time.Duration) {
 	})
 }
 
-func (pm *pluginManager) ReportNonFatalError() {
+// ReportNonFatalError calls ReportNonFatalError on all the managed plugins.
+func (pm *PluginManager) ReportNonFatalError() {
 	spawn(len(pm.plugins), func(i int) {
 		m := pm.monitors[i].WithTag("hook", "ReportNonFatalError")
 		incidentID := capturePanicOrTimeout(m, func() {
@@ -237,7 +253,8 @@ func (pm *pluginManager) ReportNonFatalError() {
 	})
 }
 
-func (pm *pluginManager) Dispose() error {
+// Dispose calls Dispose on all the managed plugins.
+func (pm *PluginManager) Dispose() error {
 	fatal := atomics.NewBool(false)
 	nonfatal := atomics.NewBool(false)
 
@@ -272,14 +289,17 @@ func (pm *pluginManager) Dispose() error {
 	return nil
 }
 
-func (pm *pluginManager) PayloadSchema() schematypes.Object {
+// PayloadSchema returns the 'task.payload' schema expected by plugins.
+func (pm *PluginManager) PayloadSchema() schematypes.Object {
 	return pm.payloadSchema
 }
 
-func (pm *pluginManager) NewTaskPlugin(options TaskPluginOptions) (TaskPlugin, error) {
-	// Input must be valid
-	schematypes.MustValidate(pm.payloadSchema, options.Payload)
-
+// NewTaskPlugin constructs a TaskPlugin wrapping all the managed plugins whose
+// PayloadSchema is satisfied by options.Payload.
+//
+// This method always returns a TaskPlugin, even if there is errors. Because
+// plugins that don't fail still want their Exception hook invoked.
+func (pm *PluginManager) NewTaskPlugin(options TaskPluginOptions) (TaskPlugin, error) {
 	N := len(pm.plugins)
 	m := &taskPluginManager{
 		monitor:     options.Monitor.WithPrefix("manager").WithTag("plugin", "manager"),
@@ -295,27 +315,28 @@ func (pm *pluginManager) NewTaskPlugin(options TaskPluginOptions) (TaskPlugin, e
 
 	// Create taskPlugins
 	err := m.spawnEachPlugin("NewTaskPlugin", func(i int) error {
-		var nerr error
+		payload := pm.plugins[i].PayloadSchema().Filter(options.Payload)
+		nerr := pm.plugins[i].PayloadSchema().Validate(payload)
+		if nerr != nil {
+			// Ensure that we always have a taskPlugin, even if we get an error.
+			// Because we want other plugins to run the Exception stage when one
+			// plugin has an error, otherwise we won't get a task log!
+			m.taskPlugins[i] = TaskPluginBase{}
+			return runtime.NewMalformedPayloadError("Payload schema violation: ", nerr)
+		}
 		m.taskPlugins[i], nerr = pm.plugins[i].NewTaskPlugin(TaskPluginOptions{
 			TaskInfo:    options.TaskInfo,
 			TaskContext: options.TaskContext,
-			Payload:     pm.plugins[i].PayloadSchema().Filter(options.Payload),
+			Payload:     payload,
 			Monitor:     m.monitors[i],
 		})
+		if m.taskPlugins[i] == nil {
+			m.taskPlugins[i] = TaskPluginBase{}
+		}
 		return nerr
 	})
 
-	if err != nil {
-		derr := m.Dispose()
-		if derr == runtime.ErrFatalInternalError || err == runtime.ErrFatalInternalError {
-			return nil, runtime.ErrFatalInternalError
-		}
-		if derr == runtime.ErrNonFatalInternalError || err == runtime.ErrNonFatalInternalError {
-			return nil, runtime.ErrNonFatalInternalError
-		}
-		return nil, err
-	}
-	return m, nil
+	return m, err
 }
 
 // spawnEachPlugin will invoke fn(i) for each plugin 0 to N. Any error or panic
