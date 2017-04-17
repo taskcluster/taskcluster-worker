@@ -120,11 +120,20 @@ func (c Case) Test() {
 		controller.SetQueueClient(c.QueueMock)
 	}
 
+	reason := runtime.ReasonNoException
 	sandboxBuilder, err := engine.NewSandboxBuilder(engines.SandboxOptions{
 		TaskContext: context,
 		Payload:     parseEnginePayload(engine, c.Payload),
 		Monitor:     mocks.NewMockMonitor(true),
 	})
+	if _, ok := runtime.IsMalformedPayloadError(err); ok {
+		reason = runtime.ReasonMalformedPayload
+		err = nil
+	}
+	if err == runtime.ErrFatalInternalError || err == runtime.ErrNonFatalInternalError {
+		reason = runtime.ReasonInternalError
+		err = nil
+	}
 	nilOrPanic(err, "engine.NewSandboxBuilder failed")
 
 	provider := plugins.Plugins()[c.Plugin]
@@ -162,50 +171,82 @@ func (c Case) Test() {
 	}
 
 	// Set environment variables and proxies
-	for key, val := range c.Env {
-		nilOrPanic(err, sandboxBuilder.SetEnvironmentVariable(key, val),
-			"Error setting env var: %s = %s", key, val)
+	var sandbox engines.Sandbox
+	if reason == runtime.ReasonNoException {
+		for key, val := range c.Env {
+			nilOrPanic(err, sandboxBuilder.SetEnvironmentVariable(key, val),
+				"Error setting env var: %s = %s", key, val)
+		}
+		for hostname, handler := range c.Proxies {
+			nilOrPanic(err, sandboxBuilder.AttachProxy(hostname, handler),
+				"Error attaching proxy for hostname: %s", hostname)
+		}
+
+		c.maybeRun(c.BeforeBuildSandbox, options)
+		err = tp.BuildSandbox(sandboxBuilder)
+		nilOrPanic(err, "taskPlugin.BuildSandbox failed")
+		c.maybeRun(c.AfterBuildSandbox, options)
+
+		sandbox, err = sandboxBuilder.StartSandbox()
+		if _, ok := runtime.IsMalformedPayloadError(err); ok {
+			reason = runtime.ReasonMalformedPayload
+			err = nil
+		}
+		if err == runtime.ErrFatalInternalError || err == runtime.ErrNonFatalInternalError {
+			reason = runtime.ReasonInternalError
+			err = nil
+		}
+		nilOrPanic(err, "sandboxBuilder.StartSandbox failed")
 	}
-	for hostname, handler := range c.Proxies {
-		nilOrPanic(err, sandboxBuilder.AttachProxy(hostname, handler),
-			"Error attaching proxy for hostname: %s", hostname)
-	}
 
-	c.maybeRun(c.BeforeBuildSandbox, options)
-	err = tp.BuildSandbox(sandboxBuilder)
-	nilOrPanic(err, "taskPlugin.BuildSandbox failed")
-	c.maybeRun(c.AfterBuildSandbox, options)
-
-	c.maybeRun(c.BeforeStarted, options)
-	sandbox, err := sandboxBuilder.StartSandbox()
-	nilOrPanic(err, "sandboxBuilder.StartSandbox failed")
-	err = tp.Started(sandbox)
-	nilOrPanic(err, "taskPlugin.Started failed")
-	c.maybeRun(c.AfterStarted, options)
-
+	var resultSet engines.ResultSet
 	success := false
-	c.maybeRun(c.BeforeStopped, options)
-	resultSet, err := sandbox.WaitForResult()
-	if c.SandboxAbort {
-		assert(err != nil)
-	} else {
-		nilOrPanic(err, "sandbox.WaitForResult failed")
-		assert(resultSet.Success() == c.EngineSuccess, "expected resultSet.Success(): ", c.EngineSuccess)
-		success, err = tp.Stopped(resultSet)
-		nilOrPanic(err, "taskPlugin.Stopped failed")
-		assert(success == c.PluginSuccess)
-		c.maybeRun(c.AfterStopped, options)
-	}
-	if c.PropagateSuccess {
-		success = success && resultSet.Success()
+	if reason == runtime.ReasonNoException {
+		c.maybeRun(c.BeforeStarted, options)
+		err = tp.Started(sandbox)
+		nilOrPanic(err, "taskPlugin.Started failed")
+		c.maybeRun(c.AfterStarted, options)
+
+		c.maybeRun(c.BeforeStopped, options)
+		resultSet, err = sandbox.WaitForResult()
+		if _, ok := runtime.IsMalformedPayloadError(err); ok {
+			reason = runtime.ReasonMalformedPayload
+			err = nil
+		}
+		if err == runtime.ErrFatalInternalError || err == runtime.ErrNonFatalInternalError {
+			reason = runtime.ReasonInternalError
+			err = nil
+		}
 	}
 
-	c.maybeRun(c.BeforeFinished, options)
-	controller.CloseLog()
-	err = tp.Finished(success)
-	nilOrPanic(err, "taskPlugin.Finished failed")
-	c.grepLog(context)
-	c.maybeRun(c.AfterFinished, options)
+	if reason == runtime.ReasonNoException {
+		if c.SandboxAbort {
+			assert(err == engines.ErrSandboxAborted, "Expected sandbox to be aborted")
+		} else {
+			nilOrPanic(err, "sandbox.WaitForResult failed")
+			assert(resultSet.Success() == c.EngineSuccess, "expected resultSet.Success(): ", c.EngineSuccess)
+			success, err = tp.Stopped(resultSet)
+			nilOrPanic(err, "taskPlugin.Stopped failed")
+			assert(success == c.PluginSuccess)
+			c.maybeRun(c.AfterStopped, options)
+		}
+		if c.PropagateSuccess {
+			success = success && resultSet.Success()
+		}
+
+		c.maybeRun(c.BeforeFinished, options)
+		controller.CloseLog()
+		err = tp.Finished(success)
+		nilOrPanic(err, "taskPlugin.Finished failed")
+		c.grepLog(context)
+		c.maybeRun(c.AfterFinished, options)
+	}
+
+	if reason != runtime.ReasonNoException {
+		controller.CloseLog()
+		err = tp.Exception(reason)
+		nilOrPanic(err, "taskPlugin.Exception failed")
+	}
 
 	c.maybeRun(c.BeforeDisposed, options)
 	controller.Dispose()

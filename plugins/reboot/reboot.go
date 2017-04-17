@@ -163,7 +163,7 @@ func (p *taskPlugin) Finished(success bool) error {
 }
 
 func (p *taskPlugin) Exception(runtime.ExceptionReason) error {
-	if p.RebootAction == rebootOnFailure || p.RebootAction == rebootOnException {
+	if p.RebootAction == rebootAlways || p.RebootAction == rebootOnFailure || p.RebootAction == rebootOnException {
 		// Avoid initiating reboot if we already have
 		p.Plugin.rebooted.Do(func() {
 			p.Monitor.Infof("Stopping worker after task as instructed by task.payload.reboot = '%s'", p.RebootAction)

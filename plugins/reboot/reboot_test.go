@@ -94,7 +94,7 @@ func TestRebootAllowTaskRebootsNothing(t *testing.T) {
 	}.Test()
 }
 
-func TestRebootAllowTaskRebootsAlways(t *testing.T) {
+func TestRebootAllowTaskRebootsAlwaysSuccess(t *testing.T) {
 	plugintest.Case{
 		Plugin:            "reboot",
 		PluginSuccess:     true,
@@ -108,6 +108,44 @@ func TestRebootAllowTaskRebootsAlways(t *testing.T) {
 			"delay": 10,
 			"function": "true",
 			"argument": "",
+			"reboot": "always"
+		}`,
+	}.Test()
+}
+
+func TestRebootAllowTaskRebootsAlwaysFailure(t *testing.T) {
+	plugintest.Case{
+		Plugin:            "reboot",
+		PluginSuccess:     true,
+		EngineSuccess:     false,
+		PropagateSuccess:  true,
+		StoppedGracefully: true,
+		PluginConfig: `{
+			"allowTaskReboots": true
+		}`,
+		Payload: `{
+			"delay": 10,
+			"function": "false",
+			"argument": "",
+			"reboot": "always"
+		}`,
+	}.Test()
+}
+
+func TestRebootAllowTaskRebootsAlwaysMalformedPayload(t *testing.T) {
+	plugintest.Case{
+		Plugin:            "reboot",
+		PluginSuccess:     true,
+		EngineSuccess:     false,
+		PropagateSuccess:  true,
+		StoppedGracefully: true,
+		PluginConfig: `{
+			"allowTaskReboots": true
+		}`,
+		Payload: `{
+			"delay": 10,
+			"function": "malformed-payload-initial",
+			"argument": "bad-payload-who-knows",
 			"reboot": "always"
 		}`,
 	}.Test()
@@ -151,6 +189,25 @@ func TestRebootAllowTaskRebootsOnFailureFail(t *testing.T) {
 	}.Test()
 }
 
+func TestRebootAllowTaskRebootsOnFailureMalformedPayload(t *testing.T) {
+	plugintest.Case{
+		Plugin:            "reboot",
+		PluginSuccess:     true,
+		EngineSuccess:     false,
+		PropagateSuccess:  true,
+		StoppedGracefully: true,
+		PluginConfig: `{
+			"allowTaskReboots": true
+		}`,
+		Payload: `{
+			"delay": 10,
+			"function": "malformed-payload-initial",
+			"argument": "bad-payload-who-knows",
+			"reboot": "on-failure"
+		}`,
+	}.Test()
+}
+
 func TestRebootAllowTaskRebootsOnExceptionSuccess(t *testing.T) {
 	plugintest.Case{
 		Plugin:            "reboot",
@@ -170,9 +227,6 @@ func TestRebootAllowTaskRebootsOnExceptionSuccess(t *testing.T) {
 	}.Test()
 }
 
-// TODO: Test cases for on-failure and on-exception with exception from engine,
-//       currently not supported by plugintest. We probably have to use taskrun.
-
 func TestRebootAllowTaskRebootsOnExceptionFail(t *testing.T) {
 	plugintest.Case{
 		Plugin:            "reboot",
@@ -187,6 +241,25 @@ func TestRebootAllowTaskRebootsOnExceptionFail(t *testing.T) {
 			"delay": 10,
 			"function": "false",
 			"argument": "",
+			"reboot": "on-exception"
+		}`,
+	}.Test()
+}
+
+func TestRebootAllowTaskRebootsOnExceptionMalformedPayload(t *testing.T) {
+	plugintest.Case{
+		Plugin:            "reboot",
+		PluginSuccess:     true,
+		EngineSuccess:     false,
+		PropagateSuccess:  true,
+		StoppedGracefully: true,
+		PluginConfig: `{
+			"allowTaskReboots": true
+		}`,
+		Payload: `{
+			"delay": 10,
+			"function": "malformed-payload-initial",
+			"argument": "bad-payload-who-knows",
 			"reboot": "on-exception"
 		}`,
 	}.Test()
