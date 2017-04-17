@@ -8,6 +8,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime/monitoring"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 )
 
@@ -47,42 +48,50 @@ var optionsSchema schematypes.Schema = schematypes.Object{
 		"provisionerId": schematypes.String{
 			MetaData: schematypes.MetaData{
 				Title: "ProvisionerId",
-				Description: `ProvisionerId for workerType that tasks should be claimed
-				from. Note, a 'workerType' is only unique given the 'provisionerId'.`,
+				Description: util.Markdown(`
+					ProvisionerId for workerType that tasks should be claimed
+					from. Note, a 'workerType' is only unique given the 'provisionerId'.
+				`),
 			},
 			Pattern: `^[a-zA-Z0-9_-]{1,22}$`,
 		},
 		"workerType": schematypes.String{
 			MetaData: schematypes.MetaData{
 				Title: "WorkerType",
-				Description: `WorkerType to claim tasks for, combined with
-				'provisionerId' this identifies the pool of workers the machine
-				belongs to.`,
+				Description: util.Markdown(`
+					WorkerType to claim tasks for, combined with 'provisionerId' this
+					identifies the pool of workers the machine belongs to.
+				`),
 			},
 			Pattern: `^[a-zA-Z0-9_-]{1,22}$`,
 		},
 		"workerGroup": schematypes.String{
 			MetaData: schematypes.MetaData{
 				Title: "WorkerGroup",
-				Description: `Group of workers this machine belongs to. This is any
-				identifier such that workerGroup and workerId uniquely identifies this
-				machine.`,
+				Description: util.Markdown(`
+					Group of workers this machine belongs to. This is any identifier such
+					that workerGroup and workerId uniquely identifies this machine.
+				`),
 			},
 			Pattern: `^[a-zA-Z0-9_-]{1,22}$`,
 		},
 		"workerId": schematypes.String{
 			MetaData: schematypes.MetaData{
 				Title: "WorkerId",
-				Description: `Identifier for this machine. This is any identifier such
-				that workerGroup and workerId uniquely identifies this machine.`,
+				Description: util.Markdown(`
+					Identifier for this machine. This is any identifier such
+					that workerGroup and workerId uniquely identifies this machine.
+				`),
 			},
 			Pattern: `^[a-zA-Z0-9_-]{1,22}$`,
 		},
 		"pollingInterval": schematypes.Integer{
 			MetaData: schematypes.MetaData{
 				Title: "Task Polling Interval",
-				Description: `The amount of time to wait between task polling
-				iterations in seconds.`,
+				Description: util.Markdown(`
+					The amount of time to wait between task polling
+					iterations in seconds.
+				`),
 			},
 			Minimum: 0,
 			Maximum: 10 * 60,
@@ -90,8 +99,10 @@ var optionsSchema schematypes.Schema = schematypes.Object{
 		"reclaimOffset": schematypes.Integer{
 			MetaData: schematypes.MetaData{
 				Title: "Reclaim Offset",
-				Description: `The number of seconds priorty task claim expiration the
-				claim should be reclamed.`,
+				Description: util.Markdown(`
+					The number of seconds priorty task claim expiration the
+					claim should be reclamed.
+				`),
 			},
 			Minimum: 0,
 			Maximum: 10 * 60,
@@ -99,9 +110,11 @@ var optionsSchema schematypes.Schema = schematypes.Object{
 		"minimumReclaimDelay": schematypes.Integer{
 			MetaData: schematypes.MetaData{
 				Title: "Minimum Reclaim Delay",
-				Description: `Minimum number of seconds to wait before reclaiming a task.
+				Description: util.Markdown(`
+					Minimum number of seconds to wait before reclaiming a task.
 					it is important that this is some reasonable non-zero minimum to avoid
-					overloading servers if there is some error.`,
+					overloading servers if there is some error.
+				`),
 			},
 			Minimum: 0,
 			Maximum: 10 * 60,
@@ -130,9 +143,11 @@ var optionsSchema schematypes.Schema = schematypes.Object{
 var credentialsSchema schematypes.Schema = schematypes.Object{
 	MetaData: schematypes.MetaData{
 		Title: "TaskCluster Credentials",
-		Description: `The set of credentials that should be used by the worker
-		when authenticating against taskcluster endpoints. This needs scopes
-		for claiming tasks for the given workerType.`,
+		Description: util.Markdown(`
+			The set of credentials that should be used by the worker
+			when authenticating against taskcluster endpoints. This needs scopes
+			for claiming tasks for the given workerType.
+		`),
 	},
 	Properties: schematypes.Properties{
 		"clientId": schematypes.String{
@@ -152,8 +167,9 @@ var credentialsSchema schematypes.Schema = schematypes.Object{
 		"certificate": schematypes.String{
 			MetaData: schematypes.MetaData{
 				Title: "Certificate",
-				Description: `The certificate for the client, if using temporary
-				credentials.`,
+				Description: util.Markdown(`
+					The certificate for the client, if using temporary credentials.
+				`),
 			},
 		},
 		"authorizedScopes": schematypes.Array{
@@ -176,20 +192,24 @@ func ConfigSchema() schematypes.Object {
 			"engine": schematypes.StringEnum{
 				MetaData: schematypes.MetaData{
 					Title: "Worker Engine",
-					Description: `Selected worker engine to use, notice that the
+					Description: util.Markdown(`
+						Selected worker engine to use, notice that the
 						configuration for this engine **must** be present under the
-						'engines.<engine>' configuration key.`,
+						'engines.<engine>' configuration key.
+					`),
 				},
 				Options: engineNames,
 			},
 			"engines": schematypes.Object{
 				MetaData: schematypes.MetaData{
 					Title: "Engine Configuration",
-					Description: `Mapping from engine name to engine configuration.
+					Description: util.Markdown(`
+						Mapping from engine name to engine configuration.
 						Even-though the worker will only use one engine at any given time,
 						the configuration file can hold configuration for all engines.
 						Hence, you need only update the 'engine' key to change which engine
-						should be used.`,
+						should be used.
+					`),
 				},
 				Properties: engineConfig,
 			},
@@ -198,17 +218,21 @@ func ConfigSchema() schematypes.Object {
 			"temporaryFolder": schematypes.String{
 				MetaData: schematypes.MetaData{
 					Title: "Temporary Folder",
-					Description: `Path to folder that can be used for temporary files and
-							folders, if folder doesn't exist it will be created, otherwise it
-							will be overwritten.`,
+					Description: util.Markdown(`
+						Path to folder that can be used for temporary files and
+						folders, if folder doesn't exist it will be created, otherwise it
+						will be overwritten.
+					`),
 				},
 			},
 			"minimumDiskSpace": schematypes.Integer{
 				MetaData: schematypes.MetaData{
 					Title: "Minimum Disk Space",
-					Description: `The minimum amount of disk space in bytes to have available
+					Description: util.Markdown(`
+						The minimum amount of disk space in bytes to have available
 						before starting on the next task. Garbage collector will do a
-						best-effort attempt at releasing resources to satisfy this limit`,
+						best-effort attempt at releasing resources to satisfy this limit.
+					`),
 				},
 				Minimum: 0,
 				Maximum: math.MaxInt64,
@@ -216,9 +240,11 @@ func ConfigSchema() schematypes.Object {
 			"minimumMemory": schematypes.Integer{
 				MetaData: schematypes.MetaData{
 					Title: "Minimum Memory",
-					Description: `The minimum amount of memory in bytes to have available
+					Description: util.Markdown(`
+						The minimum amount of memory in bytes to have available
 						before starting on the next task. Garbage collector will do a
-						best-effort attempt at releasing resources to satisfy this limit`,
+						best-effort attempt at releasing resources to satisfy this limit.
+					`),
 				},
 				Minimum: 0,
 				Maximum: math.MaxInt64,
