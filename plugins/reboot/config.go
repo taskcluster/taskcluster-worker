@@ -78,8 +78,8 @@ var configSchema = schematypes.Object{
 					Command to run when the worker is stopping, if the reboot plugin
 					caused the worker to stop.
 
-					It is recommended that the worker is lunched by a start-up script that
-					reboots/resets the system and lunches the worker again, when the
+					It is recommended that the worker is launched by a start-up script
+					that reboots/resets the system and lunches the worker again, when the
 					worker exits. This is a fairly robust behavior on most deployment
 					scenarios.
 
