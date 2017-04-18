@@ -1,6 +1,9 @@
 package nativeengine
 
-import schematypes "github.com/taskcluster/go-schematypes"
+import (
+	schematypes "github.com/taskcluster/go-schematypes"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
+)
 
 type payload struct {
 	Command []string `json:"command"`
@@ -19,8 +22,10 @@ var payloadSchema = schematypes.Object{
 		"context": schematypes.URI{
 			MetaData: schematypes.MetaData{
 				Title: "Task Context",
-				Description: "Optional URL for a gzipped tar-ball to downloaded " +
-					"and extracted in the HOME directory for running the command.",
+				Description: util.Markdown(`
+					Optional URL for a gzipped tar-ball to downloaded
+					and extracted in the 'HOME' directory for running the command.
+				`),
 			},
 		},
 	},

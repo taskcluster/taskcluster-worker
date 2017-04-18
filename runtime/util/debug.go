@@ -38,6 +38,7 @@ var debugPattern = func() *regexp.Regexp {
 	debug = regexp.QuoteMeta(debug)
 	debug = strings.Replace(debug, "\\*", ".*?", -1)
 	debug = strings.Replace(debug, ",", "|", -1)
+	debug = strings.Replace(debug, " ", "|", -1)
 	debug = "^(" + debug + ")$"
 	return regexp.MustCompile(debug)
 }()

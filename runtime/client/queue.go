@@ -21,6 +21,7 @@ import (
 // taskcluster-client-go package.  Passing around an interface allows the
 // queue client to be mocked
 type Queue interface {
+	Status(string) (*queue.TaskStatusResponse, error)
 	ReportCompleted(string, string) (*queue.TaskStatusResponse, error)
 	ReportException(string, string, *queue.TaskExceptionRequest) (*queue.TaskStatusResponse, error)
 	ReportFailed(string, string) (*queue.TaskStatusResponse, error)
@@ -40,6 +41,12 @@ type Queue interface {
 // taskcluster-clieng-go/queue package
 type MockQueue struct {
 	mock.Mock
+}
+
+// Status is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.Status
+func (m *MockQueue) Status(taskID string) (*queue.TaskStatusResponse, error) {
+	args := m.Called(taskID)
+	return args.Get(0).(*queue.TaskStatusResponse), args.Error(1)
 }
 
 // ReportCompleted is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.ReportCompleted
@@ -195,8 +202,9 @@ func (m *MockQueue) ExpectRedirectArtifact(taskID string, runID int, name string
 }
 
 var (
-	claimWorkURLPattern = regexp.MustCompile("^/claim-work/([^/]+)/([^/]+)$")
-	taskRunURLPattern   = regexp.MustCompile("^/task/([^/]+)/runs/([0-9]+)/([^/]+)(?:/(.*))?$")
+	claimWorkURLPattern = regexp.MustCompile(`^/claim-work/([^/]+)/([^/]+)$`)
+	taskRunURLPattern   = regexp.MustCompile(`^/task/([^/]+)/runs/([0-9]+)/([^/]+)(?:/(.*))?$`)
+	taskStatusPattern   = regexp.MustCompile(`^/task/([^/]+)/status$`)
 )
 
 // ServeHTTP handles a queue request by calling the mock implemetation
@@ -214,6 +222,8 @@ func (m *MockQueue) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err = json.Unmarshal(data, &payload); err == nil {
 			result, err = m.ClaimWork(match[1], match[2], &payload)
 		}
+	} else if match := taskStatusPattern.FindStringSubmatch(r.URL.Path); match != nil {
+		result, err = m.Status(match[1])
 	} else if match := taskRunURLPattern.FindStringSubmatch(r.URL.Path); match != nil {
 		switch match[3] {
 		case "reclaim":

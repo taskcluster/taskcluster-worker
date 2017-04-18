@@ -348,17 +348,15 @@ func TestWorkerStopNow(t *testing.T) {
 		Tasks:       1,
 		WorkerGroup: "test-worker-group",
 		WorkerID:    "test-worker-id",
-	}).Once().Run(func(mock.Arguments) {
-		w.StopNow()
-	}).Return(&queue.ClaimWorkResponse{
+	}).Once().Return(&queue.ClaimWorkResponse{
 		Tasks: append(queue.ClaimWorkResponse{}.Tasks, taskClaim{
 			Status:     queue.TaskStatusStructure{TaskID: "my-task-id-1"},
 			RunID:      0,
 			TakenUntil: tcclient.Time(time.Now().Add(10 * time.Minute)),
 			Task: queue.TaskDefinitionResponse{
 				Payload: json.RawMessage(`{
-					"delay": 200,
-					"function": "true",
+					"delay": 50,
+					"function": "stopNow-sleep",
 					"argument": ""
 				}`),
 			},
@@ -367,11 +365,4 @@ func TestWorkerStopNow(t *testing.T) {
 	q.On("ReportException", "my-task-id-1", "0", &queue.TaskExceptionRequest{
 		Reason: "worker-shutdown",
 	}).Once().Return(&queue.TaskStatusResponse{}, nil)
-
-	// return no tasks forever, and stop gracefully
-	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Run(func(mock.Arguments) {
-		w.StopGracefully()
-	}).Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks),
-	}, nil)
 }

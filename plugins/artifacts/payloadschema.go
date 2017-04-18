@@ -4,6 +4,7 @@ import (
 	"time"
 
 	schematypes "github.com/taskcluster/go-schematypes"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
 type payloadType struct {
@@ -28,9 +29,11 @@ var payloadSchema = schematypes.Object{
 					"type": schematypes.StringEnum{
 						MetaData: schematypes.MetaData{
 							Title: "Upload type",
-							Description: "Artifacts can be either an individual `file` or " +
-								"a `directory` containing potentially multiple files with " +
-								"recursively included subdirectories",
+							Description: util.Markdown(`
+								Artifacts can be either an individual 'file' or a 'directory'
+								containing potentially multiple files with recursively included
+								subdirectories
+							`),
 						},
 						Options: []string{"file", "directory"},
 					},
@@ -44,11 +47,12 @@ var payloadSchema = schematypes.Object{
 					"name": schematypes.String{
 						MetaData: schematypes.MetaData{
 							Title: "Artifact Name",
-							Description: "" +
-								"This will be the leading path to directories and the full name\n" +
-								"for files that are uploaded to s3. It must not begin or end\n" +
-								"with '/' and must only contain printable ascii characters\n" +
-								"otherwise.",
+							Description: util.Markdown(`
+								This will be the leading path to directories and the full name
+								for files that are uploaded to s3. It must not begin or end
+								with '/' and must only contain printable ascii characters
+								otherwise.
+							`),
 						},
 						Pattern: `^([\x20-\x2e\x30-\x7e][\x20-\x7e]*)[\x20-\x2e\x30-\x7e]$`,
 					},

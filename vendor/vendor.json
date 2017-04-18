@@ -257,6 +257,12 @@
 			"revisionTime": "2016-09-19T13:31:52Z"
 		},
 		{
+			"checksumSHA1": "Om0cn0L5ewCIBcORQAXD8guTa9M=",
+			"path": "github.com/streadway/amqp",
+			"revision": "afe8eee29a74d213b1f3fb2586058157c397da60",
+			"revisionTime": "2017-03-13T17:48:48Z"
+		},
+		{
 			"checksumSHA1": "EO+jcRet/AJ6IY3lBO8l8BLsZWg=",
 			"origin": "github.com/stretchr/testify/vendor/github.com/stretchr/objx",
 			"path": "github.com/stretchr/objx",
@@ -336,28 +342,28 @@
 			"revisionTime": "2017-02-22T01:37:00Z"
 		},
 		{
-			"checksumSHA1": "6zyHi0i8zjjUfQz5JLB0bPTv8w0=",
+			"checksumSHA1": "/D5Zh31yiQafcHoXxdfU8FErLM4=",
 			"path": "github.com/taskcluster/taskcluster-client-go",
-			"revision": "72514fa85efd9d7e22af0d61a6aa5bed471a95d9",
-			"revisionTime": "2017-02-23T05:21:19Z"
+			"revision": "23a058fed14aecf11e5f0a57c9f3bc7f31adc725",
+			"revisionTime": "2017-04-13T22:51:09Z"
 		},
 		{
-			"checksumSHA1": "cltaekoYu2byVxBAV+N1m80QG4Q=",
+			"checksumSHA1": "mUzvuAzVrPU0206K5ti5q/sURck=",
 			"path": "github.com/taskcluster/taskcluster-client-go/auth",
-			"revision": "72514fa85efd9d7e22af0d61a6aa5bed471a95d9",
-			"revisionTime": "2017-02-23T05:21:19Z"
+			"revision": "23a058fed14aecf11e5f0a57c9f3bc7f31adc725",
+			"revisionTime": "2017-04-13T22:51:09Z"
 		},
 		{
-			"checksumSHA1": "6MUpdvu1CxZQs2Xk+bn6uCLs91g=",
+			"checksumSHA1": "bNFuBG/RryZaHXV9krlZyU7KrGQ=",
 			"path": "github.com/taskcluster/taskcluster-client-go/queue",
-			"revision": "72514fa85efd9d7e22af0d61a6aa5bed471a95d9",
-			"revisionTime": "2017-02-23T05:21:19Z"
+			"revision": "23a058fed14aecf11e5f0a57c9f3bc7f31adc725",
+			"revisionTime": "2017-04-13T22:51:09Z"
 		},
 		{
-			"checksumSHA1": "MZqc1OrFPyhQOkFZGEcptmvm7rQ=",
+			"checksumSHA1": "VIDHtEubzOxKcii86F5bSwcPMw8=",
 			"path": "github.com/taskcluster/taskcluster-client-go/secrets",
-			"revision": "72514fa85efd9d7e22af0d61a6aa5bed471a95d9",
-			"revisionTime": "2017-02-23T05:21:19Z"
+			"revision": "23a058fed14aecf11e5f0a57c9f3bc7f31adc725",
+			"revisionTime": "2017-04-13T22:51:09Z"
 		},
 		{
 			"checksumSHA1": "Jggs+SsefVhBtVaWOqlFnsXICkk=",
