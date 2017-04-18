@@ -225,6 +225,26 @@ func NewPluginManager(options PluginOptions) (*PluginManager, error) {
 	}, nil
 }
 
+// Documentation will collect documentation from all managed plugins.
+func (pm *PluginManager) Documentation() []runtime.Section {
+	pluginDocs := make([][]runtime.Section, len(pm.plugins))
+	spawn(len(pm.plugins), func(i int) {
+		m := pm.monitors[i].WithTag("hook", "Documentation")
+		incidentID := capturePanicOrTimeout(m, func() {
+			pluginDocs[i] = pm.plugins[i].Documentation()
+		})
+		if incidentID != "" {
+			m.Errorf("stopping worker now due to panic reported as incidentID=%s", incidentID)
+			pm.environment.Worker.StopNow()
+		}
+	})
+	docs := []runtime.Section{}
+	for _, sections := range pluginDocs {
+		docs = append(docs, sections...)
+	}
+	return docs
+}
+
 // ReportIdle call ReportIdle on all the managed plugins.
 func (pm *PluginManager) ReportIdle(durationSinceBusy time.Duration) {
 	spawn(len(pm.plugins), func(i int) {
