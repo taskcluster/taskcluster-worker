@@ -8,6 +8,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
 type provider struct {
@@ -56,7 +57,7 @@ func (p *plugin) PayloadSchema() schematypes.Object {
 			"maxRunTime": schematypes.Duration{
 				MetaData: schematypes.MetaData{
 					Title: "Maximum Task Run-Time",
-					Description: `
+					Description: util.Markdown(`
 						The maximum task run-time before the task is **killed** and resolved
 						as _failed_. Specified as an integer in seconds, or as string on
 						the form: '1 day 2 hours 3 minutes'.
@@ -66,7 +67,7 @@ func (p *plugin) PayloadSchema() schematypes.Object {
 
 						For this worker-type the 'maxRunTime' may not exceed:
 						'` + p.MaxRunTime.String() + `'.
-					`,
+					`),
 				},
 			},
 		}
