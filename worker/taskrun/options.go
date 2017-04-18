@@ -9,13 +9,13 @@ import (
 
 // Options required to create a TaskRun
 type Options struct {
-	Environment runtime.Environment
-	Engine      engines.Engine
-	Plugin      plugins.Plugin
-	Monitor     runtime.Monitor
-	TaskInfo    runtime.TaskInfo
-	Payload     map[string]interface{}
-	Queue       client.Queue
+	Environment   runtime.Environment
+	Engine        engines.Engine
+	PluginManager *plugins.PluginManager
+	Monitor       runtime.Monitor
+	TaskInfo      runtime.TaskInfo
+	Payload       map[string]interface{}
+	Queue         client.Queue
 }
 
 // mustBeValid panics if Options contains empty values, this allows us to catch
@@ -36,8 +36,8 @@ func (o *Options) mustBeValid() {
 	if o.Engine == nil {
 		panic("taskrun: Options.Engine is nil")
 	}
-	if o.Plugin == nil {
-		panic("taskrun: Options.Plugin is nil")
+	if o.PluginManager == nil {
+		panic("taskrun: Options.PluginManager is nil")
 	}
 	if o.Monitor == nil {
 		panic("taskrun: Options.Monitor is nil")

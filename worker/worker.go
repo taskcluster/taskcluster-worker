@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -33,7 +34,7 @@ type Worker struct {
 	lifeCycleTracker runtime.LifeCycleTracker
 	webhookserver    webhookserver.Server
 	engine           engines.Engine
-	plugin           plugins.Plugin
+	plugin           *plugins.PluginManager
 	queue            client.Queue
 	queueBaseURL     string
 	options          options
@@ -63,8 +64,10 @@ func New(config interface{}) (w *Worker, err error) {
 		options:          c.WorkerOptions,
 	}
 
-	// Create queue client
-	w.queue = w.newQueueClient(c.Credentials)
+	// Create queue client that is aborted when life-cycle ends
+	w.queue = w.newQueueClient(&lifeCycleContext{
+		LifeCycle: &w.lifeCycleTracker,
+	}, c.Credentials)
 
 	// Create temporary storage
 	w.temporaryStorage, err = runtime.NewTemporaryStorage(c.TemporaryFolder)
@@ -107,7 +110,7 @@ func New(config interface{}) (w *Worker, err error) {
 		return
 	}
 
-	// Create plugin
+	// Create plugin manager
 	w.plugin, err = plugins.NewPluginManager(plugins.PluginOptions{
 		Environment: &w.environment,
 		Engine:      w.engine,
@@ -188,6 +191,9 @@ func (w *Worker) Start() error {
 			WorkerID:    w.options.WorkerID,
 			Tasks:       N,
 		})
+		if err == context.Canceled {
+			break // if canceled we stop gracefully
+		}
 		if err != nil {
 			w.monitor.ReportError(err, "failed to ClaimWork")
 			w.plugin.ReportNonFatalError()
@@ -197,7 +203,7 @@ func (w *Worker) Start() error {
 		if claims != nil {
 			for _, claim := range claims.Tasks {
 				// Start processing tasks
-				debug("starting to process: %s/%d", claim.Status.TaskID, claim.RunID)
+				debug("starting to process task: %s/%d", claim.Status.TaskID, claim.RunID)
 				w.activeTasks.Increment()
 				go w.processClaim(claim)
 			}
@@ -264,10 +270,13 @@ type taskClaim struct {
 }
 
 // Utility function to create a queue client object
-func (w *Worker) newQueueClient(creds tcclient.Credentials) client.Queue {
+func (w *Worker) newQueueClient(ctx context.Context, creds tcclient.Credentials) client.Queue {
 	q := queue.New(&creds)
 	if w.queueBaseURL != "" {
 		q.BaseURL = w.queueBaseURL
+	}
+	if ctx != nil {
+		q.Context = ctx
 	}
 	return q
 }
@@ -298,7 +307,7 @@ func (w *Worker) processClaim(claim taskClaim) {
 	defer monitor.Debug("done processing task")
 
 	// Create task client
-	q := w.newQueueClient(tcclient.Credentials{
+	q := w.newQueueClient(context.Background(), tcclient.Credentials{
 		ClientID:    claim.Credentials.ClientID,
 		AccessToken: claim.Credentials.AccessToken,
 		Certificate: claim.Credentials.Certificate,
@@ -310,12 +319,12 @@ func (w *Worker) processClaim(claim taskClaim) {
 		panic("unable to parse payload as JSON, this shouldn't be possible")
 	}
 	run := taskrun.New(taskrun.Options{
-		Environment: w.environment,
-		Engine:      w.engine,
-		Plugin:      w.plugin,
-		Monitor:     monitor.WithPrefix("taskrun"),
-		Queue:       q,
-		Payload:     payload,
+		Environment:   w.environment,
+		Engine:        w.engine,
+		PluginManager: w.plugin,
+		Monitor:       monitor.WithPrefix("taskrun"),
+		Queue:         q,
+		Payload:       payload,
 		TaskInfo: runtime.TaskInfo{
 			TaskID:   claim.Status.TaskID,
 			RunID:    claim.RunID,
@@ -359,7 +368,7 @@ func (w *Worker) processClaim(claim taskClaim) {
 
 			// Update takenUntil and create a new queue client
 			takenUntil = time.Time(result.TakenUntil)
-			q = w.newQueueClient(tcclient.Credentials{
+			q = w.newQueueClient(context.Background(), tcclient.Credentials{
 				ClientID:    result.Credentials.ClientID,
 				AccessToken: result.Credentials.AccessToken,
 				Certificate: result.Credentials.Certificate,

@@ -40,6 +40,7 @@ var payloadSchema = schematypes.Object{
 				"malformed-payload-after-start",
 				"fatal-internal-error",
 				"nonfatal-internal-error",
+				"stopNow-sleep",
 			},
 		},
 		"argument": schematypes.String{

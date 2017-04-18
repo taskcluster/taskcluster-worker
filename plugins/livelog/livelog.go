@@ -36,12 +36,13 @@ type taskPlugin struct {
 	environment *runtime.Environment
 	expiration  tcclient.Time
 	monitor     runtime.Monitor
-	uploaded    atomics.Bool
+	uploaded    atomics.Once
 	setupDone   sync.WaitGroup
 	setupErr    error
 }
 
 func (pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
+	debug("Created livelog plugin")
 	return plugin{
 		monitor:     options.Monitor,
 		environment: options.Environment,
@@ -49,11 +50,11 @@ func (pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, 
 }
 
 func (p plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
+	debug("Creating taskPlugin")
 	tp := &taskPlugin{
 		context:     options.TaskContext,
 		monitor:     options.Monitor,
 		environment: p.environment,
-		uploaded:    atomics.NewBool(false),
 	}
 	tp.setupDone.Add(1)
 	go tp.setup()
@@ -98,7 +99,10 @@ func (tp *taskPlugin) setup() {
 
 func (tp *taskPlugin) Finished(success bool) error {
 	tp.setupDone.Wait()
-	err := tp.uploadLog()
+	var err error
+	tp.uploaded.Do(func() {
+		err = tp.uploadLog()
+	})
 	if err == nil {
 		return tp.setupErr
 	}
@@ -107,7 +111,10 @@ func (tp *taskPlugin) Finished(success bool) error {
 
 func (tp *taskPlugin) Exception(runtime.ExceptionReason) error {
 	tp.setupDone.Wait()
-	err := tp.uploadLog()
+	var err error
+	tp.uploaded.Do(func() {
+		err = tp.uploadLog()
+	})
 	if err == nil {
 		return tp.setupErr
 	}
@@ -115,10 +122,6 @@ func (tp *taskPlugin) Exception(runtime.ExceptionReason) error {
 }
 
 func (tp *taskPlugin) uploadLog() error {
-	if tp.uploaded.Get() {
-		return nil
-	}
-
 	file, err := tp.context.ExtractLog()
 	if err != nil {
 		return err
@@ -146,6 +149,7 @@ func (tp *taskPlugin) uploadLog() error {
 		return err
 	}
 
+	debug("Uploading live_backing.log")
 	err = tp.context.UploadS3Artifact(runtime.S3Artifact{
 		Name:     "public/logs/live_backing.log",
 		Mimetype: "text/plain; charset=utf-8",
@@ -171,8 +175,6 @@ func (tp *taskPlugin) uploadLog() error {
 		tp.monitor.Error(err)
 		return err
 	}
-
-	tp.uploaded.Set(true)
 
 	return nil
 }

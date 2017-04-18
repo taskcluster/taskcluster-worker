@@ -60,7 +60,7 @@ func prepare(t *TaskRun) error {
 	// Construct payload schema
 	payloadSchema, err := schematypes.Merge(
 		t.engine.PayloadSchema(),
-		t.plugin.PayloadSchema(),
+		t.pluginManager.PayloadSchema(),
 	)
 	if err != nil {
 		panic(fmt.Sprintf(
@@ -69,12 +69,17 @@ func prepare(t *TaskRun) error {
 	}
 
 	// Validate payload against schema
-	if err = payloadSchema.Validate(t.payload); err != nil {
-		return runtime.NewMalformedPayloadError("Payload schema violation: ", err)
+	verr := payloadSchema.Validate(t.payload)
+	if verr != nil {
+		verr = runtime.NewMalformedPayloadError("Payload schema violation: ", verr)
 	}
 
 	var err1, err2 error
 	util.Parallel(func() {
+		// Don't create a SandboxBuilder if we have schema validation error
+		if verr != nil {
+			return
+		}
 		// Create SandboxBuilder
 		t.sandboxBuilder, err1 = t.engine.NewSandboxBuilder(engines.SandboxOptions{
 			TaskContext: t.taskContext,
@@ -85,11 +90,12 @@ func prepare(t *TaskRun) error {
 			}),
 		})
 	}, func() {
-		// Create TaskPlugin
-		t.taskPlugin, err2 = t.plugin.NewTaskPlugin(plugins.TaskPluginOptions{
+		// Create TaskPlugin, even if we have schema validation error, how else
+		// will the logging plugins upload logs?
+		t.taskPlugin, err2 = t.pluginManager.NewTaskPlugin(plugins.TaskPluginOptions{
 			TaskInfo:    &t.taskInfo,
 			TaskContext: t.taskContext,
-			Payload:     t.plugin.PayloadSchema().Filter(t.payload),
+			Payload:     t.pluginManager.PayloadSchema().Filter(t.payload),
 			Monitor: t.environment.Monitor.WithPrefix("plugin").WithTags(map[string]string{
 				"taskId": t.taskInfo.TaskID,
 				"runId":  strconv.Itoa(t.taskInfo.RunID),
@@ -99,6 +105,11 @@ func prepare(t *TaskRun) error {
 			return
 		}
 	})
+
+	// if we have a schema validation error, we already return that
+	if verr != nil {
+		return verr
+	}
 
 	// Always prefer to return a MalformedPayloadError, if we have one
 	if _, ok := runtime.IsMalformedPayloadError(err1); ok || err2 == nil {

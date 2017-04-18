@@ -18,12 +18,12 @@ import (
 // SetQueueClient() which are intended to be called from other threads.
 type TaskRun struct {
 	// Constants
-	environment runtime.Environment
-	engine      engines.Engine
-	plugin      plugins.Plugin
-	monitor     runtime.Monitor
-	taskInfo    runtime.TaskInfo
-	payload     map[string]interface{}
+	environment   runtime.Environment
+	engine        engines.Engine
+	pluginManager plugins.Plugin // use Plugin interface so we can mock it in tests
+	monitor       runtime.Monitor
+	taskInfo      runtime.TaskInfo
+	payload       map[string]interface{}
 
 	// TaskContext
 	taskContext *runtime.TaskContext
@@ -55,12 +55,12 @@ func New(options Options) *TaskRun {
 	options.mustBeValid()
 
 	t := &TaskRun{
-		environment: options.Environment,
-		engine:      options.Engine,
-		plugin:      options.Plugin,
-		monitor:     options.Monitor,
-		taskInfo:    options.TaskInfo,
-		payload:     options.Payload,
+		environment:   options.Environment,
+		engine:        options.Engine,
+		pluginManager: options.PluginManager,
+		monitor:       options.Monitor,
+		taskInfo:      options.TaskInfo,
+		payload:       options.Payload,
 	}
 	t.c.L = &t.m
 

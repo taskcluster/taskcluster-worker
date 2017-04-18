@@ -11,7 +11,8 @@ import (
 
 type engine struct {
 	engines.EngineBase
-	monitor runtime.Monitor
+	monitor     runtime.Monitor
+	environment runtime.Environment
 }
 
 type engineProvider struct {
@@ -36,7 +37,10 @@ func (e engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 	if options.Monitor == nil {
 		panic("EngineOptions.Monitor is nil, this is a contract violation")
 	}
-	return engine{monitor: options.Monitor}, nil
+	return engine{
+		monitor:     options.Monitor,
+		environment: *options.Environment,
+	}, nil
 }
 
 // mock config contains no fields
@@ -66,12 +70,13 @@ func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sandb
 		return nil, runtime.NewMalformedPayloadError(p.Argument)
 	}
 	return &sandbox{
-		payload: p,
-		context: options.TaskContext,
-		mounts:  make(map[string]*mount),
-		proxies: make(map[string]http.Handler),
-		env:     make(map[string]string),
-		files:   make(map[string][]byte),
+		environment: e.environment,
+		payload:     p,
+		context:     options.TaskContext,
+		mounts:      make(map[string]*mount),
+		proxies:     make(map[string]http.Handler),
+		env:         make(map[string]string),
+		files:       make(map[string][]byte),
 	}, nil
 }
 

@@ -30,6 +30,12 @@ type TaskPluginOptions struct {
 //
 // All methods on this interface must be thread-safe.
 type Plugin interface {
+	// Documentation returns a list of sections with end-user documentation.
+	//
+	// These sections will be combined with documentation sections from all
+	// enabled plugins in-order to form end-user documentation.
+	Documentation() []runtime.Section
+
 	// PayloadSchema returns a schematypes.Object with the properties for
 	// for the TaskPluginOptions.Payload property.
 	//
@@ -173,6 +179,11 @@ type TaskPlugin interface {
 // Implementors should embed this to ensure forward compatibility when we add
 // new optional methods.
 type PluginBase struct{}
+
+// Documentation returns no documentation.
+func (PluginBase) Documentation() []runtime.Section {
+	return nil
+}
 
 // PayloadSchema returns a schema for an empty object for plugins that doesn't
 // take any payload.
