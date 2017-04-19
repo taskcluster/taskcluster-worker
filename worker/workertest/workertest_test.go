@@ -17,18 +17,18 @@ func TestWorkerTest(t *testing.T) {
 		Concurrency:  2,
 		EngineConfig: `{}`,
 		PluginConfig: `{
-      "disabled": [],
-      "success": {}
-    }`,
+			"disabled": [],
+			"success": {}
+		}`,
 		Tasks: []Task{
 			{
 				Title:   "Task Success",
 				Success: true,
 				Payload: `{
-          "delay": 50,
-          "function": "true",
-          "argument": ""
-        }`,
+					"delay": 50,
+					"function": "true",
+					"argument": ""
+				}`,
 			}, {
 				Title:   "Task Failure",
 				Success: false,
@@ -48,27 +48,27 @@ func TestWorkerWithEnv(t *testing.T) {
 		Concurrency:  1,
 		EngineConfig: `{}`,
 		PluginConfig: `{
-      "disabled": [],
-      "env": {
-        "extra": {
-          "STATIC_ENV_VAR": "static-value"
-        }
-      },
-      "livelog": {},
-      "success": {}
-    }`,
+			"disabled": [],
+			"env": {
+				"extra": {
+				"STATIC_ENV_VAR": "static-value"
+				}
+			},
+			"livelog": {},
+			"success": {}
+		}`,
 		Tasks: []Task{
 			{
 				Title:   "Print Task Env Var",
 				Success: true,
 				Payload: `{
-          "delay": 50,
-          "function": "print-env-var",
-          "argument": "HELLO_WORLD",
-          "env": {
-            "HELLO_WORLD": "hello-world"
-          }
-        }`,
+					"delay": 50,
+					"function": "print-env-var",
+					"argument": "HELLO_WORLD",
+					"env": {
+						"HELLO_WORLD": "hello-world"
+					}
+				}`,
 				Artifacts: ArtifactAssertions{
 					"public/logs/live_backing.log": GrepArtifact("hello-world"),
 					"public/logs/live.log":         AnyArtifact(),
@@ -77,10 +77,10 @@ func TestWorkerWithEnv(t *testing.T) {
 				Title:   "Print Static Env Var",
 				Success: true,
 				Payload: `{
-          "delay": 50,
-          "function": "print-env-var",
-          "argument": "STATIC_ENV_VAR"
-        }`,
+					"delay": 50,
+					"function": "print-env-var",
+					"argument": "STATIC_ENV_VAR"
+				}`,
 				Artifacts: ArtifactAssertions{
 					"public/logs/live_backing.log": GrepArtifact("static-value"),
 					"public/logs/live.log":         AnyArtifact(),
@@ -101,10 +101,10 @@ func TestWorkerMalformedPayload(t *testing.T) {
 		Concurrency:  2,
 		EngineConfig: `{}`,
 		PluginConfig: `{
-      "disabled": [],
-      "success": {},
+			"disabled": [],
+			"success": {},
 			"livelog": {}
-    }`,
+		}`,
 		Tasks: []Task{
 			{
 				Title:     "Task Malformed Payload",
