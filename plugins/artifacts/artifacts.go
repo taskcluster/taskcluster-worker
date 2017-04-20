@@ -1,143 +1,315 @@
-// Package artifacts is responsible for uploading artifacts after builds
 package artifacts
 
 import (
+	"context"
+	"fmt"
 	"mime"
 	"path"
 	"path/filepath"
-	"time"
+	"strings"
+	"sync"
 
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
+
+const unknownMimetype = "application/octet-stream"
+
+// Maximum concurrent uploads, note that we might do concurrent uploads for
+// folder artifacts too, causing a total of:
+//   maxUploadConcurrency * maxUploadConcurrency
+const maxUploadConcurrency = 5
 
 type pluginProvider struct {
 	plugins.PluginProviderBase
-}
-
-func (pluginProvider) NewPlugin(plugins.PluginOptions) (plugins.Plugin, error) {
-	return plugin{}, nil
 }
 
 type plugin struct {
 	plugins.PluginBase
 }
 
-func (plugin) PayloadSchema() schematypes.Object {
-	return payloadSchema
-}
-
-func (plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
-	var p payloadType
-	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &p)
-
-	return &taskPlugin{
-		TaskPluginBase: plugins.TaskPluginBase{},
-		artifacts:      p.Artifacts,
-		context:        options.TaskContext,
-	}, nil
-}
-
 type taskPlugin struct {
 	plugins.TaskPluginBase
-	context   *runtime.TaskContext
-	artifacts []artifact
-}
-
-func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
-	nonFatalErrs := []runtime.MalformedPayloadError{}
-
-	for _, artifact := range tp.artifacts {
-		// If expires is set to this time it's the default value
-		if artifact.Expires.IsZero() {
-			artifact.Expires = tp.context.TaskInfo.Expires
-		}
-		switch artifact.Type {
-		case "directory":
-			err := result.ExtractFolder(artifact.Path, tp.createUploadHandler(artifact.Name, artifact.Expires))
-			if err != nil {
-				if tp.errorHandled(artifact.Name, artifact.Expires, err) {
-					nonFatalErrs = append(nonFatalErrs, runtime.NewMalformedPayloadError(err.Error()))
-					continue
-				}
-				return false, err
-			}
-		case "file":
-			fileReader, err := result.ExtractFile(artifact.Path)
-			if err != nil {
-				if tp.errorHandled(artifact.Name, artifact.Expires, err) {
-					nonFatalErrs = append(nonFatalErrs, runtime.NewMalformedPayloadError(err.Error()))
-					continue
-				}
-				return false, err
-			}
-			err = tp.attemptUpload(fileReader, artifact.Path, artifact.Name, artifact.Expires)
-			if err != nil {
-				return false, err
-			}
-		}
-	}
-
-	if len(nonFatalErrs) > 0 {
-		// Only report an exception if the command executed successfully.
-		// The logic behind this it is that no artifact upload failure is
-		// expected for a succeeded run, but failed tasks might be missing
-		// some artifacts.
-		if result.Success() {
-			return false, runtime.MergeMalformedPayload(nonFatalErrs...)
-		}
-
-		return false, nil
-	}
-	return true, nil
-}
-
-func (tp taskPlugin) errorHandled(name string, expires time.Time, err error) bool {
-	var reason string
-	if _, ok := runtime.IsMalformedPayloadError(err); ok {
-		reason = "invalid-resource-on-worker"
-	} else if err == engines.ErrFeatureNotSupported || err == runtime.ErrNonFatalInternalError || err == engines.ErrHandlerInterrupt {
-		reason = "invalid-resource-on-worker"
-	} else if err == engines.ErrResourceNotFound {
-		reason = "file-missing-on-worker"
-	}
-
-	if reason != "" {
-		tp.context.Log("Artifact upload error handled. Continuing...", name, err.Error())
-		tp.context.CreateErrorArtifact(runtime.ErrorArtifact{
-			Name:    name,
-			Message: err.Error(),
-			Reason:  reason,
-			Expires: expires,
-		})
-		return true
-	}
-	return false
-}
-
-func (tp taskPlugin) createUploadHandler(name string, expires time.Time) func(string, ioext.ReadSeekCloser) error {
-	return func(artifactPath string, stream ioext.ReadSeekCloser) error {
-		return tp.attemptUpload(stream, artifactPath, path.Join(name, artifactPath), expires)
-	}
-}
-
-func (tp taskPlugin) attemptUpload(fileReader ioext.ReadSeekCloser, path string, name string, expires time.Time) error {
-	mimeType := mime.TypeByExtension(filepath.Ext(path))
-	if mimeType == "" {
-		// application/octet-stream is the mime type for "unknown"
-		mimeType = "application/octet-stream"
-	}
-	return tp.context.UploadS3Artifact(runtime.S3Artifact{
-		Name:     name,
-		Mimetype: mimeType,
-		Stream:   fileReader,
-		Expires:  expires,
-	})
+	context     *runtime.TaskContext
+	artifacts   []artifact
+	monitor     runtime.Monitor
+	failed      atomics.Bool                    // If true, Stopped() returns false
+	mErrors     sync.Mutex                      // Guards errors
+	errors      []runtime.MalformedPayloadError // errors to be returned from Stopped()
+	nonFatalErr atomics.Bool                    // if true, Stopped() returns non-fatal error
+	fatalErr    atomics.Bool                    // if true, Stopped() returns fatal error
 }
 
 func init() {
 	plugins.Register("artifacts", pluginProvider{})
+}
+
+func (pluginProvider) NewPlugin(plugins.PluginOptions) (plugins.Plugin, error) {
+	return &plugin{}, nil
+}
+
+func (p *plugin) PayloadSchema() schematypes.Object {
+	return payloadSchema
+}
+
+func (p *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
+	var P payload
+	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &P)
+
+	return &taskPlugin{
+		artifacts: P.Artifacts,
+		context:   options.TaskContext,
+		monitor:   options.Monitor,
+	}, nil
+}
+
+func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
+	debug("Extracting artifacts")
+	util.SpawnWithLimit(len(tp.artifacts), maxUploadConcurrency, func(i int) {
+		// Abort, if task context is cancelled
+		if tp.context.Err() != nil {
+			return
+		}
+		a := tp.artifacts[i]
+		if a.Expires.IsZero() {
+			a.Expires = tp.context.TaskInfo.Expires
+		}
+		switch a.Type {
+		case typeFile:
+			tp.processFile(result, a)
+		case typeDirectory:
+			tp.processDirectory(result, a)
+		}
+	})
+	debug("Artifacts extracted and uploaded")
+
+	// Find error condition
+	var err error
+	if len(tp.errors) > 0 {
+		err = runtime.MergeMalformedPayload(tp.errors...)
+	}
+	if tp.nonFatalErr.Get() {
+		err = runtime.ErrNonFatalInternalError
+	}
+	if tp.fatalErr.Get() {
+		err = runtime.ErrFatalInternalError
+	}
+	return !tp.failed.Get(), err
+}
+
+const (
+	reasonFileMissing     = "file-missing-on-worker"
+	reasonInvalidResource = "invalid-resource-on-worker"
+	reasonTooLarge        = "too-large-file-on-worker"
+)
+
+func (tp *taskPlugin) processFile(result engines.ResultSet, a artifact) {
+	debug("extracting file from path: %s", a.Path)
+	r, err := result.ExtractFile(a.Path)
+	// Always close reader, if one is returned
+	defer func() {
+		if r != nil {
+			r.Close()
+		}
+	}()
+
+	// If feature isn't supported this is malformed-payload
+	if err == engines.ErrFeatureNotSupported {
+		e := runtime.NewMalformedPayloadError(
+			"Artifact extraction is not supported in current configuration of this workerType",
+		)
+		tp.mErrors.Lock()
+		tp.errors = append(tp.errors, e)
+		tp.mErrors.Unlock()
+		return
+	}
+
+	// If resource isn't found, task should fail and we print a message to task log
+	if err == engines.ErrResourceNotFound {
+		tp.failed.Set(true)
+		if result.Success() {
+			// Only complain about missing artifacts, if the task was successful
+			tp.context.LogError(fmt.Sprintf("Artifact '%s' was not found.", a.Path))
+		}
+		tp.context.CreateErrorArtifact(runtime.ErrorArtifact{
+			Name:    a.Name,
+			Reason:  reasonFileMissing,
+			Message: fmt.Sprintf("No file was found at path: '%s' on worker", a.Path),
+			Expires: a.Expires,
+		})
+		return
+	}
+
+	// If malformed-payload error, then path is invalid we wrap and return
+	if e, ok := runtime.IsMalformedPayloadError(err); ok {
+		tp.mErrors.Lock()
+		tp.errors = append(tp.errors, runtime.NewMalformedPayloadError(
+			"Invalid path: '", a.Path, "' reason: ", strings.Join(e.Messages(), ";"),
+		))
+		tp.mErrors.Unlock()
+		return
+	}
+
+	// If non-fatal internal error, we want to propagate (what else can we do)
+	if err == runtime.ErrNonFatalInternalError {
+		tp.nonFatalErr.Set(true) // Propagate the non-fatal error
+		tp.monitor.Warn("Received ErrNonFatalInternalError from ResultSet.ExtractFile()")
+		return
+	}
+
+	// If fatal internal error, we want to propagate (what else can we do)
+	if err == runtime.ErrFatalInternalError {
+		tp.fatalErr.Set(true) // Propagate the fatal error
+		tp.monitor.Error("Received ErrFatalInternalError from ResultSet.ExtractFile()")
+		return
+	}
+
+	// If we have an unhandled error
+	if err != nil {
+		tp.fatalErr.Set(true)
+		i := tp.monitor.ReportError(err, "Unhandled error from ResultSet.ExtractFile()")
+		tp.context.LogError("Failed to extract artifact unhandled error, incidentId:", i)
+		return
+	}
+
+	// Guess the mimetype
+	mtype := mime.TypeByExtension(filepath.Ext(a.Path))
+	if mtype == "" {
+		mtype = mime.TypeByExtension(filepath.Ext(a.Name))
+	}
+	if mtype == "" {
+		mtype = unknownMimetype
+	}
+
+	// Let's upload from r
+	err = tp.context.UploadS3Artifact(runtime.S3Artifact{
+		Name:     a.Name,
+		Mimetype: mtype,
+		Stream:   r,
+		Expires:  a.Expires,
+	})
+
+	if err != nil && err != context.Canceled {
+		tp.nonFatalErr.Set(true)
+		i := tp.monitor.ReportError(err, "Failed to upload artifact")
+		tp.context.LogError("Failed to upload artifact unhandled error, incidentId:", i)
+	}
+}
+
+func (tp *taskPlugin) processDirectory(result engines.ResultSet, a artifact) {
+	debug("extracting directory from path: %s", a.Path)
+	semaphore := make(chan struct{}, maxUploadConcurrency)
+	err := result.ExtractFolder(a.Path, func(p string, r ioext.ReadSeekCloser) error {
+		debug(" - Found artifact: %s in %s", p, a.Path)
+		// Always close the reader
+		defer r.Close()
+
+		// Block until we can write to semaphore, then read when we're done uploading
+		// This way the capacity o the semaphore channel limits concurrency.
+		select {
+		case semaphore <- struct{}{}:
+		case <-tp.context.Done():
+			return context.Canceled
+		}
+		defer func() {
+			<-semaphore
+		}()
+
+		// Guess the mimetype
+		mtype := mime.TypeByExtension(filepath.Ext(p))
+		if mtype == "" {
+			mtype = unknownMimetype
+		}
+
+		// Upload artifact
+		debug(" - Uploading %s from %s -> %s", p, a.Path, path.Join(a.Name, p))
+		uerr := tp.context.UploadS3Artifact(runtime.S3Artifact{
+			Name:     path.Join(a.Name, p),
+			Expires:  a.Expires,
+			Stream:   r,
+			Mimetype: mtype,
+		})
+
+		// If we have an upload error, that's just a internal non-fatal error.
+		// We ignore the error, if TaskContext was canceled, as requests should be
+		// aborted when that happens.
+		if uerr != nil && tp.context.Err() != nil {
+			tp.nonFatalErr.Set(true)
+			i := tp.monitor.ReportError(uerr, "Failed to upload artifact")
+			tp.context.LogError("Failed to upload artifact unhandled error, incidentId:", i)
+		}
+
+		// Return nil, if we're not aborted
+		return tp.context.Err()
+	})
+
+	// If feature isn't supported this is malformed-payload
+	if err == engines.ErrFeatureNotSupported {
+		e := runtime.NewMalformedPayloadError(
+			"Artifact extraction is not supported in current configuration of this workerType",
+		)
+		tp.mErrors.Lock()
+		tp.errors = append(tp.errors, e)
+		tp.mErrors.Unlock()
+		return
+	}
+
+	// If resource isn't found, task should fail and we print a message to task log
+	if err == engines.ErrResourceNotFound {
+		tp.failed.Set(true)
+		// Only complain about missing artifact folder if task is successful
+		if result.Success() {
+			tp.context.LogError(fmt.Sprintf("No folder was found at '%s', artifact upload failed.", a.Path))
+		}
+		tp.context.CreateErrorArtifact(runtime.ErrorArtifact{
+			Name:    a.Name,
+			Reason:  reasonFileMissing,
+			Message: fmt.Sprintf("No folder was found at path: '%s' on worker", a.Path),
+			Expires: a.Expires,
+		})
+		return
+	}
+
+	// If handler was interupted, then task was canceled or aborted...
+	if err == engines.ErrHandlerInterrupt {
+		tp.monitor.Debug("TaskContext cancellation interrupted artifact upload from folder")
+		return
+	}
+
+	// If malformed-payload error, then path is invalid we wrap and return
+	if e, ok := runtime.IsMalformedPayloadError(err); ok {
+		tp.mErrors.Lock()
+		tp.errors = append(tp.errors, runtime.NewMalformedPayloadError(
+			"Invalid path: '", a.Path, "' reason: ", strings.Join(e.Messages(), ";"),
+		))
+		tp.mErrors.Unlock()
+		return
+	}
+
+	// If non-fatal internal error, we want to propagate (what else can we do)
+	if err == runtime.ErrNonFatalInternalError {
+		tp.nonFatalErr.Set(true) // Propagate the non-fatal error
+		tp.monitor.Warn("Received ErrNonFatalInternalError from ResultSet.ExtractFolder()")
+		return
+	}
+
+	// If fatal internal error, we want to propagate (what else can we do)
+	if err == runtime.ErrFatalInternalError {
+		tp.fatalErr.Set(true) // Propagate the fatal error
+		tp.monitor.Error("Received ErrFatalInternalError from ResultSet.ExtractFolder()")
+		return
+	}
+
+	// If we have an unhandled error
+	if err != nil {
+		tp.fatalErr.Set(true)
+		i := tp.monitor.ReportError(err, "Unhandled error from ResultSet.ExtractFolder()")
+		tp.context.LogError("Failed to extract artifact unhandled error, incidentId:", i)
+		return
+	}
 }

@@ -7,7 +7,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
-type payloadType struct {
+type payload struct {
 	Artifacts []artifact `json:"artifacts"`
 }
 type artifact struct {
@@ -16,6 +16,11 @@ type artifact struct {
 	Name    string    `json:"name"`
 	Expires time.Time `json:"expires"`
 }
+
+const (
+	typeFile      = "file"
+	typeDirectory = "directory"
+)
 
 var payloadSchema = schematypes.Object{
 	Properties: schematypes.Properties{
@@ -35,7 +40,7 @@ var payloadSchema = schematypes.Object{
 								subdirectories
 							`),
 						},
-						Options: []string{"file", "directory"},
+						Options: []string{typeFile, typeDirectory},
 					},
 					"path": schematypes.String{
 						MetaData: schematypes.MetaData{
