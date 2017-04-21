@@ -11,7 +11,6 @@ import (
 
 	"sync"
 
-	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
@@ -22,20 +21,6 @@ import (
 // ErrLogNotClosed represents an invalid attempt to extract a log
 // while it is still open.
 var ErrLogNotClosed = errors.New("Log is still open")
-
-// ErrLogClosed raises when there is a double call to CloseLog.
-var ErrLogClosed = errors.New("Log already closed")
-
-// An ExceptionReason specifies the reason a task reached an exception state.
-type ExceptionReason string
-
-// Reasons why a task can reach an exception state. Implementors should be
-// warned that additional entries may be added in the future.
-const (
-	MalformedPayload ExceptionReason = "malformed-payload"
-	WorkerShutdown   ExceptionReason = "worker-shutdown"
-	InternalError    ExceptionReason = "internal-error"
-)
 
 // TaskStatus represents the current status of the task.
 type TaskStatus string // TODO: (jonasfj) TaskContext shouldn't track status
@@ -61,9 +46,9 @@ const (
 type TaskInfo struct {
 	TaskID   string
 	RunID    int
-	Created  tcclient.Time
-	Deadline tcclient.Time
-	Expires  tcclient.Time
+	Created  time.Time
+	Deadline time.Time
+	Expires  time.Time
 }
 
 // The TaskContext exposes generic properties and functionality related to a
@@ -116,7 +101,7 @@ func (c *TaskContextController) CloseLog() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.logClosed {
-		return ErrLogClosed
+		return nil
 	}
 
 	c.logClosed = true

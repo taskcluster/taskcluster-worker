@@ -13,6 +13,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
 // defaultArtifactPrefix is the default artifact prefix used if nothing is
@@ -63,23 +64,29 @@ func (p *plugin) PayloadSchema() schematypes.Object {
 	s := schematypes.Object{
 		MetaData: schematypes.MetaData{
 			Title: "Interactive Features",
-			Description: `Settings for interactive features, all options are optional,
+			Description: util.Markdown(`
+				Settings for interactive features, all options are optional,
 				an empty object can be used to enable the interactive features with
-				default options.`,
+				default options.
+			`),
 		},
 		Properties: schematypes.Properties{
 			"disableDisplay": schematypes.Boolean{
 				MetaData: schematypes.MetaData{
 					Title: "Disable Display",
-					Description: "Disable the interactive display, defaults to enabled if " +
-						"any options is given for `interactive`, even an empty object.",
+					Description: util.Markdown(`
+						Disable the interactive display, defaults to enabled if any options
+						is given for 'interactive', even an empty object.
+					`),
 				},
 			},
 			"disableShell": schematypes.Boolean{
 				MetaData: schematypes.MetaData{
 					Title: "Disable Shell",
-					Description: "Disable the interactive shell, defaults to enabled if " +
-						"any options is given for `interactive`, even an empty object.",
+					Description: util.Markdown(`
+						Disable the interactive shell, defaults to enabled if any options
+						is given for 'interactive', even an empty object.
+					`),
 				},
 			},
 		},
@@ -88,10 +95,12 @@ func (p *plugin) PayloadSchema() schematypes.Object {
 		s.Properties["artifactPrefix"] = schematypes.String{
 			MetaData: schematypes.MetaData{
 				Title: "Artifact Prefix",
-				Description: "Prefix for the interactive artifacts will be used to " +
-					"create `<prefix>/shell.html`, `<prefix>/display.html` and " +
-					"`<prefix>/sockets.json`. The prefix defaults to `" +
-					p.config.ArtifactPrefix + "`",
+				Description: util.Markdown(`
+					Prefix for the interactive artifacts will be used to create
+					'<prefix>/shell.html', '<prefix>/display.html' and
+					'<prefix>/sockets.json'. The prefix defaults to
+					'` + p.config.ArtifactPrefix + `'.
+				`),
 			},
 			Pattern:       `^[\x20-.0-\x7e][\x20-\x7e]*/$`,
 			MaximumLength: 255,

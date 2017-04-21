@@ -169,6 +169,7 @@ tasks:
           directory: go1.8
           format: tar.gz
 
+
   ##########################################################
   ##################### Linux ARM build ####################
   ##########################################################
@@ -223,3 +224,59 @@ tasks:
             url: https://storage.googleapis.com/golang/go1.8.linux-armv6l.tar.gz
           directory: go1.8
           format: tar.gz
+
+  ##########################################################
+  ##################### upload-docs #####################
+  ##########################################################
+
+  - provisionerId: "{{ taskcluster.docker.provisionerId }}"
+    workerType: "{{ taskcluster.docker.workerType }}"
+    metadata:
+      name: "Upload docs for taskcluster-worker"
+      description: "Builds the 64 bit linux version of taskcluster-worker, generates and uploads docs"
+      owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
+      source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
+    extra:
+      github:
+        # Events that will trigger this task
+        events:
+          - push
+        branches:
+          - master
+    scopes:
+      - auth:aws-s3:read-write:taskcluster-raw-docs/taskcluster-worker/
+      - docker-worker:cache:taskcluster-worker-checkout
+    payload:
+      features:
+        taskclusterProxy: true
+      maxRunTime: 3600
+      image: golang
+      command:
+        - /bin/bash
+        - -vxec
+        - |
+          go get -v "github.com/kardianos/govendor"
+          mkdir -p "${GOPATH}/src/github.com/taskcluster"
+          cd "${GOPATH}/src/github.com/taskcluster"
+          if [ ! -d taskcluster-worker/.git ]; then rm -rf taskcluster-worker; git clone '{{ event.head.repo.url }}' 'taskcluster-worker'; fi
+          cd 'taskcluster-worker'
+          git fetch --tags
+          git checkout -f '{{ event.head.sha }}'
+          git clean -d -f -e '/vendor/*' -x
+          # sometimes `govendor sync` fails first time, so run again, if fails first time
+          govendor sync || govendor sync
+          # build tc-worker
+          make build
+          # generate docs
+          taskcluster-worker schema config -o docs/config-schema.json
+          # install taskcluster-lib-docs
+          apt-get update -y
+          apt-get install -y nodejs npm
+          npm install -g taskcluster-lib-docs@3.3.2
+          # upload docs
+          export DOCS_PROJECT=taskcluster-worker DOCS_TIER=workers DOCS_FOLDER=docs DOCS_README=README.md
+          # Hack because we forgot to wrap with node binary in taskcluster-lib-docs
+          # See: https://github.com/taskcluster/taskcluster-lib-docs/pull/26
+          nodejs `which upload-project-docs`
+      cache:
+        taskcluster-worker-checkout: /go/src

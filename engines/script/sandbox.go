@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
@@ -62,6 +61,12 @@ func (s *sandbox) run() {
 		s.resultSet = &resultSet{success: success}
 		s.resultAbort = engines.ErrSandboxTerminated
 	})
+}
+
+func (s *sandbox) Kill() error {
+	// TODO: Implement termination of all subprocesses
+	_ = s.cmd.Process.Kill()
+	return nil
 }
 
 func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
@@ -122,15 +127,15 @@ func (s *sandbox) uploadArtifacts() error {
 
 		// Ensure expiration is no later than task.expires
 		expires := time.Now().Add(time.Duration(s.engine.config.Expiration) * 24 * time.Hour)
-		if time.Time(s.context.Expires).Before(expires) {
-			expires = time.Time(s.context.Expires)
+		if s.context.Expires.Before(expires) {
+			expires = s.context.Expires
 		}
 
 		// Upload artifact
 		err = s.context.UploadS3Artifact(runtime.S3Artifact{
 			Name:     filepath.ToSlash(name),
 			Mimetype: mimeType,
-			Expires:  tcclient.Time(expires),
+			Expires:  expires,
 			Stream:   f,
 		})
 

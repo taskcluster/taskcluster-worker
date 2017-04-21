@@ -20,6 +20,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
+	"github.com/taskcluster/taskcluster-worker/runtime/monitoring"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
@@ -59,7 +60,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 		TemporaryStorage: storage,
 	}
 
-	monitor := runtime.NewLoggingMonitor("info", nil).WithTag("component", "qemu-run")
+	monitor := monitoring.NewLoggingMonitor("info", nil).WithTag("component", "qemu-run")
 
 	// Create a temporary folder
 	tempFolder := filepath.Join("/tmp", slugid.Nice())

@@ -40,6 +40,12 @@ type SandboxOptions struct {
 // can be implemented on all platforms. See individual methods to see which are
 // required and which can be implemented by returning ErrFeatureNotSupported.
 type Engine interface {
+	// Documentation returns a list of sections with end-user documentation.
+	//
+	// These sections will be combined with documentation sections from all
+	// enabled plugins in-order to form end-user documentation.
+	Documentation() []runtime.Section
+
 	// PayloadSchema returns a JSON schema description of the payload options,
 	// accepted by this engine.
 	PayloadSchema() schematypes.Object
@@ -129,6 +135,11 @@ type Capabilities struct {
 // Implementors of Engine should embed this struct to ensure source
 // compatibility when we add more optional methods to Engine.
 type EngineBase struct{}
+
+// Documentation returns no documentation.
+func (EngineBase) Documentation() []runtime.Section {
+	return nil
+}
 
 // PayloadSchema returns an empty schematypes.Object indicating no contraints
 // on keys of the payload object.

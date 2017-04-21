@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/native/system"
@@ -26,7 +27,9 @@ type sandbox struct {
 	resultSet     *resultSet
 	resultErr     error
 	abortErr      error
-	wg            atomics.WaitGroup
+	sessions      atomics.WaitGroup
+	mShells       sync.Mutex
+	shells        []*shell
 }
 
 func newSandbox(b *sandboxBuilder) (s *sandbox, err error) {
@@ -162,29 +165,69 @@ func fetchContext(context string, user *system.User) error {
 }
 
 func (s *sandbox) NewShell(command []string, tty bool) (engines.Shell, error) {
+	s.mShells.Lock()
+	defer s.mShells.Unlock()
+
 	// Increment shell counter, if draining we don't allow new shells
-	if s.wg.Add(1) != nil {
+	if s.sessions.Add(1) != nil {
 		return nil, engines.ErrSandboxTerminated
 	}
 
 	debug("NewShell with: %v", command)
-	shell, err := newShell(s, command, tty)
+	S, err := newShell(s, command, tty)
 	if err != nil {
 		debug("Failed to start shell, error: %s", err)
-		s.wg.Done()
+		s.sessions.Done()
 		return nil, runtime.NewMalformedPayloadError(
 			"Unable to spawn command: ", command, " error: ", err,
 		)
 	}
 
-	// Wait for the shell to be done and decrement WaitGroup
+	// Add shells to list
+	s.shells = append(s.shells, S)
+
+	// Wait for the S to be done and decrement WaitGroup
 	go func() {
-		result, _ := shell.Wait()
+		result, _ := S.Wait()
 		debug("Shell finished with: %v", result)
-		s.wg.Done()
+
+		s.mShells.Lock()
+		defer s.mShells.Unlock()
+
+		// remove S from s.shells
+		shells := make([]*shell, 0, len(s.shells))
+		for _, s2 := range s.shells {
+			if s2 != S {
+				shells = append(shells, s2)
+			}
+		}
+		s.shells = shells
+
+		// Mark as done
+		s.sessions.Done()
 	}()
 
-	return shell, nil
+	return S, nil
+}
+
+// abortShells prevents new shells and aborts all existing skells
+func (s *sandbox) abortShells() {
+	s.mShells.Lock()
+
+	// Prevent new shells
+	s.sessions.Drain()
+
+	// Abort all shells
+	for _, S := range s.shells {
+		go S.Abort()
+	}
+	s.shells = nil
+
+	// can't hold lock while waiting for session to finish
+	s.mShells.Unlock()
+
+	// Wait for all shells to be done
+	s.sessions.Wait()
 }
 
 func (s *sandbox) waitForTermination() {
@@ -193,7 +236,7 @@ func (s *sandbox) waitForTermination() {
 	debug("Process finished with: %v", success)
 
 	// Wait for all shell to finish and prevent new shells from being created
-	s.wg.WaitAndDrain()
+	s.sessions.WaitAndDrain()
 	debug("All shells terminated")
 
 	s.resolve.Do(func() {
@@ -221,14 +264,47 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 	return s.resultSet, s.resultErr
 }
 
+func (s *sandbox) Kill() error {
+	s.resolve.Do(func() {
+		debug("Sandbox.Kill()")
+
+		// Kill process tree
+		system.KillProcessTree(s.process)
+
+		// Abort all shells
+		s.abortShells()
+
+		// Halt all other sub-processes
+		if s.engine.config.CreateUser {
+			system.KillByOwner(s.user)
+		}
+
+		// Create resultSet
+		s.resultSet = &resultSet{
+			engine:        s.engine,
+			context:       s.context,
+			monitor:       s.monitor,
+			workingFolder: s.workingFolder,
+			user:          s.user,
+			success:       false,
+		}
+		s.abortErr = engines.ErrSandboxTerminated
+	})
+	s.resolve.Wait()
+	return s.resultErr
+}
+
 func (s *sandbox) Abort() error {
 	s.resolve.Do(func() {
-		debug("Aborting sandbox")
+		debug("Sandbox.Abort()")
 
 		// In case we didn't create a new user, killing
 		// the children processes is the only safe way
 		// to kill processes created by the task.
 		system.KillProcessTree(s.process)
+
+		// Abort all shells
+		s.abortShells()
 
 		if s.engine.config.CreateUser {
 			// When we have a new user created, we can safely

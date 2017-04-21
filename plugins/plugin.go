@@ -1,6 +1,8 @@
 package plugins
 
 import (
+	"time"
+
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -28,6 +30,12 @@ type TaskPluginOptions struct {
 //
 // All methods on this interface must be thread-safe.
 type Plugin interface {
+	// Documentation returns a list of sections with end-user documentation.
+	//
+	// These sections will be combined with documentation sections from all
+	// enabled plugins in-order to form end-user documentation.
+	Documentation() []runtime.Section
+
 	// PayloadSchema returns a schematypes.Object with the properties for
 	// for the TaskPluginOptions.Payload property.
 	//
@@ -54,6 +62,39 @@ type Plugin interface {
 	//
 	// Non-fatal errors: MalformedPayloadError
 	NewTaskPlugin(options TaskPluginOptions) (TaskPlugin, error)
+
+	// ReportIdle is called if the worker is idle prior to polling for tasks.
+	// The durationSinceBusy is the time since the worker as last busy.
+	//
+	// This is a perfect time to initiate a graceful stop the worker by
+	// calling runtime.Environment.Worker.StopGracefully(). A plugin can call
+	// StopGracefully() at any time, causing the worker to stop polling.
+	// This hook is mainly useful as a way to gracefully stop the worker without
+	// entering a new billing cycle, which might happen if you gracefully stop
+	// while the worker is processing one or more tasks.
+	//
+	// Warning: This hook is called as part of the worker claim loop, hence, it
+	// strongly to execution time in this method
+	ReportIdle(durationSinceBusy time.Duration)
+
+	// ReportNonFatalError is called if the worker encountered a non-fatal error.
+	//
+	// Plugins can use this to implement a heuristic for shutting down after
+	// certain number of non-fatal errors, or purging caches. This is mainly
+	// intended to allow a configurable plugin to decide if the worker should
+	// stop in response to a non-fatal error.
+	//
+	// The specific non-fatal error message is not available to the heuristic.
+	// If a special heuristic is desired for a special non-fatal error, then this
+	// should be handled in the plugin/engine where the error origins.
+	ReportNonFatalError()
+
+	// Dispose is called when the worker is stopping, a plugin should free all
+	// resources and halt all background processes.
+	//
+	// This is important for testing, but also for relevant when running on
+	// bare metal machines that aren't re-imaged between worker restarts.
+	Dispose() error
 }
 
 // TaskPlugin holds the task-specific state for a plugin
@@ -79,7 +120,7 @@ type TaskPlugin interface {
 	// finished, before mounting caches, proxies, etc. and returning.
 	//
 	// Non-fatal errors: MalformedPayloadError
-	BuildSandbox(SandboxBuilder engines.SandboxBuilder) error
+	BuildSandbox(sandboxBuilder engines.SandboxBuilder) error
 
 	// Started is called once the sandbox has started execution. This is a good
 	// place to hook if you want to do interactive things.
@@ -126,7 +167,7 @@ type TaskPlugin interface {
 
 	// Dispose is called once everything is done and it's time for clean-up.
 	//
-	// This method will be invoked following Stopped() or Exception(). It is then
+	// This method will be invoked following Finished() or Exception(). It is then
 	// the responsibility of the implementor to abort or wait for any long-running
 	// processes and clean-up any resources held.
 	Dispose() error
@@ -139,16 +180,31 @@ type TaskPlugin interface {
 // new optional methods.
 type PluginBase struct{}
 
+// Documentation returns no documentation.
+func (PluginBase) Documentation() []runtime.Section {
+	return nil
+}
+
 // PayloadSchema returns a schema for an empty object for plugins that doesn't
 // take any payload.
 func (PluginBase) PayloadSchema() schematypes.Object {
 	return schematypes.Object{}
 }
 
-// NewTaskPlugin returns nil ignoring the request to create a TaskPlugin for
-// the given task.
+// NewTaskPlugin returns TaskPluginBase{} which ignores all the stages.
 func (PluginBase) NewTaskPlugin(TaskPluginOptions) (TaskPlugin, error) {
-	return nil, nil
+	return TaskPluginBase{}, nil
+}
+
+// ReportIdle does nothing
+func (PluginBase) ReportIdle(time.Duration) {}
+
+// ReportNonFatalError does nothing
+func (PluginBase) ReportNonFatalError() {}
+
+// Dispose does nothing
+func (PluginBase) Dispose() error {
+	return nil
 }
 
 // TaskPluginBase is a base implementation of the TaskPlugin interface, it just

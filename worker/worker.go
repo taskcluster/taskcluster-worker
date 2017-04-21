@@ -1,202 +1,487 @@
 package worker
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
-	"net"
 	"os"
+	"strconv"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	schematypes "github.com/taskcluster/go-schematypes"
+	"github.com/taskcluster/httpbackoff"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/auth"
+	"github.com/taskcluster/taskcluster-client-go/queue"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
+	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
+	"github.com/taskcluster/taskcluster-worker/runtime/monitoring"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
+	"github.com/taskcluster/taskcluster-worker/worker/taskrun"
 )
 
-// Worker is the center of taskcluster-worker and is responsible for managing resources, tasks,
-// and host level events.
+// A Worker processes tasks
 type Worker struct {
-	monitor runtime.Monitor
-	done    chan struct{}
-	tm      *Manager
-	sm      runtime.ShutdownManager
-	env     *runtime.Environment
-	server  *webhookserver.LocalServer
+	// New
+	garbageCollector *gc.GarbageCollector
+	temporaryStorage runtime.TemporaryFolder
+	environment      runtime.Environment
+	lifeCycleTracker runtime.LifeCycleTracker
+	webhookserver    webhookserver.Server
+	engine           engines.Engine
+	plugin           *plugins.PluginManager
+	queue            client.Queue
+	queueBaseURL     string
+	options          options
+	monitor          runtime.Monitor
+	// State
+	started     atomics.Once
+	activeTasks taskCounter
 }
 
-// New will create a worker given configuration matching the schema from
-// ConfigSchema(). The log parameter is optional and if nil is given a default
-// logrus logger will be used.
-func New(config interface{}, log *logrus.Logger) (*Worker, error) {
-	// Validate and map configuration to c
+// New creates a new Worker
+func New(config interface{}) (w *Worker, err error) {
 	var c configType
-	if err := schematypes.MustMap(ConfigSchema(), config, &c); err != nil {
-		return nil, fmt.Errorf("Invalid configuration: %s", err)
+	schematypes.MustValidateAndMap(ConfigSchema(), config, &c)
+
+	// Create monitor
+	a := auth.New(&c.Credentials)
+	if c.AuthBaseURL != "" {
+		a.BaseURL = c.AuthBaseURL
+	}
+	monitor := monitoring.New(c.Monitor, a)
+
+	// Create worker
+	w = &Worker{
+		monitor:          monitor.WithPrefix("worker"),
+		garbageCollector: gc.New(c.TemporaryFolder, c.MinimumDiskSpace, c.MinimumMemory),
+		queueBaseURL:     c.QueueBaseURL,
+		options:          c.WorkerOptions,
 	}
 
-	// Create temporary folder
-	err := os.RemoveAll(c.TemporaryFolder)
+	// Create queue client that is aborted when life-cycle ends
+	w.queue = w.newQueueClient(&lifeCycleContext{
+		LifeCycle: &w.lifeCycleTracker,
+	}, c.Credentials)
+
+	// Create temporary storage
+	w.temporaryStorage, err = runtime.NewTemporaryStorage(c.TemporaryFolder)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to remove temporaryFolder: %s, error: %s",
-			c.TemporaryFolder, err)
+		w.monitor.ReportError(err, "worker.New() failed to create TemporaryStorage")
+		err = runtime.ErrFatalInternalError
+		return
 	}
-	tempStorage, err := runtime.NewTemporaryStorage(c.TemporaryFolder)
+
+	// Create webhookserver
+	w.webhookserver, err = webhookserver.NewServer(c.WebHookServer)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create temporary folder, error: %s", err)
-	}
-
-	// Create logger
-	if log == nil {
-		log = logrus.New()
-	}
-	log.Level, _ = logrus.ParseLevel(c.LogLevel)
-
-	// Setup WebHookServer
-	localServer, err := webhookserver.NewLocalServer(
-		net.ParseIP(c.ServerIP), c.ServerPort,
-		c.NetworkInterface, c.ExposedPort,
-		c.DNSDomain,
-		c.DNSSecret,
-		c.TLSCertificate,
-		c.TLSKey,
-		time.Duration(c.MaxLifeCycle)*time.Second,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// Setup monitor
-	tags := map[string]string{
-		"provisionerId": c.ProvisionerID,
-		"workerType":    c.WorkerType,
-		"workerGroup":   c.WorkerGroup,
-		"workerId":      c.WorkerID,
-	}
-	var monitor runtime.Monitor
-	if c.MonitorProject != "" {
-		a := auth.New(&tcclient.Credentials{
-			ClientID:    c.Credentials.ClientID,
-			AccessToken: c.Credentials.AccessToken,
-			Certificate: c.Credentials.Certificate,
-		})
-		monitor = runtime.NewMonitor(c.MonitorProject, a, c.LogLevel, tags)
-	} else {
-		monitor = runtime.NewLoggingMonitor(c.LogLevel, tags)
+		w.monitor.ReportError(err, "worker.New() failed to setup webhookserver")
+		err = runtime.ErrFatalInternalError
+		return
 	}
 
 	// Create environment
-	gc := gc.New(c.TemporaryFolder, c.MinimumDiskSpace, c.MinimumMemory)
-	env := &runtime.Environment{
-		GarbageCollector: gc,
-		TemporaryStorage: tempStorage,
-		WebHookServer:    localServer,
+	w.environment = runtime.Environment{
 		Monitor:          monitor,
+		GarbageCollector: w.garbageCollector,
+		TemporaryStorage: w.temporaryStorage,
+		WebHookServer:    w.webhookserver,
+		Worker:           &w.lifeCycleTracker,
 	}
 
-	// Ensure that engine confiuguration was provided for the engine selected
-	if _, ok := c.Engines[c.Engine]; !ok {
-		return nil, fmt.Errorf("Invalid configuration: The key 'engines.%s' must "+
-			"be specified when engine '%s' is selected", c.Engine, c.Engine)
-	}
-
-	// Find engine provider (schema should ensure it exists)
+	// Create engine
 	provider := engines.Engines()[c.Engine]
-	engine, err := provider.NewEngine(engines.EngineOptions{
-		Environment: env,
-		Monitor:     env.Monitor.WithPrefix("engine").WithTag("engine", c.Engine),
-		Config:      c.Engines[c.Engine],
+	if _, ok := c.EngineConfig[c.Engine]; !ok {
+		return nil, fmt.Errorf("missing engine config for '%s'", c.Engine)
+	}
+	w.engine, err = provider.NewEngine(engines.EngineOptions{
+		Environment: &w.environment,
+		Monitor:     monitor.WithPrefix("engine").WithTag("engine", c.Engine),
+		Config:      c.EngineConfig[c.Engine],
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Engine initialization failed, error: %s", err)
+		w.monitor.ReportError(err, "worker.New() failed to create engine")
+		err = runtime.ErrFatalInternalError
+		return
 	}
 
-	// Initialize plugin manager
-	pm, err := plugins.NewPluginManager(plugins.PluginOptions{
-		Environment: env,
-		Engine:      engine,
-		Monitor:     env.Monitor.WithPrefix("plugin"),
+	// Create plugin manager
+	w.plugin, err = plugins.NewPluginManager(plugins.PluginOptions{
+		Environment: &w.environment,
+		Engine:      w.engine,
+		Monitor:     monitor.WithPrefix("plugin"),
 		Config:      c.Plugins,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Plugin initialization failed, error: %s", err)
+		w.monitor.ReportError(err, "worker.New() failed to create plugin")
+		err = runtime.ErrFatalInternalError
+		return
 	}
 
-	tm, err := newTaskManager(
-		&c, engine, pm, env,
-		env.Monitor.WithPrefix("task-manager"), gc,
+	// Check payload schema conflicts
+	_, err = schematypes.Merge(
+		w.engine.PayloadSchema(),
+		w.plugin.PayloadSchema(),
 	)
 	if err != nil {
-		return nil, err
+		w.monitor.ReportError(err, "worker.New() detected payload schema conflict between engine and plugin")
+		err = runtime.ErrFatalInternalError
+		return
 	}
 
-	return &Worker{
-		monitor: env.Monitor.WithPrefix("worker"),
-		tm:      tm,
-		sm:      runtime.NewShutdownManager("local"),
-		env:     env,
-		server:  localServer,
-		done:    make(chan struct{}),
-	}, nil
-}
-
-// Start will begin the worker cycle of claiming and executing tasks.  The worker
-// will also being to respond to host level events such as shutdown notifications and
-// resource depletion events.
-func (w *Worker) Start() {
-	w.monitor.Info("worker starting up")
-
-	// Ensure that server is stopping gracefully
-	serverStopped := atomics.NewBool(false)
-	go func() {
-		err := w.server.ListenAndServe()
-		if !serverStopped.Get() {
-			w.monitor.Errorf("ListenAndServe failed for webhookserver, error: %s", err)
-		}
-	}()
-
-	go w.tm.Start()
-
-	select {
-	case <-w.tm.doneExecutingTasks:
-	case <-w.sm.WaitForShutdown():
-	case <-w.done:
-	}
-
-	w.tm.ImmediateStop()
-
-	// Allow server to stop
-	serverStopped.Set(true)
-	w.server.Stop()
 	return
 }
 
-// ImmediateStop is a convenience method for stopping the worker loop.  Usually
-// the worker will not be stopped this way, but rather will listen for a
-// shutdown event.
-func (w *Worker) ImmediateStop() {
-	close(w.done)
-}
-
-// GracefulStop will allow the worker to complete its running task, before stopping.
-func (w *Worker) GracefulStop() {
-	w.tm.GracefulStop()
-}
-
-// PayloadSchema returns the payload schema for this worker.
-func (w *Worker) PayloadSchema() schematypes.Object {
+// PayloadSchema returns the schema for task.payload
+func (w *Worker) PayloadSchema() schematypes.Schema {
 	payloadSchema, err := schematypes.Merge(
-		w.tm.engine.PayloadSchema(),
-		w.tm.pluginManager.PayloadSchema(),
+		w.engine.PayloadSchema(),
+		w.plugin.PayloadSchema(),
 	)
 	if err != nil {
+		// this should never happen, we try to do the above in New()
 		panic(fmt.Sprintf(
 			"Conflicting plugin and engine payload properties, error: %s", err,
 		))
 	}
 	return payloadSchema
+}
+
+// ErrWorkerStoppedNow is used to communicate that the worker was forcefully
+// stopped. This could also be triggered by a plugin or engine.
+var ErrWorkerStoppedNow = errors.New("worker was interrupted by StopNow")
+
+// Start process tasks, returns ErrWorkerStoppedNow if not stopped gracefully.
+func (w *Worker) Start() error {
+	// Ensure that we don't start running twice
+	if !w.started.Do(nil) {
+		panic("Worker.Start() cannot be called twice, worker cannot restart")
+	}
+
+	// When StoppingNow is called, we give the worker 5 min to stop, or exit 1
+	// StoppingNow typically happens due to an internal error, it's no unlikely
+	// that this internal error caused a livelock by failing to release a lock, etc.
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		w.lifeCycleTracker.StoppingNow.Wait()
+
+		select {
+		case <-done:
+		case <-time.After(5 * time.Minute):
+			go w.monitor.ReportError(errors.New(
+				"Worker.Start(): livelock detected - didn't stop 5 min after StopNow()",
+			))
+			time.Sleep(30 * time.Second)
+			os.Exit(1)
+		}
+	}()
+
+	for !w.lifeCycleTracker.StoppingGracefully.IsDone() {
+		// Claim tasks
+		N := w.options.Concurrency - w.activeTasks.Value()
+		debug("queue.claimWork(%s, %s) with capacity: %d", w.options.ProvisionerID, w.options.WorkerType, N)
+		claims, err := w.queue.ClaimWork(w.options.ProvisionerID, w.options.WorkerType, &queue.ClaimWorkRequest{
+			WorkerGroup: w.options.WorkerGroup,
+			WorkerID:    w.options.WorkerID,
+			Tasks:       N,
+		})
+		if err == context.Canceled {
+			break // if canceled we stop gracefully
+		}
+		if err != nil {
+			w.monitor.ReportError(err, "failed to ClaimWork")
+			w.plugin.ReportNonFatalError()
+		}
+
+		// If we have claims we MUST always handle, even if we have stopNow!
+		if claims != nil {
+			for _, claim := range claims.Tasks {
+				// Start processing tasks
+				debug("starting to process task: %s/%d", claim.Status.TaskID, claim.RunID)
+				w.activeTasks.Increment()
+				go w.processClaim(claim)
+			}
+		}
+
+		// If we received zero claims or encountered an error, we wait at-least
+		// pollingInterval before polling again. We start the timer here, so it's
+		// counting while we wait for capacity to be available.
+		var delay <-chan time.Time
+		if claims == nil || len(claims.Tasks) == 0 {
+			delay = time.After(time.Duration(w.options.PollingInterval) * time.Second)
+		} else {
+			// If we received a task from the claimWork request then we don't have to
+			// sleep before polling again. But we do have to wait for activeTasks to
+			// drop below maximum allowed concurrency.
+			delay = time.After(0)
+		}
+
+		// Wait for capacity to be available (delay is ticking while this happens)
+		debug("waiting for activeTasks: %d < concurrency: %d", w.activeTasks.Value(), w.options.Concurrency)
+		w.activeTasks.WaitForLessThan(w.options.Concurrency)
+
+		// Wait for delay or stopGracefully
+		debug("sleep before reclaiming, unless stopping gracefully")
+		select {
+		case <-delay:
+		case <-w.lifeCycleTracker.StoppingGracefully.Done():
+		}
+
+		// Report idle time to plugins (so they can manage life-cycle)
+		idle := w.activeTasks.IdleTime()
+		if idle != 0 {
+			w.plugin.ReportIdle(idle)
+		}
+	}
+
+	// Wait for tasks to be done, or stopNow happens
+	debug("waiting for active tasks to be resolved")
+	w.activeTasks.WaitForIdle()
+
+	// free resources when done running
+	w.dispose()
+
+	// Return ErrWorkerStoppedNow if the worker was forcefully stopped
+	if w.lifeCycleTracker.StoppingNow.IsDone() {
+		return ErrWorkerStoppedNow
+	}
+	return nil
+}
+
+// anonymous struct from queue.ClaimWorkResponse.Tasks
+type taskClaim struct {
+	Credentials struct {
+		AccessToken string `json:"accessToken"`
+		Certificate string `json:"certificate"`
+		ClientID    string `json:"clientId"`
+	} `json:"credentials"`
+	RunID       int                          `json:"runId"`
+	Status      queue.TaskStatusStructure    `json:"status"`
+	TakenUntil  tcclient.Time                `json:"takenUntil"`
+	Task        queue.TaskDefinitionResponse `json:"task"`
+	WorkerGroup string                       `json:"workerGroup"`
+	WorkerID    string                       `json:"workerId"`
+}
+
+// Utility function to create a queue client object
+func (w *Worker) newQueueClient(ctx context.Context, creds tcclient.Credentials) client.Queue {
+	q := queue.New(&creds)
+	if w.queueBaseURL != "" {
+		q.BaseURL = w.queueBaseURL
+	}
+	if ctx != nil {
+		q.Context = ctx
+	}
+	return q
+}
+
+// reclaimDelay returns the delay before reclaiming given takenUntil
+func (w *Worker) reclaimDelay(takenUntil time.Time) time.Duration {
+	delay := time.Until(takenUntil) - time.Duration(w.options.ReclaimOffset)*time.Second
+	// Never delay less than MinimumReclaimDelay
+	if delay < time.Duration(w.options.MinimumReclaimDelay)*time.Second {
+		return time.Duration(w.options.MinimumReclaimDelay) * time.Second
+	}
+	return delay
+}
+
+// processClaim is responsible for processing a task, reclaiming the task and
+// aborting it with worker-shutdown with w.stopNow is unblocked, and decrements
+// activeTasks when done
+func (w *Worker) processClaim(claim taskClaim) {
+	// Decrement number of active tasks when we're done processing the task
+	defer w.activeTasks.Decrement()
+
+	// Create monitor for this task
+	monitor := w.monitor.WithTags(map[string]string{
+		"taskId": claim.Status.TaskID,
+		"runId":  strconv.Itoa(claim.RunID),
+	})
+	monitor.Debug("starting to process task")
+	defer monitor.Debug("done processing task")
+
+	// Create task client
+	q := w.newQueueClient(context.Background(), tcclient.Credentials{
+		ClientID:    claim.Credentials.ClientID,
+		AccessToken: claim.Credentials.AccessToken,
+		Certificate: claim.Credentials.Certificate,
+	})
+
+	// Create a taskrun
+	var payload map[string]interface{}
+	if json.Unmarshal(claim.Task.Payload, &payload) != nil {
+		panic("unable to parse payload as JSON, this shouldn't be possible")
+	}
+	run := taskrun.New(taskrun.Options{
+		Environment:   w.environment,
+		Engine:        w.engine,
+		PluginManager: w.plugin,
+		Monitor:       monitor.WithPrefix("taskrun"),
+		Queue:         q,
+		Payload:       payload,
+		TaskInfo: runtime.TaskInfo{
+			TaskID:   claim.Status.TaskID,
+			RunID:    claim.RunID,
+			Created:  time.Time(claim.Task.Created),
+			Deadline: time.Time(claim.Task.Deadline),
+			Expires:  time.Time(claim.Task.Expires),
+		},
+	})
+
+	// runId as string for use in requests
+	runID := strconv.Itoa(claim.RunID)
+
+	// Start reclaiming
+	stopReclaiming := make(chan struct{})
+	reclaimingDone := make(chan struct{})
+	go func() {
+		defer close(reclaimingDone)
+		takenUntil := time.Time(claim.TakenUntil)
+		for {
+			// Wait for reclaim delay, stop of reclaiming, or stopNow called
+			select {
+			case <-stopReclaiming:
+				return
+			case <-w.lifeCycleTracker.StoppingNow.Done():
+				run.Abort(taskrun.WorkerShutdown)
+				return
+			case <-time.After(w.reclaimDelay(takenUntil)):
+			}
+
+			// Reclaim task
+			debug("queue.reclaimTask(%s, %d)", claim.Status.TaskID, claim.RunID)
+			result, err := q.ReclaimTask(claim.Status.TaskID, runID)
+			if err != nil {
+				if e, ok := err.(httpbackoff.BadHttpResponseCode); ok && e.HttpResponseCode == 409 {
+					run.Abort(taskrun.TaskCanceled)
+					return
+				}
+				monitor.ReportWarning(err, "failed to reclaim task")
+				continue // Maybe we'll have more luck next time
+			}
+
+			// Update takenUntil and create a new queue client
+			takenUntil = time.Time(result.TakenUntil)
+			q = w.newQueueClient(context.Background(), tcclient.Credentials{
+				ClientID:    result.Credentials.ClientID,
+				AccessToken: result.Credentials.AccessToken,
+				Certificate: result.Credentials.Certificate,
+			})
+			run.SetQueueClient(q) // update queue client on the run
+		}
+	}()
+
+	// Wait for taskrun to finish
+	success, exception, reason := run.WaitForResult()
+
+	// Stop reclaiming
+	close(stopReclaiming)
+
+	// Wait for reclaiming to end (we can't use q while it may be updated)
+	<-reclaimingDone
+
+	// Report task resolution
+	debug("reporting task %s/%d resolved", claim.Status.TaskID, claim.RunID)
+	var err error
+	if exception {
+		if reason != runtime.ReasonCanceled {
+			_, err = q.ReportException(claim.Status.TaskID, runID, &queue.TaskExceptionRequest{
+				Reason: reason.String(),
+			})
+		}
+	} else {
+		if success {
+			_, err = q.ReportCompleted(claim.Status.TaskID, runID)
+		} else {
+			_, err = q.ReportFailed(claim.Status.TaskID, runID)
+		}
+	}
+	if err != nil {
+		monitor.ReportError(err, "failed to report task resolution")
+		w.plugin.ReportNonFatalError() // This is bad, but no need for it to be fatal
+	}
+
+	// Dispose all resources
+	err = run.Dispose()
+	if err == runtime.ErrNonFatalInternalError {
+		// Count it, but otherwise ignore
+		w.plugin.ReportNonFatalError()
+	} else if err != nil {
+		if err != runtime.ErrFatalInternalError {
+			// This is now allowed, but let's be defensive here
+			monitor.ReportError(err, "TaskRun.Dispose() returned unhandled error")
+		}
+		monitor.Error("fatal error from TaskRun.Dispose() stopping now")
+		w.StopNow()
+	}
+}
+
+// StopNow aborts current tasks resolving worker-shutdown, and causes Work()
+// to return an error.
+func (w *Worker) StopNow() {
+	w.lifeCycleTracker.StopNow()
+}
+
+// StopGracefully stops claiming new tasks and returns nil from Work() when
+// all currently running tasks are done.
+func (w *Worker) StopGracefully() {
+	w.lifeCycleTracker.StopGracefully()
+}
+
+// dispose all resources
+func (w *Worker) dispose() {
+	hasErr := false
+
+	// Collect all garbage
+	switch err := w.garbageCollector.CollectAll(); err {
+	case runtime.ErrFatalInternalError, runtime.ErrNonFatalInternalError:
+		hasErr = true
+	case nil:
+	default:
+		w.monitor.ReportError(err, "error during final garbage collection")
+		hasErr = true
+	}
+
+	// Dispose plugin
+	switch err := w.plugin.Dispose(); err {
+	case runtime.ErrFatalInternalError, runtime.ErrNonFatalInternalError:
+		hasErr = true
+	case nil:
+	default:
+		w.monitor.ReportError(err, "error while disposing plugin")
+		hasErr = true
+	}
+
+	// Dispose engine
+	switch err := w.engine.Dispose(); err {
+	case runtime.ErrFatalInternalError, runtime.ErrNonFatalInternalError:
+		hasErr = true
+	case nil:
+	default:
+		w.monitor.ReportError(err, "error while disposing engine")
+		hasErr = true
+	}
+
+	// Stop webhookserver
+	w.webhookserver.Stop()
+
+	// Remove temporary storage
+	switch err := w.temporaryStorage.Remove(); err {
+	case runtime.ErrFatalInternalError, runtime.ErrNonFatalInternalError:
+		hasErr = true
+	case nil:
+	default:
+		w.monitor.ReportError(err, "error while removing temporary storage")
+		hasErr = true
+	}
+
+	if hasErr {
+		w.lifeCycleTracker.StoppingNow.Do(nil)
+	}
 }

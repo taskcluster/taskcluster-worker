@@ -7,6 +7,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/network"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
 type engine struct {
@@ -42,15 +43,19 @@ var configSchema = schematypes.Object{
 		"imageFolder": schematypes.String{
 			MetaData: schematypes.MetaData{
 				Title: "Image Folder",
-				Description: `Path to folder to be used for image storage and cache.
-											Please ensure this has lots of space.`,
+				Description: util.Markdown(`
+					Path to folder to be used for image storage and cache.
+					Please ensure this has lots of space.
+				`),
 			},
 		},
 		"socketFolder": schematypes.String{
 			MetaData: schematypes.MetaData{
 				Title: "Socket Folder",
-				Description: `Path to folder to be used for internal unix-domain sockets.
-											Ideally, this shouldn't be readable by anyone else.`,
+				Description: util.Markdown(`
+					Path to folder to be used for internal unix-domain sockets.
+					Ideally, this shouldn't be readable by anyone else.
+				`),
 			},
 		},
 		"machineOptions": vm.MachineOptionsSchema,
@@ -113,10 +118,12 @@ var payloadSchema = schematypes.Object{
 		"image": schematypes.URI{
 			MetaData: schematypes.MetaData{
 				Title: "Image to download",
-				Description: "URL to an image file. This is a zstd compressed " +
-					"tar-archive containing a raw disk image `disk.img`, a qcow2 " +
-					"overlay `layer.qcow2` and a machine definition file " +
-					"`machine.json`. Refer to engine documentation for more details.",
+				Description: util.Markdown(`
+					URL to an image file. This is a zstd compressed
+					tar-archive containing a raw disk image 'disk.img', a qcow2
+					overlay 'layer.qcow2' and a machine definition file
+					'machine.json'. Refer to engine documentation for more details.
+				`),
 			},
 		},
 		"command": schematypes.Array{

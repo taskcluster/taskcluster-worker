@@ -2,6 +2,7 @@ package mockengine
 
 import (
 	"net/http"
+	"time"
 
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
@@ -10,7 +11,8 @@ import (
 
 type engine struct {
 	engines.EngineBase
-	monitor runtime.Monitor
+	monitor     runtime.Monitor
+	environment runtime.Environment
 }
 
 type engineProvider struct {
@@ -22,6 +24,12 @@ func init() {
 	engines.Register("mock", engineProvider{})
 }
 
+// New creates a new MockEngine
+func New(options engines.EngineOptions) engines.Engine {
+	engine, _ := engineProvider{}.NewEngine(options)
+	return engine
+}
+
 func (e engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine, error) {
 	if options.Environment.Monitor == nil {
 		panic("EngineOptions.Environment.Monitor is nil, this is a contract violation")
@@ -29,7 +37,10 @@ func (e engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 	if options.Monitor == nil {
 		panic("EngineOptions.Monitor is nil, this is a contract violation")
 	}
-	return engine{monitor: options.Monitor}, nil
+	return engine{
+		monitor:     options.Monitor,
+		environment: *options.Environment,
+	}, nil
 }
 
 // mock config contains no fields
@@ -54,13 +65,18 @@ func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sandb
 
 	var p payloadType
 	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &p)
+	if p.Function == "malformed-payload-initial" {
+		<-time.After(time.Duration(p.Delay) * time.Millisecond)
+		return nil, runtime.NewMalformedPayloadError(p.Argument)
+	}
 	return &sandbox{
-		payload: p,
-		context: options.TaskContext,
-		mounts:  make(map[string]*mount),
-		proxies: make(map[string]http.Handler),
-		env:     make(map[string]string),
-		files:   make(map[string][]byte),
+		environment: e.environment,
+		payload:     p,
+		context:     options.TaskContext,
+		mounts:      make(map[string]*mount),
+		proxies:     make(map[string]http.Handler),
+		env:         make(map[string]string),
+		files:       make(map[string][]byte),
 	}, nil
 }
 

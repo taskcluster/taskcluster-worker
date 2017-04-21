@@ -5,6 +5,7 @@ import (
 	"time"
 
 	schematypes "github.com/taskcluster/go-schematypes"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
 var localhostConfigSchema = schematypes.Object{
@@ -32,12 +33,18 @@ var statelessDNSConfigSchema = schematypes.Object{
 		},
 		"networkInterface": schematypes.String{
 			MetaData: schematypes.MetaData{
-				Description: "Network device webhookserver should listen on. If not supplied, it binds to the interface from serverIp address",
+				Description: util.Markdown(`
+					Network device webhookserver should listen on. If not supplied, it
+					binds to the interface from 'serverIp' address
+				`),
 			},
 		},
 		"exposedPort": schematypes.Integer{
 			MetaData: schematypes.MetaData{
-				Description: "Port webhookserver should listen on. If not supplied, it uses the serverPort value.",
+				Description: util.Markdown(`
+					Port webhookserver should listen on. If not supplied, it uses the
+					'serverPort' value.
+				`),
 			},
 			Minimum: 0,
 			Maximum: 65535,
@@ -48,8 +55,11 @@ var statelessDNSConfigSchema = schematypes.Object{
 		"statelessDNSDomain": schematypes.String{},
 		"maxLifeCycle": schematypes.Integer{
 			MetaData: schematypes.MetaData{
-				Title:       "Maximum lifetime of the worker in seconds",
-				Description: "Used to limit the time period for which the DNS server will return an IP for the given worker hostname",
+				Title: "Maximum lifetime of the worker in seconds",
+				Description: util.Markdown(`
+					Used to limit the time period for which the DNS server will return
+					an IP for the given worker hostname.
+				`),
 			},
 			Minimum: 5 * 60,
 			Maximum: 31 * 24 * 60 * 60,
@@ -107,8 +117,8 @@ func NewServer(config interface{}) (Server, error) {
 		s, err := NewLocalServer(
 			net.ParseIP(c.ServerIP), c.ServerPort,
 			c.NetworkInterface, c.ExposedPort,
-			c.StatelessDNSSecret,
 			c.StatelessDNSDomain,
+			c.StatelessDNSSecret,
 			c.TLSCertificate,
 			c.TLSKey,
 			time.Duration(c.MaxLifeCycle)*time.Second,

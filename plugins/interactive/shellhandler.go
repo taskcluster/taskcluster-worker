@@ -214,6 +214,9 @@ func (s *ShellHandler) waitForSuccess() {
 }
 
 func (s *ShellHandler) transmitStream(r io.Reader, streamID byte) {
+	// When done streaming, signal this so an Exit message can be sent.
+	defer s.streamingDone.Done()
+
 	m := make([]byte, 2+shellconsts.ShellBlockSize)
 	m[0] = shellconsts.MessageTypeData
 	m[1] = streamID
@@ -231,8 +234,6 @@ func (s *ShellHandler) transmitStream(r io.Reader, streamID byte) {
 		if err == io.EOF {
 			debug("Reached EOF for streamID: %d size: %d", streamID, size)
 			s.send(m[:2])
-			// We're done streaming, signal this so an Exit message can be sent.
-			s.streamingDone.Done()
 			return
 		}
 
@@ -331,6 +332,8 @@ func (s *ShellHandler) readMessages() {
 }
 
 func (s *ShellHandler) sendAcks() {
+	defer s.streamingDone.Done()
+
 	// reserve a buffer for sending acknowledgments
 	ack := make([]byte, 2+4)
 	ack[0] = shellconsts.MessageTypeAck
@@ -356,5 +359,4 @@ func (s *ShellHandler) sendAcks() {
 		s.send(ack)
 	}
 	debug("Final ack for stdin sent, size: %d", size)
-	s.streamingDone.Done()
 }

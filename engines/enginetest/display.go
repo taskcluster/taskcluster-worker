@@ -3,10 +3,13 @@ package enginetest
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"sync"
+	"time"
 
 	vnc "github.com/mitchellh/go-vnc"
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
@@ -76,6 +79,7 @@ func (c *DisplayTestCase) TestDisplays() {
 	// List displays
 	displays, err := r.sandbox.ListDisplays()
 	nilOrPanic(err, "Failed to ListDisplays")
+	assert(len(displays) > 0, "Expected at least one display")
 
 	// Test each display
 	resToCheckLater := make(map[string]resolution)
@@ -86,7 +90,7 @@ func (c *DisplayTestCase) TestDisplays() {
 
 		debug(" - Querying for resolution")
 		res, err2 := getDisplayResolution(c)
-		nilOrPanic(err2, "Failed to connect to display")
+		nilOrPanic(err2, "Failed to connect to display, err: ")
 		debug(" - Got resolution, width: %d, height: %d", res.width, res.height)
 
 		// If the actual resolution doesn't match what ListDisplays returned we
@@ -112,6 +116,43 @@ func (c *DisplayTestCase) TestDisplays() {
 	}
 }
 
+// TestKillDisplay opens a display and test that it is closed if Sandbox.Kill()
+// is called.
+func (c *DisplayTestCase) TestKillDisplay() {
+	debug("## TestKillDisplay")
+	r := c.newRun()
+	defer r.Dispose()
+	r.NewSandboxBuilder(c.Payload)
+	r.StartSandbox()
+
+	// List displays
+	displays, err := r.sandbox.ListDisplays()
+	nilOrPanic(err, "Failed to ListDisplays")
+	assert(len(displays) > 0, "Expected at least one display")
+
+	display := displays[0]
+	debug(" - Opening display: %s", display.Name)
+	conn, err := r.sandbox.OpenDisplay(display.Name)
+	nilOrPanic(err, "Failed to OpenDisplay for: ", display.Name)
+
+	// get signal when conn is closed
+	var closed atomics.Once
+	go closed.Do(func() {
+		io.Copy(ioutil.Discard, conn)
+	})
+
+	// Sleep 100ms
+	time.Sleep(100 * time.Millisecond)
+	assert(!closed.IsDone(), "display connection closed too soon")
+
+	// kill sandbox
+	err = r.sandbox.Kill()
+	nilOrPanic(err, "failed to kill sandbox")
+	// hoping 100ms is enough to read out the end-of-stream
+	time.Sleep(100 * time.Millisecond)
+	assert(closed.IsDone(), "expected display connection to be closed")
+}
+
 // TestInvalidDisplayName test that IpenDisplay on InvalidDisplayName is
 // properly handled.
 func (c *DisplayTestCase) TestInvalidDisplayName() {
@@ -129,10 +170,11 @@ func (c *DisplayTestCase) TestInvalidDisplayName() {
 // Test runs all tests in parallel
 func (c *DisplayTestCase) Test() {
 	wg := sync.WaitGroup{}
-	wg.Add(3)
+	wg.Add(4)
 	go func() { c.TestListDisplays(); wg.Done() }()
 	go func() { c.TestDisplays(); wg.Done() }()
 	go func() { c.TestInvalidDisplayName(); wg.Done() }()
+	go func() { c.TestKillDisplay(); wg.Done() }()
 	wg.Wait()
 }
 

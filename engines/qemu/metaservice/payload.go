@@ -25,7 +25,7 @@ type Error struct {
 // Action is the response payload for the /engine/v1/poll end-point.
 type Action struct {
 	ID      string   `json:"id"`      // id, to be used when replying
-	Type    string   `json:"type"`    // none, get-artifact, list-folder, exec-shell
+	Type    string   `json:"type"`    // none, get-artifact, list-folder, exec-shell, kill-process
 	Path    string   `json:"path"`    // file path, if get-artifact/list-folder
 	Command []string `json:"command"` // Command for exec-shell
 	TTY     bool     `json:"tty"`     // TTY or not for exec-shell
