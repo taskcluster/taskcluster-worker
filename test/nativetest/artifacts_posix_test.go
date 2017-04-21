@@ -17,19 +17,19 @@ func TestArtifacts(t *testing.T) {
 		Engine:      "native",
 		Concurrency: 1,
 		EngineConfig: `{
-      "createUser": false
-    }`,
+			"createUser": false
+		}`,
 		PluginConfig: `{
-      "disabled": [],
-      "artifacts": {},
-      "env": {},
-      "maxruntime": {
-        "perTaskLimit": "require",
-        "maxRunTime": "3 hours"
-      },
+			"disabled": [],
+			"artifacts": {},
+			"env": {},
+			"maxruntime": {
+				"perTaskLimit": "require",
+				"maxRunTime": "3 hours"
+			},
 			"livelog": {},
-      "success": {}
-    }`,
+			"success": {}
+		}`,
 		Tasks: []workertest.Task{
 			{
 				Title:   "Artifact File",
