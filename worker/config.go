@@ -100,7 +100,7 @@ var optionsSchema schematypes.Schema = schematypes.Object{
 			MetaData: schematypes.MetaData{
 				Title: "Reclaim Offset",
 				Description: util.Markdown(`
-					The number of seconds priorty task claim expiration the
+					The number of seconds prior to task claim expiration the
 					claim should be reclamed.
 				`),
 			},
