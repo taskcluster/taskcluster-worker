@@ -15,6 +15,10 @@ uname := $(shell uname)
 is_darwin := $(filter Darwin,$(uname))
 CGO_ENABLE := $(if $(is_darwin),1,0)
 
+processor := $(shell uname -p)
+is_armv7l := $(filter armv7l,$(processor))
+RACE := $(if $(is_armv7l),,-race)
+
 .PHONY: all prechecks build rebuild check test dev-test tc-worker-env tc-worker
 
 all: rebuild
@@ -36,11 +40,11 @@ check: test
 	/bin/bash -c 'test $$(git status --porcelain | wc -l) == 0'
 test:
 	# should run with -tags=system at some point..... i.e.:
-	# go test -tags=system -v -race $$(go list ./... | grep -v /vendor/)
-	go test -v -race $$(go list ./... | grep -v /vendor/)
+	# go test -tags=system -v $(RACE) $$(go list ./... | grep -v /vendor/)
+	go test -v $(RACE) $$(go list ./... | grep -v /vendor/)
 
 dev-test:
-	go test -race $$(go list ./... | grep -v /vendor/)
+	go test $(RACE) $$(go list ./... | grep -v /vendor/)
 
 tc-worker-env:
 	docker build -t taskcluster/tc-worker-env -f tc-worker-env.Dockerfile .
