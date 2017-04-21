@@ -74,7 +74,28 @@ func TestArtifacts(t *testing.T) {
 				},
 			},
 			{
-				Title:   "Wrong Artifact Path",
+				Title:   "Artifact Directory Is File",
+				Success: false,
+				Payload: `{
+					"command": ["sh", "-c", "echo 42 > notafolder"],
+					"env": {},
+					"maxRunTime": "10 minutes",
+					"artifacts": [
+						{
+							"name": "public/myfolder",
+							"type": "directory",
+							"path": "notafolder"
+						}
+					]
+				}`,
+				Artifacts: workertest.ArtifactAssertions{
+					"public/logs/live.log":         workertest.ReferenceArtifact(),
+					"public/logs/live_backing.log": workertest.GrepArtifact("notafolder"),
+					"public/myfolder":              workertest.ErrorArtifact(),
+				},
+			},
+			{
+				Title:   "Artifact File Not Found",
 				Success: false,
 				Payload: `{
 					"command": ["true"],
@@ -92,6 +113,27 @@ func TestArtifacts(t *testing.T) {
 					"public/logs/live.log":         workertest.ReferenceArtifact(),
 					"public/logs/live_backing.log": workertest.GrepArtifact("no-such-file-" + filename + ".txt"),
 					"public/result.txt":            workertest.ErrorArtifact(),
+				},
+			},
+			{
+				Title:   "Artifact Directory Not Found",
+				Success: false,
+				Payload: `{
+					"command": ["sh", "-c", "true"],
+					"env": {},
+					"maxRunTime": "10 minutes",
+					"artifacts": [
+						{
+							"name": "public/myfolder",
+							"type": "directory",
+							"path": "no-such-folder/no-sub-folder"
+						}
+					]
+				}`,
+				Artifacts: workertest.ArtifactAssertions{
+					"public/logs/live.log":         workertest.ReferenceArtifact(),
+					"public/logs/live_backing.log": workertest.GrepArtifact("no-such-folder/no-sub-folder"),
+					"public/myfolder":              workertest.ErrorArtifact(),
 				},
 			},
 			// NOTE: If anyone can come up with an artifact path is illegal please add a test case
