@@ -48,19 +48,17 @@ func (p *provider) ConfigSchema() schematypes.Schema {
 	return schematypes.Object{
 		Properties: schematypes.Properties{
 			"extra": schematypes.Map{
-				MetaData: schematypes.MetaData{
-					Title: "Extra Environment Variables",
-					Description: util.Markdown(`
-						The 'extra' property holds a mapping from variable name to value.
+				Title: "Extra Environment Variables",
+				Description: util.Markdown(`
+					The 'extra' property holds a mapping from variable name to value.
 
-						These _extra_ environment variables will be injected into all tasks,
-						though they can be overwritten on per-task basis using the
-						'task.payload.env' property.
+					These _extra_ environment variables will be injected into all tasks,
+					though they can be overwritten on per-task basis using the
+					'task.payload.env' property.
 
-						Notice that these overwrite built-in environment variables
-						'TASK_ID' and 'RUN_ID' which is also supplied by this plugin.
-					`),
-				},
+					Notice that these overwrite built-in environment variables
+					'TASK_ID' and 'RUN_ID' which is also supplied by this plugin.
+				`),
 				Values: schematypes.String{},
 			},
 		},
@@ -80,11 +78,9 @@ func (p *plugin) PayloadSchema() schematypes.Object {
 	return schematypes.Object{
 		Properties: schematypes.Properties{
 			"env": schematypes.Map{
-				MetaData: schematypes.MetaData{
-					Title:       "Environment Variables",
-					Description: "Mapping from environment variables to values",
-				},
-				Values: schematypes.String{},
+				Title:       "Environment Variables",
+				Description: "Mapping from environment variables to values",
+				Values:      schematypes.String{},
 			},
 		},
 	}
