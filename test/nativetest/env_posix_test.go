@@ -13,21 +13,21 @@ func TestEnv(t *testing.T) {
 		Engine:      "native",
 		Concurrency: 1,
 		EngineConfig: `{
-      "createUser": false
-    }`,
+			"createUser": false
+		}`,
 		PluginConfig: `{
-      "disabled": [],
-      "artifacts": {},
-      "env": {
-        "extra": {"MY_STATIC_VAR": "static-value"}
-      },
-      "maxruntime": {
-        "perTaskLimit": "require",
-        "maxRunTime": "3 hours"
-      },
+			"disabled": [],
+			"artifacts": {},
+			"env": {
+				"extra": {"MY_STATIC_VAR": "static-value"}
+			},
+			"maxruntime": {
+				"perTaskLimit": "require",
+				"maxRunTime": "3 hours"
+			},
 			"livelog": {},
-      "success": {}
-    }`,
+			"success": {}
+		}`,
 		Tasks: []workertest.Task{
 			{
 				Title:   "Access Extra Env Vars",
@@ -48,8 +48,8 @@ func TestEnv(t *testing.T) {
 				Payload: `{
 					"command": ["sh", "-c", "echo $MY_ENV_VAR"],
 					"env": {
-            "MY_ENV_VAR": "hello-world"
-          },
+						"MY_ENV_VAR": "hello-world"
+					},
 					"maxRunTime": "10 minutes"
 				}`,
 				AllowAdditional: true, // Ignore additional artifacts
@@ -63,8 +63,8 @@ func TestEnv(t *testing.T) {
 				Payload: `{
 					"command": ["sh", "-c", "echo $MY_STATIC_VAR"],
 					"env": {
-            "MY_STATIC_VAR": "hello-world"
-          },
+						"MY_STATIC_VAR": "hello-world"
+					},
 					"maxRunTime": "10 minutes"
 				}`,
 				AllowAdditional: true, // Ignore additional artifacts
