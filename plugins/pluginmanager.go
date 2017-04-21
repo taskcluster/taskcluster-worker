@@ -112,7 +112,6 @@ func PluginManagerConfigSchema() schematypes.Object {
 				},
 			},
 		},
-		Required: []string{"disabled"},
 	}
 	for name, provider := range plugins {
 		cs := provider.ConfigSchema()
@@ -158,7 +157,9 @@ func NewPluginManager(options PluginOptions) (*PluginManager, error) {
 	// Find plugins to load
 	var enabled []string
 	var disabled []string
-	schematypes.MustValidateAndMap(configSchema.Properties["disabled"], config["disabled"], &disabled)
+	if _, ok := config["disabled"]; ok {
+		schematypes.MustValidateAndMap(configSchema.Properties["disabled"], config["disabled"], &disabled)
+	}
 
 	// Find list of enabled plugins
 	for name := range config {
