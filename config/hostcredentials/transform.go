@@ -36,9 +36,11 @@ func (provider) Transform(cfg map[string]interface{}) error {
 		}
 
 		var creds struct {
-			ClientID    string `json:"clientId"`
-			AccessToken string `json:"accessToken"`
-			Certificate string `json:"certificate"`
+			Credentials struct {
+				ClientID    string `json:"clientId"`
+				AccessToken string `json:"accessToken"`
+				Certificate string `json:"certificate"`
+			} `json:"credentials"`
 		}
 
 		for {
@@ -58,11 +60,11 @@ func (provider) Transform(cfg map[string]interface{}) error {
 				}
 
 				retval := map[string]interface{}{
-					"clientId":    creds.ClientID,
-					"accessToken": creds.AccessToken,
+					"clientId":    creds.Credentials.ClientID,
+					"accessToken": creds.Credentials.AccessToken,
 				}
-				if creds.Certificate != "" {
-					retval["certificate"] = creds.Certificate
+				if creds.Credentials.Certificate != "" {
+					retval["certificate"] = creds.Credentials.Certificate
 				}
 				return retval, nil
 			}

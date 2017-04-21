@@ -27,11 +27,7 @@ func TestHostCredentialsTransform(t *testing.T) {
 			return
 		}
 		w.WriteHeader(200)
-		w.Write([]byte(`{
-      "clientId": "clid",
-      "accessToken": "atat",
-      "certificate": "{cert}"
-    }`))
+		w.Write([]byte(`{"credentials": {"clientId": "clid", "accessToken": "atat", "certificate": "{cert}"}}`))
 	}))
 	defer good.Close()
 
