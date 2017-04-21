@@ -66,6 +66,7 @@ func (provider) Transform(cfg map[string]interface{}) error {
 				if creds.Credentials.Certificate != "" {
 					retval["certificate"] = creds.Credentials.Certificate
 				}
+				log.Printf("Success: host-secrets server gave clientId %s...", creds.Credentials.ClientID)
 				return retval, nil
 			}
 
