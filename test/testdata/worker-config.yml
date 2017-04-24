@@ -4,32 +4,39 @@
 transforms:
   - env
 config:
-  plugins:
-    disabled:         []
-    env:              {}
-  capacity:           {$env: TASKCLUSTER_CAPACITY, type: number}
   credentials:
     clientId:         {$env: TASKCLUSTER_CLIENT_ID}
     accessToken:      {$env: TASKCLUSTER_ACCESS_TOKEN}
-  provisionerId:      test-dummy-provisioner
-  workerType:         {$env: TASKCLUSTER_WORKER_TYPE}
-  workerGroup:        test-dummy-workers
-  workerId:           {$env: TASKCLUSTER_WORKER_ID}
   engine:             native
   engines:
     native:
       createUser:     false
       groups:         []
-  logLevel:           debug
-  pollingInterval:    1
-  queueBaseUrl:       https://queue.taskcluster.net/v1
-  reclaimOffset:      120
-  temporaryFolder:    /var/tmp/tc-worker-tmp
-  serverIp:           127.0.0.1
-  serverPort:         60000
-  maxLifeCycle:       600
   minimumDiskSpace:   10000000  # 10 GB
   minimumMemory:      1000000   # 1 GB
-  maxTasksToRun:      {$env: TASKCLUSTER_MAX_TASKS, type: number}
-  statelessDNSSecret: dummy-secret
-  statelessDNSDomain: dummy-foo.bar.com.biz
+  monitor:
+    type:             mock
+    panicOnError:     false
+  plugins:
+    disabled:         []
+    env:              {}
+    livelog:          {}
+    artifacts:        {}
+    maxruntime:
+      perTaskLimit: allow
+      maxRunTime:   '3 days'
+    reboot:
+      taskLimit:      {$env: TASKCLUSTER_MAX_TASKS, type: number}
+    success:          {}
+  temporaryFolder:    /tmp/tc-worker
+  webHookServer:
+    provider:         localhost
+  worker:
+    concurrency:          {$env: TASKCLUSTER_CAPACITY, type: number}
+    minimumReclaimDelay:  30
+    pollingInterval:      1
+    reclaimOffset:        120
+    provisionerId:        test-dummy-provisioner
+    workerType:           {$env: TASKCLUSTER_WORKER_TYPE}
+    workerGroup:          test-dummy-workers
+    workerId:             {$env: TASKCLUSTER_WORKER_ID}

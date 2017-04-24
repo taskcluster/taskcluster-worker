@@ -23,6 +23,8 @@ import (
 	_ "github.com/taskcluster/taskcluster-worker/engines/native"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/env"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/maxruntime"
+	_ "github.com/taskcluster/taskcluster-worker/plugins/reboot"
+	_ "github.com/taskcluster/taskcluster-worker/plugins/success"
 )
 
 var (

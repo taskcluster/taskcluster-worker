@@ -71,6 +71,16 @@ func TestDirectoryArtifacts(t *testing.T) {
 		// what we expect to discover on file system
 		[]Artifact{
 			{
+				StorageType: "reference",
+				Name:        "public/logs/live.log",
+				ContentType: "text/plain",
+			},
+			{
+				StorageType: "s3",
+				Name:        "public/logs/live_backing.log",
+				ContentType: "text/plain",
+			},
+			{
 				StorageType: "s3",
 				Name:        "SampleArtifacts/%%%/v/X",
 				ContentType: "application/octet-stream",
@@ -104,6 +114,16 @@ func TestMissingFileArtifact(t *testing.T) {
 		// what we expect to discover on file system
 		[]Artifact{
 			{
+				StorageType: "reference",
+				Name:        "public/logs/live.log",
+				ContentType: "text/plain",
+			},
+			{
+				StorageType: "s3",
+				Name:        "public/logs/live_backing.log",
+				ContentType: "text/plain",
+			},
+			{
 				StorageType: "error",
 				Name:        "TestMissingFileArtifact/no_such_file",
 				// Message:     "Could not read file '" + filepath.Join(taskContext.TaskDir, "TestMissingFileArtifact", "no_such_file") + "'",
@@ -127,6 +147,16 @@ func TestMissingDirectoryArtifact(t *testing.T) {
 
 		// what we expect to discover on file system
 		[]Artifact{
+			{
+				StorageType: "reference",
+				Name:        "public/logs/live.log",
+				ContentType: "text/plain",
+			},
+			{
+				StorageType: "s3",
+				Name:        "public/logs/live_backing.log",
+				ContentType: "text/plain",
+			},
 			{
 				StorageType: "error",
 				Name:        "TestMissingDirectoryArtifact/no_such_dir",
@@ -152,6 +182,16 @@ func TestFileArtifactIsDirectory(t *testing.T) {
 		// what we expect to discover on file system
 		[]Artifact{
 			{
+				StorageType: "reference",
+				Name:        "public/logs/live.log",
+				ContentType: "text/plain",
+			},
+			{
+				StorageType: "s3",
+				Name:        "public/logs/live_backing.log",
+				ContentType: "text/plain",
+			},
+			{
 				StorageType: "error",
 				Name:        "SampleArtifacts/b/c",
 				// Message: "File artifact '" + filepath.Join(taskContext.TaskDir, "SampleArtifacts", "b", "c") + "' exists as a directory, not a file, on the worker",
@@ -175,6 +215,16 @@ func TestDirectoryArtifactIsFile(t *testing.T) {
 
 		// what we expect to discover on file system
 		[]Artifact{
+			{
+				StorageType: "reference",
+				Name:        "public/logs/live.log",
+				ContentType: "text/plain",
+			},
+			{
+				StorageType: "s3",
+				Name:        "public/logs/live_backing.log",
+				ContentType: "text/plain",
+			},
 			{
 				StorageType: "error",
 				Name:        "SampleArtifacts/b/c/d.jpg",
