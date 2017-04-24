@@ -1,6 +1,6 @@
 // +build !windows
 
-package daemon
+package monitoring
 
 import (
 	syslog "log/syslog"

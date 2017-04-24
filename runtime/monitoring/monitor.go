@@ -69,6 +69,11 @@ func NewMonitor(project string, auth client.Auth, logLevel string, tags map[stri
 			auth:    auth,
 		},
 	}
+
+	if err := setupSyslog(logger); err != nil {
+		m.ReportError(err, "Cannot set up syslog output")
+	}
+
 	return m
 }
 
