@@ -34,9 +34,12 @@ func TestWatchdog(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	assert.False(t, lifeCycle.StoppingNow.IsDone())
 
-	// Sleep 1500ms is not okay, when timeout is configured to 1s
-	time.Sleep(1500 * time.Millisecond)
-	assert.True(t, lifeCycle.StoppingNow.IsDone())
+	// Sleeping > 1s is not okay, when timeout is configured to 1s
+	select {
+	case <-lifeCycle.StoppingNow.Done():
+	case <-time.After(5 * time.Second):
+		assert.Fail(t, "Expected watchdog plugin to initiate graceful shutdown")
+	}
 }
 
 func TestWatchdogRunningIgnored(t *testing.T) {
@@ -59,14 +62,17 @@ func TestWatchdogRunningIgnored(t *testing.T) {
 	tp.BuildSandbox(nil)
 	tp.Started(nil)
 
-	// Sleep 1500ms is okay because we're running
-	time.Sleep(1500 * time.Millisecond)
+	// Sleep 2s is okay because we're running
+	time.Sleep(2 * time.Second)
 	assert.False(t, lifeCycle.StoppingNow.IsDone())
 
 	// Stopped, Dispose or Exception should all do...
 	tp.Dispose()
 
-	// Sleep 1500ms is not okay, when timeout is configured to 1s
-	time.Sleep(1500 * time.Millisecond)
-	assert.True(t, lifeCycle.StoppingNow.IsDone())
+	// Sleeping > 1s is not okay, when timeout is configured to 1s
+	select {
+	case <-lifeCycle.StoppingNow.Done():
+	case <-time.After(5 * time.Second):
+		assert.Fail(t, "Expected watchdog plugin to initiate graceful shutdown")
+	}
 }

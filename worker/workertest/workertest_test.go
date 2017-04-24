@@ -111,7 +111,8 @@ func TestWorkerMalformedPayload(t *testing.T) {
 				Exception: runtime.ReasonMalformedPayload,
 				Payload:   `{}`, // Should never create a SandboxBuilder
 				Artifacts: ArtifactAssertions{
-					"public/logs/live_backing.log": GrepArtifact("malformed-payload"),
+					// We expect an error message that says something about task.payload
+					"public/logs/live_backing.log": GrepArtifact("task.payload"),
 				},
 				AllowAdditional: true,
 			},
