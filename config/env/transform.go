@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/taskcluster/taskcluster-worker/config"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 type provider struct{}
@@ -28,7 +29,7 @@ func init() {
 	config.Register("env", provider{})
 }
 
-func (provider) Transform(cfg map[string]interface{}) error {
+func (provider) Transform(cfg map[string]interface{}, monitor runtime.Monitor) error {
 	return config.ReplaceObjects(cfg, "env", func(val map[string]interface{}) (interface{}, error) {
 		env := val["$env"].(string)
 		value := os.Getenv(env)

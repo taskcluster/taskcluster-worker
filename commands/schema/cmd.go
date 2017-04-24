@@ -9,6 +9,7 @@ import (
 
 	"github.com/taskcluster/taskcluster-worker/commands"
 	"github.com/taskcluster/taskcluster-worker/config"
+	"github.com/taskcluster/taskcluster-worker/runtime/monitoring"
 	"github.com/taskcluster/taskcluster-worker/worker"
 )
 
@@ -39,12 +40,13 @@ options:
 }
 
 func (cmd) Execute(args map[string]interface{}) bool {
+	monitor := monitoring.PreConfig()
 	var schema interface{}
 
 	if args["config"].(bool) {
 		schema = worker.ConfigSchema().Schema()
 	} else {
-		config, err := config.LoadFromFile(args["<config.yml>"].(string))
+		config, err := config.LoadFromFile(args["<config.yml>"].(string), monitor)
 		if err != nil {
 			fmt.Println(err)
 			return false

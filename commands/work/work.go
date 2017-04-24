@@ -8,6 +8,7 @@ import (
 
 	"github.com/taskcluster/taskcluster-worker/commands"
 	"github.com/taskcluster/taskcluster-worker/config"
+	"github.com/taskcluster/taskcluster-worker/runtime/monitoring"
 	"github.com/taskcluster/taskcluster-worker/worker"
 )
 
@@ -28,7 +29,9 @@ func (cmd) Usage() string {
 }
 
 func (cmd) Execute(args map[string]interface{}) bool {
-	config, err := config.LoadFromFile(args["<config.yml>"].(string))
+	monitor := monitoring.PreConfig()
+
+	config, err := config.LoadFromFile(args["<config.yml>"].(string), monitor)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return false
