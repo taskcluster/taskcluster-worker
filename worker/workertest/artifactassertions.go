@@ -21,7 +21,7 @@ func GrepArtifact(substring string) func(t *testing.T, a Artifact) {
 	}
 }
 
-// LogArtifact creates an assetions that logs the artifact, to test log.
+// LogArtifact creates an assetion that logs the artifact, to test log.
 // This is mostly useful when developing integration tests.
 func LogArtifact() func(t *testing.T, a Artifact) {
 	return func(t *testing.T, a Artifact) {

@@ -1,4 +1,4 @@
-// Package artifacts is provides a taskcluster-worker plugin that uploads
+// Package artifacts provides a taskcluster-worker plugin that uploads
 // artifacts when sandbox execution has stopped.
 package artifacts
 
