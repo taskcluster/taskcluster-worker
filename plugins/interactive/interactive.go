@@ -62,46 +62,38 @@ type plugin struct {
 
 func (p *plugin) PayloadSchema() schematypes.Object {
 	s := schematypes.Object{
-		MetaData: schematypes.MetaData{
-			Title: "Interactive Features",
-			Description: util.Markdown(`
-				Settings for interactive features, all options are optional,
-				an empty object can be used to enable the interactive features with
-				default options.
-			`),
-		},
+		Title: "Interactive Features",
+		Description: util.Markdown(`
+			Settings for interactive features, all options are optional,
+			an empty object can be used to enable the interactive features with
+			default options.
+		`),
 		Properties: schematypes.Properties{
 			"disableDisplay": schematypes.Boolean{
-				MetaData: schematypes.MetaData{
-					Title: "Disable Display",
-					Description: util.Markdown(`
-						Disable the interactive display, defaults to enabled if any options
-						is given for 'interactive', even an empty object.
-					`),
-				},
+				Title: "Disable Display",
+				Description: util.Markdown(`
+					Disable the interactive display, defaults to enabled if any options
+					is given for 'interactive', even an empty object.
+				`),
 			},
 			"disableShell": schematypes.Boolean{
-				MetaData: schematypes.MetaData{
-					Title: "Disable Shell",
-					Description: util.Markdown(`
-						Disable the interactive shell, defaults to enabled if any options
-						is given for 'interactive', even an empty object.
-					`),
-				},
+				Title: "Disable Shell",
+				Description: util.Markdown(`
+					Disable the interactive shell, defaults to enabled if any options
+					is given for 'interactive', even an empty object.
+				`),
 			},
 		},
 	}
 	if !p.config.ForbidCustomArtifactPrefix {
 		s.Properties["artifactPrefix"] = schematypes.String{
-			MetaData: schematypes.MetaData{
-				Title: "Artifact Prefix",
-				Description: util.Markdown(`
-					Prefix for the interactive artifacts will be used to create
-					'<prefix>/shell.html', '<prefix>/display.html' and
-					'<prefix>/sockets.json'. The prefix defaults to
-					'` + p.config.ArtifactPrefix + `'.
-				`),
-			},
+			Title: "Artifact Prefix",
+			Description: util.Markdown(`
+				Prefix for the interactive artifacts will be used to create
+				'<prefix>/shell.html', '<prefix>/display.html' and
+				'<prefix>/sockets.json'. The prefix defaults to
+				'` + p.config.ArtifactPrefix + `'.
+			`),
 			Pattern:       `^[\x20-.0-\x7e][\x20-\x7e]*/$`,
 			MaximumLength: 255,
 		}

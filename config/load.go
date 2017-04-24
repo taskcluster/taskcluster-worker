@@ -17,16 +17,12 @@ func Schema() schematypes.Object {
 		transformations = append(transformations, name)
 	}
 	s := schematypes.Object{
-		MetaData: schematypes.MetaData{
-			Title:       "Worker Configuration",
-			Description: `Initial configuration and transformations to run.`,
-		},
+		Title:       "Worker Configuration",
+		Description: `Initial configuration and transformations to run.`,
 		Properties: schematypes.Properties{
 			"transforms": schematypes.Array{
-				MetaData: schematypes.MetaData{
-					Title:       "Configuration Transformations",
-					Description: "Ordered list of transformations to run on the config.",
-				},
+				Title:       "Configuration Transformations",
+				Description: "Ordered list of transformations to run on the config.",
 				Items: schematypes.StringEnum{
 					Options: transformations,
 				},

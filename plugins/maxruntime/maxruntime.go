@@ -55,20 +55,18 @@ func (p *plugin) PayloadSchema() schematypes.Object {
 	if p.PerTaskLimit == limitAllow || p.PerTaskLimit == limitRequire {
 		s.Properties = schematypes.Properties{
 			"maxRunTime": schematypes.Duration{
-				MetaData: schematypes.MetaData{
-					Title: "Maximum Task Run-Time",
-					Description: util.Markdown(`
-						The maximum task run-time before the task is **killed** and resolved
-						as _failed_. Specified as an integer in seconds, or as string on
-						the form: '1 day 2 hours 3 minutes'.
+				Title: "Maximum Task Run-Time",
+				Description: util.Markdown(`
+					The maximum task run-time before the task is **killed** and resolved
+					as _failed_. Specified as an integer in seconds, or as string on
+					the form: '1 day 2 hours 3 minutes'.
 
-						This is measured as the execution time and does not include time
-						the worker spends downloading images or upload artifacts.
+					This is measured as the execution time and does not include time
+					the worker spends downloading images or upload artifacts.
 
-						For this worker-type the 'maxRunTime' may not exceed:
-						'` + p.MaxRunTime.String() + `'.
-					`),
-				},
+					For this worker-type the 'maxRunTime' may not exceed:
+					'` + p.MaxRunTime.String() + `'.
+				`),
 			},
 		}
 		if p.PerTaskLimit == limitRequire {

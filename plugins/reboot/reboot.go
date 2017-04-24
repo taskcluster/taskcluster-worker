@@ -85,26 +85,24 @@ func (p *plugin) PayloadSchema() schematypes.Object {
 	if p.Config.AllowTaskReboots {
 		s.Properties = schematypes.Properties{
 			"reboot": schematypes.StringEnum{
-				MetaData: schematypes.MetaData{
-					Title: "Reboot After Task",
-					Description: util.Markdown(`
-						Reboot the worker after this task is resolved.
+				Title: "Reboot After Task",
+				Description: util.Markdown(`
+					Reboot the worker after this task is resolved.
 
-						This option is useful if the task is known to leave the worker in
-						a dirty state. To spare resources it is possible to condition the
-						reboot on the task resolution, allowed values are:
+					This option is useful if the task is known to leave the worker in
+					a dirty state. To spare resources it is possible to condition the
+					reboot on the task resolution, allowed values are:
 
-							* 'always', reboots the worker after the task is resolved,
-							* 'on-failure', reboots the worker if the task is resolved
-							_failed_ or _exception_.
-							* 'on-exception', reboots the worker if the tsak is resolved
-							_exception_.
+						* 'always', reboots the worker after the task is resolved,
+						* 'on-failure', reboots the worker if the task is resolved
+						_failed_ or _exception_.
+						* 'on-exception', reboots the worker if the tsak is resolved
+						_exception_.
 
-						Regardless of which option is given the worker will always reboot
-						gracefully, reporting task resolution and uploading artifacts before
-						rebooting.
-					`),
-				},
+					Regardless of which option is given the worker will always reboot
+					gracefully, reporting task resolution and uploading artifacts before
+					rebooting.
+				`),
 				Options: []string{rebootAlways, rebootOnFailure, rebootOnException},
 			},
 		}

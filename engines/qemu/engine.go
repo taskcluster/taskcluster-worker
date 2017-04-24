@@ -33,30 +33,24 @@ type configType struct {
 var configSchema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"maxConcurrency": schematypes.Integer{
-			MetaData: schematypes.MetaData{
-				Title:       "Max Concurrency",
-				Description: `Maximum number of virtual machines to run concurrently.`,
-			},
-			Minimum: 1,
-			Maximum: 64,
+			Title:       "Max Concurrency",
+			Description: `Maximum number of virtual machines to run concurrently.`,
+			Minimum:     1,
+			Maximum:     64,
 		},
 		"imageFolder": schematypes.String{
-			MetaData: schematypes.MetaData{
-				Title: "Image Folder",
-				Description: util.Markdown(`
-					Path to folder to be used for image storage and cache.
-					Please ensure this has lots of space.
-				`),
-			},
+			Title: "Image Folder",
+			Description: util.Markdown(`
+				Path to folder to be used for image storage and cache.
+				Please ensure this has lots of space.
+			`),
 		},
 		"socketFolder": schematypes.String{
-			MetaData: schematypes.MetaData{
-				Title: "Socket Folder",
-				Description: util.Markdown(`
-					Path to folder to be used for internal unix-domain sockets.
-					Ideally, this shouldn't be readable by anyone else.
-				`),
-			},
+			Title: "Socket Folder",
+			Description: util.Markdown(`
+				Path to folder to be used for internal unix-domain sockets.
+				Ideally, this shouldn't be readable by anyone else.
+			`),
 		},
 		"machineOptions": vm.MachineOptionsSchema,
 	},
@@ -116,22 +110,18 @@ type payloadType struct {
 var payloadSchema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"image": schematypes.URI{
-			MetaData: schematypes.MetaData{
-				Title: "Image to download",
-				Description: util.Markdown(`
-					URL to an image file. This is a zstd compressed
-					tar-archive containing a raw disk image 'disk.img', a qcow2
-					overlay 'layer.qcow2' and a machine definition file
-					'machine.json'. Refer to engine documentation for more details.
-				`),
-			},
+			Title: "Image to download",
+			Description: util.Markdown(`
+				URL to an image file. This is a zstd compressed
+				tar-archive containing a raw disk image 'disk.img', a qcow2
+				overlay 'layer.qcow2' and a machine definition file
+				'machine.json'. Refer to engine documentation for more details.
+			`),
 		},
 		"command": schematypes.Array{
-			MetaData: schematypes.MetaData{
-				Title:       "Command to run",
-				Description: `Command and arguments to execute on the guest.`,
-			},
-			Items: schematypes.String{},
+			Title:       "Command to run",
+			Description: `Command and arguments to execute on the guest.`,
+			Items:       schematypes.String{},
 		},
 	},
 	Required: []string{"command", "image"},
