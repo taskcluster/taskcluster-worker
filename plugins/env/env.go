@@ -1,15 +1,21 @@
-// This plugins creates the environment variables setup in the payload
-// env" section. It does its processing at BuildSandbox call. After the
-// "BuildSandox" stage, all environment variables configured in the payload
-// are available in the SandboxBuilder.
-
+// Package env provides a taskcluster-worker plugin that injects environment
+// variables into the task environments.
+//
+// This plugin supports per-task environment variables specified in
+// task.payload.env, but also globally configured environment variables, which
+// can be used to inject information such as instance type.
+//
+// Finally, this plugin will inject TASK_ID and RUN_ID as environment variables.
 package env
 
 import (
+	"strconv"
+
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
 type plugin struct {
@@ -17,7 +23,7 @@ type plugin struct {
 	extraVars map[string]string
 }
 
-type payloadType struct {
+type payload struct {
 	Env map[string]string `json:"env"`
 }
 
@@ -25,55 +31,87 @@ type config struct {
 	Extra map[string]string `json:"extra"`
 }
 
-var configSchema = schematypes.Object{
-	Properties: schematypes.Properties{
-		"extra": schematypes.Map{
-			MetaData: schematypes.MetaData{
-				Title:       "Extra environment variables",
-				Description: "This defines extra environment variables to add to the engine.",
-			},
-			Values: schematypes.String{},
-		},
-	},
-}
-
-var payloadSchema = schematypes.Object{
-	Properties: schematypes.Properties{
-		"env": schematypes.Map{
-			MetaData: schematypes.MetaData{
-				Title:       "Environment Variables",
-				Description: "Mapping from environment variables to values",
-			},
-			Values: schematypes.String{},
-		},
-	},
-}
-
-func (*plugin) PayloadSchema() schematypes.Object {
-	return payloadSchema
-}
-
-func (pl *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
-	p := payloadType{
-		// Must explicitly create an empty map, so if payload does not include
-		// env vars, we'll still have a valid map to read from/write to.
-		Env: map[string]string{},
-	}
-	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &p)
-
-	for k, v := range pl.extraVars {
-		p.Env[k] = v
-	}
-
-	return &taskPlugin{
-		TaskPluginBase: plugins.TaskPluginBase{},
-		variables:      p.Env,
-	}, nil
+type provider struct {
+	plugins.PluginProviderBase
 }
 
 type taskPlugin struct {
 	plugins.TaskPluginBase
 	variables map[string]string
+}
+
+func init() {
+	plugins.Register("env", &provider{})
+}
+
+func (p *provider) ConfigSchema() schematypes.Schema {
+	return schematypes.Object{
+		Properties: schematypes.Properties{
+			"extra": schematypes.Map{
+				MetaData: schematypes.MetaData{
+					Title: "Extra Environment Variables",
+					Description: util.Markdown(`
+						The 'extra' property holds a mapping from variable name to value.
+
+						These _extra_ environment variables will be injected into all tasks,
+						though they can be overwritten on per-task basis using the
+						'task.payload.env' property.
+
+						Notice that these overwrite built-in environment variables
+						'TASK_ID' and 'RUN_ID' which is also supplied by this plugin.
+					`),
+				},
+				Values: schematypes.String{},
+			},
+		},
+	}
+}
+
+func (p *provider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
+	var c config
+	schematypes.MustValidateAndMap(p.ConfigSchema(), options.Config, &c)
+
+	return &plugin{
+		extraVars: c.Extra,
+	}, nil
+}
+
+func (p *plugin) PayloadSchema() schematypes.Object {
+	return schematypes.Object{
+		Properties: schematypes.Properties{
+			"env": schematypes.Map{
+				MetaData: schematypes.MetaData{
+					Title:       "Environment Variables",
+					Description: "Mapping from environment variables to values",
+				},
+				Values: schematypes.String{},
+			},
+		},
+	}
+}
+
+func (p *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
+	var P payload
+	schematypes.MustValidateAndMap(p.PayloadSchema(), options.Payload, &P)
+
+	env := make(map[string]string)
+
+	// Set built-in environment variables
+	env["TASK_ID"] = options.TaskContext.TaskID
+	env["RUN_ID"] = strconv.Itoa(options.TaskContext.RunID)
+
+	// Set variables as configured globally
+	for k, v := range p.extraVars {
+		env[k] = v
+	}
+	// Set variables as configured per-task (overwriting globally config vars)
+	for k, v := range P.Env {
+		env[k] = v
+	}
+
+	return &taskPlugin{
+		variables: env,
+	}, nil
 }
 
 func (p *taskPlugin) BuildSandbox(sandboxBuilder engines.SandboxBuilder) error {
@@ -86,9 +124,7 @@ func (p *taskPlugin) BuildSandbox(sandboxBuilder engines.SandboxBuilder) error {
 			return runtime.NewMalformedPayloadError("Environment variable ", k, " has already been set.")
 		case engines.ErrFeatureNotSupported:
 			return runtime.NewMalformedPayloadError(
-				"Cannot set environment variable ",
-				k,
-				". Engine does not support this operation")
+				"Custom environment variables are not supported in the current configuration of the engine")
 		case nil:
 			// break
 		default:
@@ -97,26 +133,4 @@ func (p *taskPlugin) BuildSandbox(sandboxBuilder engines.SandboxBuilder) error {
 	}
 
 	return nil
-}
-
-type pluginProvider struct {
-	plugins.PluginProviderBase
-}
-
-func (*pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
-	var c config
-	schematypes.MustValidateAndMap(configSchema, options.Config, &c)
-
-	return &plugin{
-		PluginBase: plugins.PluginBase{},
-		extraVars:  c.Extra,
-	}, nil
-}
-
-func (*pluginProvider) ConfigSchema() schematypes.Schema {
-	return configSchema
-}
-
-func init() {
-	plugins.Register("env", &pluginProvider{})
 }

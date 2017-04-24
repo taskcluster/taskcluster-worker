@@ -167,7 +167,9 @@ func (t *TaskRun) RunToStage(targetStage Stage) {
 		if err != nil || incidentID != "" {
 			reason := runtime.ReasonInternalError
 			if e, ok := runtime.IsMalformedPayloadError(err); ok {
-				t.controller.LogError(e.Error())
+				for _, m := range e.Messages() {
+					t.controller.LogError(m)
+				}
 				reason = runtime.ReasonMalformedPayload
 			} else if err == runtime.ErrNonFatalInternalError {
 				t.nonFatalErr.Set(true)
