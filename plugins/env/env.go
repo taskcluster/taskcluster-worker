@@ -124,7 +124,7 @@ func (p *taskPlugin) BuildSandbox(sandboxBuilder engines.SandboxBuilder) error {
 			return runtime.NewMalformedPayloadError("Environment variable ", k, " has already been set.")
 		case engines.ErrFeatureNotSupported:
 			return runtime.NewMalformedPayloadError(
-				"Custom environment variables is not supported in the current configuration of the engine")
+				"Custom environment variables are not supported in the current configuration of the engine")
 		case nil:
 			// break
 		default:
