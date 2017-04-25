@@ -13,22 +13,10 @@ func TestMaxRunTime(t *testing.T) {
 }
 
 var maxRunTimeCase = workertest.Case{
-	Engine:      "native",
-	Concurrency: 1,
-	EngineConfig: `{
-		"createUser": false
-	}`,
-	PluginConfig: `{
-		"disabled": [],
-		"artifacts": {},
-		"env": {},
-		"maxruntime": {
-			"perTaskLimit": "require",
-			"maxRunTime": "3 hours"
-		},
-		"livelog": {},
-		"success": {}
-	}`,
+	Engine:       "native",
+	Concurrency:  1,
+	EngineConfig: engineConfig,
+	PluginConfig: pluginConfig,
 	Tasks: []workertest.Task{
 		{
 			Title:   "Success",
@@ -66,15 +54,3 @@ var maxRunTimeCase = workertest.Case{
 		},
 	},
 }
-
-/*
- - folder with multiple artifacts, and sub-folders
- - content type for folder artifacts
- - file artifact is a folder
- + task can fail
- + task can succeed
- + maxRunTime kills
- - canceled task
- - test malformed payload
-
-*/

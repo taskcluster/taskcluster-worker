@@ -13,25 +13,10 @@ func TestRebootAlways(t *testing.T) {
 }
 
 var rebootAlwaysCase = workertest.Case{
-	Engine:      "native",
-	Concurrency: 1,
-	EngineConfig: `{
-		"createUser": false
-	}`,
-	PluginConfig: `{
-		"disabled": [],
-		"artifacts": {},
-		"env": {},
-		"maxruntime": {
-			"perTaskLimit": "require",
-			"maxRunTime": "3 hours"
-		},
-		"reboot":  {
-			"allowTaskReboots": true
-		},
-		"livelog": {},
-		"success": {}
-	}`,
+	Engine:            "native",
+	Concurrency:       0, // require tasks be sequantially dependent
+	EngineConfig:      engineConfig,
+	PluginConfig:      pluginConfig,
 	StoppedGracefully: true, // Expect worker to stop on it's own
 	Tasks: []workertest.Task{
 		{
@@ -74,25 +59,10 @@ func TestRebootFailure(t *testing.T) {
 }
 
 var rebootFailureCase = workertest.Case{
-	Engine:      "native",
-	Concurrency: 1,
-	EngineConfig: `{
-		"createUser": false
-	}`,
-	PluginConfig: `{
-		"disabled": [],
-		"artifacts": {},
-		"env": {},
-		"maxruntime": {
-			"perTaskLimit": "require",
-			"maxRunTime": "3 hours"
-		},
-		"reboot":  {
-			"allowTaskReboots": true
-		},
-		"livelog": {},
-		"success": {}
-	}`,
+	Engine:            "native",
+	Concurrency:       0, // require tasks be sequantially dependent
+	EngineConfig:      engineConfig,
+	PluginConfig:      pluginConfig,
 	StoppedGracefully: true, // Expect worker to stop on it's own
 	Tasks: []workertest.Task{
 		{
