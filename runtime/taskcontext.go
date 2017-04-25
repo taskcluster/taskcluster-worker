@@ -284,6 +284,11 @@ func (c *TaskContext) ExtractLog() (ioext.ReadSeekCloser, error) {
 //  - engines that send an email and await user confirmation
 //  ...
 //
+// If mechanics to expose the webhook is permanently or temporarily off-line,
+// this function may return empty-string instead of a URL. This shouldn't crash
+// worker, rather it should be handled as feature unavailable without
+// interrupting tasks.
+//
 // Implementors attaching a hook should take care to ensure that the handler
 // is able to respond with a non-2xx response, if the data it is accessing isn't
 // available anymore. All webhooks will be detached at the end of the
