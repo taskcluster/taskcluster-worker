@@ -34,7 +34,7 @@ config:
   temporaryFolder:  /mnt/tmp
   webHookServer:
     provider:           stateless-dns
-    maxLifeCycle:       345600  # 4 days
+    maxLifeCycle:       '4 days'
     serverIp:           {$packet: public-ipv4}
     serverPort:         {$env: PORT, type: number}
     networkInterface:   eth0
