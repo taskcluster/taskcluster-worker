@@ -14,6 +14,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
+	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 )
 
 // defaultArtifactPrefix is the default artifact prefix used if nothing is
@@ -48,16 +49,25 @@ func (provider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error)
 	if c.DisplayToolURL == "" {
 		c.DisplayToolURL = defaultDisplayToolURL
 	}
+
+	// IF no WebHookServer is available we disabling the interactive plugin
+	if options.Environment.WebHookServer == nil {
+		options.Monitor.Info("interactive plugin should be disabled when no WebHookServer is configured")
+		return plugins.PluginBase{}, nil
+	}
+
 	return &plugin{
-		config:  c,
-		monitor: options.Monitor,
+		config:        c,
+		monitor:       options.Monitor,
+		webhookserver: options.Environment.WebHookServer,
 	}, nil
 }
 
 type plugin struct {
 	plugins.PluginBase
-	config  config
-	monitor runtime.Monitor
+	config        config
+	monitor       runtime.Monitor
+	webhookserver webhookserver.WebHookServer
 }
 
 func (p *plugin) PayloadSchema() schematypes.Object {
@@ -126,16 +136,18 @@ func (p *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (
 	}
 
 	return &taskPlugin{
-		context: options.TaskContext,
-		opts:    o,
-		monitor: options.Monitor,
-		parent:  p,
+		context:  options.TaskContext,
+		webhooks: webhookserver.NewWebHookSet(p.webhookserver),
+		opts:     o,
+		monitor:  options.Monitor,
+		parent:   p,
 	}, nil
 }
 
 type taskPlugin struct {
 	plugins.TaskPluginBase
 	parent           *plugin
+	webhooks         *webhookserver.WebHookSet
 	monitor          runtime.Monitor
 	opts             opts
 	sandbox          engines.Sandbox
@@ -180,41 +192,32 @@ func (p *taskPlugin) Started(sandbox engines.Sandbox) error {
 }
 
 func (p *taskPlugin) Stopped(_ engines.ResultSet) (bool, error) {
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
-		if p.shellServer != nil {
-			p.shellServer.Abort()
-		}
-		wg.Done()
-	}()
-	go func() {
-		if p.displayServer != nil {
-			p.displayServer.Abort()
-		}
-		wg.Done()
-	}()
-	wg.Wait()
-	return true, nil
+	return true, p.Dispose()
+}
+
+func (p *taskPlugin) Exception(_ runtime.ExceptionReason) error {
+	return p.Dispose()
 }
 
 func (p *taskPlugin) Dispose() error {
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
+	// NOTE: This is also called from Stopped() and Exception()
+	util.Parallel(func() {
 		if p.shellServer != nil {
 			p.shellServer.Abort()
 			p.shellServer.Wait()
 		}
-		wg.Done()
-	}()
-	go func() {
+		p.shellServer = nil
+	}, func() {
 		if p.displayServer != nil {
 			p.displayServer.Abort()
 		}
-		wg.Done()
-	}()
-	wg.Wait()
+		p.displayServer = nil
+	}, func() {
+		if p.webhooks != nil {
+			p.webhooks.Dispose()
+		}
+		p.webhooks = nil
+	})
 	return nil
 }
 
@@ -229,7 +232,7 @@ func (p *taskPlugin) setupShell() error {
 	p.shellServer = NewShellServer(
 		p.sandbox.NewShell, p.monitor.WithPrefix("shell-server"),
 	)
-	u := p.context.AttachWebHook(p.shellServer)
+	u := p.webhooks.AttachHook(p.shellServer)
 	p.shellURL = urlProtocolToWebsocket(u)
 
 	query := url.Values{}
@@ -257,7 +260,7 @@ func (p *taskPlugin) setupDisplay() error {
 	p.displayServer = NewDisplayServer(
 		p.sandbox, p.monitor.WithPrefix("display-server"),
 	)
-	u := p.context.AttachWebHook(p.displayServer)
+	u := p.webhooks.AttachHook(p.displayServer)
 	p.displaysURL = u
 	p.displaySocketURL = urlProtocolToWebsocket(u)
 

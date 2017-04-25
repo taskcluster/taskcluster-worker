@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"time"
 
@@ -13,7 +12,6 @@ import (
 
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
-	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 
 	"gopkg.in/djherbis/stream.v1"
 )
@@ -60,7 +58,6 @@ type TaskInfo struct {
 // properties, and abortion notifications.
 type TaskContext struct {
 	TaskInfo
-	webHookSet  *webhookserver.WebHookSet
 	logStream   *stream.Stream
 	logLocation string // Absolute path to log file
 	logClosed   bool
@@ -79,9 +76,7 @@ type TaskContextController struct {
 }
 
 // NewTaskContext creates a TaskContext and associated TaskContextController
-func NewTaskContext(tempLogFile string,
-	task TaskInfo,
-	server webhookserver.WebHookServer) (*TaskContext, *TaskContextController, error) {
+func NewTaskContext(tempLogFile string, task TaskInfo) (*TaskContext, *TaskContextController, error) {
 	logStream, err := stream.New(tempLogFile)
 	if err != nil {
 		return nil, nil, err
@@ -90,7 +85,6 @@ func NewTaskContext(tempLogFile string,
 		logStream:   logStream,
 		logLocation: tempLogFile,
 		TaskInfo:    task,
-		webHookSet:  webhookserver.NewWebHookSet(server),
 		done:        make(chan struct{}),
 	}
 	return ctx, &TaskContextController{ctx}, nil
@@ -110,8 +104,6 @@ func (c *TaskContextController) CloseLog() error {
 
 // Dispose will clean-up all resources held by the TaskContext
 func (c *TaskContextController) Dispose() error {
-	c.webHookSet.Dispose()
-
 	return c.logStream.Remove()
 }
 
@@ -267,27 +259,4 @@ func (c *TaskContext) ExtractLog() (ioext.ReadSeekCloser, error) {
 	}
 
 	return file, nil
-}
-
-// AttachWebHook will take an http.Handler and expose it to the internet such
-// that requests to any sub-resource of url returned will be forwarded to the
-// handler.
-//
-// Additionally, we promise that the URL contains a cryptographically random
-// sequence of characters rendering it unpredictable. This can be used as a
-// cheap form of access-control, and it is safe as task-specific web hooks
-// are short-lived by nature.
-//
-// Example use-cases:
-//  - livelog plugin
-//  - plugins for interactive shell/display/debugger, etc.
-//  - engines that send an email and await user confirmation
-//  ...
-//
-// Implementors attaching a hook should take care to ensure that the handler
-// is able to respond with a non-2xx response, if the data it is accessing isn't
-// available anymore. All webhooks will be detached at the end of the
-// task-cycle, but not until the very end.
-func (c *TaskContext) AttachWebHook(handler http.Handler) string {
-	return c.webHookSet.AttachHook(handler)
 }

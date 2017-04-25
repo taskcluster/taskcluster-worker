@@ -32,6 +32,7 @@ type taskPlugin struct {
 	plugins.TaskPluginBase
 	context     *runtime.TaskContext
 	url         string
+	detach      func()
 	log         *logrus.Entry
 	environment *runtime.Environment
 	expiration  tcclient.Time
@@ -62,7 +63,14 @@ func (p plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPl
 }
 
 func (tp *taskPlugin) setup() {
-	tp.url = tp.context.AttachWebHook(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	defer tp.setupDone.Done()
+
+	if tp.environment.WebHookServer == nil {
+		tp.monitor.Info("livelog disabled when WebHookServer isn't provided")
+		return
+	}
+
+	tp.url, tp.detach = tp.environment.WebHookServer.AttachHook(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// TODO (garndt): add support for range headers.  Might not be used at all currently
 		logReader, err := tp.context.NewLogReader()
 		if err != nil {
@@ -94,7 +102,6 @@ func (tp *taskPlugin) setup() {
 		// This isn't good, but let's not consider it fatal...
 		tp.setupErr = runtime.ErrNonFatalInternalError
 	}
-	tp.setupDone.Done()
 }
 
 func (tp *taskPlugin) Finished(success bool) error {
@@ -121,7 +128,22 @@ func (tp *taskPlugin) Exception(runtime.ExceptionReason) error {
 	return err
 }
 
+func (tp *taskPlugin) Dispose() error {
+	// Detach livelog webhook, if not already done
+	if tp.detach != nil {
+		tp.detach()
+		tp.detach = nil
+	}
+	return nil
+}
+
 func (tp *taskPlugin) uploadLog() error {
+	// Detach livelog webhook
+	if tp.detach != nil {
+		tp.detach()
+		tp.detach = nil
+	}
+
 	file, err := tp.context.ExtractLog()
 	if err != nil {
 		return err

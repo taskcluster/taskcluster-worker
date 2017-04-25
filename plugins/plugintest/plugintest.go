@@ -113,7 +113,7 @@ func (c Case) Test() {
 	context, controller, err := runtime.NewTaskContext(runtimeEnvironment.TemporaryStorage.NewFilePath(), runtime.TaskInfo{
 		TaskID: taskID,
 		RunID:  c.RunID,
-	}, testServer)
+	})
 	nilOrPanic(err)
 
 	if c.QueueMock != nil {

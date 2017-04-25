@@ -223,7 +223,6 @@ func ConfigSchema() schematypes.Object {
 			"engine",
 			"engines",
 			"plugins",
-			"webHookServer",
 			"temporaryFolder",
 			"minimumDiskSpace",
 			"minimumMemory",
