@@ -50,7 +50,7 @@ var statelessDNSConfigSchema = schematypes.Object{
 		"statelessDNSSecret": schematypes.String{},
 		"statelessDNSDomain": schematypes.String{},
 		"maxLifeCycle": schematypes.Duration{
-			Title: "Maximum lifetime of the worker in seconds",
+			Title: "Maximum lifetime of the worker",
 			Description: util.Markdown(`
 				Used to limit the time period for which the DNS server will return
 				an IP for the given worker hostname.
