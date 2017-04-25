@@ -3,17 +3,12 @@
 package nativetest
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-worker/worker/workertest"
 )
-
-/*
- - folder with multiple artifacts, and sub-folders
- - content type for folder artifacts
- + file artifact is a folder
-*/
 
 func TestArtifacts(t *testing.T) {
 	debug("### Testing artifact plugin with native engine")
@@ -51,7 +46,12 @@ var artifactCase = workertest.Case{
 		Title:   "Artifact Directory",
 		Success: true,
 		Payload: `{
-			"command": ["sh", "-c", "echo 'hello-world' && mkdir -p sub/subsub/ && echo 42 > sub/subsub/result.txt"],
+			"command": ["sh", "-c", "` + strings.Join([]string{
+			"echo 'hello-world'",
+			"mkdir -p sub/subsub/subsubsub",
+			"echo 42 > sub/subsub/result.txt",
+			"echo -n '<html></html>' > sub/subsub/subsubsub/result.html",
+		}, " && ") + `"],
 			"env": {},
 			"maxRunTime": "10 minutes",
 			"artifacts": [
@@ -63,9 +63,10 @@ var artifactCase = workertest.Case{
 			]
 		}`,
 		Artifacts: workertest.ArtifactAssertions{
-			"public/logs/live.log":         workertest.ReferenceArtifact(),
-			"public/logs/live_backing.log": workertest.GrepArtifact("hello-world"),
-			"public/subsub/result.txt":     workertest.GrepArtifact("42"),
+			"public/logs/live.log":                workertest.ReferenceArtifact(),
+			"public/logs/live_backing.log":        workertest.GrepArtifact("hello-world"),
+			"public/subsub/result.txt":            workertest.GrepArtifact("42"),
+			"public/subsub/subsubsub/result.html": workertest.MatchArtifact("<html></html>", "text/html; charset=utf-8"),
 		},
 	}, {
 		Title:   "Artifact Directory Is File",
