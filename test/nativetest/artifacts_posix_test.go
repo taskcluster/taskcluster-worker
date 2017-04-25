@@ -12,7 +12,7 @@ import (
 /*
  - folder with multiple artifacts, and sub-folders
  - content type for folder artifacts
- - file artifact is a folder
+ + file artifact is a folder
 */
 
 func TestArtifacts(t *testing.T) {
@@ -86,6 +86,27 @@ var artifactCase = workertest.Case{
 			"public/logs/live.log":         workertest.ReferenceArtifact(),
 			"public/logs/live_backing.log": workertest.GrepArtifact("notafolder"),
 			"public/myfolder":              workertest.ErrorArtifact(),
+		},
+	}, {
+		Title:   "Artifact File Is Directory",
+		Success: false,
+		Payload: `{
+			"command": ["sh", "-c", "mkdir -p sub/subsub/ && echo 42 > sub/subsub/result.txt"],
+			"env": {},
+			"maxRunTime": "10 minutes",
+			"artifacts": [
+				{
+					"name": "public/subsub",
+					"type": "file",
+					"path": "sub/subsub"
+				}
+			]
+		}`,
+		Artifacts: workertest.ArtifactAssertions{
+			// Expect some error message saying "sub/subsub"
+			"public/logs/live.log":         workertest.ReferenceArtifact(),
+			"public/logs/live_backing.log": workertest.GrepArtifact("sub/subsub"),
+			"public/subsub":                workertest.ErrorArtifact(),
 		},
 	}, {
 		Title:   "Artifact File Not Found",
