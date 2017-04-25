@@ -56,3 +56,12 @@ func ReferenceArtifact() func(t *testing.T, a Artifact) {
 		assert.Equal(t, "reference", a.StorageType, "Expected storageType: 'reference' for artifact: %s", a.Name)
 	}
 }
+
+// MatchArtifact creates an assertion that holds if the artifact body matches
+// given body and has the given contentType
+func MatchArtifact(body, contentType string) func(t *testing.T, a Artifact) {
+	return func(t *testing.T, a Artifact) {
+		assert.Equal(t, body, string(a.Data), "Expected body to match given body for artifact: %s", a.Name)
+		assert.Equal(t, contentType, a.ContentType, "Expected contentType to match given contentType for artifact: %s", a.Name)
+	}
+}
