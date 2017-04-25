@@ -18,40 +18,37 @@ var rebootAlwaysCase = workertest.Case{
 	EngineConfig:      engineConfig,
 	PluginConfig:      pluginConfig,
 	StoppedGracefully: true, // Expect worker to stop on it's own
-	Tasks: []workertest.Task{
-		{
-			Title:   "Success",
-			Success: true,
-			Payload: `{
-				"command": ["true"],
-				"env": {},
-				"maxRunTime": 30,
-				"reboot": "on-failure"
-			}`,
-			AllowAdditional: true,
-		}, {
-			Title:   "Failure",
-			Success: false,
-			Payload: `{
-				"command": ["false"],
-				"env": {},
-				"maxRunTime": 30,
-				"reboot": "on-exception"
-			}`,
-			AllowAdditional: true,
-		},
-		{
-			Title:   "Reboot",
-			Success: true,
-			Payload: `{
-				"command": ["true"],
-				"env": {},
-				"maxRunTime": 30,
-				"reboot": "always"
-			}`,
-			AllowAdditional: true,
-		},
-	},
+	Tasks: []workertest.Task{{
+		Title:   "Success",
+		Success: true,
+		Payload: `{
+			"command": ["true"],
+			"env": {},
+			"maxRunTime": 30,
+			"reboot": "on-failure"
+		}`,
+		AllowAdditional: true,
+	}, {
+		Title:   "Failure",
+		Success: false,
+		Payload: `{
+			"command": ["false"],
+			"env": {},
+			"maxRunTime": 30,
+			"reboot": "on-exception"
+		}`,
+		AllowAdditional: true,
+	}, {
+		Title:   "Reboot",
+		Success: true,
+		Payload: `{
+			"command": ["true"],
+			"env": {},
+			"maxRunTime": 30,
+			"reboot": "always"
+		}`,
+		AllowAdditional: true,
+	}},
 }
 
 func TestRebootFailure(t *testing.T) {
@@ -64,38 +61,35 @@ var rebootFailureCase = workertest.Case{
 	EngineConfig:      engineConfig,
 	PluginConfig:      pluginConfig,
 	StoppedGracefully: true, // Expect worker to stop on it's own
-	Tasks: []workertest.Task{
-		{
-			Title:   "Success",
-			Success: true,
-			Payload: `{
-				"command": ["true"],
-				"env": {},
-				"maxRunTime": 30,
-				"reboot": "on-failure"
-			}`,
-			AllowAdditional: true,
-		}, {
-			Title:   "Failure",
-			Success: false,
-			Payload: `{
-				"command": ["false"],
-				"env": {},
-				"maxRunTime": 30,
-				"reboot": "on-exception"
-			}`,
-			AllowAdditional: true,
-		},
-		{
-			Title:   "Reboot on Failure",
-			Success: false,
-			Payload: `{
-				"command": ["false"],
-				"env": {},
-				"maxRunTime": 30,
-				"reboot": "on-failure"
-			}`,
-			AllowAdditional: true,
-		},
-	},
+	Tasks: []workertest.Task{{
+		Title:   "Success",
+		Success: true,
+		Payload: `{
+			"command": ["true"],
+			"env": {},
+			"maxRunTime": 30,
+			"reboot": "on-failure"
+		}`,
+		AllowAdditional: true,
+	}, {
+		Title:   "Failure",
+		Success: false,
+		Payload: `{
+			"command": ["false"],
+			"env": {},
+			"maxRunTime": 30,
+			"reboot": "on-exception"
+		}`,
+		AllowAdditional: true,
+	}, {
+		Title:   "Reboot on Failure",
+		Success: false,
+		Payload: `{
+			"command": ["false"],
+			"env": {},
+			"maxRunTime": 30,
+			"reboot": "on-failure"
+		}`,
+		AllowAdditional: true,
+	}},
 }
