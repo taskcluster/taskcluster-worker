@@ -15,6 +15,10 @@ import "net/http"
 // "http://localhost:8080/test/<suffix>" will be given to the handler as a
 // request for "/<suffix>".
 //
+// The AttachHook(handler) function may return empty string, if it's unable to
+// expose the webhook. This may happen intermittently, or permanent. Generally,
+// we don't want to crash the worker just because livelogs don't work.
+//
 // This is useful for interactive web hooks like livelog, interactive shell and
 // display.
 type WebHookServer interface {

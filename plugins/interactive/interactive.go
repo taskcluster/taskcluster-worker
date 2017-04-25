@@ -180,41 +180,21 @@ func (p *taskPlugin) Started(sandbox engines.Sandbox) error {
 }
 
 func (p *taskPlugin) Stopped(_ engines.ResultSet) (bool, error) {
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
-		if p.shellServer != nil {
-			p.shellServer.Abort()
-		}
-		wg.Done()
-	}()
-	go func() {
-		if p.displayServer != nil {
-			p.displayServer.Abort()
-		}
-		wg.Done()
-	}()
-	wg.Wait()
-	return true, nil
+	return true, p.Dispose()
 }
 
 func (p *taskPlugin) Dispose() error {
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
+	// NOTE: This also gets called from Stopped()
+	util.Parallel(func() {
 		if p.shellServer != nil {
 			p.shellServer.Abort()
 			p.shellServer.Wait()
 		}
-		wg.Done()
-	}()
-	go func() {
+	}, func() {
 		if p.displayServer != nil {
 			p.displayServer.Abort()
 		}
-		wg.Done()
-	}()
-	wg.Wait()
+	})
 	return nil
 }
 
@@ -230,6 +210,10 @@ func (p *taskPlugin) setupShell() error {
 		p.sandbox.NewShell, p.monitor.WithPrefix("shell-server"),
 	)
 	u := p.context.AttachWebHook(p.shellServer)
+	// Don't create redirect artifact if we can't expose webhook
+	if u == "" {
+		return nil
+	}
 	p.shellURL = urlProtocolToWebsocket(u)
 
 	query := url.Values{}
@@ -258,6 +242,10 @@ func (p *taskPlugin) setupDisplay() error {
 		p.sandbox, p.monitor.WithPrefix("display-server"),
 	)
 	u := p.context.AttachWebHook(p.displayServer)
+	// Don't create redirect artifact if we can't expose webhook
+	if u == "" {
+		return nil
+	}
 	p.displaysURL = u
 	p.displaySocketURL = urlProtocolToWebsocket(u)
 

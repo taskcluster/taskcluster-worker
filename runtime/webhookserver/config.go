@@ -8,6 +8,13 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
+var noneConfigSchema = schematypes.Object{
+	Properties: schematypes.Properties{
+		"provider": schematypes.StringEnum{Options: []string{"none"}},
+	},
+	Required: []string{"provider"},
+}
+
 var localhostConfigSchema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"provider": schematypes.StringEnum{Options: []string{"localhost"}},
@@ -69,6 +76,7 @@ var statelessDNSConfigSchema = schematypes.Object{
 
 // ConfigSchema specifies schema for configuration passed to NewServer.
 var ConfigSchema schematypes.Schema = schematypes.OneOf{
+	noneConfigSchema,
 	localhostConfigSchema,
 	localtunnelConfigSchema,
 	statelessDNSConfigSchema,
@@ -99,6 +107,9 @@ func NewServer(config interface{}) (Server, error) {
 		BaseURL            string        `json:"baseUrl"`
 	}
 	schematypes.MustValidate(ConfigSchema, config)
+	if schematypes.MustMap(noneConfigSchema, config, &c) == nil {
+		return noneServer{}, nil
+	}
 	if schematypes.MustMap(localhostConfigSchema, config, &c) == nil {
 		return NewTestServer()
 	}

@@ -62,6 +62,8 @@ func (p plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPl
 }
 
 func (tp *taskPlugin) setup() {
+	defer tp.setupDone.Done()
+
 	tp.url = tp.context.AttachWebHook(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// TODO (garndt): add support for range headers.  Might not be used at all currently
 		logReader, err := tp.context.NewLogReader()
@@ -82,6 +84,11 @@ func (tp *taskPlugin) setup() {
 		ioext.CopyAndFlush(wf, logReader, 100*time.Millisecond)
 	}))
 
+	// If webhooks are unavailable we don't create a redirect artifact
+	if tp.url == "" {
+		return
+	}
+
 	err := tp.context.CreateRedirectArtifact(runtime.RedirectArtifact{
 		Name:     "public/logs/live.log",
 		Mimetype: "text/plain; charset=utf-8",
@@ -94,7 +101,6 @@ func (tp *taskPlugin) setup() {
 		// This isn't good, but let's not consider it fatal...
 		tp.setupErr = runtime.ErrNonFatalInternalError
 	}
-	tp.setupDone.Done()
 }
 
 func (tp *taskPlugin) Finished(success bool) error {
