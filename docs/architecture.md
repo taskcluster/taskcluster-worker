@@ -1,3 +1,7 @@
+---
+title: Architecture
+---
+
 Worker Architecture
 ===================
 It is possible to have many different worker types in taskcluster, indeed we

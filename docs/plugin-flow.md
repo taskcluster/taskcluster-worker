@@ -1,3 +1,7 @@
+---
+title: Plugin Life-Cycle
+---
+
 Plugin Life-Cycle
 =================
 A plugin is always created from a `PluginProvider`. The `PluginProvider` may
