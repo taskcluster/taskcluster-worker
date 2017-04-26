@@ -68,7 +68,7 @@ func New(options Options) *TaskRun {
 	var err error
 	t.taskContext, t.controller, err = runtime.NewTaskContext(
 		t.environment.TemporaryStorage.NewFilePath(),
-		t.taskInfo, t.environment.WebHookServer,
+		t.taskInfo,
 	)
 	if err != nil {
 		t.monitor.WithTag("stage", "init").ReportError(err, "failed to create TaskContext")

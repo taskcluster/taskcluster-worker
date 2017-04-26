@@ -12,7 +12,7 @@ import (
 type Environment struct {
 	GarbageCollector gc.ResourceTracker
 	TemporaryStorage
-	webhookserver.WebHookServer
+	webhookserver.WebHookServer // Optional, may be nil if not available
 	Monitor
 	Worker Stoppable
 }
