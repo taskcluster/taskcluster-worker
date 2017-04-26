@@ -32,10 +32,11 @@ type sandbox struct {
 	shells        []*shell
 }
 
-func newSandbox(b *sandboxBuilder) (s *sandbox, err error) {
+func newSandbox(b *sandboxBuilder) (engines.Sandbox, error) {
 	var user *system.User
 	var workingFolder runtime.TemporaryFolder
 
+	var err error
 	defer func() {
 		if err != nil {
 			if b.engine.config.CreateUser && user != nil {
@@ -54,29 +55,27 @@ func newSandbox(b *sandboxBuilder) (s *sandbox, err error) {
 		if err != nil {
 			err = fmt.Errorf("Failed to temporary folder, error: %s", err)
 			b.monitor.Error(err)
-			return
+			return nil, err
 		}
 
 		// Create temporary user account
 		user, err = system.CreateUser(workingFolder.Path(), b.engine.groups)
 		if err != nil {
 			err = fmt.Errorf("Failed to create temporary system user, error: %s", err)
-			return
+			return nil, err
 		}
 	} else {
 		user, err = system.CurrentUser()
 		if err != nil {
-			return
+			return nil, err
 		}
 	}
 
 	if b.payload.Context != "" {
 		if err = fetchContext(b.payload.Context, user); err != nil {
-			err = runtime.NewMalformedPayloadError(
+			return nil, runtime.NewMalformedPayloadError(
 				fmt.Sprintf("Error downloading %s: %v", b.payload.Context, err),
 			)
-			b.context.LogError(err)
-			return
 		}
 	}
 
@@ -102,14 +101,12 @@ func newSandbox(b *sandboxBuilder) (s *sandbox, err error) {
 	if err != nil {
 		// StartProcess provides human-readable error messages (see docs)
 		// We'll convert it to a MalformedPayloadError
-		err = runtime.NewMalformedPayloadError(
-			"Unable to start specified command: ", b.payload.Command, "error: ", err,
+		return nil, runtime.NewMalformedPayloadError(
+			"Unable to start specified command: ", b.payload.Command, " error: ", err,
 		)
-		b.context.LogError(err)
-		return
 	}
 
-	s = &sandbox{
+	s := &sandbox{
 		engine:        b.engine,
 		context:       b.context,
 		monitor:       b.monitor,
@@ -121,7 +118,7 @@ func newSandbox(b *sandboxBuilder) (s *sandbox, err error) {
 
 	go s.waitForTermination()
 
-	return
+	return s, nil
 }
 
 func fetchContext(context string, user *system.User) error {

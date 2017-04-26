@@ -44,8 +44,8 @@ func TestLoggingNoUserCreation(t *testing.T) {
 	p := &enginetest.EngineProvider{
 		Engine: "native",
 		Config: `{
-            "createUser": false
-        }`,
+			"createUser": false
+		}`,
 	}
 
 	user, err := system.CurrentUser()
@@ -77,8 +77,8 @@ func TestEnvironmentVariables(t *testing.T) {
 			"#=#",
 		},
 		Payload: `{
-      "command": ["sh", "-c", "echo $TEST_ENV_VAR && true"]
-	  }`,
+			"command": ["sh", "-c", "echo $TEST_ENV_VAR && true"]
+		}`,
 	}
 
 	c.TestPrintVariable()
