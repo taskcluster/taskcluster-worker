@@ -36,16 +36,16 @@ check: test
 test:
 	# should run with -tags=system at some point..... i.e.:
 	# go test -tags=system -v -race $$(go list ./... | grep -v /vendor/)
-	go test -v -race $$(go list ./... | grep -v /vendor/)
+	CGO_ENABLED=$(CGO_ENABLED) go test -v -race $$(go list ./... | grep -v /vendor/)
 
 dev-test:
-	go test -race $$(go list ./... | grep -v /vendor/)
+	CGO_ENABLED=$(CGO_ENABLED) go test -race $$(go list ./... | grep -v /vendor/)
 
 tc-worker-env:
 	docker build -t taskcluster/tc-worker-env -f tc-worker-env.Dockerfile .
 
 tc-worker:
-	CGO_ENABLED=$(CGO_ENABLED) GOARCH=amd64 go build
+	CGO_ENABLED=$(CGO_ENABLED) GOARCH=amd64 ./docker-tests.sh go build
 	docker build -t taskcluster/tc-worker -f tc-worker.Dockerfile .
 
 lint:
