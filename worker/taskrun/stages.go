@@ -70,8 +70,15 @@ func prepare(t *TaskRun) error {
 
 	// Validate payload against schema
 	verr := payloadSchema.Validate(t.payload)
-	if verr != nil {
-		verr = runtime.NewMalformedPayloadError("Payload schema violation: ", verr)
+	if e, ok := verr.(*schematypes.ValidationError); ok {
+		issues := e.Issues("task.payload")
+		errs := make([]runtime.MalformedPayloadError, len(issues))
+		for i, issue := range issues {
+			errs[i] = runtime.NewMalformedPayloadError(issue.String())
+		}
+		verr = runtime.MergeMalformedPayload(errs...)
+	} else if verr != nil {
+		verr = runtime.NewMalformedPayloadError("task.payload schema violation: ", verr)
 	}
 
 	var err1, err2 error

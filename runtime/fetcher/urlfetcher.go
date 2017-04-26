@@ -28,10 +28,8 @@ type urlFetcher struct{}
 var URL Fetcher = urlFetcher{}
 
 var urlSchema schematypes.Schema = schematypes.URI{
-	MetaData: schematypes.MetaData{
-		Title:       "URL",
-		Description: "URL to fetch resource from, this must be `http://` or `https://`.",
-	},
+	Title:       "URL",
+	Description: "URL to fetch resource from, this must be `http://` or `https://`.",
 }
 
 func (urlFetcher) Schema() schematypes.Schema {

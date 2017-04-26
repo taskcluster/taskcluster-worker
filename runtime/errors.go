@@ -41,6 +41,11 @@ type MalformedPayloadError struct {
 	messages []string
 }
 
+// Messages returns a list of messages explaining why the error.
+func (e MalformedPayloadError) Messages() []string {
+	return append([]string{}, e.messages...)
+}
+
 // Error returns the error message and adheres to the Error interface
 func (e MalformedPayloadError) Error() string {
 	return fmt.Sprintf("malformed-payload error: %s", strings.Join(e.messages, "\n"))

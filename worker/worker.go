@@ -80,11 +80,13 @@ func New(config interface{}) (w *Worker, err error) {
 	}
 
 	// Create webhookserver
-	w.webhookserver, err = webhookserver.NewServer(c.WebHookServer)
-	if err != nil {
-		w.monitor.ReportError(err, "worker.New() failed to setup webhookserver")
-		err = runtime.ErrFatalInternalError
-		return
+	if c.WebHookServer != nil {
+		w.webhookserver, err = webhookserver.NewServer(c.WebHookServer)
+		if err != nil {
+			w.monitor.ReportError(err, "worker.New() failed to setup webhookserver")
+			err = runtime.ErrFatalInternalError
+			return
+		}
 	}
 
 	// Create environment
@@ -471,7 +473,9 @@ func (w *Worker) dispose() {
 	}
 
 	// Stop webhookserver
-	w.webhookserver.Stop()
+	if w.webhookserver != nil {
+		w.webhookserver.Stop()
+	}
 
 	// Remove temporary storage
 	switch err := w.temporaryStorage.Remove(); err {

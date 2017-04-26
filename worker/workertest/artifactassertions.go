@@ -1,6 +1,7 @@
 package workertest
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,6 +18,21 @@ func AnyArtifact() func(t *testing.T, a Artifact) {
 func GrepArtifact(substring string) func(t *testing.T, a Artifact) {
 	return func(t *testing.T, a Artifact) {
 		assert.Contains(t, string(a.Data), substring, "Expected substring in artifact: %s", a.Name)
+	}
+}
+
+// LogArtifact creates an assetion that logs the artifact, to test log.
+// This is mostly useful when developing integration tests.
+func LogArtifact() func(t *testing.T, a Artifact) {
+	return func(t *testing.T, a Artifact) {
+		t.Logf("Artifact: %s (ContentType: %s)", a.Name, a.ContentType)
+		if a.Data != nil {
+			t.Logf("---- Start: %s", a.Name)
+			for _, line := range strings.Split(string(a.Data), "\n") {
+				t.Log(line)
+			}
+			t.Logf("---- End: %s", a.Name)
+		}
 	}
 }
 

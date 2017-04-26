@@ -32,20 +32,16 @@ var statelessDNSConfigSchema = schematypes.Object{
 			Maximum: 65535,
 		},
 		"networkInterface": schematypes.String{
-			MetaData: schematypes.MetaData{
-				Description: util.Markdown(`
-					Network device webhookserver should listen on. If not supplied, it
-					binds to the interface from 'serverIp' address
-				`),
-			},
+			Description: util.Markdown(`
+				Network device webhookserver should listen on. If not supplied, it
+				binds to the interface from 'serverIp' address
+			`),
 		},
 		"exposedPort": schematypes.Integer{
-			MetaData: schematypes.MetaData{
-				Description: util.Markdown(`
-					Port webhookserver should listen on. If not supplied, it uses the
-					'serverPort' value.
-				`),
-			},
+			Description: util.Markdown(`
+				Port webhookserver should listen on. If not supplied, it uses the
+				'serverPort' value.
+			`),
 			Minimum: 0,
 			Maximum: 65535,
 		},
@@ -53,16 +49,12 @@ var statelessDNSConfigSchema = schematypes.Object{
 		"tlsKey":             schematypes.String{},
 		"statelessDNSSecret": schematypes.String{},
 		"statelessDNSDomain": schematypes.String{},
-		"maxLifeCycle": schematypes.Integer{
-			MetaData: schematypes.MetaData{
-				Title: "Maximum lifetime of the worker in seconds",
-				Description: util.Markdown(`
-					Used to limit the time period for which the DNS server will return
-					an IP for the given worker hostname.
-				`),
-			},
-			Minimum: 5 * 60,
-			Maximum: 31 * 24 * 60 * 60,
+		"maxLifeCycle": schematypes.Duration{
+			Title: "Maximum lifetime of the worker",
+			Description: util.Markdown(`
+				Used to limit the time period for which the DNS server will return
+				an IP for the given worker hostname.
+			`),
 		},
 	},
 	Required: []string{
@@ -94,17 +86,17 @@ type Server interface {
 // Config passed must match ConfigSchema.
 func NewServer(config interface{}) (Server, error) {
 	var c struct {
-		Provider           string `json:"provider"`
-		ServerIP           string `json:"serverIp"`
-		ServerPort         int    `json:"serverPort"`
-		NetworkInterface   string `json:"networkInterface"`
-		ExposedPort        int    `json:"exposedPort"`
-		TLSCertificate     string `json:"tlsCertificate"`
-		TLSKey             string `json:"tlsKey"`
-		StatelessDNSSecret string `json:"statelessDNSSecret"`
-		StatelessDNSDomain string `json:"statelessDNSDomain"`
-		MaxLifeCycle       int    `json:"maxLifeCycle"`
-		BaseURL            string `json:"baseUrl"`
+		Provider           string        `json:"provider"`
+		ServerIP           string        `json:"serverIp"`
+		ServerPort         int           `json:"serverPort"`
+		NetworkInterface   string        `json:"networkInterface"`
+		ExposedPort        int           `json:"exposedPort"`
+		TLSCertificate     string        `json:"tlsCertificate"`
+		TLSKey             string        `json:"tlsKey"`
+		StatelessDNSSecret string        `json:"statelessDNSSecret"`
+		StatelessDNSDomain string        `json:"statelessDNSDomain"`
+		MaxLifeCycle       time.Duration `json:"maxLifeCycle"`
+		BaseURL            string        `json:"baseUrl"`
 	}
 	schematypes.MustValidate(ConfigSchema, config)
 	if schematypes.MustMap(localhostConfigSchema, config, &c) == nil {
@@ -121,7 +113,7 @@ func NewServer(config interface{}) (Server, error) {
 			c.StatelessDNSSecret,
 			c.TLSCertificate,
 			c.TLSKey,
-			time.Duration(c.MaxLifeCycle)*time.Second,
+			c.MaxLifeCycle,
 		)
 		if err == nil {
 			go s.ListenAndServe()

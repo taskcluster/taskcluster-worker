@@ -37,3 +37,34 @@ func Spawn(N int, fn func(i int)) {
 	}
 	wg.Wait()
 }
+
+// SpawnWithLimit N go routines running at-most limit in parallel and wait for
+// them to return.
+//
+// This utility is smart when instantiating elements in an array concurrently.
+func SpawnWithLimit(N, limit int, fn func(i int)) {
+	wg := sync.WaitGroup{}
+	wg.Add(N)
+	m := sync.Mutex{}
+	c := sync.NewCond(&m)
+	for index := 0; index < N; index++ {
+		go func(i int) {
+			defer wg.Done()
+
+			m.Lock()
+			defer m.Unlock()
+
+			for limit == 0 {
+				c.Wait()
+			}
+			limit--
+			defer func() {
+				limit++
+				c.Signal()
+			}()
+
+			fn(i)
+		}(index)
+	}
+	wg.Wait()
+}

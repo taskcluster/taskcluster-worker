@@ -12,10 +12,8 @@ var mockConfigSchema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"type": schematypes.StringEnum{Options: []string{"mock"}},
 		"panicOnError": schematypes.Boolean{
-			MetaData: schematypes.MetaData{
-				Title:       "Panic On Error",
-				Description: "Use a mock implementation of the monitor that panics on errors.",
-			},
+			Title:       "Panic On Error",
+			Description: "Use a mock implementation of the monitor that panics on errors.",
 		},
 	},
 	Required: []string{"type", "panicOnError"},
@@ -24,11 +22,9 @@ var mockConfigSchema = schematypes.Object{
 var monitorConfigSchema schematypes.Schema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"project": schematypes.String{
-			MetaData: schematypes.MetaData{
-				Title:       "Sentry/Statsum Project Name",
-				Description: "Project name to be used in sentry and statsum",
-			},
-			Pattern: "^[a-zA-Z0-9_-]{1,22}$",
+			Title:       "Sentry/Statsum Project Name",
+			Description: "Project name to be used in sentry and statsum",
+			Pattern:     "^[a-zA-Z0-9_-]{1,22}$",
 		},
 		"logLevel": schematypes.StringEnum{
 			Options: []string{
@@ -41,11 +37,9 @@ var monitorConfigSchema schematypes.Schema = schematypes.Object{
 			},
 		},
 		"tags": schematypes.Map{
-			MetaData: schematypes.MetaData{
-				Title:       "Tags",
-				Description: "Tags that should be applied to all logs/sentry entries from this worker",
-			},
-			Values: schematypes.String{},
+			Title:       "Tags",
+			Description: "Tags that should be applied to all logs/sentry entries from this worker",
+			Values:      schematypes.String{},
 		},
 		"syslog": schematypes.String{
 			MetaData: schematypes.MetaData{
