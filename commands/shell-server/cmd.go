@@ -44,7 +44,7 @@ options:
 }
 
 func (cmd) Execute(args map[string]interface{}) bool {
-	monitor := monitoring.NewLoggingMonitor(args["--log-level"].(string), nil)
+	monitor := monitoring.NewLoggingMonitor(args["--log-level"].(string), nil, "")
 
 	// Create shell server
 	shellServer := interactive.NewShellServer(

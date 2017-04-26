@@ -30,8 +30,8 @@ func getSyslogPriority(level logrus.Level) syslog.Priority {
 	return priority
 }
 
-func setupSyslog(logger *logrus.Logger) error {
-	hook, err := logrus_syslog.NewSyslogHook("", "", getSyslogPriority(logger.Level), "taskcluster-worker")
+func setupSyslog(logger *logrus.Logger, syslogName string) error {
+	hook, err := logrus_syslog.NewSyslogHook("", "", getSyslogPriority(logger.Level), syslogName)
 	if err != nil {
 		return err
 	}

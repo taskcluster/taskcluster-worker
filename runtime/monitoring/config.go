@@ -47,6 +47,12 @@ var monitorConfigSchema schematypes.Schema = schematypes.Object{
 			},
 			Values: schematypes.String{},
 		},
+		"syslog": schematypes.String{
+			MetaData: schematypes.MetaData{
+				Title:       "Syslog Name",
+				Description: "Name to use for process in syslog, leave as empty string to disable syslog forwarding.",
+			},
+		},
 	},
 	Required: []string{"logLevel"},
 }
@@ -60,7 +66,7 @@ var ConfigSchema schematypes.Schema = schematypes.OneOf{
 // PreConfig returns a default monitor for use before the configuration is loaded.  This logs at
 // the INFO level to stderr.
 func PreConfig() runtime.Monitor {
-	return NewLoggingMonitor("info", map[string]string{})
+	return NewLoggingMonitor("info", map[string]string{}, "taskcluster-worker")
 }
 
 // New returns a runtime.Monitor strategy from config matching ConfigSchema.
@@ -72,12 +78,13 @@ func New(config interface{}, auth client.Auth) runtime.Monitor {
 		Project  string            `json:"project"`
 		LogLevel string            `json:"logLevel"`
 		Tags     map[string]string `json:"tags"`
+		Syslog   string            `json:"syslog"`
 	}
 	if schematypes.MustMap(monitorConfigSchema, config, &c) == nil {
 		if c.Project != "" {
-			return NewMonitor(c.Project, auth, c.LogLevel, c.Tags)
+			return NewMonitor(c.Project, auth, c.LogLevel, c.Tags, c.Syslog)
 		}
-		return NewLoggingMonitor(c.LogLevel, c.Tags)
+		return NewLoggingMonitor(c.LogLevel, c.Tags, c.Syslog)
 	}
 
 	// try mock schema

@@ -33,7 +33,7 @@ options:
 
 func (cmd) Execute(arguments map[string]interface{}) bool {
 	// Setup logging
-	monitor := monitoring.NewLoggingMonitor("info", nil).WithTag("component", "qemu-build")
+	monitor := monitoring.NewLoggingMonitor("info", nil, "").WithTag("component", "qemu-build")
 
 	// Parse arguments
 	outputFile := arguments["<result.tar.zst>"].(string)

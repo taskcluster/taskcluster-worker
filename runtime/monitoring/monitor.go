@@ -16,7 +16,7 @@ import (
 )
 
 // NewMonitor creates a new monitor
-func NewMonitor(project string, auth client.Auth, logLevel string, tags map[string]string) runtime.Monitor {
+func NewMonitor(project string, auth client.Auth, logLevel string, tags map[string]string, syslogName string) runtime.Monitor {
 	// Create statsumConfigurer
 	statsumConfigurer := func(project string) (statsum.Config, error) {
 		res, err := auth.StatsumToken(project)
@@ -70,8 +70,10 @@ func NewMonitor(project string, auth client.Auth, logLevel string, tags map[stri
 		},
 	}
 
-	if err := setupSyslog(logger); err != nil {
-		m.ReportError(err, "Cannot set up syslog output")
+	if syslogName != "" {
+		if err := setupSyslog(logger, syslogName); err != nil {
+			m.ReportError(err, "Cannot set up syslog output")
+		}
 	}
 
 	return m
