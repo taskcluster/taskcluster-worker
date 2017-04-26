@@ -1,7 +1,8 @@
 #!/bin/bash
 
 touch .bash_history
-ARGS="--tty --interactive --rm --privileged -e DEBUG";
+CGO_ENABLED=${CGO_ENABLED:-1}
+ARGS="--tty --interactive --rm --privileged -e DEBUG -e GOARCH -e CGO_ENABLED=$CGO_ENABLED";
 ARGS="$ARGS -e TASKCLUSTER_CLIENT_ID -e TASKCLUSTER_ACCESS_TOKEN -e TASKCLUSTER_CERTIFICATE";
 ARGS="$ARGS -e PULSE_USERNAME -e PULSE_PASSWORD";
 ARGS="$ARGS -v `pwd`/.bash_history:/root/.bash_history";
