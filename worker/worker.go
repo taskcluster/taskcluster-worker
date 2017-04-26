@@ -305,8 +305,8 @@ func (w *Worker) processClaim(claim taskClaim) {
 		"taskId": claim.Status.TaskID,
 		"runId":  strconv.Itoa(claim.RunID),
 	})
-	monitor.Debug("starting to process task")
-	defer monitor.Debug("done processing task")
+	monitor.Info("starting to process task")
+	defer monitor.Info("done processing task")
 
 	// Create task client
 	q := w.newQueueClient(context.Background(), tcclient.Credentials{
