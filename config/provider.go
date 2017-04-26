@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"sync"
+
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 // A TransformationProvider provides a method Transform(config) that knows
@@ -18,7 +20,7 @@ import (
 //   - bool
 //   - nil
 type TransformationProvider interface {
-	Transform(config map[string]interface{}) error
+	Transform(config map[string]interface{}, monitor runtime.Monitor) error
 }
 
 var (

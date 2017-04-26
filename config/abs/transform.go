@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/taskcluster/taskcluster-worker/config"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 type provider struct{}
@@ -15,7 +16,7 @@ func init() {
 	config.Register("abs", provider{})
 }
 
-func (provider) Transform(cfg map[string]interface{}) error {
+func (provider) Transform(cfg map[string]interface{}, monitor runtime.Monitor) error {
 	return config.ReplaceObjects(cfg, "abs", func(val map[string]interface{}) (interface{}, error) {
 		p := val["$abs"].(string)
 		result, err := filepath.Abs(filepath.FromSlash(p))

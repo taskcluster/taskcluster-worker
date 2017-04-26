@@ -51,6 +51,12 @@ var ConfigSchema schematypes.Schema = schematypes.OneOf{
 	monitorConfigSchema,
 }
 
+// PreConfig returns a default monitor for use before the configuration is loaded.  This logs at
+// the INFO level to stderr.
+func PreConfig() runtime.Monitor {
+	return NewLoggingMonitor("info", map[string]string{})
+}
+
 // New returns a runtime.Monitor strategy from config matching ConfigSchema.
 func New(config interface{}, auth client.Auth) runtime.Monitor {
 	schematypes.MustValidate(ConfigSchema, config)

@@ -12,12 +12,12 @@ package hostcredentials
 
 import (
 	"encoding/json"
-	"log"
 	"time"
 
 	got "github.com/taskcluster/go-got"
 
 	"github.com/taskcluster/taskcluster-worker/config"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 type provider struct{}
@@ -26,7 +26,7 @@ func init() {
 	config.Register("hostcredentials", provider{})
 }
 
-func (provider) Transform(cfg map[string]interface{}) error {
+func (provider) Transform(cfg map[string]interface{}, monitor runtime.Monitor) error {
 	g := got.New()
 
 	return config.ReplaceObjects(cfg, "hostcredentials", func(val map[string]interface{}) (interface{}, error) {
@@ -45,17 +45,17 @@ func (provider) Transform(cfg map[string]interface{}) error {
 
 		for {
 			for _, url := range urls {
-				log.Printf("Trying host-secrets server %s...", url)
+				monitor.Info("Trying host-secrets server %s...", url)
 
 				resp, err := g.Get(url).Send()
 				if err != nil {
-					log.Printf("result: %s; continuing to next server", err)
+					monitor.ReportError(err, "result: %s; continuing to next server")
 					continue
 				}
 
 				err = json.Unmarshal(resp.Body, &creds)
 				if err != nil {
-					log.Printf("decoding JSON from server: %s; continuing to next server", err)
+					monitor.ReportError(err, "decoding JSON from server: %s; continuing to next server")
 					continue
 				}
 
@@ -66,11 +66,11 @@ func (provider) Transform(cfg map[string]interface{}) error {
 				if creds.Credentials.Certificate != "" {
 					retval["certificate"] = creds.Credentials.Certificate
 				}
-				log.Printf("Success: host-secrets server gave clientId %s...", creds.Credentials.ClientID)
+				monitor.Info("Success: host-secrets server gave clientId %s...", creds.Credentials.ClientID)
 				return retval, nil
 			}
 
-			log.Printf("list of servers exhausted; sleeping before starting again")
+			monitor.Info("list of servers exhausted; sleeping before starting again")
 			time.Sleep(60 * time.Second)
 		}
 	})

@@ -44,9 +44,15 @@ func NewLoggingMonitor(logLevel string, tags map[string]string) runtime.Monitor 
 		fields[k] = v
 	}
 
-	return &loggingMonitor{
+	m := &loggingMonitor{
 		Entry: logrus.NewEntry(logger).WithFields(fields),
 	}
+
+	if err := setupSyslog(logger); err != nil {
+		m.ReportError(err, "Cannot set up syslog output")
+	}
+
+	return m
 }
 
 func (m *loggingMonitor) Measure(name string, value ...float64) {

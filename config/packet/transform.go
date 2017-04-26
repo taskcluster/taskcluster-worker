@@ -20,6 +20,7 @@ import (
 
 	got "github.com/taskcluster/go-got"
 	"github.com/taskcluster/taskcluster-worker/config"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 const defaultPacketMetaDataURL = "https://metadata.packet.net/metadata"
@@ -44,7 +45,7 @@ func init() {
 	config.Register("packet", provider{})
 }
 
-func (provider) Transform(cfg map[string]interface{}) error {
+func (provider) Transform(cfg map[string]interface{}, monitor runtime.Monitor) error {
 	metaURL, ok := cfg["packetMetaDataUrl"].(string)
 	if !ok {
 		metaURL = defaultPacketMetaDataURL
