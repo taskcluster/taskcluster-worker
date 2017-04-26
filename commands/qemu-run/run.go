@@ -60,7 +60,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 		TemporaryStorage: storage,
 	}
 
-	monitor := monitoring.NewLoggingMonitor("info", nil).WithTag("component", "qemu-run")
+	monitor := monitoring.NewLoggingMonitor("info", nil, "").WithTag("component", "qemu-run")
 
 	// Create a temporary folder
 	tempFolder := filepath.Join("/tmp", slugid.Nice())

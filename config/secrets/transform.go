@@ -16,6 +16,7 @@ import (
 	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/secrets"
 	"github.com/taskcluster/taskcluster-worker/config"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 type provider struct{}
@@ -24,7 +25,7 @@ func init() {
 	config.Register("secrets", provider{})
 }
 
-func (provider) Transform(cfg map[string]interface{}) error {
+func (provider) Transform(cfg map[string]interface{}, monitor runtime.Monitor) error {
 	c, ok := cfg["credentials"].(map[string]interface{})
 	if !ok {
 		return errors.New("Expected 'credentials' property to hold credentials")
@@ -58,6 +59,7 @@ func (provider) Transform(cfg map[string]interface{}) error {
 		}
 		// If secret isn't in the cache we try to load it
 		if _, ok := cache[name]; !ok {
+			monitor.Info("Fetching secret %s", name)
 			secret, err := s.Get(name)
 			if err != nil {
 				return nil, err

@@ -58,7 +58,7 @@ Options:
 func (cmd) Execute(arguments map[string]interface{}) bool {
 	host := arguments["--host"].(string)
 
-	monitor := monitoring.NewLoggingMonitor("info", nil).WithTag("component", "qemu-guest-tools")
+	monitor := monitoring.NewLoggingMonitor("info", nil, "").WithTag("component", "qemu-guest-tools")
 
 	g := new(host, monitor)
 

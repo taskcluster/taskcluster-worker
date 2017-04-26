@@ -64,6 +64,8 @@ func New(config interface{}) (w *Worker, err error) {
 		options:          c.WorkerOptions,
 	}
 
+	w.monitor.Info("starting up")
+
 	// Create queue client that is aborted when life-cycle ends
 	w.queue = w.newQueueClient(&lifeCycleContext{
 		LifeCycle: &w.lifeCycleTracker,
