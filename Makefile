@@ -12,8 +12,7 @@ GO_MAJ := $(shell echo "$(GO_VERSION)" | cut -f1 -d'.')
 GO_MIN := $(shell echo "$(GO_VERSION)" | cut -f2 -d'.')
 
 uname := $(shell uname)
-is_darwin := $(filter Darwin,$(uname))
-CGO_ENABLE := $(if $(is_darwin),1,0)
+CGO_ENABLED := 1
 
 .PHONY: all prechecks build rebuild check test dev-test tc-worker-env tc-worker
 
@@ -26,7 +25,7 @@ prechecks:
 
 build:
 	go fmt $$(go list ./... | grep -v /vendor/)
-	CGO_ENABLED=$(CGO_ENABLE) go install
+	CGO_ENABLED=$(CGO_ENABLED) go install
 
 rebuild: prechecks build test lint
 
@@ -46,7 +45,7 @@ tc-worker-env:
 	docker build -t taskcluster/tc-worker-env -f tc-worker-env.Dockerfile .
 
 tc-worker:
-	CGO_ENABLED=$(CGO_ENABLE) GOARCH=amd64 go build
+	CGO_ENABLED=$(CGO_ENABLED) GOARCH=amd64 go build
 	docker build -t taskcluster/tc-worker -f tc-worker.Dockerfile .
 
 lint:
