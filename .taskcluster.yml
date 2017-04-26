@@ -8,7 +8,6 @@ metadata:
   source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
 tasks:
 
-
   ##########################################################
   ##################### linux 64 build #####################
   ##########################################################
@@ -57,7 +56,6 @@ tasks:
           type: file
       cache:
         taskcluster-worker-checkout: /go/src
-
 
   ##########################################################
   #################### Windows 2012 R2 #####################
@@ -114,6 +112,57 @@ tasks:
           directory: git
           format: zip
 
+  ##########################################################
+  ################## Raspberry pi build ####################
+  ##########################################################
+
+  - provisionerId: pmoore-manual
+    workerType: raspberry-pi-3b
+    metadata:
+      name: "Build/test ARM6 generic-worker on Linux (Raspberry PI)"
+      description: "This builds the ARM6 Linux version of taskcluster-worker"
+      owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
+      source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
+    extra:
+      github:
+        # Events that will trigger this task
+        events:
+          - push
+    scopes:
+      - generic-worker:cache:taskcluster-worker-checkout
+    payload:
+      maxRunTime: 3600
+      artifacts:
+        - expires: "{{ '2 weeks' | $fromNow }}"
+          type: file
+          name: public/build/taskcluster-worker-linux-armv6l
+          path: gopath/bin/taskcluster-worker
+      command:
+        - - /bin/bash
+          - -vxec
+          - |
+            export GOROOT="$(pwd)/go1.8/go"
+            export GOPATH="$(pwd)/gopath"
+            export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
+            source "${TASKCLUSTER_CREDS_BOOTSTRAP}"
+            go get -v "github.com/kardianos/govendor"
+            mkdir -p "${GOPATH}/src/github.com/taskcluster"
+            cd "${GOPATH}/src/github.com/taskcluster"
+            if [ ! -d taskcluster-worker/.git ]; then rm -rf taskcluster-worker; git clone '{{ event.head.repo.url }}' 'taskcluster-worker'; fi
+            cd 'taskcluster-worker'
+            git fetch --tags
+            git checkout -f '{{ event.head.sha }}'
+            git clean -d -f -e '/vendor/*' -x
+            # sometimes `govendor sync` fails first time, so run again, if fails first time
+            govendor sync || govendor sync
+            make rebuild check
+      mounts:
+        - cacheName: taskcluster-worker-checkout
+          directory: gopath/src
+        - content:
+            url: https://storage.googleapis.com/golang/go1.8.linux-armv6l.tar.gz
+          directory: go1.8
+          format: tar.gz
 
   ##########################################################
   #################### OS X 10.10 build ####################
@@ -170,7 +219,7 @@ tasks:
           format: tar.gz
 
   ##########################################################
-  ##################### upload-docs #####################
+  ##################### upload-docs ########################
   ##########################################################
 
   - provisionerId: "{{ taskcluster.docker.provisionerId }}"
