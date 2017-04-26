@@ -42,10 +42,8 @@ var monitorConfigSchema schematypes.Schema = schematypes.Object{
 			Values:      schematypes.String{},
 		},
 		"syslog": schematypes.String{
-			MetaData: schematypes.MetaData{
-				Title:       "Syslog Name",
-				Description: "Name to use for process in syslog, leave as empty string to disable syslog forwarding.",
-			},
+			Title:       "Syslog Name",
+			Description: "Name to use for process in syslog, leave as empty string to disable syslog forwarding.",
 		},
 	},
 	Required: []string{"logLevel"},
