@@ -59,7 +59,7 @@ func (provider) Transform(cfg map[string]interface{}, monitor runtime.Monitor) e
 		}
 		// If secret isn't in the cache we try to load it
 		if _, ok := cache[name]; !ok {
-			monitor.Info("Fetching secret %s", name)
+			monitor.Infof("Fetching secret '%s'", name)
 			secret, err := s.Get(name)
 			if err != nil {
 				return nil, err
