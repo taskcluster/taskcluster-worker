@@ -26,7 +26,7 @@ RUN           mkdir -p /usr/local/bin/
 COPY          taskcluster-worker /usr/local/bin/taskcluster-worker
 
 # Install configuration file
-COPY          examples/qemu-config.yml /etc/taskcluster-worker.yml
+COPY          examples/packet-config.yml /etc/taskcluster-worker.yml
 
 # Ensure that a data volume is present at /mnt
 VOLUME        /mnt
