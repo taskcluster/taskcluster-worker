@@ -14,7 +14,7 @@ GO_MIN := $(shell echo "$(GO_VERSION)" | cut -f2 -d'.')
 uname := $(shell uname)
 CGO_ENABLED := 1
 
-.PHONY: all prechecks build rebuild check test dev-test tc-worker-env tc-worker
+.PHONY: all prechecks build rebuild check test dev-test tc-worker-env tc-worker tc-worker-env-tests
 
 all: rebuild
 
@@ -47,6 +47,15 @@ tc-worker-env:
 tc-worker:
 	CGO_ENABLED=$(CGO_ENABLED) GOARCH=amd64 ./docker-tests.sh go build
 	docker build -t taskcluster/tc-worker -f tc-worker.Dockerfile .
+
+tc-worker-env-tests:
+	docker run \
+		--tty --interactive --rm --privileged \
+		-e DEBUG -e GOARCH -e CGO_ENABLED=$(CGO_ENABLED) \
+		-v $$(pwd):/go/src/github.com/taskcluster/taskcluster-worker/ \
+		taskcluster/tc-worker-env \
+		go test -race -tags 'qemu network system native' -p 1 -v \
+		$$(find  -name '*_test.go' | xargs dirname | sort | uniq)
 
 lint:
 	go get github.com/alecthomas/gometalinter
