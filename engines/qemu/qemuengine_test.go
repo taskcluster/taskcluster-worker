@@ -146,7 +146,6 @@ func TestArtifacts(t *testing.T) {
 			"command": ["sh", "-ec", "mkdir -p /home/tc/folder/sub-folder; echo '[hello-world]' > /home/tc/folder/hello.txt; echo '[hello-world]' > /home/tc/folder/sub-folder/hello2.txt"]
 		}`,
 	}
-
 	c.TestExtractTextFile()
 	c.TestExtractFileNotFound()
 	c.TestExtractFolderNotFound()
