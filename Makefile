@@ -53,17 +53,19 @@ tc-worker-env-tests:
 		echo "This command should only be used in the CI environment"; \
 		exit 1 ; \
 	fi
+	@echo '### Pulling tc-worker-env'
+	@docker pull taskcluster/tc-worker-env > /dev/null
 	@echo '### Running govendor sync'
-	docker run \
+	@docker run \
 		--tty --rm --privileged \
 		-e DEBUG -e GOARCH -e CGO_ENABLED=$(CGO_ENABLED) \
 		-v $$(pwd):/go/src/github.com/taskcluster/taskcluster-worker/ \
 		taskcluster/tc-worker-env \
 		govendor sync
 	@echo '### Downloading test images'
-	./engines/qemu/test-image/download.sh
+	@./engines/qemu/test-image/download.sh
 	@echo '### Running tests'
-	docker run \
+	@docker run \
 		--tty --rm --privileged \
 		-e DEBUG -e GOARCH -e CGO_ENABLED=$(CGO_ENABLED) \
 		-v $$(pwd):/go/src/github.com/taskcluster/taskcluster-worker/ \
