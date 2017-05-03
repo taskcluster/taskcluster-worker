@@ -107,7 +107,12 @@ func NewVirtualMachine(
 		"-realtime", "mlock=off", // TODO: Enable for things like talos
 		// TODO: fit to system HT, see: https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-devices-system-cpu
 		// TODO: Configure CPU instruction sets: http://forum.ipfire.org/viewtopic.php?t=12642
-		"-smp", "cpus=2,sockets=2,cores=1,threads=1",
+		"-smp", arg("", opts{
+			"cpus":    "1", // cpus = threads * cores * sockets
+			"threads": "1", // threads per core
+			"cores":   "1", // cores per socket
+			"sockets": "1", // sockets in the machine
+		}),
 		"-uuid", machine.UUID,
 		"-no-user-config", "-nodefaults",
 		"-rtc", "base=utc", // TODO: Allow clock=vm for loadvm with windows
