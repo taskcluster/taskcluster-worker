@@ -61,7 +61,7 @@ var provider = &enginetest.EngineProvider{
 		"imageFolder":      "/tmp/images/",
 		"socketFolder":     "/tmp/",
 		"machineOptions": {
-			"maxMemory": 512
+			"maxMemory": 256
 		}
   }`,
 }
