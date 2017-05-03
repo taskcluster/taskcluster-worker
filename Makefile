@@ -70,8 +70,8 @@ tc-worker-env-tests:
 		-e DEBUG -e GOARCH -e CGO_ENABLED=$(CGO_ENABLED) \
 		-v $$(pwd):/go/src/github.com/taskcluster/taskcluster-worker/ \
 		taskcluster/tc-worker-env \
-		go test -race -tags 'qemu network system native' -p 1 -v \
-		$$(find  -name '*_test.go' | xargs dirname | sort | uniq)
+		go test -timeout 20m -race -tags 'qemu network system native' -p 1 -v \
+		$$(find -name '*_test.go' | xargs dirname | sort | uniq)
 
 lint:
 	go get github.com/alecthomas/gometalinter
