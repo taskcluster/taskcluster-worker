@@ -158,12 +158,9 @@ func (c *ArtifactTestCase) TestExtractFolderHandlerInterrupt() {
 
 // Test runs all test cases in parallel
 func (c *ArtifactTestCase) Test() {
-	wg := sync.WaitGroup{}
-	wg.Add(5)
-	go func() { c.TestExtractTextFile(); wg.Done() }()
-	go func() { c.TestExtractFileNotFound(); wg.Done() }()
-	go func() { c.TestExtractFolderNotFound(); wg.Done() }()
-	go func() { c.TestExtractNestedFolderPath(); wg.Done() }()
-	go func() { c.TestExtractFolderHandlerInterrupt(); wg.Done() }()
-	wg.Wait()
+	c.TestExtractTextFile()
+	c.TestExtractFileNotFound()
+	c.TestExtractFolderNotFound()
+	c.TestExtractNestedFolderPath()
+	c.TestExtractFolderHandlerInterrupt()
 }

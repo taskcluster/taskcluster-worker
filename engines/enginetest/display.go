@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"sync"
 	"time"
 
 	vnc "github.com/mitchellh/go-vnc"
@@ -169,13 +168,10 @@ func (c *DisplayTestCase) TestInvalidDisplayName() {
 
 // Test runs all tests in parallel
 func (c *DisplayTestCase) Test() {
-	wg := sync.WaitGroup{}
-	wg.Add(4)
-	go func() { c.TestListDisplays(); wg.Done() }()
-	go func() { c.TestDisplays(); wg.Done() }()
-	go func() { c.TestInvalidDisplayName(); wg.Done() }()
-	go func() { c.TestKillDisplay(); wg.Done() }()
-	wg.Wait()
+	c.TestListDisplays()
+	c.TestDisplays()
+	c.TestInvalidDisplayName()
+	c.TestKillDisplay()
 }
 
 type resolution struct {
