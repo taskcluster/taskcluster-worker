@@ -49,11 +49,14 @@ var statelessDNSConfigSchema = schematypes.Object{
 		"tlsKey":             schematypes.String{},
 		"statelessDNSSecret": schematypes.String{},
 		"statelessDNSDomain": schematypes.String{},
-		"maxLifeCycle": schematypes.Duration{
-			Title: "Maximum lifetime of the worker",
+		"expiration": schematypes.Duration{
+			Title: "URL Expiration",
 			Description: util.Markdown(`
 				Used to limit the time period for which the DNS server will return
 				an IP for the given worker hostname.
+
+				This should be larger than the maximum task runtime. If not set it'll
+				default to 1 day, which is sane for most use-cases.
 			`),
 		},
 	},
@@ -63,7 +66,6 @@ var statelessDNSConfigSchema = schematypes.Object{
 		"serverPort",
 		"statelessDNSSecret",
 		"statelessDNSDomain",
-		"maxLifeCycle",
 	},
 }
 
@@ -95,7 +97,7 @@ func NewServer(config interface{}) (Server, error) {
 		TLSKey             string        `json:"tlsKey"`
 		StatelessDNSSecret string        `json:"statelessDNSSecret"`
 		StatelessDNSDomain string        `json:"statelessDNSDomain"`
-		MaxLifeCycle       time.Duration `json:"maxLifeCycle"`
+		Expiration         time.Duration `json:"expiration"`
 		BaseURL            string        `json:"baseUrl"`
 	}
 	schematypes.MustValidate(ConfigSchema, config)
@@ -113,7 +115,7 @@ func NewServer(config interface{}) (Server, error) {
 			c.StatelessDNSSecret,
 			c.TLSCertificate,
 			c.TLSKey,
-			c.MaxLifeCycle,
+			c.Expiration,
 		)
 		if err == nil {
 			go s.ListenAndServe()
