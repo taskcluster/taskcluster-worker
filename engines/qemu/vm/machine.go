@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 
+	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
-	"github.com/xeipuuv/gojsonschema"
 )
 
 // Machine specifies arguments for various QEMU options.
@@ -30,135 +31,86 @@ type Machine struct {
 	// TODO: Add more options in the future
 }
 
-// TODO: Find a way that this schema can be included in the documentation...
-const machineSchemaString = `{
-	"$schema":										"http://json-schema.org/draft-04/schema#",
-	"title":											"Machine Definition",
-	"description":								"Hardware definition for a virtual machine",
-	"type":												"object",
-	"properties": {
-		"uuid": {
-			"type":										"string",
-			"pattern":								"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-			"description":						"System UUID for the virtual machine"
+var machineSchema = schematypes.Object{
+	Title:       "Machine Definition",
+	Description: `Hardware definition for a virtual machine`,
+	Properties: schematypes.Properties{
+		"uuid": schematypes.String{
+			Title:       "System UUID",
+			Description: `System UUID for the virtual machine`,
+			Pattern:     `^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`,
 		},
-		"memory": {
-			"type":										"integer",
-			"description":						"Memory in MiB, defaults to maximum available, if not specified."
+		"memory": schematypes.Integer{
+			Title:       "Memory",
+			Description: `Memory in MiB, defaults to maximum available, if not specified.`,
+			Minimum:     0,
+			Maximum:     math.MaxInt64,
 		},
-		"network": {
-			"type":									 	"object",
-			"properties": {
-				"device": {
-					"type":								"string",
-					"description":				"Network device",
-					"enum": [
-						"rtl8139",
-						"e1000"
-					]
+		"network": schematypes.Object{
+			Properties: schematypes.Properties{
+				"device": schematypes.StringEnum{
+					Title:   "Network Device",
+					Options: []string{"rtl8139", "e1000"},
 				},
-				"mac": {
-					"type":								"string",
-					"pattern":						"^[0-9a-f][26ae](:[0-9a-f]{2}){5}$",
-					"description":				"Local unicast MAC Address"
-				}
+				"mac": schematypes.String{
+					Title:       "MAC Address",
+					Description: `Local unicast MAC Address`,
+					Pattern:     `^[0-9a-f][26ae](:[0-9a-f]{2}){5}$`,
+				},
 			},
-			"additionalProperties":		false,
-			"required": [
-				"device",
-				"mac"
-			]
+			Required: []string{"device", "mac"},
 		},
-		"keyboard": {
-			"type":										"object",
-			"properties": {
-				"layout": {
-					"type":								"string",
-					"description":				"Keyboard layout",
-					"enum": [
+		"keyboard": schematypes.Object{
+			Title: "Keyboard Layout",
+			Properties: schematypes.Properties{
+				"layout": schematypes.StringEnum{
+					Options: []string{
 						"ar", "da", "de", "de-ch", "en-gb", "en-us", "es", "et", "fi", "fo",
 						"fr", "fr-be", "fr-ca", "fr-ch", "hr", "hu", "is", "it", "ja", "lt",
 						"lv", "mk", "nl", "nl-be", "no", "pl", "pt", "pt-br", "ru", "sl",
-						"sv", "th", "tr"
-					]
-				}
+						"sv", "th", "tr",
+					},
+				},
 			},
-			"additionalProperties":		false,
-			"required": [
-				"layout"
-			]
+			Required: []string{"layout"},
 		},
-		"sound": { "anyOf":
-			[{
-				"type": 								"object",
-				"properties": {
-					"device": {
-						"type":							"string",
-						"description":			"Audio Device",
-						"enum": [
-							"AC97",
-							"ES1370"
-						]
+		"sounds": schematypes.AnyOf{
+			schematypes.Object{
+				Title: "PCI Audio",
+				Properties: schematypes.Properties{
+					"device": schematypes.StringEnum{
+						Title:   "Audio Device",
+						Options: []string{"AC97", "ES1370"},
 					},
-					"controller": {
-						"type":							"string",
-						"description":			"Audio Controller",
-						"enum": [
-							"pci"
-						]
-					}
-				},
-				"additionalProperties":	false,
-				"required": [
-					"device",
-					"controller"
-				]
-			}, {
-				"type": 								"object",
-				"properties": {
-					"device": {
-						"type":							"string",
-						"description":			"Audio Device",
-						"enum": [
-							"hda-duplex",
-							"hda-micro",
-							"hda-output"
-						]
+					"controller": schematypes.StringEnum{
+						Title:   "Audio Controller",
+						Options: []string{"pci"},
 					},
-					"controller": {
-						"type":							"string",
-						"description":			"Audio Controller",
-						"enum": [
-							"ich9-intel-hda",
-							"intel-hda"
-						]
-					}
 				},
-				"additionalProperties":	false,
-				"required": [
-					"device",
-					"controller"
-				]
-			}]
-		}
+				Required: []string{"device", "controller"},
+			},
+			schematypes.Object{
+				Title: "Intel HDA",
+				Properties: schematypes.Properties{
+					"device": schematypes.StringEnum{
+						Title:   "Audio Device",
+						Options: []string{"hda-duplex", "hda-micro", "hda-output"},
+					},
+					"controller": schematypes.StringEnum{
+						Title:   "Audio Controller",
+						Options: []string{"ich9-intel-hda", "intel-hda"},
+					},
+				},
+				Required: []string{"device", "controller"},
+			},
+		},
 	},
-	"additionalProperties":				false,
-	"required": [
+	Required: []string{
 		"uuid",
 		"network",
-		"keyboard"
-	]
-}`
-
-var machineSchema = func() *gojsonschema.Schema {
-	schema, err := gojsonschema.NewSchema(
-		gojsonschema.NewStringLoader(machineSchemaString),
-	)
-	if err != nil {
-		panic(err)
-	}
-	return schema
-}()
+		"keyboard",
+	},
+}
 
 // LoadMachine will load machine definition from file
 func LoadMachine(machineFile string) (*Machine, error) {
@@ -197,41 +149,22 @@ func (m *Machine) Clone() *Machine {
 // Validate returns a MalformedPayloadError if the Machine definition isn't
 // valid and legal.
 func (m *Machine) Validate() error {
-	hasError := false
-	errs := "Invalid machine definition in 'machine.json'"
-	msg := func(a ...interface{}) {
-		errs += "\n" + fmt.Sprint(a...)
-		hasError = true
-	}
-
-	// Render to JSON so we can validate with gojsonschema
+	// Render to JSON so we can validate with schematypes
 	// (this isn't efficient, but we'll rarely do this so who cares)
-	data, err := json.MarshalIndent(m, "", "  ")
+	data, err := json.Marshal(m)
 	if err != nil {
-		panic(fmt.Sprintln(
-			"json.Marshal should never fail for vm.Machine, error: ", err,
-		))
+		panic(fmt.Sprint("json.Marshal should never fail for vm.Machine, error: ", err))
+	}
+	var v interface{}
+	if err = json.Unmarshal(data, &v); err != nil {
+		panic(fmt.Sprint("json.Unmarshal should never fail after json.Marshal, error: ", err))
 	}
 
 	// Validate against JSON schema
-	result, err := machineSchema.Validate(
-		gojsonschema.NewStringLoader(string(data)),
-	)
-	if err != nil {
-		panic(fmt.Sprintln(
-			"machineSchema.Validate should always be able to validate, error: ", err,
-		))
-	}
-	if !result.Valid() {
-		for _, err := range result.Errors() {
-			msg(err.(*gojsonschema.ResultErrorFields).String())
-		}
+	if err = machineSchema.Validate(v); err != nil {
+		return runtime.NewMalformedPayloadError("Invalid machine definition in 'machine.json':", err)
 	}
 
-	// Return any errors collected
-	if hasError {
-		return runtime.NewMalformedPayloadError(errs)
-	}
 	return nil
 }
 
