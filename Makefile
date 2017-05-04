@@ -49,7 +49,7 @@ tc-worker:
 	docker build -t taskcluster/tc-worker -f tc-worker.Dockerfile .
 
 tc-worker-env-tests:
-	@if [ `whoami` != 'root' ]; then \
+	@if [ -z "$TASKID" ]; then \
 		echo "This command should only be used in the CI environment"; \
 		exit 1 ; \
 	fi
@@ -58,7 +58,7 @@ tc-worker-env-tests:
 	@echo '### Running govendor sync'
 	@docker run \
 		--tty --rm --privileged \
-		-e DEBUG -e GOARCH -e CGO_ENABLED=$(CGO_ENABLED) \
+		-e DEBUG -e GOARCH=$(GOARCH) -e CGO_ENABLED=$(CGO_ENABLED) \
 		-v $$(pwd):/go/src/github.com/taskcluster/taskcluster-worker/ \
 		taskcluster/tc-worker-env \
 		govendor sync
@@ -67,7 +67,7 @@ tc-worker-env-tests:
 	@echo '### Running tests'
 	@docker run \
 		--tty --rm --privileged \
-		-e DEBUG -e GOARCH -e CGO_ENABLED=$(CGO_ENABLED) \
+		-e DEBUG -e GOARCH=$(GOARCH) -e CGO_ENABLED=$(CGO_ENABLED) \
 		-v $$(pwd):/go/src/github.com/taskcluster/taskcluster-worker/ \
 		taskcluster/tc-worker-env \
 		go test -timeout 20m -race -tags 'qemu network system native' -p 1 -v \
