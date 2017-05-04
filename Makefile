@@ -31,8 +31,11 @@ rebuild: prechecks build test lint
 
 check: test
 	# tests should fail if go fmt results in uncommitted code
-	git status --porcelain
-	/bin/bash -c 'test $$(git status --porcelain | wc -l) == 0'
+	@if [ $$(git status --porcelain | wc -l) -ne 0 ]; then \
+		echo "go fmt results in changes"; \
+		git diff; \
+		exit 1; \
+	fi
 test:
 	# should run with -tags=system at some point..... i.e.:
 	# go test -tags=system -v -race $$(go list ./... | grep -v /vendor/)
