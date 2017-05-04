@@ -170,6 +170,33 @@ tasks:
           format: tar.gz
 
   ##########################################################
+  #################### linux QEMU tests ####################
+  ##########################################################
+
+  - provisionerId:  test-dummy-provisioner
+    workerType:     dummy-worker-packet
+    metadata:
+      name: "Test taskcluster-worker QEMU engine on QEMU engine"
+      description: "Builds and tests tc-worker with QEMU engine..."
+      owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
+      source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
+    extra:
+      github:
+        # Events that will trigger this task
+        events:
+          - push
+    payload:
+      image: 'https://s3-us-west-2.amazonaws.com/public-qemu-images/repository/github.com/taskcluster/taskcluster-worker/ubuntu-worker.tar.zst'
+      command:
+        - clone-and-exec.sh
+        - make
+        - tc-worker-env-tests
+      maxRunTime: '30 min'
+      env:
+        REPOSITORY: '{{ event.head.repo.url }}'
+        REVISION: '{{ event.head.sha }}'
+
+  ##########################################################
   ##################### upload-docs #####################
   ##########################################################
 
