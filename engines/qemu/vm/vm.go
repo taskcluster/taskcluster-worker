@@ -93,7 +93,11 @@ func NewVirtualMachine(
 		for i, k := range keys {
 			pairs[i] = fmt.Sprintf("%s=%s", k, opts[k])
 		}
-		return kind + strings.Join(pairs, ",")
+		// Preprend with kind, if it's non-empty
+		if kind != "" {
+			pairs = append([]string{kind}, pairs...)
+		}
+		return strings.Join(pairs, ",")
 	}
 	options := []string{
 		"-S", // Wait for QMP command "continue" before starting execution
@@ -108,10 +112,10 @@ func NewVirtualMachine(
 		// TODO: fit to system HT, see: https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-devices-system-cpu
 		// TODO: Configure CPU instruction sets: http://forum.ipfire.org/viewtopic.php?t=12642
 		"-smp", arg("", opts{
-			"cpus":    "1", // cpus = threads * cores * sockets
-			"threads": "1", // threads per core
-			"cores":   "1", // cores per socket
-			"sockets": "1", // sockets in the machine
+			"cpus":    strconv.Itoa(machine.CPU.Threads * machine.CPU.Cores * machine.CPU.Sockets),
+			"threads": strconv.Itoa(machine.CPU.Threads), // threads per core
+			"cores":   strconv.Itoa(machine.CPU.Cores),   // cores per socket
+			"sockets": strconv.Itoa(machine.CPU.Sockets), // sockets in the machine
 		}),
 		"-uuid", machine.UUID,
 		"-no-user-config", "-nodefaults",

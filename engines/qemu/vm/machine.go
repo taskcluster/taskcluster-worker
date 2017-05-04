@@ -9,14 +9,20 @@ import (
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
 // Machine specifies arguments for various QEMU options.
 //
 // This only allows certain arguments to be specified.
 type Machine struct {
-	UUID    string `json:"uuid"`
-	Memory  int    `json:"memory,omitempty"`
+	UUID   string `json:"uuid"`
+	Memory int    `json:"memory,omitempty"`
+	CPU    struct {
+		Threads int `json:"threads,omitempty"`
+		Cores   int `json:"cores,omitempty"`
+		Sockets int `json:"sockets,omitempty"`
+	} `json:"cpu"`
 	Network struct {
 		Device string `json:"device"`
 		MAC    string `json:"mac"`
@@ -45,6 +51,41 @@ var machineSchema = schematypes.Object{
 			Description: `Memory in MiB, defaults to maximum available, if not specified.`,
 			Minimum:     0,
 			Maximum:     math.MaxInt64,
+		},
+		"cpu": schematypes.Object{
+			Title: "CPUs",
+			Description: util.Markdown(`
+				Configuration of number of CPU cores.
+
+				The number of virtual CPUs inside the virtual machine will be
+				'threads * cores * sockets'.
+
+				If 'cores', 'threads' or 'sockets' is omitted it will at-least be 1, and
+				we shall increase it such that the maximum number of CPUs allowed per tasks
+				is utilized. Granted this might not be possible if the maximum number of
+				CPUs is uneven and 2 or more have been specified for either of these options.
+
+				This should be used if the virtual machine requires a specific CPU
+				configuration, otherwise it can be omitted. And maximum number of cores will
+				be used.
+			`),
+			Properties: schematypes.Properties{
+				"threads": schematypes.Integer{
+					Title:   "Threads per CPU core",
+					Minimum: 1,
+					Maximum: 255,
+				},
+				"cores": schematypes.Integer{
+					Title:   "CPU cores per socket",
+					Minimum: 1,
+					Maximum: 255,
+				},
+				"sockets": schematypes.Integer{
+					Title:   "CPU sockets in machine",
+					Minimum: 1,
+					Maximum: 255,
+				},
+			},
 		},
 		"network": schematypes.Object{
 			Properties: schematypes.Properties{
@@ -189,17 +230,54 @@ func validateMAC(mac string) error {
 
 // SetDefaults will validate limitations and set defaults from options
 func (m *Machine) SetDefaults(options MachineOptions) error {
-	// Set defaults
+	// Set defaults for memory
 	if m.Memory == 0 {
 		m.Memory = options.MaxMemory
 	}
+	// Set defaults for cpu cores
+	// First remember if threads, cores or sockets is defined in machine.json
+	hasThreads := m.CPU.Threads > 0
+	hasCores := m.CPU.Cores > 0
+	hasSockets := m.CPU.Sockets > 0
+	// Default all to at-least one
+	if !hasThreads {
+		m.CPU.Threads = 1
+	}
+	if !hasCores {
+		m.CPU.Cores = 1
+	}
+	if !hasSockets {
+		m.CPU.Sockets = 1
+	}
+	// If cores was not defined and we can increase it by one, we do so
+	for !hasCores && m.CPU.Threads*(m.CPU.Cores+1)*m.CPU.Sockets <= options.MaxCores {
+		m.CPU.Cores++
+	}
+	// same for threads and sockets, notice that we prefer to increase sockets
+	for !hasThreads && (m.CPU.Threads+1)*m.CPU.Cores*m.CPU.Sockets <= options.MaxCores {
+		m.CPU.Threads++
+	}
+	for !hasSockets && m.CPU.Threads*m.CPU.Cores*(m.CPU.Sockets+1) <= options.MaxCores {
+		m.CPU.Sockets++
+	}
 
-	// Validate limitations
+	// Validate limitations for memory
 	if m.Memory > options.MaxMemory {
 		return runtime.NewMalformedPayloadError(
 			"Image memory ", m.Memory, " MiB is larger than allowed machine memory ",
 			options.MaxMemory, " MiB",
 		)
+	}
+
+	// Validate limitations for cpu cores
+	if m.CPU.Threads*m.CPU.Cores*m.CPU.Sockets > options.MaxCores {
+		return runtime.NewMalformedPayloadError(fmt.Sprintf(
+			"Image specifies threads: %d, cores: %d, sockets: %d, in total: %d "+
+				"which is larger than %d total number of cores allowed",
+			m.CPU.Threads, m.CPU.Cores, m.CPU.Sockets,
+			m.CPU.Threads*m.CPU.Cores*m.CPU.Sockets,
+			options.MaxCores,
+		))
 	}
 
 	return nil
@@ -214,5 +292,18 @@ func (m Machine) Options() MachineOptions {
 	if m.Memory != 0 {
 		options.MaxMemory = m.Memory
 	}
+	threads := m.CPU.Threads
+	cores := m.CPU.Cores
+	sockets := m.CPU.Sockets
+	if threads <= 0 {
+		threads = 1
+	}
+	if cores <= 0 {
+		cores = 1
+	}
+	if sockets <= 0 {
+		sockets = 1
+	}
+	options.MaxCores = threads * cores * sockets
 	return options
 }

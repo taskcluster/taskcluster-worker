@@ -9,6 +9,7 @@ import (
 // values and options.
 type MachineOptions struct {
 	MaxMemory int `json:"maxMemory"`
+	MaxCores  int `json:"maxCores"`
 }
 
 // MachineOptionsSchema is the schema for MachineOptions.
@@ -31,8 +32,22 @@ var MachineOptionsSchema = schematypes.Object{
 			Minimum: 0,
 			Maximum: 1024 * 1024, // 1 TiB
 		},
+		"maxCores": schematypes.Integer{
+			Title: "Max CPU Cores",
+			Description: util.Markdown(`
+				Maximum number of CPUs a virtual machine can use.
+
+				This is the product of 'threads', 'cores' and 'sockets' as specified
+				in the machine definition 'machine.json'. If the virtual machine image
+				does not specify CPU requires it will be given 'maxCores' number of
+				cores in a single socket.
+			`),
+			Minimum: 1,
+			Maximum: 255, // Maximum allowed by QEMU
+		},
 	},
 	Required: []string{
 		"maxMemory",
+		"maxCores",
 	},
 }

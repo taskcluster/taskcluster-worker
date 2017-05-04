@@ -61,9 +61,10 @@ var provider = &enginetest.EngineProvider{
 		"imageFolder":      "/tmp/images/",
 		"socketFolder":     "/tmp/",
 		"machineOptions": {
-			"maxMemory": 256
+			"maxMemory": 256,
+			"maxCores": 1
 		}
-  }`,
+	}`,
 }
 
 func TestLogging(t *testing.T) {
