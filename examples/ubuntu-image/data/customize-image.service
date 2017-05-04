@@ -1,0 +1,10 @@
+[Unit]
+Description=Run setup.sh from cdrom to customize image.
+After=network-online.target,dev-cdrom.device
+
+[Service]
+Type=simple
+ExecStart=/opt/customize-image.sh
+
+[Install]
+WantedBy=multi-user.target
