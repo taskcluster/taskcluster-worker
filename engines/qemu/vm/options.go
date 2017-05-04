@@ -16,7 +16,7 @@ var MachineOptionsSchema = schematypes.Object{
 	Title: "Machine Options",
 	Description: util.Markdown(`
 		Limitations and default values for the virtual machine
-		configuration. Tasks with machine images that doesn't satisfy
+		configuration. Tasks with machine images that does not satisfy
 		these limitations will be resolved 'malformed-payload'.
 	`),
 	Properties: schematypes.Properties{
@@ -24,7 +24,7 @@ var MachineOptionsSchema = schematypes.Object{
 			Title: "Max Memory",
 			Description: util.Markdown(`
 				Maximum allowed virtual machine memory in MiB. This is
-				also the default memory if the machine image doesn't
+				also the default memory if the machine image does not
 				specify memory requirements. If the machine specifies a
 				memory higher than this, the task will fail to run.
 			`),
