@@ -9,7 +9,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -79,14 +81,19 @@ func NewVirtualMachine(
 	// Construct options for QEMU
 	type opts map[string]string
 	arg := func(kind string, opts opts) string {
-		result := kind
-		for k, v := range opts {
-			if result != "" {
-				result += ","
-			}
-			result += k + "=" + v
+		// Sort for consistency. QEMU shouldn't care about order, but if there is
+		// a bug it's nice that it's consistent.
+		keys := make([]string, 0, len(opts))
+		for k := range opts {
+			keys = append(keys, k)
 		}
-		return result
+		sort.Strings(keys)
+		// Create pairs and join with a comma
+		pairs := make([]string, len(keys))
+		for i, k := range keys {
+			pairs[i] = fmt.Sprintf("%s=%s", k, opts[k])
+		}
+		return kind + strings.Join(pairs, ",")
 	}
 	options := []string{
 		"-S", // Wait for QMP command "continue" before starting execution
