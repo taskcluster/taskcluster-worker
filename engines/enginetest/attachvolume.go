@@ -4,7 +4,6 @@ package enginetest
 
 import (
 	"log"
-	"sync"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
@@ -114,11 +113,8 @@ func (c *VolumeTestCase) TestReadToReadOnlyVolume() {
 
 // Test runs all tests on the test case.
 func (c *VolumeTestCase) Test() {
-	wg := sync.WaitGroup{}
-	wg.Add(4)
-	go func() { c.TestWriteReadVolume(); wg.Done() }()
-	go func() { c.TestReadEmptyVolume(); wg.Done() }()
-	go func() { c.TestWriteToReadOnlyVolume(); wg.Done() }()
-	go func() { c.TestReadToReadOnlyVolume(); wg.Done() }()
-	wg.Wait()
+	c.TestWriteReadVolume()
+	c.TestReadEmptyVolume()
+	c.TestWriteToReadOnlyVolume()
+	c.TestReadToReadOnlyVolume()
 }

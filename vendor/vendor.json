@@ -166,7 +166,7 @@
 			"revisionTime": "2017-03-19T06:52:38Z"
 		},
 		{
-			"checksumSHA1": "eIjJhEqZZmQwt++0jlQhbIhAcH4=",
+			"checksumSHA1": "Cdsm9pkjn7WC0TP2KKPDSApiQKQ=",
 			"path": "github.com/kr/pty",
 			"revision": "ce7fa45920dc37a92de8377972e52bc55ffa8d57",
 			"revisionTime": "2016-07-16T20:46:20Z"
@@ -221,13 +221,13 @@
 			"revisionTime": "2016-09-19T13:31:52Z"
 		},
 		{
-			"checksumSHA1": "NOh16yOqf+hH+0XMJp3uV1Kb9FA=",
+			"checksumSHA1": "NQJSFdm1lm0/tcsw98mYxzAEk5U=",
 			"path": "github.com/shirou/gopsutil/disk",
 			"revision": "53322384071180140b2a4f33f161fc5898685da5",
 			"revisionTime": "2016-09-19T13:31:52Z"
 		},
 		{
-			"checksumSHA1": "NuQpBEPzjTLUqDW2zxChEBpDAkk=",
+			"checksumSHA1": "zYGrRrVEnsZoxkbiqB5Lj7ojBLg=",
 			"path": "github.com/shirou/gopsutil/host",
 			"revision": "53322384071180140b2a4f33f161fc5898685da5",
 			"revisionTime": "2016-09-19T13:31:52Z"
@@ -251,7 +251,7 @@
 			"revisionTime": "2016-09-19T13:31:52Z"
 		},
 		{
-			"checksumSHA1": "k1ug9JDvES8wNqxaQcO7qxgpOKc=",
+			"checksumSHA1": "u9VGaCX/DyCDmWtg5Jt6yBH0pPk=",
 			"path": "github.com/shirou/gopsutil/process",
 			"revision": "53322384071180140b2a4f33f161fc5898685da5",
 			"revisionTime": "2016-09-19T13:31:52Z"
@@ -408,7 +408,7 @@
 			"revisionTime": "2016-09-11T09:39:33Z"
 		},
 		{
-			"checksumSHA1": "vu7njn8O4vhFtmgGWntwjA2NAbk=",
+			"checksumSHA1": "noiZtKqeCoHgwUw9PQz4O3w3CnU=",
 			"path": "golang.org/x/sys/unix",
 			"revision": "8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9",
 			"revisionTime": "2016-09-14T20:33:16Z"

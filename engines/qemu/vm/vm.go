@@ -93,7 +93,11 @@ func NewVirtualMachine(
 		for i, k := range keys {
 			pairs[i] = fmt.Sprintf("%s=%s", k, opts[k])
 		}
-		return kind + strings.Join(pairs, ",")
+		// Preprend with kind, if it's non-empty
+		if kind != "" {
+			pairs = append([]string{kind}, pairs...)
+		}
+		return strings.Join(pairs, ",")
 	}
 	options := []string{
 		"-S", // Wait for QMP command "continue" before starting execution
@@ -107,7 +111,12 @@ func NewVirtualMachine(
 		"-realtime", "mlock=off", // TODO: Enable for things like talos
 		// TODO: fit to system HT, see: https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-devices-system-cpu
 		// TODO: Configure CPU instruction sets: http://forum.ipfire.org/viewtopic.php?t=12642
-		"-smp", "cpus=2,sockets=2,cores=1,threads=1",
+		"-smp", arg("", opts{
+			"cpus":    strconv.Itoa(machine.CPU.Threads * machine.CPU.Cores * machine.CPU.Sockets),
+			"threads": strconv.Itoa(machine.CPU.Threads), // threads per core
+			"cores":   strconv.Itoa(machine.CPU.Cores),   // cores per socket
+			"sockets": strconv.Itoa(machine.CPU.Sockets), // sockets in the machine
+		}),
 		"-uuid", machine.UUID,
 		"-no-user-config", "-nodefaults",
 		"-rtc", "base=utc", // TODO: Allow clock=vm for loadvm with windows

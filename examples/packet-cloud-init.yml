@@ -1,0 +1,96 @@
+#cloud-config
+
+# The following variables must be filled out:
+#   papertrail log destination: <log-host> <log-port>
+#   taskcluster credentials: <client-id> <access-token>
+# Then this is ready to go!
+coreos:
+  units:
+    # Disable SSH
+    - name:    sshd.socket
+      mask:    true
+      command: stop
+    - name:    sshd.service
+      mask:    true
+      command: stop
+    # Stop updates of coreos
+    - name:    locksmithd.service
+      mask:    true
+      command: stop
+    # Disable fleet socket activation
+    - name:    fleet.socket
+      mask:    true
+      command: stop
+    # Disable etcd2
+    - name:    etcd2.service
+      mask:    true
+      command: stop
+    # Enable debug-level logging
+    - name:    systemd-journald.service
+      command: restart
+      drop-ins:
+        - name: 10-debug.conf
+          content: |
+            [Service]
+            Environment=SYSTEMD_LOG_LEVEL=debug
+    # Setup logging to papertrail
+    - name:    papertrail.service
+      command: start
+      content: |
+        [Unit]
+        Description=forward syslog to papertrail
+        After=systemd-journald.service
+        Before=docker.service
+        Requires=systemd-journald.service
+
+        [Service]
+        ExecStart=/bin/sh -c "journalctl -f | ncat --ssl <log-host> <log-port>"
+        TimeoutStartSec=0
+        Restart=on-failure
+        RestartSec=5s
+    # Reload kvm_intel with nested virtualization allowed
+    - name:    kvm_intel_nested.service
+      command: start
+      content: |
+        [Unit]
+        Description=Reload kvm_intel to allow nested virtualization.
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/bin/sh -c 'modprobe -r kvm_intel && modprobe kvm_intel nested=1'
+        ExecStop=/bin/sh -c 'modprobe -r kvm_intel && modprobe kvm_intel'
+    # Setup taskcluster-worker
+    - name:    taskcluster-worker.service
+      command: start
+      content: |
+        [Unit]
+        Description=taskcluster worker process
+        Requires=papertrail.service docker.service kvm_intel_nested.service
+
+        [Service]
+        Restart=always
+        ExecStart=/usr/bin/docker \
+          run -p 443:443 --rm --privileged \
+          --env-file /etc/taskcluster-worker-env.list \
+          --name taskcluster-worker \
+          taskcluster/tc-worker@sha256:8703d969a75e6cebe693d5415b4590c721ecf861fff072d932ecf5384ec73d1c
+        ExecStop=/usr/bin/docker kill taskcluster-worker
+
+        [Install]
+        WantedBy=multi-user.target
+# Add file with environment variables for taskcluster-worker
+write_files:
+  - path:         /etc/taskcluster-worker-env.list
+    permissions:  '0400'
+    owner:        root
+    content: |
+      ENGINE=qemu
+      TASKCLUSTER_CLIENT_ID=<client-id>
+      TASKCLUSTER_ACCESS_TOKEN=<access-token>
+      PORT=443
+      PROVISIONER_ID=test-dummy-provisioner
+      WORKER_TYPE=dummy-worker-packet
+      WORKER_GROUP=test-dummy-workers
+      WORKER_ID=dummy-worker-type2
+      DEBUG=*

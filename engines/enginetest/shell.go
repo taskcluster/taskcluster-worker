@@ -190,11 +190,8 @@ func (c *ShellTestCase) TestKillSleepCommand() {
 
 // Test runs all tests in parallel
 func (c *ShellTestCase) Test() {
-	wg := sync.WaitGroup{}
-	wg.Add(4)
-	go func() { c.TestCommand(); wg.Done() }()
-	go func() { c.TestBadCommand(); wg.Done() }()
-	go func() { c.TestAbortSleepCommand(); wg.Done() }()
-	go func() { c.TestKillSleepCommand(); wg.Done() }()
-	wg.Wait()
+	c.TestCommand()
+	c.TestBadCommand()
+	c.TestAbortSleepCommand()
+	c.TestKillSleepCommand()
 }

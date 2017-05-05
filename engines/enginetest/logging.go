@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"sync"
 )
 
 // A LoggingTestCase holds information necessary to run tests that an engine
@@ -70,10 +69,7 @@ func (c *LoggingTestCase) TestSilentTask() {
 
 // Test will run all logging tests
 func (c *LoggingTestCase) Test() {
-	wg := sync.WaitGroup{}
-	wg.Add(3)
-	go func() { c.TestLogTarget(); wg.Done() }()
-	go func() { c.TestLogTargetWhenFailing(); wg.Done() }()
-	go func() { c.TestSilentTask(); wg.Done() }()
-	wg.Wait()
+	c.TestLogTarget()
+	c.TestLogTargetWhenFailing()
+	c.TestSilentTask()
 }
