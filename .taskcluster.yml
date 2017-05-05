@@ -27,7 +27,7 @@ tasks:
           - push
     scopes:
       - secrets:get:repo:github.com/taskcluster/taskcluster-worker
-      - docker-worker:cache:taskcluster-worker-checkout
+      - docker-worker:cache:taskcluster-worker-checkout-1
     payload:
       features:
         taskclusterProxy: true
@@ -56,7 +56,7 @@ tasks:
           expires: "{{ '2 weeks' | $fromNow }}"
           type: file
       cache:
-        taskcluster-worker-checkout: /go/src
+        taskcluster-worker-checkout-1: /go/src
 
 
   ##########################################################
@@ -76,7 +76,7 @@ tasks:
         events:
           - push
     scopes:
-      - generic-worker:cache:taskcluster-worker-checkout
+      - generic-worker:cache:taskcluster-worker-checkout-1
     payload:
       maxRunTime: 3600
       artifacts:
@@ -103,7 +103,7 @@ tasks:
         - 'C:\taskcluster-worker-test-creds.cmd'
         - '"C:\mozilla-build\msys\bin\bash.exe" --login -c "cd ${GOPATH}/src/github.com/taskcluster/taskcluster-worker && make rebuild check"'
       mounts:
-        - cacheName: taskcluster-worker-checkout
+        - cacheName: taskcluster-worker-checkout-1
           directory: gopath/src
         - content:
             url: https://storage.googleapis.com/golang/go1.8.windows-amd64.zip
@@ -132,7 +132,7 @@ tasks:
         events:
           - push
     scopes:
-      - generic-worker:cache:taskcluster-worker-checkout
+      - generic-worker:cache:taskcluster-worker-checkout-1
     payload:
       maxRunTime: 3600
       artifacts:
@@ -162,7 +162,7 @@ tasks:
             mkdir -p public/build
             mv "${GOPATH}/bin/taskcluster-worker" public/build/taskcluster-worker-darwin-amd64
       mounts:
-        - cacheName: taskcluster-worker-checkout
+        - cacheName: taskcluster-worker-checkout-1
           directory: gopath/src
         - content:
             url: https://storage.googleapis.com/golang/go1.8.darwin-amd64.tar.gz
@@ -216,7 +216,7 @@ tasks:
           - master
     scopes:
       - auth:aws-s3:read-write:taskcluster-raw-docs/taskcluster-worker/
-      - docker-worker:cache:taskcluster-worker-checkout
+      - docker-worker:cache:taskcluster-worker-checkout-1
     payload:
       features:
         taskclusterProxy: true
@@ -250,4 +250,4 @@ tasks:
           # See: https://github.com/taskcluster/taskcluster-lib-docs/pull/26
           nodejs `which upload-project-docs`
       cache:
-        taskcluster-worker-checkout: /go/src
+        taskcluster-worker-checkout-1: /go/src
