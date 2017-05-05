@@ -49,6 +49,7 @@ import (
 	_ "github.com/taskcluster/taskcluster-worker/plugins/env"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/interactive"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/livelog"
+	_ "github.com/taskcluster/taskcluster-worker/plugins/logprefix"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/maxruntime"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/plugintest"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/reboot"
