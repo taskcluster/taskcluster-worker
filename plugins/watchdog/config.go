@@ -34,7 +34,9 @@ var configSchema = schematypes.Object{
 				'Started()' and 'Stopped()'.
 
 				Defaults to ` + strconv.Itoa(defaultTimeout) + ` minutes, if not
-				specified (or zero).
+				specified (or zero). This is a sound value, lower than 30 minutes is
+				not recommended as plugins will be reported as stalled, if a hook takes
+				longer than 30 minutes, and such error reports contains more context.
 
 				This property is specified in seconds as integer or as string on the
 				form '1 day 2 hours 3 minutes'.
