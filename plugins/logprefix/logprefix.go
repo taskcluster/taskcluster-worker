@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"time"
 
+	"github.com/pkg/errors"
+	"github.com/shirou/gopsutil/host"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 )
@@ -15,7 +18,8 @@ type provider struct {
 
 type plugin struct {
 	plugins.PluginBase
-	keys map[string]string
+	keys     map[string]string
+	bootTime string
 }
 
 func init() {
@@ -37,16 +41,25 @@ func (provider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error)
 		options.Monitor.Infof("Prefixing task logs: '%s' = '%s'", k, v)
 	}
 
+	// Obtain the system boottime
+	boottime, err := host.BootTime()
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to determine the system boot time")
+	}
+
 	return &plugin{
-		keys: keys,
+		keys:     keys,
+		bootTime: time.Unix(int64(boottime), 0).Format(time.RFC3339),
 	}, nil
 }
 
 func (p *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
 	keys := map[string]string{
-		"TaskId": options.TaskContext.TaskID,
-		"RunId":  strconv.Itoa(options.TaskContext.RunID),
+		"TaskId":       options.TaskContext.TaskID,
+		"RunId":        strconv.Itoa(options.TaskContext.RunID),
+		"HostBootTime": p.bootTime,
 	}
+
 	// Construct list of all keys (so we can sort it)
 	var allKeys []string
 	for k := range keys {
