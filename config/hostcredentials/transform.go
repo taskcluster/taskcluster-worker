@@ -45,17 +45,17 @@ func (provider) Transform(cfg map[string]interface{}, monitor runtime.Monitor) e
 
 		for {
 			for _, url := range urls {
-				monitor.Info("Trying host-secrets server %s...", url)
+				monitor.Info("Trying host-secrets server ", url)
 
 				resp, err := g.Get(url).Send()
 				if err != nil {
-					monitor.ReportError(err, "result: %s; continuing to next server")
+					monitor.ReportError(err, "error fetching secrets; continuing to next server")
 					continue
 				}
 
 				err = json.Unmarshal(resp.Body, &creds)
 				if err != nil {
-					monitor.ReportError(err, "decoding JSON from server: %s; continuing to next server")
+					monitor.ReportError(err, "error decoding JSON from server; continuing to next server")
 					continue
 				}
 
@@ -66,7 +66,7 @@ func (provider) Transform(cfg map[string]interface{}, monitor runtime.Monitor) e
 				if creds.Credentials.Certificate != "" {
 					retval["certificate"] = creds.Credentials.Certificate
 				}
-				monitor.Info("Success: host-secrets server gave clientId %s...", creds.Credentials.ClientID)
+				monitor.Info("Success: host-secrets server gave clientId ", creds.Credentials.ClientID)
 				return retval, nil
 			}
 
