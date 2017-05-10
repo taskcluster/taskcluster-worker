@@ -263,6 +263,12 @@
 			"revisionTime": "2016-09-19T13:31:52Z"
 		},
 		{
+			"checksumSHA1": "Nve7SpDmjsv6+rhkXAkfg/UQx94=",
+			"path": "github.com/shirou/w32",
+			"revision": "bb4de0191aa41b5507caa14b0650cdbddcd9280b",
+			"revisionTime": "2016-09-30T03:27:40Z"
+		},
+		{
 			"checksumSHA1": "Om0cn0L5ewCIBcORQAXD8guTa9M=",
 			"path": "github.com/streadway/amqp",
 			"revision": "afe8eee29a74d213b1f3fb2586058157c397da60",
