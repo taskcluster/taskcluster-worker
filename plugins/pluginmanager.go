@@ -15,11 +15,14 @@ import (
 // Timeout for all plugin hooks. If a plugin hook takes longer than this the
 // PluginManager will assume livelock and return ErrFatalInternalError
 //
-// No plugin hook should take more than 45 minutes. Note, it's not important to
+// No plugin hook should take more than 30 minutes. Note, it's not important to
 // lower this number. This is for livelock detection, we report this to sentry
 // and kill the worker. This is intended to detect lack of progress, such that
 // the underlying bug can be fixed.
-const pluginHookTimeout = 45 * time.Minute
+//
+// This provides better errors than watchdog, and should therefore be configured
+// with a lower timeout than the watchdog which defaults to 45 minutes.
+const pluginHookTimeout = 30 * time.Minute
 
 // A PluginManager combines a collection of plugins and implements an interface
 // similar to Plugin. The interface is not exactly the same, notably, if there

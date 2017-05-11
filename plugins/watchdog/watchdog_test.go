@@ -42,6 +42,25 @@ func TestWatchdog(t *testing.T) {
 	}
 }
 
+func TestWatchdogDefaultTimeout(t *testing.T) {
+	lifeCycle := &runtime.LifeCycleTracker{}
+
+	p, err := provider{}.NewPlugin(plugins.PluginOptions{
+		Config: map[string]interface{}{},
+		Environment: &runtime.Environment{
+			Worker: lifeCycle,
+		},
+		Monitor: mocks.NewMockMonitor(false),
+	})
+	require.NoError(t, err)
+	assert.False(t, lifeCycle.StoppingNow.IsDone())
+
+	// Sleep 500ms is okay
+	p.ReportIdle(0)
+	time.Sleep(500 * time.Millisecond)
+	assert.False(t, lifeCycle.StoppingNow.IsDone())
+}
+
 func TestWatchdogRunningIgnored(t *testing.T) {
 	lifeCycle := &runtime.LifeCycleTracker{}
 
