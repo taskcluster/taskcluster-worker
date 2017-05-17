@@ -21,6 +21,7 @@ type config struct {
 	Password               string        `json:"password"`
 	Cipher                 string        `json:"cipher"`
 	Remote                 string        `json:"remote"`
+	Port                   int           `json:"port"`
 	Protocol               string        `json:"protocol"`
 	Compression            string        `json:"compression"` // lzo, lz4, none, undefined (means adaptive)
 	CertificateAuthority   string        `json:"certificateAuthority"`
@@ -60,6 +61,11 @@ var ConfigSchema schematypes.Schema = schematypes.Object{
 
 				This is the '--remote' argument for openvpn.
 			`),
+		},
+		"port": schematypes.Integer{
+			Title:   "Remote Port",
+			Minimum: 0,
+			Maximum: 65535,
 		},
 		"protocol": schematypes.StringEnum{
 			Title:   "Protocol",

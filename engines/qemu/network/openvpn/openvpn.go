@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 )
 
 // A VPN object wraps a running instance of openvpn.
@@ -23,10 +24,14 @@ type VPN struct {
 	stdoutWriter io.WriteCloser
 	stderrWriter io.WriteCloser
 	routes       []net.IP
+	resolved     atomics.Once
+	waitErr      error
+	disposed     atomics.Once
 }
 
 // Options for creating a new VPN client with New().
 type Options struct {
+	DeviceName       string // Name for TUN device
 	Config           interface{}
 	Monitor          runtime.Monitor
 	TemporaryStorage runtime.TemporaryStorage
@@ -37,6 +42,12 @@ func New(options Options) (*VPN, error) {
 	var c config
 	schematypes.MustValidateAndMap(ConfigSchema, options.Config, &c)
 
+	// Ensure that we have a device name
+	if options.DeviceName == "" {
+		panic("A TUN DeviceName must be given in openvpn.Options")
+	}
+
+	// Create a temporary folder for storing keyfiles...
 	folder, err := options.TemporaryStorage.NewFolder()
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating VPN client, couldn't create temporary folder")
@@ -110,6 +121,9 @@ func New(options Options) (*VPN, error) {
 
 	// Tunnel options
 	arg("remote", c.Remote)
+	if c.Port != 0 {
+		arg("rport", strconv.Itoa(c.Port))
+	}
 	arg("resolv-retry", "infinite")
 	arg("proto", c.Protocol)
 	arg("nobind")
@@ -121,12 +135,12 @@ func New(options Options) (*VPN, error) {
 	}
 
 	// Tun device
-	arg("dev", "kmstun")
+	arg("dev", options.DeviceName)
 	arg("dev-type", "tun")
 
 	// Drop permissions
 	arg("user", "nobody")
-	arg("group", "nobody")
+	arg("group", "nogroup")
 
 	// Persist key material
 	arg("persist-key")
@@ -204,20 +218,36 @@ func New(options Options) (*VPN, error) {
 }
 
 func (vpn *VPN) waitForCommand() {
-	vpn.cmd.Wait()
-	vpn.folder.Remove()
-	vpn.stdoutWriter.Close()
-	vpn.stderrWriter.Close()
+	err := vpn.cmd.Wait()
+	vpn.resolved.Do(func() {
+		if err != nil {
+			vpn.waitErr = errors.Wrap(err, "openvpn exited non-zero")
+		}
+	})
+	vpn.disposed.Do(func() {
+		vpn.folder.Remove()
+		vpn.stdoutWriter.Close()
+		vpn.stderrWriter.Close()
+	})
+}
+
+// Routes exposed by the VPN
+func (vpn *VPN) Routes() []net.IP {
+	return vpn.routes
 }
 
 // Wait waits for the openvpn client to exit, return nil if stopped by Stop()
 func (vpn *VPN) Wait() error {
-	return nil
+	vpn.disposed.Wait()
+	return vpn.waitErr
 }
 
 // Stop signals the openvpn client to exit
 func (vpn *VPN) Stop() {
-
+	vpn.resolved.Do(func() {
+		vpn.cmd.Process.Kill()
+	})
+	vpn.disposed.Wait()
 }
 
 func scanLog(log io.Reader, infoLog, errorLog func(...interface{})) {
