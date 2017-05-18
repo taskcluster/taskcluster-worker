@@ -59,7 +59,7 @@ func ipTableRules(tapDevice string, ipPrefix string, delete bool) [][]string {
 		{"-j", "REJECT", "--reject-with", "icmp-host-unreachable"},
 	})
 
-	// Rules for filtering OUTPUT to this tap decice
+	// Rules for filtering OUTPUT to this tap device
 	outputRules := prefixCommands([]string{"iptables", "-w", xtableLockWait, ruleAction, "output_" + tapDevice}, [][]string{
 		// Allow meta-data replies (to subnet only)
 		{"-p", "tcp", "-s", metaDataIP, "-d", subnet, "-m", "tcp", "--sport", "80", "-m", "state", "--state", "ESTABLISHED", "-j", "ACCEPT"},
@@ -74,30 +74,30 @@ func ipTableRules(tapDevice string, ipPrefix string, delete bool) [][]string {
 
 	// Rules for filtering FORWARD from this tap device
 	forwardInputRules := prefixCommands([]string{"iptables", "-w", xtableLockWait, ruleAction, "fwd_input_" + tapDevice}, [][]string{
-		// Reject out-going from tctap1 to private subnets
+		// Reject out-going from this tap device to private subnets
 		{"-d", "10.0.0.0/8", "-j", "REJECT", "--reject-with", "icmp-net-unreachable"},
 		{"-d", "172.16.0.0/12", "-j", "REJECT", "--reject-with", "icmp-net-unreachable"},
 		{"-d", "169.254.0.0/16", "-j", "REJECT", "--reject-with", "icmp-net-unreachable"},
 		{"-d", "192.168.0.0/16", "-j", "REJECT", "--reject-with", "icmp-net-unreachable"},
-		// Allow out-going from tctap1 with correct source subnet
+		// Allow out-going from this tap device with correct source subnet
 		{"-o", "eth0", "-s", subnet, "-j", "ACCEPT"},
-		// Allow tctap1 -> tctap1 within allowed subnet
-		{"-o", "tctap1", "-s", subnet, "-j", "ACCEPT"},
+		// Allow tap device -> tap device within allowed subnet
+		{"-o", tapDevice, "-s", subnet, "-j", "ACCEPT"},
 		// Reject all other input for forwarding from tap-device
 		{"-j", "REJECT", "--reject-with", "icmp-net-prohibited"},
 	})
 
 	// Rules for filtering FORWARD to this tap device
 	forwardOutputRules := prefixCommands([]string{"iptables", "-w", xtableLockWait, ruleAction, "fwd_output_" + tapDevice}, [][]string{
-		// Reject incoming from private subnets to tctap1
+		// Reject incoming from private subnets to this tap device
 		{"-s", "10.0.0.0/8", "-j", "DROP"},
 		{"-s", "172.16.0.0/12", "-j", "DROP"},
 		{"-s", "169.254.0.0/16", "-j", "DROP"},
 		{"-s", "192.168.0.0/16", "-j", "DROP"},
-		// Allow incoming from tctap1 with correct destination (if already established)
+		// Allow incoming from this tap device with correct destination (if already established)
 		{"-i", "eth0", "-d", subnet, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT"},
-		// Allow tctap1 -> tctap1 within allowed subnet
-		{"-i", "tctap1", "-s", subnet, "-j", "ACCEPT"},
+		// Allow tap device -> tap device within allowed subnet
+		{"-i", tapDevice, "-s", subnet, "-j", "ACCEPT"},
 		// Reject all other output from forwarding to tap-device
 		{"-j", "DROP"},
 	})
