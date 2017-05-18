@@ -1,6 +1,7 @@
 package qemuengine
 
 import (
+	"github.com/pkg/errors"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
@@ -18,6 +19,7 @@ type engine struct {
 	networkPool    *network.Pool
 	Environment    *runtime.Environment
 	maxConcurrency int
+	socketFolder   runtime.TemporaryFolder
 }
 
 type engineProvider struct {
@@ -26,35 +28,17 @@ type engineProvider struct {
 
 type configType struct {
 	Network        interface{}       `json:"network"`
-	ImageFolder    string            `json:"imageFolder"`
-	SocketFolder   string            `json:"socketFolder"`
-	MachineOptions vm.MachineOptions `json:"machineOptions"`
+	MachineOptions vm.MachineOptions `json:"machine"`
 }
 
 var configSchema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"network": network.PoolConfigSchema,
-		"imageFolder": schematypes.String{
-			Title: "Image Folder",
-			Description: util.Markdown(`
-				Path to folder to be used for image storage and cache.
-				Please ensure this has lots of space.
-			`),
-		},
-		"socketFolder": schematypes.String{
-			Title: "Socket Folder",
-			Description: util.Markdown(`
-				Path to folder to be used for internal unix-domain sockets.
-				Ideally, this shouldn't be readable by anyone else.
-			`),
-		},
-		"machineOptions": vm.MachineOptionsSchema,
+		"machine": vm.MachineOptionsSchema,
 	},
 	Required: []string{
 		"network",
-		"imageFolder",
-		"socketFolder",
-		"machineOptions",
+		"machine",
 	},
 }
 
@@ -66,20 +50,30 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 	var c configType
 	schematypes.MustValidateAndMap(configSchema, options.Config, &c)
 
+	// Create socket folder
+	socketFolder, err := options.Environment.TemporaryStorage.NewFolder()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create socket folder")
+	}
+
 	// Create image manager
 	imageManager, err := image.NewManager(
-		c.ImageFolder,
+		options.Environment.TemporaryStorage.NewFilePath(),
 		options.Environment.GarbageCollector,
 		options.Environment.Monitor.WithPrefix("image-manager"),
 	)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create image manager")
 	}
 
 	// Create network pool
-	networkPool, err := network.NewPool(c.Network)
+	networkPool, err := network.NewPool(network.PoolOptions{
+		Config:           c.Network,
+		Monitor:          options.Monitor.WithPrefix("network"),
+		TemporaryStorage: options.Environment.TemporaryStorage,
+	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create network pool")
 	}
 
 	// Construct engine object
@@ -90,6 +84,7 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 		networkPool:    networkPool,
 		maxConcurrency: networkPool.Size(),
 		Environment:    options.Environment,
+		socketFolder:   socketFolder,
 	}, nil
 }
 
