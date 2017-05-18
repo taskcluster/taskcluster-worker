@@ -1,11 +1,13 @@
 package network
 
+import "github.com/taskcluster/taskcluster-worker/engines/qemu/network/openvpn"
+
 // Maximum time to wait for the xtables lock when using iptables
 const xtableLockWait = "3"
 
 // ipTableRules returns a list of commands to append rules for tapDevice.
 // If delete=false, this returns the commands to delete the rules.
-func ipTableRules(tapDevice string, ipPrefix string, delete bool) [][]string {
+func ipTableRules(tapDevice string, ipPrefix string, vpns []*openvpn.VPN, delete bool) [][]string {
 	subnet := ipPrefix + ".0/24"
 	gateway := ipPrefix + ".1"
 	prefixCommands := func(prefix []string, rules [][]string) [][]string {
@@ -72,35 +74,66 @@ func ipTableRules(tapDevice string, ipPrefix string, delete bool) [][]string {
 		{"-j", "REJECT", "--reject-with", "icmp-net-prohibited"},
 	})
 
+	// Create VPN forwarding rules
+	forwardVPNInputRules := [][]string{}  // Will be prepended fwd_input_...
+	forwardVPNOutputRules := [][]string{} // Will be prepended fwd_output_...
+	for _, vpn := range vpns {
+		for _, ip := range vpn.Routes() {
+			ipv4 := ip.To4()
+			if ipv4 == nil {
+				debug("Skipping IPv6 route to VPN: %s", ip.String())
+				continue // Skip IPv6 for now
+			}
+			route := ipv4.String()
+			// Allow tap device -> VPN, if source subnet and target tap device matches
+			forwardVPNInputRules = append(forwardVPNInputRules, []string{
+				"-d", route, "-o", vpn.DeviceName(), "-s", subnet, "-j", "ACCEPT",
+			})
+			// Allow VPN -> tap device, if destination subnet matches and connection
+			// is already established.
+			forwardVPNOutputRules = append(forwardVPNOutputRules, []string{
+				"-s", route, "-i", vpn.DeviceName(), "-d", subnet, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT",
+			})
+		}
+	}
+
 	// Rules for filtering FORWARD from this tap device
-	forwardInputRules := prefixCommands([]string{"iptables", "-w", xtableLockWait, ruleAction, "fwd_input_" + tapDevice}, [][]string{
-		// Reject out-going from this tap device to private subnets
-		{"-d", "10.0.0.0/8", "-j", "REJECT", "--reject-with", "icmp-net-unreachable"},
-		{"-d", "172.16.0.0/12", "-j", "REJECT", "--reject-with", "icmp-net-unreachable"},
-		{"-d", "169.254.0.0/16", "-j", "REJECT", "--reject-with", "icmp-net-unreachable"},
-		{"-d", "192.168.0.0/16", "-j", "REJECT", "--reject-with", "icmp-net-unreachable"},
-		// Allow out-going from this tap device with correct source subnet
-		{"-o", "eth0", "-s", subnet, "-j", "ACCEPT"},
-		// Allow tap device -> tap device within allowed subnet
-		{"-o", tapDevice, "-s", subnet, "-j", "ACCEPT"},
-		// Reject all other input for forwarding from tap-device
-		{"-j", "REJECT", "--reject-with", "icmp-net-prohibited"},
-	})
+	forwardInputRules := prefixCommands([]string{"iptables", "-w", xtableLockWait, ruleAction, "fwd_input_" + tapDevice}, append(
+		// Allow tap device -> VPN
+		forwardVPNInputRules,
+		[][]string{
+			// Reject out-going from this tap device to private subnets
+			{"-d", "10.0.0.0/8", "-j", "REJECT", "--reject-with", "icmp-net-unreachable"},
+			{"-d", "172.16.0.0/12", "-j", "REJECT", "--reject-with", "icmp-net-unreachable"},
+			{"-d", "169.254.0.0/16", "-j", "REJECT", "--reject-with", "icmp-net-unreachable"},
+			{"-d", "192.168.0.0/16", "-j", "REJECT", "--reject-with", "icmp-net-unreachable"},
+			// Allow out-going from this tap device with correct source subnet
+			{"-o", "eth0", "-s", subnet, "-j", "ACCEPT"},
+			// Allow tap device -> tap device within allowed subnet
+			{"-o", tapDevice, "-s", subnet, "-j", "ACCEPT"},
+			// Reject all other input for forwarding from tap-device
+			{"-j", "REJECT", "--reject-with", "icmp-net-prohibited"},
+		}...,
+	))
 
 	// Rules for filtering FORWARD to this tap device
-	forwardOutputRules := prefixCommands([]string{"iptables", "-w", xtableLockWait, ruleAction, "fwd_output_" + tapDevice}, [][]string{
-		// Reject incoming from private subnets to this tap device
-		{"-s", "10.0.0.0/8", "-j", "DROP"},
-		{"-s", "172.16.0.0/12", "-j", "DROP"},
-		{"-s", "169.254.0.0/16", "-j", "DROP"},
-		{"-s", "192.168.0.0/16", "-j", "DROP"},
-		// Allow incoming from this tap device with correct destination (if already established)
-		{"-i", "eth0", "-d", subnet, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT"},
-		// Allow tap device -> tap device within allowed subnet
-		{"-i", tapDevice, "-s", subnet, "-j", "ACCEPT"},
-		// Reject all other output from forwarding to tap-device
-		{"-j", "DROP"},
-	})
+	forwardOutputRules := prefixCommands([]string{"iptables", "-w", xtableLockWait, ruleAction, "fwd_output_" + tapDevice}, append(
+		// Allow VPN -> tap device, if already established
+		forwardVPNOutputRules,
+		[][]string{
+			// Reject incoming from private subnets to this tap device
+			{"-s", "10.0.0.0/8", "-j", "DROP"},
+			{"-s", "172.16.0.0/12", "-j", "DROP"},
+			{"-s", "169.254.0.0/16", "-j", "DROP"},
+			{"-s", "192.168.0.0/16", "-j", "DROP"},
+			// Allow incoming from this tap device with correct destination (if already established)
+			{"-i", "eth0", "-d", subnet, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT"},
+			// Allow tap device -> tap device within allowed subnet
+			{"-i", tapDevice, "-s", subnet, "-j", "ACCEPT"},
+			// Reject all other output from forwarding to tap-device
+			{"-j", "DROP"},
+		}...,
+	))
 
 	cmds := [][]string{}
 	if !delete {

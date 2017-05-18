@@ -12,11 +12,12 @@ import (
 
 type engine struct {
 	engines.EngineBase
-	engineConfig configType
-	monitor      runtime.Monitor
-	imageManager *image.Manager
-	networkPool  *network.Pool
-	Environment  *runtime.Environment
+	engineConfig   configType
+	monitor        runtime.Monitor
+	imageManager   *image.Manager
+	networkPool    *network.Pool
+	Environment    *runtime.Environment
+	maxConcurrency int
 }
 
 type engineProvider struct {
@@ -24,7 +25,7 @@ type engineProvider struct {
 }
 
 type configType struct {
-	MaxConcurrency int               `json:"maxConcurrency"`
+	Network        interface{}       `json:"network"`
 	ImageFolder    string            `json:"imageFolder"`
 	SocketFolder   string            `json:"socketFolder"`
 	MachineOptions vm.MachineOptions `json:"machineOptions"`
@@ -32,12 +33,7 @@ type configType struct {
 
 var configSchema = schematypes.Object{
 	Properties: schematypes.Properties{
-		"maxConcurrency": schematypes.Integer{
-			Title:       "Max Concurrency",
-			Description: `Maximum number of virtual machines to run concurrently.`,
-			Minimum:     1,
-			Maximum:     64,
-		},
+		"network": network.PoolConfigSchema,
 		"imageFolder": schematypes.String{
 			Title: "Image Folder",
 			Description: util.Markdown(`
@@ -55,8 +51,8 @@ var configSchema = schematypes.Object{
 		"machineOptions": vm.MachineOptionsSchema,
 	},
 	Required: []string{
+		"network",
 		"imageFolder",
-		"maxConcurrency",
 		"socketFolder",
 		"machineOptions",
 	},
@@ -81,24 +77,25 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 	}
 
 	// Create network pool
-	networkPool, err := network.NewPool(c.MaxConcurrency)
+	networkPool, err := network.NewPool(c.Network)
 	if err != nil {
 		return nil, err
 	}
 
 	// Construct engine object
 	return &engine{
-		engineConfig: c,
-		monitor:      options.Monitor,
-		imageManager: imageManager,
-		networkPool:  networkPool,
-		Environment:  options.Environment,
+		engineConfig:   c,
+		monitor:        options.Monitor,
+		imageManager:   imageManager,
+		networkPool:    networkPool,
+		maxConcurrency: networkPool.Size(),
+		Environment:    options.Environment,
 	}, nil
 }
 
 func (e *engine) Capabilities() engines.Capabilities {
 	return engines.Capabilities{
-		MaxConcurrency: e.engineConfig.MaxConcurrency,
+		MaxConcurrency: e.maxConcurrency,
 	}
 }
 

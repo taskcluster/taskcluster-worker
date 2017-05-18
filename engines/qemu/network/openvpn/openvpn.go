@@ -23,6 +23,7 @@ type VPN struct {
 	folder       runtime.TemporaryFolder
 	stdoutWriter io.WriteCloser
 	stderrWriter io.WriteCloser
+	deviceName   string
 	routes       []net.IP
 	resolved     atomics.Once
 	waitErr      error
@@ -53,10 +54,11 @@ func New(options Options) (*VPN, error) {
 		return nil, errors.Wrap(err, "error creating VPN client, couldn't create temporary folder")
 	}
 
-	vpn := VPN{
-		config:  c,
-		monitor: options.Monitor,
-		folder:  folder,
+	vpn := &VPN{
+		config:     c,
+		monitor:    options.Monitor,
+		folder:     folder,
+		deviceName: options.DeviceName,
 	}
 
 	// Create file with username/password
@@ -214,7 +216,7 @@ func New(options Options) (*VPN, error) {
 
 	go vpn.waitForCommand()
 
-	return &vpn, nil
+	return vpn, nil
 }
 
 func (vpn *VPN) waitForCommand() {
@@ -234,6 +236,11 @@ func (vpn *VPN) waitForCommand() {
 // Routes exposed by the VPN
 func (vpn *VPN) Routes() []net.IP {
 	return vpn.routes
+}
+
+// DeviceName returns the TUN device name
+func (vpn *VPN) DeviceName() string {
+	return vpn.deviceName
 }
 
 // Wait waits for the openvpn client to exit, return nil if stopped by Stop()
