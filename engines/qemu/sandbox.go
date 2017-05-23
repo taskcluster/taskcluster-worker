@@ -41,7 +41,7 @@ func newSandbox(
 ) (*sandbox, error) {
 	vm, err := vm.NewVirtualMachine(
 		e.engineConfig.MachineOptions,
-		image, network, e.engineConfig.SocketFolder, "", "",
+		image, network, e.socketFolder.Path(), "", "",
 		monitor.WithTag("component", "vm"),
 	)
 	if err != nil {

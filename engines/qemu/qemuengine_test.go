@@ -57,10 +57,10 @@ func TestMain(m *testing.M) {
 var provider = &enginetest.EngineProvider{
 	Engine: "qemu",
 	Config: `{
-		"maxConcurrency":   5,
-		"imageFolder":      "/tmp/images/",
-		"socketFolder":     "/tmp/",
-		"machineOptions": {
+		"network": {
+			"subnets": 5
+		},
+		"machine": {
 			"maxMemory": 256,
 			"maxCores": 1
 		}

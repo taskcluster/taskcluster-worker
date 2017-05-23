@@ -159,6 +159,11 @@ func NewVirtualMachine(
 			"bus":  "usb.0",
 			"port": "2",
 		}),
+		"-device", arg("usb-tablet", opts{
+			"id":   "tablet-0",
+			"bus":  "usb.0",
+			"port": "3",
+		}),
 		"-vnc", arg("unix:"+vncSocket, opts{
 			"share": "force-shared",
 		}),

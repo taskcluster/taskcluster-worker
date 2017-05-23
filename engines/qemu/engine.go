@@ -1,6 +1,7 @@
 package qemuengine
 
 import (
+	"github.com/pkg/errors"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
@@ -12,11 +13,13 @@ import (
 
 type engine struct {
 	engines.EngineBase
-	engineConfig configType
-	monitor      runtime.Monitor
-	imageManager *image.Manager
-	networkPool  *network.Pool
-	Environment  *runtime.Environment
+	engineConfig   configType
+	monitor        runtime.Monitor
+	imageManager   *image.Manager
+	networkPool    *network.Pool
+	Environment    *runtime.Environment
+	maxConcurrency int
+	socketFolder   runtime.TemporaryFolder
 }
 
 type engineProvider struct {
@@ -24,41 +27,18 @@ type engineProvider struct {
 }
 
 type configType struct {
-	MaxConcurrency int               `json:"maxConcurrency"`
-	ImageFolder    string            `json:"imageFolder"`
-	SocketFolder   string            `json:"socketFolder"`
-	MachineOptions vm.MachineOptions `json:"machineOptions"`
+	Network        interface{}       `json:"network"`
+	MachineOptions vm.MachineOptions `json:"machine"`
 }
 
 var configSchema = schematypes.Object{
 	Properties: schematypes.Properties{
-		"maxConcurrency": schematypes.Integer{
-			Title:       "Max Concurrency",
-			Description: `Maximum number of virtual machines to run concurrently.`,
-			Minimum:     1,
-			Maximum:     64,
-		},
-		"imageFolder": schematypes.String{
-			Title: "Image Folder",
-			Description: util.Markdown(`
-				Path to folder to be used for image storage and cache.
-				Please ensure this has lots of space.
-			`),
-		},
-		"socketFolder": schematypes.String{
-			Title: "Socket Folder",
-			Description: util.Markdown(`
-				Path to folder to be used for internal unix-domain sockets.
-				Ideally, this shouldn't be readable by anyone else.
-			`),
-		},
-		"machineOptions": vm.MachineOptionsSchema,
+		"network": network.PoolConfigSchema,
+		"machine": vm.MachineOptionsSchema,
 	},
 	Required: []string{
-		"imageFolder",
-		"maxConcurrency",
-		"socketFolder",
-		"machineOptions",
+		"network",
+		"machine",
 	},
 }
 
@@ -70,35 +50,47 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 	var c configType
 	schematypes.MustValidateAndMap(configSchema, options.Config, &c)
 
+	// Create socket folder
+	socketFolder, err := options.Environment.TemporaryStorage.NewFolder()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create socket folder")
+	}
+
 	// Create image manager
 	imageManager, err := image.NewManager(
-		c.ImageFolder,
+		options.Environment.TemporaryStorage.NewFilePath(),
 		options.Environment.GarbageCollector,
 		options.Environment.Monitor.WithPrefix("image-manager"),
 	)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create image manager")
 	}
 
 	// Create network pool
-	networkPool, err := network.NewPool(c.MaxConcurrency)
+	networkPool, err := network.NewPool(network.PoolOptions{
+		Config:           c.Network,
+		Monitor:          options.Monitor.WithPrefix("network"),
+		TemporaryStorage: options.Environment.TemporaryStorage,
+	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create network pool")
 	}
 
 	// Construct engine object
 	return &engine{
-		engineConfig: c,
-		monitor:      options.Monitor,
-		imageManager: imageManager,
-		networkPool:  networkPool,
-		Environment:  options.Environment,
+		engineConfig:   c,
+		monitor:        options.Monitor,
+		imageManager:   imageManager,
+		networkPool:    networkPool,
+		maxConcurrency: networkPool.Size(),
+		Environment:    options.Environment,
+		socketFolder:   socketFolder,
 	}, nil
 }
 
 func (e *engine) Capabilities() engines.Capabilities {
 	return engines.Capabilities{
-		MaxConcurrency: e.engineConfig.MaxConcurrency,
+		MaxConcurrency: e.maxConcurrency,
 	}
 }
 

@@ -1,0 +1,113 @@
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 1 (0x1)
+    Signature Algorithm: sha256WithRSAEncryption
+        Issuer: C=KG, ST=NA, L=BISHKEK, O=OpenVPN-TEST/emailAddress=me@myhost.mydomain
+        Validity
+            Not Before: May 13 00:54:27 2017 GMT
+            Not After : May 11 00:54:27 2027 GMT
+        Subject: C=KG, ST=NA, O=OpenVPN-TEST, CN=Test-Server/emailAddress=me@myhost.mydomain
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (2048 bit)
+                Modulus:
+                    00:ae:40:3c:22:f5:5b:8c:0a:ad:97:45:98:67:6a:
+                    fb:4a:4e:60:82:9e:f3:74:4c:1e:32:23:e9:12:e5:
+                    14:b5:67:92:d6:5b:59:b9:22:d0:ea:03:73:72:dc:
+                    c2:ad:00:1d:83:65:6b:ee:9b:5c:c1:a6:ee:0f:d9:
+                    70:02:66:1c:3c:fe:de:39:f9:54:bd:0f:88:5e:68:
+                    7f:bc:61:0e:fc:25:04:22:e4:7e:28:51:27:b2:3b:
+                    44:39:d5:72:27:83:ef:ca:cb:41:f2:b8:7b:dd:a7:
+                    b2:a1:21:e5:bd:b3:47:0f:41:7a:e5:cc:38:c7:f8:
+                    45:3b:b3:36:b5:11:53:b5:58:2e:a3:c5:5e:d9:b6:
+                    82:47:19:74:98:c0:99:48:72:7d:b1:d4:65:ee:49:
+                    31:a6:59:41:dc:3b:e2:49:09:f7:b4:c4:94:3c:24:
+                    ef:fd:9b:25:9c:7d:e3:62:64:b1:63:fb:c6:a3:02:
+                    16:ad:ca:54:97:bb:2f:e9:08:d1:2f:eb:d5:78:6e:
+                    d1:67:18:1f:3c:05:19:86:2f:19:ba:36:24:3c:18:
+                    f0:fc:dc:45:ad:f0:0a:fe:64:65:ad:1c:13:aa:b4:
+                    df:a2:8d:de:e3:84:91:36:f0:dc:c1:9a:74:d6:0b:
+                    22:32:c3:bc:19:4d:4a:89:dd:51:ce:e6:7e:c5:e1:
+                    29:9b
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Basic Constraints: 
+                CA:FALSE
+            Netscape Cert Type: 
+                SSL Server
+            Netscape Comment: 
+                OpenSSL Generated Server Certificate
+            X509v3 Subject Key Identifier: 
+                71:3D:67:72:5D:C3:EA:DD:3D:1C:B2:D9:1B:B3:B5:3D:A8:32:48:97
+            X509v3 Authority Key Identifier: 
+                keyid:1F:5A:1E:B1:7E:2F:92:53:3C:57:7E:29:FE:E1:0A:2C:AC:F4:02:A0
+                DirName:/C=KG/ST=NA/L=BISHKEK/O=OpenVPN-TEST/emailAddress=me@myhost.mydomain
+                serial:D3:86:3C:1A:BB:71:4E:96
+
+            X509v3 Extended Key Usage: 
+                TLS Web Server Authentication
+            X509v3 Key Usage: 
+                Digital Signature, Key Encipherment
+    Signature Algorithm: sha256WithRSAEncryption
+         7c:08:ce:b5:fd:12:58:5f:84:c7:38:8a:e4:67:07:36:57:e7:
+         1d:2f:56:ee:46:6c:c2:c2:0b:dd:b2:6c:7e:ad:bd:b0:bf:cc:
+         6f:ce:9d:fe:fd:4d:5d:57:ba:d1:15:47:88:22:fc:db:72:c3:
+         46:a7:05:17:69:bb:f9:08:12:d0:43:f3:68:11:37:d5:9f:83:
+         6a:6c:3e:64:3f:af:6e:2d:b5:95:66:a0:c5:4a:ba:ee:18:4a:
+         e2:9d:4b:8b:43:fa:84:73:92:57:c5:d7:19:c2:89:83:05:80:
+         02:63:a5:ed:03:cc:65:25:29:b9:f7:21:b0:d1:46:2e:0a:56:
+         62:fb:99:62:68:34:13:09:2b:b8:33:bf:33:d2:05:d3:80:94:
+         d6:dd:70:d2:7f:3d:ef:81:39:06:7b:2e:e8:fe:59:88:a3:70:
+         b1:69:d8:7e:e2:ee:cd:5d:10:2d:8e:4f:fa:93:ee:ea:1f:25:
+         9d:83:c0:28:a4:5f:c1:26:c0:98:15:f8:5e:02:39:00:70:d3:
+         96:e1:cd:f3:c6:e8:ea:4c:0b:8e:26:9c:69:5b:46:25:14:15:
+         68:84:d7:fd:00:ac:ab:37:6f:39:5e:43:49:71:ab:81:eb:d3:
+         56:a8:22:5a:07:b6:b1:79:0b:ec:47:92:4c:ff:95:93:60:31:
+         d6:65:50:77:59:ed:bf:17:c0:8c:eb:50:e5:90:fb:e7:fc:8c:
+         7d:70:72:a6:a4:08:03:db:5a:8f:c2:63:13:eb:4d:65:c7:c7:
+         55:25:4f:07:ea:da:36:1e:5a:72:a9:7b:3b:54:8b:3c:4f:7e:
+         ae:c8:c3:ef:4c:65:75:17:b4:f5:fe:1c:bd:87:84:56:8b:87:
+         cb:4e:26:81:82:0c:cc:01:fc:d1:f3:b0:8f:d5:62:ef:e2:80:
+         51:70:c2:63:0b:5d:aa:fe:5b:19:be:95:d2:e6:d1:4a:63:ad:
+         13:bf:eb:c4:b5:99:2d:57:3a:22:44:4d:36:dd:ac:83:38:83:
+         ec:8b:5c:2d:b3:e0:28:21:a5:00:42:0e:e5:e7:39:6b:fd:00:
+         1b:92:51:1c:9d:1b:60:f3:96:fc:b4:73:e7:bc:f9:93:dd:c2:
+         56:77:b6:12:37:de:a9:97:af:bb:31:7f:17:ee:c7:b7:b9:45:
+         ce:35:f0:0d:41:6c:3e:ce:50:40:a6:41:7a:85:a0:af:51:19:
+         f7:29:8c:d7:96:83:ed:e5:4c:91:06:2a:14:ed:75:ce:34:f9:
+         3f:70:f4:e2:c5:15:d1:bd:a8:54:bd:56:80:47:1a:33:fc:2e:
+         22:ab:ca:f5:36:d1:7a:db:18:17:ab:ec:4c:de:34:68:a7:f4:
+         e6:17:bc:e7:24:be:b7:2e
+-----BEGIN CERTIFICATE-----
+MIIFgDCCA2igAwIBAgIBATANBgkqhkiG9w0BAQsFADBmMQswCQYDVQQGEwJLRzEL
+MAkGA1UECAwCTkExEDAOBgNVBAcMB0JJU0hLRUsxFTATBgNVBAoMDE9wZW5WUE4t
+VEVTVDEhMB8GCSqGSIb3DQEJARYSbWVAbXlob3N0Lm15ZG9tYWluMB4XDTE3MDUx
+MzAwNTQyN1oXDTI3MDUxMTAwNTQyN1owajELMAkGA1UEBhMCS0cxCzAJBgNVBAgM
+Ak5BMRUwEwYDVQQKDAxPcGVuVlBOLVRFU1QxFDASBgNVBAMMC1Rlc3QtU2VydmVy
+MSEwHwYJKoZIhvcNAQkBFhJtZUBteWhvc3QubXlkb21haW4wggEiMA0GCSqGSIb3
+DQEBAQUAA4IBDwAwggEKAoIBAQCuQDwi9VuMCq2XRZhnavtKTmCCnvN0TB4yI+kS
+5RS1Z5LWW1m5ItDqA3Ny3MKtAB2DZWvum1zBpu4P2XACZhw8/t45+VS9D4heaH+8
+YQ78JQQi5H4oUSeyO0Q51XIng+/Ky0HyuHvdp7KhIeW9s0cPQXrlzDjH+EU7sza1
+EVO1WC6jxV7ZtoJHGXSYwJlIcn2x1GXuSTGmWUHcO+JJCfe0xJQ8JO/9myWcfeNi
+ZLFj+8ajAhatylSXuy/pCNEv69V4btFnGB88BRmGLxm6NiQ8GPD83EWt8Ar+ZGWt
+HBOqtN+ijd7jhJE28NzBmnTWCyIyw7wZTUqJ3VHO5n7F4SmbAgMBAAGjggEzMIIB
+LzAJBgNVHRMEAjAAMBEGCWCGSAGG+EIBAQQEAwIGQDAzBglghkgBhvhCAQ0EJhYk
+T3BlblNTTCBHZW5lcmF0ZWQgU2VydmVyIENlcnRpZmljYXRlMB0GA1UdDgQWBBRx
+PWdyXcPq3T0cstkbs7U9qDJIlzCBmAYDVR0jBIGQMIGNgBQfWh6xfi+SUzxXfin+
+4QosrPQCoKFqpGgwZjELMAkGA1UEBhMCS0cxCzAJBgNVBAgMAk5BMRAwDgYDVQQH
+DAdCSVNIS0VLMRUwEwYDVQQKDAxPcGVuVlBOLVRFU1QxITAfBgkqhkiG9w0BCQEW
+Em1lQG15aG9zdC5teWRvbWFpboIJANOGPBq7cU6WMBMGA1UdJQQMMAoGCCsGAQUF
+BwMBMAsGA1UdDwQEAwIFoDANBgkqhkiG9w0BAQsFAAOCAgEAfAjOtf0SWF+ExziK
+5GcHNlfnHS9W7kZswsIL3bJsfq29sL/Mb86d/v1NXVe60RVHiCL823LDRqcFF2m7
++QgS0EPzaBE31Z+Damw+ZD+vbi21lWagxUq67hhK4p1Li0P6hHOSV8XXGcKJgwWA
+AmOl7QPMZSUpufchsNFGLgpWYvuZYmg0EwkruDO/M9IF04CU1t1w0n8974E5Bnsu
+6P5ZiKNwsWnYfuLuzV0QLY5P+pPu6h8lnYPAKKRfwSbAmBX4XgI5AHDTluHN88bo
+6kwLjiacaVtGJRQVaITX/QCsqzdvOV5DSXGrgevTVqgiWge2sXkL7EeSTP+Vk2Ax
+1mVQd1ntvxfAjOtQ5ZD75/yMfXBypqQIA9taj8JjE+tNZcfHVSVPB+raNh5acql7
+O1SLPE9+rsjD70xldRe09f4cvYeEVouHy04mgYIMzAH80fOwj9Vi7+KAUXDCYwtd
+qv5bGb6V0ubRSmOtE7/rxLWZLVc6IkRNNt2sgziD7ItcLbPgKCGlAEIO5ec5a/0A
+G5JRHJ0bYPOW/LRz57z5k93CVne2EjfeqZevuzF/F+7Ht7lFzjXwDUFsPs5QQKZB
+eoWgr1EZ9ymM15aD7eVMkQYqFO11zjT5P3D04sUV0b2oVL1WgEcaM/wuIqvK9TbR
+etsYF6vsTN40aKf05he85yS+ty4=
+-----END CERTIFICATE-----
