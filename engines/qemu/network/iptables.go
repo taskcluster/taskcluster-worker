@@ -7,6 +7,17 @@ const xtableLockWait = "3"
 
 // ipTableRules returns a list of commands to append rules for tapDevice.
 // If delete=false, this returns the commands to delete the rules.
+//
+// The goal is to create iptable rules such that a VM exposed on tapDevice is
+// restricted to IPs from the subnet <ipPrefix>.0/24 and can access:
+// * Metadata service at 169.254.169.254 on port 80
+// * DNS server (dnsmasq)
+// * DHCP server (dnsmasq)
+// * Routes connected through VPN
+// * The public IPv4 internet address
+// In particular we wish to forbid access to other VMs, IP spoofing, and
+// connections other resources within the private network the worker is
+// deployed in.
 func ipTableRules(tapDevice string, ipPrefix string, vpns []*openvpn.VPN, delete bool) [][]string {
 	subnet := ipPrefix + ".0/24"
 	gateway := ipPrefix + ".1"
