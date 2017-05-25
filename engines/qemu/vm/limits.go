@@ -5,16 +5,16 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
-// MachineOptions specifies the limits on the virtual machine limits, default
-// values and options.
-type MachineOptions struct {
-	MaxMemory int `json:"maxMemory"`
-	MaxCores  int `json:"maxCores"`
+// MachineLimits imposes limits on a virtual machine definition.
+type MachineLimits struct {
+	MaxMemory      int `json:"maxMemory"`
+	MaxCPUs        int `json:"maxCPUs"`
+	DefaultThreads int `json:"defaultThreads"`
 }
 
-// MachineOptionsSchema is the schema for MachineOptions.
-var MachineOptionsSchema = schematypes.Object{
-	Title: "Machine Options",
+// MachineLimitsSchema is the schema for MachineOptions.
+var MachineLimitsSchema = schematypes.Object{
+	Title: "Machine Limits",
 	Description: util.Markdown(`
 		Limitations and default values for the virtual machine
 		configuration. Tasks with machine images that does not satisfy
@@ -32,22 +32,35 @@ var MachineOptionsSchema = schematypes.Object{
 			Minimum: 0,
 			Maximum: 1024 * 1024, // 1 TiB
 		},
-		"maxCores": schematypes.Integer{
-			Title: "Max CPU Cores",
+		"maxCPUs": schematypes.Integer{
+			Title: "Max CPUs",
 			Description: util.Markdown(`
 				Maximum number of CPUs a virtual machine can use.
 
 				This is the product of 'threads', 'cores' and 'sockets' as specified
 				in the machine definition 'machine.json'. If the virtual machine image
-				does not specify CPU requires it will be given 'maxCores' number of
-				cores in a single socket.
+				does not specify CPU requires it will be given
+        'maxCPUs / defaultThreads' number of cores in a single socket.
 			`),
 			Minimum: 1,
 			Maximum: 255, // Maximum allowed by QEMU
 		},
+		"defaultThreads": schematypes.Integer{
+			Title: "Default CPU Threads",
+			Description: util.Markdown(`
+				Number of CPU threads to assign, if assigning default values for
+				'threads', 'cores' and 'sockets' based on 'maxCPUs'.
+
+				This should generally default to 2, if the host features hyperthreading,
+				otherwise 1 is likely ideal.
+			`),
+			Minimum: 1,
+			Maximum: 255,
+		},
 	},
 	Required: []string{
 		"maxMemory",
-		"maxCores",
+		"maxCPUs",
+		"defaultThreads",
 	},
 }

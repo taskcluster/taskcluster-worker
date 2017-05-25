@@ -1,6 +1,10 @@
 package vm
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestValidateMACWithValidMACs(t *testing.T) {
 	validMACs := []string{
@@ -35,9 +39,10 @@ func TestValidateMACWithValidMACs(t *testing.T) {
 		"ba:b4:5f:88:d5:29",
 	}
 	for _, mac := range validMACs {
-		if err := validateMAC(mac); err != nil {
-			t.Error("Unexpected error when validating: ", mac, " error: ", err)
-		}
+		err := MachineSchema.Validate(map[string]interface{}{
+			"mac": mac,
+		})
+		assert.NoError(t, err, "failed to validate: %s", mac)
 	}
 }
 
@@ -65,7 +70,10 @@ func TestValidateMACWithGlobalMACs(t *testing.T) {
 		"00:00:0a:5b:81:59",
 	}
 	for _, mac := range invalidMACs {
-		if validateMAC(mac) == nil {
+		err := MachineSchema.Validate(map[string]interface{}{
+			"mac": mac,
+		})
+		if err == nil {
 			t.Error("Expected error when validating: ", mac)
 		}
 	}
@@ -98,7 +106,10 @@ func TestValidateMACWithMulticastMACs(t *testing.T) {
 		"a7:c4:a1:2f:0e:0e",
 	}
 	for _, mac := range invalidMACs {
-		if validateMAC(mac) == nil {
+		err := MachineSchema.Validate(map[string]interface{}{
+			"mac": mac,
+		})
+		if err == nil {
 			t.Error("Expected error when validating: ", mac)
 		}
 	}
@@ -136,7 +147,10 @@ func TestValidateMACWithInvalidMACs(t *testing.T) {
 		"--",
 	}
 	for _, mac := range invalidMACs {
-		if validateMAC(mac) == nil {
+		err := MachineSchema.Validate(map[string]interface{}{
+			"mac": mac,
+		})
+		if err == nil {
 			t.Error("Expected error when validating: ", mac)
 		}
 	}

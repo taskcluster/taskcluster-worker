@@ -2,308 +2,348 @@ package vm
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
+	"reflect"
+	rt "runtime"
 
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/runtime"
-	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
 // Machine specifies arguments for various QEMU options.
-//
-// This only allows certain arguments to be specified.
 type Machine struct {
-	UUID   string `json:"uuid"`
-	Memory int    `json:"memory,omitempty"`
-	CPU    struct {
-		Threads int `json:"threads,omitempty"`
-		Cores   int `json:"cores,omitempty"`
-		Sockets int `json:"sockets,omitempty"`
-	} `json:"cpu"`
-	Network struct {
-		Device string `json:"device"`
-		MAC    string `json:"mac"`
-	} `json:"network"`
-	Keyboard struct {
-		Layout string `json:"layout"`
-	} `json:"keyboard"`
-	Sound *struct {
-		Device     string `json:"device"`
-		Controller string `json:"controller"`
-	} `json:"sound,omitempty"`
-	// TODO: Add more options in the future
+	options struct {
+		Version        int      `json:"version"`
+		UUID           string   `json:"uuid"`
+		Chipset        string   `json:"chipset"`
+		CPU            string   `json:"cpu"`
+		Flags          []string `json:"flags"`
+		Threads        int      `json:"threads"`
+		Cores          int      `json:"cores"`
+		Sockets        int      `json:"sockets"`
+		Memory         int      `json:"memory"`
+		USB            string   `json:"usb"`
+		Network        string   `json:"network"`
+		MAC            string   `json:"mac"`
+		Storage        string   `json:"storage"`
+		Graphics       string   `json:"graphics"`
+		VGAMemory      int      `json:"vgaMemory"`
+		GraphicsRAM    int      `json:"graphicsRam"`
+		GraphicsVRAM   int      `json:"graphicsVRam"`
+		Sound          string   `json:"sound"`
+		Keyboard       string   `json:"keyboard"`
+		KeyboardLayout string   `json:"keyboardLayout"`
+		Mouse          string   `json:"mouse"`
+		Tablet         string   `json:"tablet"`
+	}
 }
 
-var machineSchema = schematypes.Object{
-	Title:       "Machine Definition",
+var defaultMachine = (func() Machine {
+	var m Machine
+	err := json.Unmarshal([]byte(`{
+		"version":         1,
+		"uuid":            "52bab607-10f1-4049-a0f8-ee4725cb715b",
+		"chipset":         "pc-i440fx-2.8",
+		"cpu":             "host",
+		"flags":           [],
+		"usb":             "nec-usb-xhci",
+		"network":         "e1000",
+		"mac":             "aa:54:1a:30:5c:de",
+		"storage":         "virtio-blk-pci",
+		"graphics":        "qxl-vga",
+		"vgaMemory":       16,
+		"graphicsRam":     64,
+		"graphicsVRam":    32,
+		"sound":           "none",
+		"keyboard":        "usb-kbd",
+		"keyboardLayout":  "en-us",
+		"mouse":           "usb-mouse",
+		"tablet":          "usb-tablet"
+	}`), &m.options)
+	if err != nil {
+		panic("failed to parse static JSON config")
+	}
+	return m
+})()
+
+// NewMachine returns a new machine from definition matching MachineSchema
+func NewMachine(definition interface{}) *Machine {
+	var m Machine
+	schematypes.MustValidateAndMap(MachineSchema, definition, &m.options)
+	return &m
+}
+
+// MarshalJSON implements json.Marshaler
+func (m *Machine) MarshalJSON() ([]byte, error) {
+	// We need a custom implementation because we distinguish between
+	// flags nil and empty array.
+	result := map[string]interface{}{}
+	v := reflect.ValueOf(&m.options).Elem()
+	for i := 0; i < v.NumField(); i++ {
+		switch v.Field(i).Kind() {
+		case reflect.Chan, reflect.Func, reflect.Slice, reflect.Map, reflect.Ptr, reflect.Interface:
+			if v.Field(i).IsNil() {
+				continue // Skip nil values, but not zero values
+			}
+		default:
+			if v.Field(i).Interface() == reflect.Zero(v.Field(i).Type()).Interface() {
+				continue // Skip zero values
+			}
+		}
+		result[v.Type().Field(i).Tag.Get("json")] = v.Field(i).Interface()
+	}
+	return json.Marshal(result)
+}
+
+// WithDefaults creates a new Machine with empty-values in c
+// defaulting to defaults.
+func (m *Machine) WithDefaults(defaults *Machine) *Machine {
+	if defaults == nil {
+		defaults = &defaultMachine
+	}
+	options := m.options
+	v := reflect.ValueOf(&options).Elem()
+	d := reflect.ValueOf(defaults.options).Elem()
+	for i := 0; i < v.NumField(); i++ {
+		switch v.Field(i).Kind() {
+		case reflect.Chan, reflect.Func, reflect.Slice, reflect.Map, reflect.Ptr, reflect.Interface:
+			if v.Field(i).IsNil() {
+				v.Field(i).Set(d.Field(i))
+			}
+		default:
+			if v.Field(i).Interface() == reflect.Zero(v.Field(i).Type()).Interface() {
+				v.Field(i).Set(d.Field(i))
+			}
+		}
+	}
+	return &Machine{options: options}
+}
+
+// ApplyLimits returns an Machine with defaults extracted from the limits, or
+// a MalformedPayloadError if limits were violated.
+func (m *Machine) ApplyLimits(limits MachineLimits) (*Machine, error) {
+	o := m.options
+
+	// Set defaults for memory
+	if o.Memory == 0 {
+		o.Memory = limits.MaxMemory
+	}
+
+	// Always default to at-least one thread, one core and one socket
+	if o.Threads == 0 {
+		o.Threads = 1
+	}
+	if o.Cores == 0 {
+		o.Cores = 1
+	}
+	if o.Sockets == 0 {
+		o.Sockets = 1
+	}
+
+	// If threads wasn't set, and sufficient CPUs is available, we set it to
+	// default threads. If neither threads or cores is specified, we
+	// want DefaultThreads (if possible) and as many cores as allowed by MaxCPUs
+	if m.options.Threads == 0 && limits.DefaultThreads*o.Cores*o.Sockets <= limits.MaxCPUs {
+		o.Threads = limits.DefaultThreads
+	}
+	// If cores was not defined and we can increase it by one, we do so
+	for m.options.Cores == 0 && o.Threads*(o.Cores+1)*o.Sockets <= limits.MaxCPUs {
+		o.Cores++
+	}
+	// same for threads and sockets, notice that we prefer to increase sockets
+	for m.options.Threads == 0 && (o.Threads+1)*o.Cores*o.Sockets <= limits.MaxCPUs {
+		o.Threads++
+	}
+	for m.options.Sockets == 0 && o.Threads*o.Cores*(o.Sockets+1) <= limits.MaxCPUs {
+		o.Sockets++
+	}
+
+	// Validate limitations for memory
+	if o.Memory > limits.MaxMemory {
+		return nil, runtime.NewMalformedPayloadError(
+			"Machine memory ", o.Memory, " MiB is larger than allowed machine memory ",
+			limits.MaxMemory, " MiB",
+		)
+	}
+
+	// Validate limitations for cpu cores
+	if o.Threads*o.Cores*o.Sockets > limits.MaxCPUs {
+		return nil, runtime.NewMalformedPayloadError(fmt.Sprintf(
+			"Machine specifies threads: %d, cores: %d, sockets: %d, in total: %d "+
+				"which is larger than %d total number of cores allowed",
+			o.Threads, o.Cores, o.Sockets,
+			o.Threads*o.Cores*o.Sockets,
+			limits.MaxCPUs,
+		))
+	}
+	return &Machine{options: o}, nil
+}
+
+// DeriveOptions constructs sane MachineLimits that permits the machine.
+func (m *Machine) DeriveOptions() MachineLimits {
+	// Default 1 for threads, cores and sockets
+	threads := m.options.Threads
+	if m.options.Threads == 0 {
+		threads = 1
+	}
+	cores := m.options.Cores
+	if m.options.Cores == 0 {
+		cores = 1
+	}
+	sockets := m.options.Sockets
+	if m.options.Sockets == 0 {
+		sockets = 1
+	}
+
+	// Derive max CPUs
+	maxCPUs := threads * cores * sockets
+
+	// Allow more CPU is host has more
+	if maxCPUs < rt.NumCPU() {
+		maxCPUs = rt.NumCPU()
+	}
+
+	return MachineLimits{
+		MaxMemory:      m.options.Memory,
+		MaxCPUs:        maxCPUs,
+		DefaultThreads: 1,
+	}
+}
+
+// MachineSchema must be satisfied by config passed to NewMachine
+var MachineSchema schematypes.Schema = schematypes.Object{
+	Title:       "Machine Configuration",
 	Description: `Hardware definition for a virtual machine`,
 	Properties: schematypes.Properties{
+		"version": schematypes.IntegerEnum{
+			Title:   "Format Version",
+			Options: []int{1},
+		},
 		"uuid": schematypes.String{
 			Title:       "System UUID",
 			Description: `System UUID for the virtual machine`,
 			Pattern:     `^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`,
 		},
+		"chipset": schematypes.StringEnum{
+			Title:   "Chipset",
+			Options: []string{"pc-i440fx-2.8"},
+		},
+		"cpu": schematypes.StringEnum{
+			Title: "CPU",
+			Description: util.Markdown(`
+				CPU to be exposed to the virtual machine.
+
+				The number of virtual CPUs inside the virtual machine will be
+				'threads * cores * sockets' as configured below.
+			`),
+			Options: []string{"host"},
+		},
+		"flags": schematypes.Array{
+			Items: schematypes.StringEnum{},
+		},
+		"threads": schematypes.Integer{
+			Description: "Threads per CPU core, leave undefined to get maximum available",
+			Minimum:     1,
+			Maximum:     255,
+		},
+		"cores": schematypes.Integer{
+			Description: "CPU cores per socket, leave undefined to get maximum available",
+			Minimum:     1,
+			Maximum:     255,
+		},
+		"sockets": schematypes.Integer{
+			Description: "CPU sockets in machine, leave undefined to get maximum available",
+			Minimum:     1,
+			Maximum:     255,
+		},
 		"memory": schematypes.Integer{
 			Title:       "Memory",
 			Description: `Memory in MiB, defaults to maximum available, if not specified.`,
-			Minimum:     0,
+			Minimum:     1,
 			Maximum:     math.MaxInt64,
 		},
-		"cpu": schematypes.Object{
-			Title: "CPUs",
+		"usb": schematypes.StringEnum{
+			Title:   "Host Controller Interface",
+			Options: []string{"piix3-usb-uhci", "piix4-usb-uhci", "nec-usb-xhci"},
+		},
+		"network": schematypes.StringEnum{
+			Title:   "Network Interface Controller",
+			Options: []string{"rtl8139", "e1000"},
+		},
+		"mac": schematypes.String{
+			Title:       "MAC Address",
+			Description: `Local unicast MAC Address`,
+			Pattern:     `^[0-9a-f][26ae](:[0-9a-f]{2}){5}$`,
+		},
+		"storage": schematypes.StringEnum{
+			Title:       "Storage Device",
+			Description: `Block device to use for attaching storage`,
+			Options:     []string{"virtio-blk-pci"},
+		},
+		"graphics": schematypes.StringEnum{
+			Options: []string{"VGA", "vmware-svga", "qxl-vga", "virtio-vga"},
+		},
+		"vgaMemory": schematypes.Integer{
+			Title: "VGA Memory",
 			Description: util.Markdown(`
-				Configuration of number of CPU cores.
+				VGA memory is the 'vgamem' option given to QEMU in MB.
 
-				The number of virtual CPUs inside the virtual machine will be
-				'threads * cores * sockets'.
-
-				If 'cores', 'threads' or 'sockets' is omitted it will at-least be 1, and
-				we shall increase it such that the maximum number of CPUs allowed per tasks
-				is utilized. Granted this might not be possible if the maximum number of
-				CPUs is uneven and 2 or more have been specified for either of these options.
-
-				This should be used if the virtual machine requires a specific CPU
-				configuration, otherwise it can be omitted. And maximum number of cores will
-				be used.
+				Typically, this should be 'width * height * 4', it defaults to
+				16MB which will do for must use-cases.
 			`),
-			Properties: schematypes.Properties{
-				"threads": schematypes.Integer{
-					Title:   "Threads per CPU core",
-					Minimum: 1,
-					Maximum: 255,
-				},
-				"cores": schematypes.Integer{
-					Title:   "CPU cores per socket",
-					Minimum: 1,
-					Maximum: 255,
-				},
-				"sockets": schematypes.Integer{
-					Title:   "CPU sockets in machine",
-					Minimum: 1,
-					Maximum: 255,
-				},
+			Minimum: 1,
+			Maximum: math.MaxInt64,
+		},
+		"graphicsRam": schematypes.Integer{
+			Title: "Graphics RAM",
+			Description: util.Markdown(`
+				Graphics RAM is the 'ram' option passed to the 'qxl-vga' device
+				in MB. This option will be ignored if not using 'qxl-vga'.
+
+				Typically, this should be '4 * vgaMemory', it defaults to
+				128MB which will do for must use-cases.
+			`),
+			Minimum: 1,
+			Maximum: math.MaxInt64,
+		},
+		"graphicsVRam": schematypes.Integer{
+			Title: "Graphics Virtual RAM",
+			Description: util.Markdown(`
+				Graphics Virtual RAM is the 'vram' option passed to the 'qxl-vga'
+				device in MB. This option will be ignored if not using 'qxl-vga'.
+
+				Typically, this should be '2 * vgaMemory', it defaults to
+				32MB which will do for must use-cases.
+			`),
+			Minimum: 1,
+			Maximum: math.MaxInt64,
+		},
+		"sound": schematypes.StringEnum{
+			Options: []string{
+				"none",
+				"AC97", "ES1370",
+				"hda-duplex/intel-hda", "hda-micro/intel-hda", "hda-output/intel-hda",
+				"hda-duplex/ich9-intel-hda", "hda-micro/ich9-intel-hda", "hda-output/ich9-intel-hda",
 			},
 		},
-		"network": schematypes.Object{
-			Properties: schematypes.Properties{
-				"device": schematypes.StringEnum{
-					Title:   "Network Device",
-					Options: []string{"rtl8139", "e1000"},
-				},
-				"mac": schematypes.String{
-					Title:       "MAC Address",
-					Description: `Local unicast MAC Address`,
-					Pattern:     `^[0-9a-f][26ae](:[0-9a-f]{2}){5}$`,
-				},
-			},
-			Required: []string{"device", "mac"},
+		"keyboard": schematypes.StringEnum{
+			Options: []string{"usb-kbd", "PS/2"},
 		},
-		"keyboard": schematypes.Object{
-			Title: "Keyboard Layout",
-			Properties: schematypes.Properties{
-				"layout": schematypes.StringEnum{
-					Options: []string{
-						"ar", "da", "de", "de-ch", "en-gb", "en-us", "es", "et", "fi", "fo",
-						"fr", "fr-be", "fr-ca", "fr-ch", "hr", "hu", "is", "it", "ja", "lt",
-						"lv", "mk", "nl", "nl-be", "no", "pl", "pt", "pt-br", "ru", "sl",
-						"sv", "th", "tr",
-					},
-				},
+		"keyboardLayout": schematypes.StringEnum{
+			Options: []string{
+				"ar", "da", "de", "de-ch", "en-gb", "en-us", "es", "et", "fi", "fo",
+				"fr", "fr-be", "fr-ca", "fr-ch", "hr", "hu", "is", "it", "ja", "lt",
+				"lv", "mk", "nl", "nl-be", "no", "pl", "pt", "pt-br", "ru", "sl",
+				"sv", "th", "tr",
 			},
-			Required: []string{"layout"},
 		},
-		"sounds": schematypes.AnyOf{
-			schematypes.Object{
-				Title: "PCI Audio",
-				Properties: schematypes.Properties{
-					"device": schematypes.StringEnum{
-						Title:   "Audio Device",
-						Options: []string{"AC97", "ES1370"},
-					},
-					"controller": schematypes.StringEnum{
-						Title:   "Audio Controller",
-						Options: []string{"pci"},
-					},
-				},
-				Required: []string{"device", "controller"},
-			},
-			schematypes.Object{
-				Title: "Intel HDA",
-				Properties: schematypes.Properties{
-					"device": schematypes.StringEnum{
-						Title:   "Audio Device",
-						Options: []string{"hda-duplex", "hda-micro", "hda-output"},
-					},
-					"controller": schematypes.StringEnum{
-						Title:   "Audio Controller",
-						Options: []string{"ich9-intel-hda", "intel-hda"},
-					},
-				},
-				Required: []string{"device", "controller"},
-			},
+		"mouse": schematypes.StringEnum{
+			Options: []string{"usb-mouse", "PS/2"},
+		},
+		"tablet": schematypes.StringEnum{
+			Options: []string{"usb-tablet", "none"},
 		},
 	},
-	Required: []string{
-		"uuid",
-		"network",
-		"keyboard",
-	},
-}
-
-// LoadMachine will load machine definition from file
-func LoadMachine(machineFile string) (*Machine, error) {
-	// Load the machine configuration
-	machineData, err := ioext.BoundedReadFile(machineFile, 1024*1024)
-	if err == ioext.ErrFileTooBig {
-		return nil, runtime.NewMalformedPayloadError(
-			"The file 'machine.json' larger than 1MiB. JSON files must be small.")
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	// Parse json
-	m := &Machine{}
-	err = json.Unmarshal(machineData, m)
-	if err != nil {
-		return nil, runtime.NewMalformedPayloadError(
-			"Invalid JSON in 'machine.json', error: ", err)
-	}
-
-	// Validate the definition
-	if err := m.Validate(); err != nil {
-		return nil, err
-	}
-
-	return m, nil
-}
-
-// Clone returns a copy of this machine definition
-func (m *Machine) Clone() *Machine {
-	machine := *m
-	return &machine
-}
-
-// Validate returns a MalformedPayloadError if the Machine definition isn't
-// valid and legal.
-func (m *Machine) Validate() error {
-	// Render to JSON so we can validate with schematypes
-	// (this isn't efficient, but we'll rarely do this so who cares)
-	data, err := json.Marshal(m)
-	if err != nil {
-		panic(fmt.Sprint("json.Marshal should never fail for vm.Machine, error: ", err))
-	}
-	var v interface{}
-	if err = json.Unmarshal(data, &v); err != nil {
-		panic(fmt.Sprint("json.Unmarshal should never fail after json.Marshal, error: ", err))
-	}
-
-	// Validate against JSON schema
-	if err = machineSchema.Validate(v); err != nil {
-		return runtime.NewMalformedPayloadError("Invalid machine definition in 'machine.json':", err)
-	}
-
-	return nil
-}
-
-// validateMAC ensures that MAC address has local bit set, and multicast bit
-// unset. This is important as we shouldn't use globally registered MAC
-// addresses in our virtual machines.
-func validateMAC(mac string) error {
-	m := make([]byte, 6)
-	n, err := fmt.Sscanf(
-		mac, "%02x:%02x:%02x:%02x:%02x:%02x",
-		&m[0], &m[1], &m[2], &m[3], &m[4], &m[5],
-	)
-	if n != 6 && err != nil {
-		return errors.New("MAC address must be on the form: x:x:x:x:x:x")
-	} else if m[0]&2 == 0 {
-		return errors.New("MAC address must have the local bit set")
-	} else if m[0]&1 == 1 {
-		return errors.New("MAC address must have the multicast bit unset")
-	}
-	return nil
-}
-
-// SetDefaults will validate limitations and set defaults from options
-func (m *Machine) SetDefaults(options MachineOptions) error {
-	// Set defaults for memory
-	if m.Memory == 0 {
-		m.Memory = options.MaxMemory
-	}
-	// Set defaults for cpu cores
-	// First remember if threads, cores or sockets is defined in machine.json
-	hasThreads := m.CPU.Threads > 0
-	hasCores := m.CPU.Cores > 0
-	hasSockets := m.CPU.Sockets > 0
-	// Default all to at-least one
-	if !hasThreads {
-		m.CPU.Threads = 1
-	}
-	if !hasCores {
-		m.CPU.Cores = 1
-	}
-	if !hasSockets {
-		m.CPU.Sockets = 1
-	}
-	// If cores was not defined and we can increase it by one, we do so
-	for !hasCores && m.CPU.Threads*(m.CPU.Cores+1)*m.CPU.Sockets <= options.MaxCores {
-		m.CPU.Cores++
-	}
-	// same for threads and sockets, notice that we prefer to increase sockets
-	for !hasThreads && (m.CPU.Threads+1)*m.CPU.Cores*m.CPU.Sockets <= options.MaxCores {
-		m.CPU.Threads++
-	}
-	for !hasSockets && m.CPU.Threads*m.CPU.Cores*(m.CPU.Sockets+1) <= options.MaxCores {
-		m.CPU.Sockets++
-	}
-
-	// Validate limitations for memory
-	if m.Memory > options.MaxMemory {
-		return runtime.NewMalformedPayloadError(
-			"Image memory ", m.Memory, " MiB is larger than allowed machine memory ",
-			options.MaxMemory, " MiB",
-		)
-	}
-
-	// Validate limitations for cpu cores
-	if m.CPU.Threads*m.CPU.Cores*m.CPU.Sockets > options.MaxCores {
-		return runtime.NewMalformedPayloadError(fmt.Sprintf(
-			"Image specifies threads: %d, cores: %d, sockets: %d, in total: %d "+
-				"which is larger than %d total number of cores allowed",
-			m.CPU.Threads, m.CPU.Cores, m.CPU.Sockets,
-			m.CPU.Threads*m.CPU.Cores*m.CPU.Sockets,
-			options.MaxCores,
-		))
-	}
-
-	return nil
-}
-
-// Options will return a set of MachineOptions that allows the current machine
-// definition, and otherwise contains sane defaults. This is for utilities only.
-func (m Machine) Options() MachineOptions {
-	options := MachineOptions{
-		MaxMemory: 4 * 1024, // Default 4 GiB memory
-	}
-	if m.Memory != 0 {
-		options.MaxMemory = m.Memory
-	}
-	threads := m.CPU.Threads
-	cores := m.CPU.Cores
-	sockets := m.CPU.Sockets
-	if threads <= 0 {
-		threads = 1
-	}
-	if cores <= 0 {
-		cores = 1
-	}
-	if sockets <= 0 {
-		sockets = 1
-	}
-	options.MaxCores = threads * cores * sockets
-	return options
 }

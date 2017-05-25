@@ -3,10 +3,10 @@ package vm
 // An Image provides an instance of a virtual machine image that a virtual
 // machine can be started from.
 type Image interface {
-	DiskFile() string // Primary disk file to be used as boot disk.
-	Format() string   // Image format 'qcow2', 'raw', etc.
-	Machine() Machine // Machine configuration.
-	Release()         // Free resources held by this image instance.
+	DiskFile() string  // Primary disk file to be used as boot disk.
+	Format() string    // Image format 'qcow2', 'raw', etc.
+	Machine() *Machine // Machine configuration.
+	Release()          // Free resources held by this image instance.
 }
 
 // A MutableImage is an instance of a virtual machine image similar to
