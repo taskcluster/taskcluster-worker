@@ -312,10 +312,10 @@
 			"revisionTime": "2017-02-24T22:20:36Z"
 		},
 		{
-			"checksumSHA1": "uz9E8dGHnR4P7++NLNHS2bUtTpc=",
+			"checksumSHA1": "JeckyL2AKRNkw/om7UGZhEaNfKI=",
 			"path": "github.com/taskcluster/go-schematypes",
-			"revision": "eb52f3fd4ce8430d582fa3b3d2241055664240b4",
-			"revisionTime": "2017-04-24T21:45:10Z"
+			"revision": "bec2273e5c2be7681127c8704b81c169932fe69f",
+			"revisionTime": "2017-05-25T20:07:38Z"
 		},
 		{
 			"checksumSHA1": "Y3FCWxJ8fakDsn6T3RxfRf+GQn4=",
