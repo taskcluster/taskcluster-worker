@@ -14,6 +14,7 @@ import (
 type engine struct {
 	engines.EngineBase
 	engineConfig   configType
+	defaultMachine vm.Machine
 	monitor        runtime.Monitor
 	imageManager   *image.Manager
 	networkPool    *network.Pool
@@ -29,12 +30,14 @@ type engineProvider struct {
 type configType struct {
 	Network       interface{}      `json:"network"`
 	MachineLimits vm.MachineLimits `json:"limits"`
+	Machine       interface{}      `json:"machine"`
 }
 
 var configSchema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"network": network.PoolConfigSchema,
 		"limits":  vm.MachineLimitsSchema,
+		"machine": vm.MachineSchema,
 	},
 	Required: []string{
 		"network",
@@ -79,6 +82,7 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 	// Construct engine object
 	return &engine{
 		engineConfig:   c,
+		defaultMachine: vm.NewMachine(c.Machine),
 		monitor:        options.Monitor,
 		imageManager:   imageManager,
 		networkPool:    networkPool,

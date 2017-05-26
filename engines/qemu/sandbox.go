@@ -39,9 +39,10 @@ func newSandbox(
 	e *engine,
 	monitor runtime.Monitor,
 ) (*sandbox, error) {
-	vm, err := vm.NewVirtualMachine(
+	instance, err := vm.NewVirtualMachine(
 		e.engineConfig.MachineLimits,
-		image, network, e.socketFolder.Path(), "", "",
+		vm.OverwriteMachine(image, image.Machine().WithDefaults(e.defaultMachine)),
+		network, e.socketFolder.Path(), "", "",
 		monitor.WithTag("component", "vm"),
 	)
 	if err != nil {
@@ -50,7 +51,7 @@ func newSandbox(
 
 	// Create sandbox
 	s := &sandbox{
-		vm:      vm,
+		vm:      instance,
 		context: c,
 		engine:  e,
 		proxies: proxies,
