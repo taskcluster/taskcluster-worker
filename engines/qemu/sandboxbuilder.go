@@ -8,6 +8,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/network"
+	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
@@ -17,6 +18,7 @@ type sandboxBuilder struct {
 	discarded  bool
 	network    *network.Network
 	command    []string
+	machine    vm.Machine
 	image      *image.Instance
 	imageError error
 	imageDone  <-chan struct{}
@@ -43,6 +45,9 @@ func newSandboxBuilder(
 		context:   c,
 		engine:    e,
 		monitor:   monitor,
+	}
+	if payload.Machine != nil {
+		sb.machine = vm.NewMachine(payload.Machine)
 	}
 	// Start downloading and extracting the image
 	go func() {
@@ -143,7 +148,7 @@ func (sb *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
 
 	// Create a sandbox
 	s, err := newSandbox(
-		sb.command, sb.env, sb.proxies, sb.image, sb.network,
+		sb.command, sb.env, sb.proxies, sb.machine, sb.image, sb.network,
 		sb.context, sb.engine, sb.monitor,
 	)
 	if err != nil {

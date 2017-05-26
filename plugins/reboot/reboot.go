@@ -31,7 +31,7 @@ type plugin struct {
 	Monitor    runtime.Monitor
 	Config     config
 	mTaskCount sync.Mutex   // guards taskCount
-	taskCount  int          // track number of tasks
+	taskCount  int64        // track number of tasks
 	rebooted   atomics.Once // track if this plugin initiated shutdown
 }
 

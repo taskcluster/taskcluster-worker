@@ -14,6 +14,7 @@ import (
 type engine struct {
 	engines.EngineBase
 	engineConfig   configType
+	defaultMachine vm.Machine
 	monitor        runtime.Monitor
 	imageManager   *image.Manager
 	networkPool    *network.Pool
@@ -27,18 +28,20 @@ type engineProvider struct {
 }
 
 type configType struct {
-	Network        interface{}       `json:"network"`
-	MachineOptions vm.MachineOptions `json:"machine"`
+	Network       interface{}      `json:"network"`
+	MachineLimits vm.MachineLimits `json:"limits"`
+	Machine       interface{}      `json:"machine"`
 }
 
 var configSchema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"network": network.PoolConfigSchema,
-		"machine": vm.MachineOptionsSchema,
+		"limits":  vm.MachineLimitsSchema,
+		"machine": vm.MachineSchema,
 	},
 	Required: []string{
 		"network",
-		"machine",
+		"limits",
 	},
 }
 
@@ -76,9 +79,16 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 		return nil, errors.Wrap(err, "failed to create network pool")
 	}
 
+	// Create defaultMachine machine from config
+	var defaultMachine vm.Machine
+	if c.Machine != nil {
+		defaultMachine = vm.NewMachine(c.Machine)
+	}
+
 	// Construct engine object
 	return &engine{
 		engineConfig:   c,
+		defaultMachine: defaultMachine,
 		monitor:        options.Monitor,
 		imageManager:   imageManager,
 		networkPool:    networkPool,
@@ -95,8 +105,9 @@ func (e *engine) Capabilities() engines.Capabilities {
 }
 
 type payloadType struct {
-	Image   string   `json:"image"`
-	Command []string `json:"command"`
+	Image   string      `json:"image"`
+	Command []string    `json:"command"`
+	Machine interface{} `json:"machine,omitempty"`
 }
 
 var payloadSchema = schematypes.Object{
@@ -115,6 +126,7 @@ var payloadSchema = schematypes.Object{
 			Description: `Command and arguments to execute on the guest.`,
 			Items:       schematypes.String{},
 		},
+		"machine": vm.MachineSchema,
 	},
 	Required: []string{"command", "image"},
 }

@@ -53,16 +53,16 @@ type VirtualMachine struct {
 // releasing all resources, otherwise, they will be held by the VirtualMachine
 // object.
 func NewVirtualMachine(
-	machineOptions MachineOptions,
+	limits MachineLimits,
 	image Image, network Network, socketFolder, cdrom1, cdrom2 string,
 	monitor runtime.Monitor,
 ) (*VirtualMachine, error) {
 	// Get machine definition and set defaults
-	machine := image.Machine()
-	err := machine.SetDefaults(machineOptions)
+	m, err := image.Machine().WithDefaults(defaultMachine).ApplyLimits(limits)
 	if err != nil {
 		return nil, err
 	}
+	o := m.options
 
 	// Create a sub-folder in the socketFolder
 	socketFolder = filepath.Join(socketFolder, slugid.Nice())
@@ -79,184 +79,226 @@ func NewVirtualMachine(
 	qmpSocket := filepath.Join(vm.socketFolder, qmpSocketFile)
 
 	// Construct options for QEMU
-	type opts map[string]string
-	arg := func(kind string, opts opts) string {
+	var options []string
+	// Auxiliary functions for defining options
+	type args map[string]string
+	option := func(option, prefix string, args args) {
 		// Sort for consistency. QEMU shouldn't care about order, but if there is
 		// a bug it's nice that it's consistent.
-		keys := make([]string, 0, len(opts))
-		for k := range opts {
+		keys := make([]string, 0, len(args))
+		for k := range args {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
 		// Create pairs and join with a comma
 		pairs := make([]string, len(keys))
 		for i, k := range keys {
-			pairs[i] = fmt.Sprintf("%s=%s", k, opts[k])
+			pairs[i] = fmt.Sprintf("%s=%s", k, args[k])
 		}
-		// Preprend with kind, if it's non-empty
-		if kind != "" {
-			pairs = append([]string{kind}, pairs...)
+		// Preprend with prefix, if it's non-empty
+		if prefix != "" {
+			pairs = append([]string{prefix}, pairs...)
 		}
-		return strings.Join(pairs, ",")
+		options = append(options, "-"+option, strings.Join(pairs, ","))
 	}
-	options := []string{
-		"-S", // Wait for QMP command "continue" before starting execution
+	device := func(device string, args args) { option("device", device, args) }
+	drive := func(flags string, args args) { option("drive", flags, args) }
+
+	// Set options always required
+	options = append(options,
+		"-S",              // Wait for QMP command "continue" before starting execution
+		"-no-user-config", // Don't load user config
+		"-nodefaults",     // Don't apply any default values
 		"-name", "qemu-guest",
-		"-cpu", "host", // Pass-through CPU from host
-		"-machine", arg("pc-i440fx-2.8", opts{
-			"accel": "kvm",
-			// TODO: Configure additional options")
-		}),
-		"-m", strconv.Itoa(machine.Memory),
-		"-realtime", "mlock=off", // TODO: Enable for things like talos
+		"-cpu", strings.Join(append([]string{o.CPU}, o.Flags...), ","),
+		"-m", strconv.Itoa(o.Memory),
+		"-uuid", o.UUID,
+		"-k", o.KeyboardLayout,
+	)
+
+	option("boot", "", args{
+		"menu":   "off",
+		"strict": "on",
+	})
+	option("realtime", "", args{
+		"mlock": "off", // TODO: Enable for things like talos
+	})
+	option("rtc", "", args{
+		"base": "utc", // TODO: Allow clock=vm for loadvm with windows
+	})
+	option("smp", "", args{
+		"cpus":    strconv.Itoa(o.Threads * o.Cores * o.Sockets),
+		"threads": strconv.Itoa(o.Threads), // threads per core
+		"cores":   strconv.Itoa(o.Cores),   // cores per socket
+		"sockets": strconv.Itoa(o.Sockets), // sockets in the machine
 		// TODO: fit to system HT, see: https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-devices-system-cpu
-		// TODO: Configure CPU instruction sets: http://forum.ipfire.org/viewtopic.php?t=12642
-		"-smp", arg("", opts{
-			"cpus":    strconv.Itoa(machine.CPU.Threads * machine.CPU.Cores * machine.CPU.Sockets),
-			"threads": strconv.Itoa(machine.CPU.Threads), // threads per core
-			"cores":   strconv.Itoa(machine.CPU.Cores),   // cores per socket
-			"sockets": strconv.Itoa(machine.CPU.Sockets), // sockets in the machine
-		}),
-		"-uuid", machine.UUID,
-		"-no-user-config", "-nodefaults",
-		"-rtc", "base=utc", // TODO: Allow clock=vm for loadvm with windows
-		"-boot", "menu=off,strict=on",
-		"-k", machine.Keyboard.Layout,
-		"-device", arg("vmware-svga", opts{
-			// TODO: Investigate if we can use vmware
-			// VGA ought to be the safe choice here
-			"id":        "video-0",
-			"vgamem_mb": "64", // TODO: Customize VGA memory
-			"bus":       "pci.0",
-			"addr":      "0x2", // QEMU uses PCI 0x2 for VGA by default
-		}),
-		"-device", arg("nec-usb-xhci", opts{
-			"id":   "usb",
-			"bus":  "pci.0",
-			"addr": "0x3", // Always put USB on PCI 0x3
-		}),
-		"-device", arg("virtio-balloon-pci", opts{
-			"id":   "balloon-0",
-			"bus":  "pci.0",
-			"addr": "0x4", // Always put balloon on PCI 0x4
-		}),
-		"-netdev", vm.network.NetDev("netdev-0"),
-		"-device", arg(machine.Network.Device, opts{
-			"netdev": "netdev-0",
-			"id":     "nic0",
-			"mac":    machine.Network.MAC,
-			"bus":    "pci.0",
-			"addr":   "0x5", // Always put network on PCI 0x5
-		}),
-		// Reserve PCI 0x6 for sound device/controller
-		"-device", arg("usb-kbd", opts{
+	})
+	option("machine", o.Chipset, args{
+		"accel": "kvm",
+		// TODO: Configure additional options
+	})
+	option("vnc", "unix:"+vncSocket, args{
+		"share": "force-shared",
+	})
+
+	// QMP monitoring socket
+	option("chardev", "socket,server,nowait", args{
+		"id":   "qmpsocket",
+		"path": qmpSocket,
+	})
+	option("mon", "", args{
+		"chardev": "qmpsocket",
+		"mode":    "control",
+	})
+
+	// Graphics
+	graphics := args{
+		"id":   "video-0",
+		"bus":  "pci.0",
+		"addr": "0x2", // QEMU uses PCI 0x2 for VGA by default
+	}
+	switch o.Graphics {
+	case "virtio-vga":
+	case "qxl-vga":
+		graphics["ram_size_mb"] = strconv.Itoa(o.GraphicsRAM)
+		graphics["vram_size_mb"] = strconv.Itoa(o.GraphicsVRAM)
+		fallthrough
+	default:
+		graphics["vgamem_mb"] = strconv.Itoa(o.VGAMemory)
+	}
+	device(o.Graphics, graphics)
+
+	// USB
+	device(o.USB, args{
+		"id":   "usb",
+		"bus":  "pci.0",
+		"addr": "0x3", // Always put USB on PCI 0x3
+	})
+
+	// Virtio ballon device
+	device("virtio-balloon-pci", args{
+		"id":   "balloon-0",
+		"bus":  "pci.0",
+		"addr": "0x4", // Always put balloon on PCI 0x4
+	})
+
+	// Network
+	option("netdev", vm.network.NetDev("netdev-0"), nil)
+	device(o.Network, args{
+		"netdev": "netdev-0",
+		"id":     "nic0",
+		"mac":    o.MAC,
+		"bus":    "pci.0",
+		"addr":   "0x5", // Always put network on PCI 0x5
+	})
+
+	// Reserve PCI 0x6 for sound device/controller
+	if o.Keyboard == "usb-kbd" {
+		device("usb-kbd", args{
 			"id":   "keyboard-0",
 			"bus":  "usb.0",
 			"port": "1", // USB port offset starts at 1
-		}),
-		"-device", arg("usb-mouse", opts{
+		})
+	}
+	if o.Mouse == "usb-mouse" {
+		device("usb-mouse", args{
 			"id":   "mouse-0",
 			"bus":  "usb.0",
 			"port": "2",
-		}),
-		"-device", arg("usb-tablet", opts{
+		})
+	}
+	if o.Tablet == "usb-tablet" {
+		device("usb-tablet", args{
 			"id":   "tablet-0",
 			"bus":  "usb.0",
 			"port": "3",
-		}),
-		"-vnc", arg("unix:"+vncSocket, opts{
-			"share": "force-shared",
-		}),
-		"-chardev", "socket,id=qmpsocket,path=" + qmpSocket + ",nowait,server=on",
-		"-mon", "chardev=qmpsocket,mode=control",
-		"-drive", arg("", opts{
-			"file":   vm.image.DiskFile(),
-			"if":     "none",
-			"id":     "boot-disk",
-			"cache":  "unsafe", // TODO: Reconsider 'native' w. cache not 'unsafe'
-			"aio":    "threads",
-			"format": vm.image.Format(),
-			"werror": "report",
-			"rerror": "report",
-		}),
-		"-device", arg("virtio-blk-pci", opts{
-			"scsi":      "off",
-			"bus":       "pci.0",
-			"addr":      "0x8", // Start disks as 0x8, reserve 0x7 for future
-			"drive":     "boot-disk",
-			"id":        "virtio-disk0",
-			"bootindex": "1",
-		}),
-		// TODO: Add cache volumes
+		})
 	}
 
-	// Add optional sound device
-	if machine.Sound != nil {
-		if machine.Sound.Controller == "pci" {
-			options = append(options, []string{
-				"-device", arg(machine.Sound.Device, opts{
-					"id":   "sound-0",
-					"bus":  "pci.0",
-					"addr": "0x6", // Always put sound on PCI 0x6
-				}),
-			}...)
+	// Storage
+	drive("", args{
+		"file":   vm.image.DiskFile(),
+		"if":     "none",
+		"id":     "boot-disk",
+		"cache":  "unsafe", // TODO: Reconsider 'native' w. cache not 'unsafe'
+		"aio":    "threads",
+		"format": vm.image.Format(),
+		"werror": "report",
+		"rerror": "report",
+	})
+	device(o.Storage, args{
+		"scsi":      "off",
+		"bus":       "pci.0",
+		"addr":      "0x8", // Start disks as 0x8, reserve 0x7 for future
+		"drive":     "boot-disk",
+		"id":        "virtio-disk0",
+		"bootindex": "1",
+	})
+
+	// Sound
+	if o.Sound != "none" {
+		if strings.Contains(o.Sound, "/") {
+			sound := strings.Split(o.Sound, "/")
+			// Sound Device
+			device(sound[0], args{
+				"id":  "sound-0-device-0",
+				"bus": "sound-0.0",
+				"cad": "0",
+			})
+			// Sound controller
+			device(sound[1], args{
+				"id":   "sound-0",
+				"bus":  "pci.0",
+				"addr": "0x6", // Always put sound on PCI 0x6
+			})
 		} else {
-			options = append(options, []string{
-				"-device", arg(machine.Sound.Controller, opts{
-					"id":   "sound-0",
-					"bus":  "pci.0",
-					"addr": "0x6", // Always put sound on PCI 0x6
-				}),
-				"-device", arg(machine.Sound.Device, opts{
-					"id":  "sound-0-codec-0",
-					"bus": "sound-0.0",
-					"cad": "0",
-				}),
-			}...)
+			// PCI Sound device
+			device(o.Sound, args{
+				"id":   "sound-0",
+				"bus":  "pci.0",
+				"addr": "0x6", // Always put sound on PCI 0x6
+			})
 		}
 	}
 
+	// CD drives for qemu-build
 	if cdrom1 != "" {
-		options = append(options, []string{
-			"-drive", arg("", opts{
-				"file":   cdrom1,
-				"if":     "none",
-				"id":     "cdrom1",
-				"cache":  "unsafe",
-				"aio":    "threads", // TODO: Reconsider 'native' w. cache not 'unsafe'
-				"format": "raw",
-				"werror": "report",
-				"rerror": "report",
-			}) + ",readonly",
-			"-device", arg("ide-cd", opts{
-				"bootindex": "2",
-				"drive":     "cdrom1",
-				"id":        "ide-cd1",
-				"bus":       "ide.0",
-				"unit":      "0",
-			}),
-		}...)
+		drive("readonly", args{
+			"file":   cdrom1,
+			"if":     "none",
+			"id":     "cdrom1",
+			"cache":  "unsafe",
+			"aio":    "threads", // TODO: Reconsider 'native' w. cache not 'unsafe'
+			"format": "raw",
+			"werror": "report",
+			"rerror": "report",
+		})
+		device("ide-cd", args{
+			"bootindex": "2",
+			"drive":     "cdrom1",
+			"id":        "ide-cd1",
+			"bus":       "ide.0",
+			"unit":      "0",
+		})
 	}
 	if cdrom2 != "" {
-		options = append(options, []string{
-			"-drive", arg("", opts{
-				"file":   cdrom2,
-				"if":     "none",
-				"id":     "cdrom2",
-				"cache":  "unsafe",
-				"aio":    "threads", // TODO: Reconsider 'native' w. cache not 'unsafe'
-				"format": "raw",
-				"werror": "report",
-				"rerror": "report",
-			}) + ",readonly",
-			"-device", arg("ide-cd", opts{
-				"bootindex": "3",
-				"drive":     "cdrom2",
-				"id":        "ide-cd2",
-				"bus":       "ide.0",
-				"unit":      "1",
-			}),
-		}...)
+		drive("readonly", args{
+			"file":   cdrom2,
+			"if":     "none",
+			"id":     "cdrom2",
+			"cache":  "unsafe",
+			"aio":    "threads", // TODO: Reconsider 'native' w. cache not 'unsafe'
+			"format": "raw",
+			"werror": "report",
+			"rerror": "report",
+		})
+		device("ide-cd", args{
+			"bootindex": "3",
+			"drive":     "cdrom2",
+			"id":        "ide-cd2",
+			"bus":       "ide.0",
+			"unit":      "1",
+		})
 	}
 
 	// Create done channel
