@@ -39,13 +39,15 @@ func newSandboxBuilder(
 	sb := &sandboxBuilder{
 		network:   network,
 		command:   payload.Command,
-		machine:   vm.NewMachine(payload.Machine),
 		imageDone: imageDone,
 		proxies:   make(map[string]http.Handler),
 		env:       make(map[string]string),
 		context:   c,
 		engine:    e,
 		monitor:   monitor,
+	}
+	if payload.Machine != nil {
+		sb.machine = vm.NewMachine(payload.Machine)
 	}
 	// Start downloading and extracting the image
 	go func() {

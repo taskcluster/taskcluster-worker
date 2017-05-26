@@ -11,10 +11,19 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
+// version number of the machine.json format
+const machineFormatVersion = 1
+
 // Machine specifies arguments for various QEMU options.
+//
+// Machine objects can be combined using the WithDefaults() method which creates
+// a new Machine from two Machine objects, merging the machine definitions.
+// The empty Machine value specifies nothing and will be fully overwritten with
+// defaults if used as target of WithDefaults(). Effectively, the empty Machine
+// definition will assume whatever default values are given.
 type Machine struct {
 	options struct {
-		Version        int      `json:"version"`
+		Version        int      `json:"version"` // see machineFormatVersion
 		UUID           string   `json:"uuid"`
 		Chipset        string   `json:"chipset"`
 		CPU            string   `json:"cpu"`
@@ -93,6 +102,8 @@ func (m Machine) MarshalJSON() ([]byte, error) {
 		}
 		result[v.Type().Field(i).Tag.Get("json")] = v.Field(i).Interface()
 	}
+	// Always set version
+	result["version"] = machineFormatVersion
 	return json.Marshal(result)
 }
 
@@ -215,7 +226,7 @@ var MachineSchema schematypes.Schema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"version": schematypes.IntegerEnum{
 			Title:   "Format Version",
-			Options: []int{1},
+			Options: []int{machineFormatVersion},
 		},
 		"uuid": schematypes.String{
 			Title:       "System UUID",

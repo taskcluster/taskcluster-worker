@@ -79,10 +79,16 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 		return nil, errors.Wrap(err, "failed to create network pool")
 	}
 
+	// Create defaultMachine machine from config
+	var defaultMachine vm.Machine
+	if c.Machine != nil {
+		defaultMachine = vm.NewMachine(c.Machine)
+	}
+
 	// Construct engine object
 	return &engine{
 		engineConfig:   c,
-		defaultMachine: vm.NewMachine(c.Machine),
+		defaultMachine: defaultMachine,
 		monitor:        options.Monitor,
 		imageManager:   imageManager,
 		networkPool:    networkPool,
@@ -101,7 +107,7 @@ func (e *engine) Capabilities() engines.Capabilities {
 type payloadType struct {
 	Image   string      `json:"image"`
 	Command []string    `json:"command"`
-	Machine interface{} `json:"machine"`
+	Machine interface{} `json:"machine,omitempty"`
 }
 
 var payloadSchema = schematypes.Object{
