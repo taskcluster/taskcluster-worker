@@ -3,7 +3,6 @@ package vm
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"reflect"
 	rt "runtime"
 
@@ -259,7 +258,7 @@ var MachineSchema schematypes.Schema = schematypes.Object{
 			Title:       "Memory",
 			Description: `Memory in MiB, defaults to maximum available, if not specified.`,
 			Minimum:     1,
-			Maximum:     math.MaxInt64,
+			Maximum:     1024 * 1024, // 1 TiB
 		},
 		"usb": schematypes.StringEnum{
 			Title:   "Host Controller Interface",
@@ -291,7 +290,7 @@ var MachineSchema schematypes.Schema = schematypes.Object{
 				16MB which will do for must use-cases.
 			`),
 			Minimum: 1,
-			Maximum: math.MaxInt64,
+			Maximum: 1024 * 1024, // 1 TiB
 		},
 		"graphicsRam": schematypes.Integer{
 			Title: "Graphics RAM",
@@ -303,7 +302,7 @@ var MachineSchema schematypes.Schema = schematypes.Object{
 				128MB which will do for must use-cases.
 			`),
 			Minimum: 1,
-			Maximum: math.MaxInt64,
+			Maximum: 1024 * 1024, // 1 TiB
 		},
 		"graphicsVRam": schematypes.Integer{
 			Title: "Graphics Virtual RAM",
@@ -315,7 +314,7 @@ var MachineSchema schematypes.Schema = schematypes.Object{
 				32MB which will do for must use-cases.
 			`),
 			Minimum: 1,
-			Maximum: math.MaxInt64,
+			Maximum: 1024 * 1024, // 1 TiB
 		},
 		"sound": schematypes.StringEnum{
 			Options: []string{

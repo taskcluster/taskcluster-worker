@@ -60,9 +60,10 @@ var provider = &enginetest.EngineProvider{
 		"network": {
 			"subnets": 5
 		},
-		"machine": {
+		"limits": {
 			"maxMemory": 256,
-			"maxCores": 1
+			"maxCPUs": 1,
+			"defaultThreads": 1
 		}
 	}`,
 }
