@@ -136,6 +136,7 @@ func extractImage(imageFile, imageFolder string) (*vm.Machine, error) {
 	return machine, nil
 }
 
+// load vm.Machine from file with migration of machine definition
 func newMachineFromFile(machineFile string) (*vm.Machine, error) {
 	// Read machine.json
 	machineData, err := ioext.BoundedReadFile(machineFile, 1024*1024)

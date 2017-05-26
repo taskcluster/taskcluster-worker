@@ -40,7 +40,7 @@ func newSandbox(
 	monitor runtime.Monitor,
 ) (*sandbox, error) {
 	vm, err := vm.NewVirtualMachine(
-		e.engineConfig.MachineOptions,
+		e.engineConfig.MachineLimits,
 		image, network, e.socketFolder.Path(), "", "",
 		monitor.WithTag("component", "vm"),
 	)

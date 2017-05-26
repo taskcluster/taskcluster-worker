@@ -27,18 +27,18 @@ type engineProvider struct {
 }
 
 type configType struct {
-	Network        interface{}       `json:"network"`
-	MachineOptions vm.MachineOptions `json:"machine"`
+	Network       interface{}      `json:"network"`
+	MachineLimits vm.MachineLimits `json:"limits"`
 }
 
 var configSchema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"network": network.PoolConfigSchema,
-		"machine": vm.MachineOptionsSchema,
+		"limits":  vm.MachineLimitsSchema,
 	},
 	Required: []string{
 		"network",
-		"machine",
+		"limits",
 	},
 }
 

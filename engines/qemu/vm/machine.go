@@ -178,8 +178,8 @@ func (m Machine) ApplyLimits(limits MachineLimits) (Machine, error) {
 	return Machine{o}, nil
 }
 
-// DeriveOptions constructs sane MachineLimits that permits the machine.
-func (m Machine) DeriveOptions() MachineLimits {
+// DeriveLimits constructs sane MachineLimits that permits the machine.
+func (m Machine) DeriveLimits() MachineLimits {
 	// Default 1 for threads, cores and sockets
 	threads := m.options.Threads
 	if m.options.Threads == 0 {
