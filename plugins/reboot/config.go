@@ -10,7 +10,7 @@ import (
 
 type config struct {
 	MaxLifeCycle     time.Duration `json:"maxLifeCycle"`
-	TaskLimit        int           `json:"taskLimit"`
+	TaskLimit        int64         `json:"taskLimit"`
 	AllowTaskReboots bool          `json:"allowTaskReboots"`
 	RebootCommand    []string      `json:"rebootCommand"`
 }
