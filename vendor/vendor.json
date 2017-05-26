@@ -306,10 +306,10 @@
 			"revisionTime": "2016-09-03T17:06:27Z"
 		},
 		{
-			"checksumSHA1": "DhE10FKCr1kEa3NjyBiKU+NyNSQ=",
+			"checksumSHA1": "fl4kKoH1eojBaq/bcaCvar0XigI=",
 			"path": "github.com/taskcluster/go-got",
-			"revision": "d44fc82164dd1687157b9730d65b8fb1d59415af",
-			"revisionTime": "2017-02-24T22:20:36Z"
+			"revision": "0be8d009488a67d3b43fcee67a1d176e729315d0",
+			"revisionTime": "2017-05-26T22:16:17Z"
 		},
 		{
 			"checksumSHA1": "JeckyL2AKRNkw/om7UGZhEaNfKI=",
