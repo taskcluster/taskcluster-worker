@@ -58,7 +58,7 @@ func NewVirtualMachine(
 	monitor runtime.Monitor,
 ) (*VirtualMachine, error) {
 	// Get machine definition and set defaults
-	m, err := image.Machine().WithDefaults(nil).ApplyLimits(limits)
+	m, err := image.Machine().WithDefaults(defaultMachine).ApplyLimits(limits)
 	if err != nil {
 		return nil, err
 	}

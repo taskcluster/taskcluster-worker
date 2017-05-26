@@ -6,6 +6,26 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestMachineWithDefaults(t *testing.T) {
+	m := NewMachine(map[string]interface{}{
+		"version":  float64(1),
+		"graphics": "VGA",
+	})
+	assert.Equal(t, "VGA", m.options.Graphics)
+	assert.Equal(t, 0, m.options.Memory)
+	assert.Equal(t, "", m.options.USB)
+
+	m2 := m.WithDefaults(defaultMachine)
+
+	assert.Equal(t, "VGA", m.options.Graphics)
+	assert.Equal(t, 0, m.options.Memory)
+	assert.Equal(t, "", m.options.USB)
+
+	assert.Equal(t, "VGA", m2.options.Graphics)
+	assert.Equal(t, 0, m2.options.Memory)
+	assert.Equal(t, "nec-usb-xhci", m2.options.USB)
+}
+
 func TestValidateMACWithValidMACs(t *testing.T) {
 	validMACs := []string{
 		"ba:47:78:65:e1:a5",
@@ -40,7 +60,8 @@ func TestValidateMACWithValidMACs(t *testing.T) {
 	}
 	for _, mac := range validMACs {
 		err := MachineSchema.Validate(map[string]interface{}{
-			"mac": mac,
+			"version": float64(1),
+			"mac":     mac,
 		})
 		assert.NoError(t, err, "failed to validate: %s", mac)
 	}
@@ -71,7 +92,8 @@ func TestValidateMACWithGlobalMACs(t *testing.T) {
 	}
 	for _, mac := range invalidMACs {
 		err := MachineSchema.Validate(map[string]interface{}{
-			"mac": mac,
+			"version": float64(1),
+			"mac":     mac,
 		})
 		if err == nil {
 			t.Error("Expected error when validating: ", mac)
@@ -107,7 +129,8 @@ func TestValidateMACWithMulticastMACs(t *testing.T) {
 	}
 	for _, mac := range invalidMACs {
 		err := MachineSchema.Validate(map[string]interface{}{
-			"mac": mac,
+			"version": float64(1),
+			"mac":     mac,
 		})
 		if err == nil {
 			t.Error("Expected error when validating: ", mac)
@@ -148,7 +171,8 @@ func TestValidateMACWithInvalidMACs(t *testing.T) {
 	}
 	for _, mac := range invalidMACs {
 		err := MachineSchema.Validate(map[string]interface{}{
-			"mac": mac,
+			"version": float64(1),
+			"mac":     mac,
 		})
 		if err == nil {
 			t.Error("Expected error when validating: ", mac)

@@ -69,14 +69,14 @@ var defaultMachine = (func() Machine {
 })()
 
 // NewMachine returns a new machine from definition matching MachineSchema
-func NewMachine(definition interface{}) *Machine {
+func NewMachine(definition interface{}) Machine {
 	var m Machine
 	schematypes.MustValidateAndMap(MachineSchema, definition, &m.options)
-	return &m
+	return m
 }
 
 // MarshalJSON implements json.Marshaler
-func (m *Machine) MarshalJSON() ([]byte, error) {
+func (m Machine) MarshalJSON() ([]byte, error) {
 	// We need a custom implementation because we distinguish between
 	// flags nil and empty array.
 	result := map[string]interface{}{}
@@ -99,13 +99,10 @@ func (m *Machine) MarshalJSON() ([]byte, error) {
 
 // WithDefaults creates a new Machine with empty-values in c
 // defaulting to defaults.
-func (m *Machine) WithDefaults(defaults *Machine) *Machine {
-	if defaults == nil {
-		defaults = &defaultMachine
-	}
+func (m Machine) WithDefaults(defaults Machine) Machine {
 	options := m.options
 	v := reflect.ValueOf(&options).Elem()
-	d := reflect.ValueOf(defaults.options).Elem()
+	d := reflect.ValueOf(&defaults.options).Elem()
 	for i := 0; i < v.NumField(); i++ {
 		switch v.Field(i).Kind() {
 		case reflect.Chan, reflect.Func, reflect.Slice, reflect.Map, reflect.Ptr, reflect.Interface:
@@ -118,12 +115,12 @@ func (m *Machine) WithDefaults(defaults *Machine) *Machine {
 			}
 		}
 	}
-	return &Machine{options: options}
+	return Machine{options: options}
 }
 
 // ApplyLimits returns an Machine with defaults extracted from the limits, or
 // a MalformedPayloadError if limits were violated.
-func (m *Machine) ApplyLimits(limits MachineLimits) (*Machine, error) {
+func (m Machine) ApplyLimits(limits MachineLimits) (Machine, error) {
 	o := m.options
 
 	// Set defaults for memory
@@ -162,7 +159,7 @@ func (m *Machine) ApplyLimits(limits MachineLimits) (*Machine, error) {
 
 	// Validate limitations for memory
 	if o.Memory > limits.MaxMemory {
-		return nil, runtime.NewMalformedPayloadError(
+		return Machine{o}, runtime.NewMalformedPayloadError(
 			"Machine memory ", o.Memory, " MiB is larger than allowed machine memory ",
 			limits.MaxMemory, " MiB",
 		)
@@ -170,7 +167,7 @@ func (m *Machine) ApplyLimits(limits MachineLimits) (*Machine, error) {
 
 	// Validate limitations for cpu cores
 	if o.Threads*o.Cores*o.Sockets > limits.MaxCPUs {
-		return nil, runtime.NewMalformedPayloadError(fmt.Sprintf(
+		return Machine{o}, runtime.NewMalformedPayloadError(fmt.Sprintf(
 			"Machine specifies threads: %d, cores: %d, sockets: %d, in total: %d "+
 				"which is larger than %d total number of cores allowed",
 			o.Threads, o.Cores, o.Sockets,
@@ -178,11 +175,11 @@ func (m *Machine) ApplyLimits(limits MachineLimits) (*Machine, error) {
 			limits.MaxCPUs,
 		))
 	}
-	return &Machine{options: o}, nil
+	return Machine{o}, nil
 }
 
 // DeriveOptions constructs sane MachineLimits that permits the machine.
-func (m *Machine) DeriveOptions() MachineLimits {
+func (m Machine) DeriveOptions() MachineLimits {
 	// Default 1 for threads, cores and sockets
 	threads := m.options.Threads
 	if m.options.Threads == 0 {
@@ -346,4 +343,5 @@ var MachineSchema schematypes.Schema = schematypes.Object{
 			Options: []string{"usb-tablet", "none"},
 		},
 	},
+	Required: []string{"version"},
 }
