@@ -33,6 +33,7 @@ func newSandbox(
 	command []string,
 	env map[string]string,
 	proxies map[string]http.Handler,
+	machine vm.Machine,
 	image vm.Image,
 	network vm.Network,
 	c *runtime.TaskContext,
@@ -41,7 +42,12 @@ func newSandbox(
 ) (*sandbox, error) {
 	instance, err := vm.NewVirtualMachine(
 		e.engineConfig.MachineLimits,
-		vm.OverwriteMachine(image, image.Machine().WithDefaults(e.defaultMachine)),
+		// Merge machine definitions in order of preference:
+		//  - task.payload.machine
+		//  - machine.json from iamge
+		//  - machine from engine config
+		//  - default machine (hardcoded into vm.NewVirtualMachine)
+		vm.OverwriteMachine(image, machine.WithDefaults(image.Machine()).WithDefaults(e.defaultMachine)),
 		network, e.socketFolder.Path(), "", "",
 		monitor.WithTag("component", "vm"),
 	)

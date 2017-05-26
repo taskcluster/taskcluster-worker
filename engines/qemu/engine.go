@@ -99,8 +99,9 @@ func (e *engine) Capabilities() engines.Capabilities {
 }
 
 type payloadType struct {
-	Image   string   `json:"image"`
-	Command []string `json:"command"`
+	Image   string      `json:"image"`
+	Command []string    `json:"command"`
+	Machine interface{} `json:"machine"`
 }
 
 var payloadSchema = schematypes.Object{
@@ -119,6 +120,7 @@ var payloadSchema = schematypes.Object{
 			Description: `Command and arguments to execute on the guest.`,
 			Items:       schematypes.String{},
 		},
+		"machine": vm.MachineSchema,
 	},
 	Required: []string{"command", "image"},
 }
