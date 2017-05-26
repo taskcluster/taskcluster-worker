@@ -97,7 +97,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	// Create virtual machine
 	monitor.Info("Creating virtual machine")
 	vm, err := vm.NewVirtualMachine(
-		image.Machine().Options(), image, net, tempFolder,
+		image.Machine().DeriveLimits(), image, net, tempFolder,
 		"", "", monitor.WithTag("component", "vm"),
 	)
 	if err != nil {
