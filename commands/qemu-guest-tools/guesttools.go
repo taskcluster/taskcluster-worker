@@ -2,6 +2,7 @@ package qemuguesttools
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -20,8 +21,6 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
-	"golang.org/x/net/context"
-	"golang.org/x/net/context/ctxhttp"
 	buffer "gopkg.in/djherbis/buffer.v1"
 	nio "gopkg.in/djherbis/nio.v2"
 )
@@ -29,6 +28,7 @@ import (
 type guestTools struct {
 	baseURL       string
 	got           *got.Got
+	gotpoll       *got.Got
 	monitor       runtime.Monitor
 	taskLog       io.Writer
 	pollingCtx    context.Context
@@ -50,10 +50,15 @@ func new(host string, monitor runtime.Monitor) *guestTools {
 	got.Retries = 15
 	got.BackOff = backOff
 
+	// Create got client for polling
+	gotpoll := *got
+	gotpoll.Client = &http.Client{Timeout: pollTimeout + 5*time.Second}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	return &guestTools{
 		baseURL:       "http://" + host + "/",
 		got:           got,
+		gotpoll:       &gotpoll,
 		monitor:       monitor,
 		pollingCtx:    ctx,
 		cancelPolling: cancel,
@@ -182,16 +187,12 @@ func (g *guestTools) StopProcessingActions() {
 const pollTimeout = metaservice.PollTimeout + 5*time.Second
 
 func (g *guestTools) poll(ctx context.Context) {
-	// Poll the metaservice for an action to perform
-	req, err := http.NewRequest(http.MethodGet, g.url("engine/v1/poll"), nil)
-	if err != nil {
-		g.monitor.Panicln("Failed to create polling request, error: ", err)
-	}
-
 	// Do request with a timeout
-	c, _ := context.WithTimeout(ctx, pollTimeout)
-	res, err := ctxhttp.Do(c, nil, req)
-	//res, res := http.DefaultClient.Do(req)
+	ctx, cancel := context.WithTimeout(ctx, pollTimeout)
+	defer cancel()
+
+	// Poll the metaservice for an action to perform
+	res, err := g.gotpoll.Get(g.url("engine/v1/poll")).WithContext(ctx).Send()
 	if err != nil {
 		// if this wasn't a deadline exceeded error, we'll sleep a second to avoid
 		// spinning the CPU while waiting for DHCP to come up.
@@ -202,17 +203,9 @@ func (g *guestTools) poll(ctx context.Context) {
 		return
 	}
 
-	// Read the request body
-	defer res.Body.Close()
-	data, err := ioext.ReadAtMost(res.Body, 2*1024*1024)
-	if err != nil {
-		g.monitor.Error("Failed to read poll request body, error: ", err)
-		return
-	}
-
 	// Parse the request body
-	action := metaservice.Action{}
-	err = json.Unmarshal(data, &action)
+	var action metaservice.Action
+	err = json.Unmarshal(res.Body, &action)
 	if err != nil {
 		g.monitor.Error("Failed to parse poll request body, error: ", err)
 		return
