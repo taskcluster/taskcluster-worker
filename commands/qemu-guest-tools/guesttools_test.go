@@ -1,4 +1,4 @@
-// +build linux
+// +build linux windows
 
 package qemuguesttools
 
@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	rt "runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -30,11 +31,17 @@ func TestGuestToolsSuccess(t *testing.T) {
 		Monitor:          mocks.NewMockMonitor(true),
 	}
 
+	// platform specific hello world command
+	helloWorldCommand := []string{"sh", "-c", "echo \"$TEST_TEXT\" && true"}
+	if rt.GOOS == "windows" {
+		helloWorldCommand = []string{`c:\Windows\system32\cmd.exe`, "/C", "echo %TEST_TEXT% && exit 0"}
+	}
+
 	// Setup a new MetaService
 	logTask := bytes.NewBuffer(nil)
 	result := false
 	var resolved atomics.Once
-	s := metaservice.New([]string{"sh", "-c", "echo \"$TEST_TEXT\" && true"}, map[string]string{
+	s := metaservice.New(helloWorldCommand, map[string]string{
 		"TEST_TEXT": "Hello world",
 	}, logTask, func(r bool) {
 		if !resolved.Do(func() { result = r }) {
@@ -59,6 +66,7 @@ func TestGuestToolsSuccess(t *testing.T) {
 	if !result {
 		t.Error("Expected the metadata to get successful result")
 	}
+	debug(logTask.String())
 	if !strings.Contains(logTask.String(), "Hello world") {
 		t.Error("Got unexpected taskLog: '", logTask.String(), "'")
 	}
@@ -75,11 +83,17 @@ func TestGuestToolsFailed(t *testing.T) {
 		Monitor:          mocks.NewMockMonitor(true),
 	}
 
+	// platform specific hello world command
+	helloWorldCommand := []string{"sh", "-c", "echo \"$TEST_TEXT\" && false"}
+	if rt.GOOS == "windows" {
+		helloWorldCommand = []string{`c:\Windows\system32\cmd.exe`, "/C", "echo %TEST_TEXT% && exit 1"}
+	}
+
 	// Setup a new MetaService
 	logTask := bytes.NewBuffer(nil)
 	result := false
 	var resolved atomics.Once
-	s := metaservice.New([]string{"sh", "-c", "echo \"$TEST_TEXT\" && false"}, map[string]string{
+	s := metaservice.New(helloWorldCommand, map[string]string{
 		"TEST_TEXT": "Hello world",
 	}, logTask, func(r bool) {
 		if !resolved.Do(func() { result = r }) {
@@ -130,11 +144,20 @@ func TestGuestToolsLiveLog(t *testing.T) {
 		TemporaryStorage: storage,
 	}
 
+	// platform specific hello world command
+	command := []string{"sh", "-c", "echo \"$TEST_TEXT\" && curl -s " + ps.URL}
+	if rt.GOOS == "windows" {
+		command = []string{
+			`c:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`, "-Command",
+			`(get-item env:TEST_TEXT).Value ; (new-object System.Net.WebClient).DownloadString('` + ps.URL + `')`,
+		}
+	}
+
 	// Setup a new MetaService
 	reader, writer := io.Pipe()
 	result := false
 	var resolved atomics.Once
-	s := metaservice.New([]string{"sh", "-c", "echo \"$TEST_TEXT\" && curl -s " + ps.URL}, map[string]string{
+	s := metaservice.New(command, map[string]string{
 		"TEST_TEXT": "ready-now",
 	}, writer, func(r bool) {
 		if !resolved.Do(func() { result = r }) {
