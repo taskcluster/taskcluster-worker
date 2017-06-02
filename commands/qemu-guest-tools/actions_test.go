@@ -34,10 +34,6 @@ func assert(t *testing.T, condition bool, a ...interface{}) {
 }
 
 func TestGuestToolsProcessingActions(t *testing.T) {
-	// Doesn't currently run on Windows, let's skip until Windows is a priority
-	if goruntime.GOOS == "windows" {
-		t.Skip("Skipping on Windows - when we start supporting Windows, we should reenable!")
-	}
 	// Create temporary storage
 	storage, err := runtime.NewTemporaryStorage(os.TempDir())
 	if err != nil {
@@ -131,9 +127,21 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 	assert(t, err == nil, "Didn't expect any error")
 
 	////////////////////
-	testShellHello(t, meta)
-	testShellCat(t, meta)
-	testShellCatStdErr(t, meta)
+	t.Run("Shell Hello", func(t *testing.T) {
+		testShellHello(t, meta)
+	})
+	t.Run("Shell Cat", func(t *testing.T) {
+		if goruntime.GOOS == "windows" {
+			t.Skip("Not supported - test doesn't pass on windows yet")
+		}
+		testShellCat(t, meta)
+	})
+	t.Run("Shell Cat Stderr", func(t *testing.T) {
+		if goruntime.GOOS == "windows" {
+			t.Skip("Not supported - test doesn't pass on windows yet")
+		}
+		testShellCatStdErr(t, meta)
+	})
 }
 
 func testShellHello(t *testing.T, meta *metaservice.MetaService) {
