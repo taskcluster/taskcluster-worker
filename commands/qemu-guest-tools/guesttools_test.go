@@ -218,11 +218,17 @@ func TestGuestToolsKill(t *testing.T) {
 		Monitor:          mocks.NewMockMonitor(true),
 	}
 
+	// platform specific hello world command
+	command := []string{"sh", "-c", "echo \"$TEST_TEXT\" && sleep 20 && true"}
+	if rt.GOOS == "windows" {
+		command = []string{`c:\Windows\system32\cmd.exe`, "/C", "echo %TEST_TEXT% && timeout /t 20 && exit 0"}
+	}
+
 	// Setup a new MetaService
 	reader, writer := io.Pipe()
 	result := false
 	var resolved atomics.Once
-	s := metaservice.New([]string{"sh", "-c", "echo \"$TEST_TEXT\" && sleep 20 && true"}, map[string]string{
+	s := metaservice.New(command, map[string]string{
 		"TEST_TEXT": "kill-me-now",
 	}, writer, func(r bool) {
 		if !resolved.Do(func() { result = r }) {
