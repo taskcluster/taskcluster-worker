@@ -16,9 +16,9 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
-// This file contains test cases that don't leave risk leaving dirty system
+// This file contains test cases that don't risk leaving dirty system
 // resources, such as temporary user accounts. However, this file doesn't
-// test all the functionality in the system package. Useful, we you want to
+// test all the functionality in the system package. Useful, if you want to
 // check some of the system package without risking a dirty system.
 
 // Note: Constants testGroup, testCat, testTrue, testFalse, testPrintDir, and
@@ -81,7 +81,9 @@ func TestSystemSafely(t *testing.T) {
 	})
 
 	t.Run("StartProcess Cat", func(t *testing.T) {
-		t.Skip("Not implemented on windows, we're missing a testCat command that works")
+		if rt.GOOS == "windows" {
+			t.Skip("Not implemented on windows, we're missing a testCat command that works")
+		}
 		var out bytes.Buffer
 		p, err := StartProcess(ProcessOptions{
 			Arguments: testCat,
@@ -94,7 +96,9 @@ func TestSystemSafely(t *testing.T) {
 	})
 
 	t.Run("StartProcess Cat with TTY", func(t *testing.T) {
-		t.Skip("Not implemented on windows, we're missing a testCat command that works")
+		if rt.GOOS == "windows" {
+			t.Skip("Not implemented on windows, we're missing a testCat command that works")
+		}
 		p, err := StartProcess(ProcessOptions{
 			Arguments: testCat,
 			TTY:       true,
@@ -120,7 +124,7 @@ func TestSystemSafely(t *testing.T) {
 
 	t.Run("StartProcess TTY Print Dir", func(t *testing.T) {
 		if rt.GOOS == "darwin" {
-			t.Skip("TODO: fix test can on OS X, no idea why it fails")
+			t.Skip("TODO: fix test case on OS X, no idea why it fails")
 		}
 		var out bytes.Buffer
 		p, err := StartProcess(ProcessOptions{
@@ -148,7 +152,7 @@ func TestSystemSafely(t *testing.T) {
 
 	t.Run("StartProcess TTY, Owner and Print Dir", func(t *testing.T) {
 		if rt.GOOS == "darwin" {
-			t.Skip("TODO: fix test can on OS X, no idea why it fails")
+			t.Skip("TODO: fix test case on OS X, no idea why it fails")
 		}
 		var out bytes.Buffer
 		p, err := StartProcess(ProcessOptions{
