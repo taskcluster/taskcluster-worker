@@ -1,5 +1,11 @@
 package system
 
+import (
+	"os/user"
+
+	"github.com/pkg/errors"
+)
+
 // User is a representation of a system user account.
 type User struct {
 	name       string
@@ -8,7 +14,14 @@ type User struct {
 
 // CurrentUser will get a User record representing the current user.
 func CurrentUser() (*User, error) {
-	panic("Not implemented")
+	u, err := user.Current()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to lookup current user")
+	}
+	return &User{
+		name:       u.Username,
+		homeFolder: u.HomeDir,
+	}, nil
 }
 
 // CreateUser will create a new user, with the given homeFolder, set the user
