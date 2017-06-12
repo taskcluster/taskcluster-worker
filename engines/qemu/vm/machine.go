@@ -37,9 +37,6 @@ type Machine struct {
 		MAC            string   `json:"mac"`
 		Storage        string   `json:"storage"`
 		Graphics       string   `json:"graphics"`
-		VGAMemory      int      `json:"vgaMemory"`
-		GraphicsRAM    int      `json:"graphicsRam"`
-		GraphicsVRAM   int      `json:"graphicsVRam"`
 		Sound          string   `json:"sound"`
 		Keyboard       string   `json:"keyboard"`
 		KeyboardLayout string   `json:"keyboardLayout"`
@@ -61,9 +58,6 @@ var defaultMachine = (func() Machine {
 		"mac":             "aa:54:1a:30:5c:de",
 		"storage":         "virtio-blk-pci",
 		"graphics":        "qxl-vga",
-		"vgaMemory":       16,
-		"graphicsRam":     64,
-		"graphicsVRam":    32,
 		"sound":           "none",
 		"keyboard":        "usb-kbd",
 		"keyboardLayout":  "en-us",
@@ -212,8 +206,14 @@ func (m Machine) DeriveLimits() MachineLimits {
 		maxCPUs = rt.NumCPU()
 	}
 
+	// Set memory to some sane default
+	memory := m.options.Memory
+	if memory == 0 {
+		memory = 2048
+	}
+
 	return MachineLimits{
-		MaxMemory:      m.options.Memory,
+		MaxMemory:      memory,
 		MaxCPUs:        maxCPUs,
 		DefaultThreads: 1,
 	}
@@ -291,41 +291,6 @@ var MachineSchema schematypes.Schema = schematypes.Object{
 		},
 		"graphics": schematypes.StringEnum{
 			Options: []string{"VGA", "vmware-svga", "qxl-vga", "virtio-vga"},
-		},
-		"vgaMemory": schematypes.Integer{
-			Title: "VGA Memory",
-			Description: util.Markdown(`
-				VGA memory is the 'vgamem' option given to QEMU in MB.
-
-				Typically, this should be 'width * height * 4', it defaults to
-				16MB which will do for must use-cases.
-			`),
-			Minimum: 1,
-			Maximum: 1024 * 1024, // 1 TiB
-		},
-		"graphicsRam": schematypes.Integer{
-			Title: "Graphics RAM",
-			Description: util.Markdown(`
-				Graphics RAM is the 'ram' option passed to the 'qxl-vga' device
-				in MB. This option will be ignored if not using 'qxl-vga'.
-
-				Typically, this should be '4 * vgaMemory', it defaults to
-				128MB which will do for must use-cases.
-			`),
-			Minimum: 1,
-			Maximum: 1024 * 1024, // 1 TiB
-		},
-		"graphicsVRam": schematypes.Integer{
-			Title: "Graphics Virtual RAM",
-			Description: util.Markdown(`
-				Graphics Virtual RAM is the 'vram' option passed to the 'qxl-vga'
-				device in MB. This option will be ignored if not using 'qxl-vga'.
-
-				Typically, this should be '2 * vgaMemory', it defaults to
-				32MB which will do for must use-cases.
-			`),
-			Minimum: 1,
-			Maximum: 1024 * 1024, // 1 TiB
 		},
 		"sound": schematypes.StringEnum{
 			Options: []string{

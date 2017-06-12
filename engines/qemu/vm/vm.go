@@ -152,21 +152,11 @@ func NewVirtualMachine(
 	})
 
 	// Graphics
-	graphics := args{
+	device(o.Graphics, args{
 		"id":   "video-0",
 		"bus":  "pci.0",
 		"addr": "0x2", // QEMU uses PCI 0x2 for VGA by default
-	}
-	switch o.Graphics {
-	case "virtio-vga":
-	case "qxl-vga":
-		graphics["ram_size_mb"] = strconv.Itoa(o.GraphicsRAM)
-		graphics["vram_size_mb"] = strconv.Itoa(o.GraphicsVRAM)
-		fallthrough
-	default:
-		graphics["vgamem_mb"] = strconv.Itoa(o.VGAMemory)
-	}
-	device(o.Graphics, graphics)
+	})
 
 	// USB
 	device(o.USB, args{
