@@ -49,11 +49,15 @@ func newSandboxBuilder(
 	if payload.Machine != nil {
 		sb.machine = vm.NewMachine(payload.Machine)
 	}
+
+	// TODO: ensure task.scopes satisfies: imageFetcher.Scopes(payload.Image)
+
 	// Start downloading and extracting the image
 	go func() {
-		debug("downloading image: %s (if not already present)", payload.Image)
-		inst, err := e.imageManager.Instance("URL:"+payload.Image, image.DownloadImage(payload.Image))
-		debug("downloaded image: %s", payload.Image)
+		debug("fetching image: %#v (if not already present)", payload.Image)
+		inst, err := e.imageManager.Instance(imageFetcher.HashKey(payload.Image), imageDownloader(c, payload.Image))
+		debug("fetched image: %#v", payload.Image)
+
 		sb.m.Lock()
 		// if already discarded then we don't set the image... instead we release it
 		// immediately. We don't want to risk leaking an image and run out of
