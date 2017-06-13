@@ -2,7 +2,6 @@ package fetcher
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -10,13 +9,8 @@ import (
 
 	"github.com/pkg/errors"
 	schematypes "github.com/taskcluster/go-schematypes"
-	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
+	"github.com/taskcluster/httpbackoff"
 )
-
-// TODO: Change Fetcher s.t. we have a Fetcher.NewItem(...) constructor
-//       and Item then has Scopes(), HashKey() and Fetch() methods.
-//       That way we can handle artifacts referenced by index, or with
-//       latest runId, if not supplied.
 
 type artifactFetcher struct{}
 
@@ -32,7 +26,7 @@ var artifactSchema = schematypes.Object{
 		},
 		"artifact": schematypes.String{},
 	},
-	Required: []string{"taskId", "runId", "artifact"},
+	Required: []string{"taskId", "artifact"},
 }
 
 type artifactReference struct {
@@ -41,119 +35,60 @@ type artifactReference struct {
 	Artifact string `json:"artifact"`
 }
 
-func (r *artifactReference) isPublic() bool {
-	return strings.HasPrefix(r.Artifact, "public/")
-}
-
 func (artifactFetcher) Schema() schematypes.Schema {
 	return artifactSchema
 }
 
-func (artifactFetcher) HashKey(ref interface{}) string {
+func (artifactFetcher) NewReference(ctx Context, options interface{}) (Reference, error) {
 	var r artifactReference
-	schematypes.MustValidateAndMap(artifactSchema, ref, &r)
+	r.RunID = -1 // if not given we'll want to detect latest runId
+	schematypes.MustValidateAndMap(artifactSchema, options, &r)
+
+	// Determine latest runId
+	if r.RunID == -1 {
+		result, err := ctx.Queue().Status(r.TaskID)
+		if err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			if e, ok := err.(httpbackoff.BadHttpResponseCode); ok && e.HttpResponseCode == http.StatusNotFound {
+				return nil, newBrokenReferenceError(fmt.Sprintf("task status from %s", r.TaskID), "no such task")
+			}
+			return nil, errors.Wrap(err, "failed to fetch task status")
+		}
+		r.RunID = len(result.Status.Runs) - 1
+	}
+	return &r, nil
+}
+
+func (r *artifactReference) isPublic() bool {
+	return strings.HasPrefix(r.Artifact, "public/")
+}
+
+func (r *artifactReference) HashKey() string {
 	return fmt.Sprintf("%s/%d/%s", r.TaskID, r.RunID, r.Artifact)
 }
 
-func (artifactFetcher) Scopes(ref interface{}) [][]string {
-	var r artifactReference
-	schematypes.MustValidateAndMap(artifactSchema, ref, &r)
+func (r *artifactReference) Scopes() [][]string {
 	if r.isPublic() {
 		return [][]string{{}} // Set containing the empty-scope-set
 	}
 	return [][]string{{"queue:get-artifact:" + r.Artifact}}
 }
 
-func (artifactFetcher) Fetch(ctx Context, ref interface{}, target WriteSeekReseter) error {
-	var r artifactReference
-	schematypes.MustValidateAndMap(artifactSchema, ref, &r)
-
-	// Note: We could have reused logic from urlfetcher.go, but then we would risk
-	// leaking signed URLs into error messages.
-	return fetchArtifactWithRetries(ctx, r, target)
-}
-
-func fetchArtifactWithRetries(ctx Context, r artifactReference, target WriteSeekReseter) error {
-	retry := 0
-	for {
-		// Fetch artifact, if no error then we're done
-		err := fetchArtifact(ctx, r, target)
-		if err == nil {
-			return nil
-		}
-
-		// Otherwise, reset the target (if there was an error)
-		target.Reset()
-
-		// If err is a persistentError or retry greater than maxRetries
-		// then we return an error
-		retry++
-		if IsBrokenReferenceError(err) {
-			return err
-		}
-		if retry > maxRetries {
-			return newBrokenReferenceError(
-				"exhausted retries trying to get artifact %s from %s/%d, last error: %s",
-				r.Artifact, r.TaskID, r.RunID, err)
-		}
-
-		// Sleep before we retry
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(backOff.Delay(retry)):
-		}
-	}
-}
-
-func fetchArtifact(ctx Context, r artifactReference, target io.Writer) error {
+func (r *artifactReference) Fetch(ctx Context, target WriteSeekReseter) error {
 	// Construct URL
 	var u string
 	if r.isPublic() {
 		u = fmt.Sprintf("https://queue.taskcluster.net/v1/task/%s/runs/%d/artifacts/%s", r.TaskID, r.RunID, r.Artifact)
 	} else {
-		u2, err := ctx.Queue().GetArtifact_SignedURL(r.TaskID, strconv.Itoa(r.RunID), r.Artifact, 15*time.Minute)
+		u2, err := ctx.Queue().GetArtifact_SignedURL(r.TaskID, strconv.Itoa(r.RunID), r.Artifact, 25*time.Minute)
 		if err != nil {
 			panic(errors.Wrap(err, "Client library shouldn't be able to fail here"))
 		}
 		u = u2.String()
 	}
 
-	// Create a new request
-	req, err := http.NewRequest(http.MethodGet, u, nil)
-	if err != nil {
-		panic(errors.Wrap(err, "invalid URL shoudln't be possible"))
-	}
-
-	// Do the request with context
-	req = req.WithContext(ctx)
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("request failed: %s", err)
-	}
-	defer res.Body.Close()
-
-	// If status code isn't 200, we return an error
-	if res.StatusCode != http.StatusOK {
-		// Attempt to read body from request
-		var body string
-		if res.Body != nil {
-			p, _ := ioext.ReadAtMost(res.Body, 8*1024) // limit to 8 kb
-			body = string(p)
-		}
-		if 400 <= res.StatusCode && res.StatusCode < 500 {
-			return newBrokenReferenceError(
-				"failed to fetch artifact %s from %s/%d, statusCode: %d, body: %s",
-				r.Artifact, r.TaskID, r.RunID, res.StatusCode, body)
-		}
-		return fmt.Errorf("statusCode: %d, body: %s", res.StatusCode, body)
-	}
-
-	// Otherwise copy body to target
-	_, err = io.Copy(target, res.Body)
-	if err != nil {
-		return fmt.Errorf("connection broken: %s", err)
-	}
-
-	return nil
+	subject := fmt.Sprintf("artifact %s from %s/%d", r.Artifact, r.TaskID, r.RunID)
+	return fetchURLWithRetries(ctx, subject, u, target)
 }

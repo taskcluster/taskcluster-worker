@@ -24,6 +24,10 @@ var backOff = got.BackOff{
 
 type urlFetcher struct{}
 
+type urlReference struct {
+	url string
+}
+
 // URL is Fetcher for downloading files from a URL.
 var URL Fetcher = urlFetcher{}
 
@@ -36,35 +40,31 @@ func (urlFetcher) Schema() schematypes.Schema {
 	return urlSchema
 }
 
-func (urlFetcher) HashKey(ref interface{}) string {
+func (urlFetcher) NewReference(ctx Context, options interface{}) (Reference, error) {
 	var u string
-	if schematypes.MustMap(urlSchema, ref, &u) != nil {
-		panic(fmt.Sprintf("Reference: %#v doesn't satisfy Fetcher.Schema()", ref))
-	}
-	return u
+	schematypes.MustValidateAndMap(urlSchema, options, &u)
+	return &urlReference{url: u}, nil
 }
 
-func (urlFetcher) Scopes(ref interface{}) [][]string {
-	if urlSchema.Validate(ref) != nil {
-		panic(fmt.Sprintf("Reference: %#v doesn't satisfy Fetcher.Schema()", ref))
-	}
+func (u *urlReference) HashKey() string {
+	return u.url
+}
+
+func (u *urlReference) Scopes() [][]string {
 	return [][]string{{}} // Set containing the empty-scope-set
 }
 
-func (urlFetcher) Fetch(ctx Context, ref interface{}, target WriteSeekReseter) error {
-	var u string
-	if schematypes.MustMap(urlSchema, ref, &u) != nil {
-		panic(fmt.Sprintf("Reference: %#v doesn't satisfy Fetcher.Schema()", ref))
-	}
-
-	return fetchURLWithRetries(ctx, u, target)
+func (u *urlReference) Fetch(ctx Context, target WriteSeekReseter) error {
+	return fetchURLWithRetries(ctx, u.url, u.url, target)
 }
 
-func fetchURLWithRetries(ctx context.Context, u string, target WriteSeekReseter) error {
+// fetchURLWithRetries will download URL u to target with retries, using subject
+// in error messages and progress updates
+func fetchURLWithRetries(ctx context.Context, subject, u string, target WriteSeekReseter) error {
 	retry := 0
 	for {
 		// Fetch URL, if no error then we're done
-		err := fetchURL(ctx, u, target)
+		err := fetchURL(ctx, subject, u, target)
 		if err == nil {
 			return nil
 		}
@@ -79,7 +79,7 @@ func fetchURLWithRetries(ctx context.Context, u string, target WriteSeekReseter)
 			return err
 		}
 		if retry > maxRetries {
-			return newBrokenReferenceError("exhausted retries trying to GET '%s', last error: %s", u, err)
+			return newBrokenReferenceError(subject, fmt.Sprintf("exhausted retries with last error: %s", err))
 		}
 
 		// Sleep before we retry
@@ -91,11 +91,11 @@ func fetchURLWithRetries(ctx context.Context, u string, target WriteSeekReseter)
 	}
 }
 
-func fetchURL(ctx context.Context, u string, target io.Writer) error {
+func fetchURL(ctx context.Context, subject, u string, target io.Writer) error {
 	// Create a new request
 	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
-		return newBrokenReferenceError("invalid URL: %s", err)
+		return newBrokenReferenceError(subject, "invalid URL")
 	}
 
 	// Do the request with context
@@ -115,7 +115,7 @@ func fetchURL(ctx context.Context, u string, target io.Writer) error {
 			body = string(p)
 		}
 		if 400 <= res.StatusCode && res.StatusCode < 500 {
-			return newBrokenReferenceError("failed to fetch %s, statusCode: %d, body: %s", u, res.StatusCode, body)
+			return newBrokenReferenceError(subject, fmt.Sprintf("statusCode: %d, body: %s", res.StatusCode, body))
 		}
 		return fmt.Errorf("statusCode: %d, body: %s", res.StatusCode, body)
 	}

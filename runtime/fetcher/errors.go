@@ -6,17 +6,19 @@ import "fmt"
 // Error message shall be some human-readable explanation of why fetching failed
 // and is expected to fail consistently.
 type BrokenReferenceError struct {
-	message string
+	subject string // thing we failed to fetch
+	reason  string // reason we failed
 }
 
-func newBrokenReferenceError(format string, args ...interface{}) BrokenReferenceError {
+func newBrokenReferenceError(subject, reason string) BrokenReferenceError {
 	return BrokenReferenceError{
-		message: fmt.Sprintf(format, args...),
+		subject: subject,
+		reason:  reason,
 	}
 }
 
 func (e BrokenReferenceError) Error() string {
-	return e.message
+	return fmt.Sprintf("failed to fetch %s, %s", e.subject, e.reason)
 }
 
 // IsBrokenReferenceError returns true, if err is a BrokenReferenceError error.
