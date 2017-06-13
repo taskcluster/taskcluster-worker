@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"sync"
@@ -47,6 +48,7 @@ type TaskInfo struct {
 	Created  time.Time
 	Deadline time.Time
 	Expires  time.Time
+	Scopes   []string
 }
 
 // The TaskContext exposes generic properties and functionality related to a
@@ -98,12 +100,14 @@ func (c *TaskContextController) CloseLog() error {
 		return nil
 	}
 
+	debug("closing log on TaskContext")
 	c.logClosed = true
 	return c.logStream.Close()
 }
 
 // Dispose will clean-up all resources held by the TaskContext
 func (c *TaskContextController) Dispose() error {
+	debug("disposing TaskContext")
 	return c.logStream.Remove()
 }
 
@@ -259,4 +263,27 @@ func (c *TaskContext) ExtractLog() (ioext.ReadSeekCloser, error) {
 	}
 
 	return file, nil
+}
+
+// HasScopes returns true, if task.scopes covers one of the scopeSets given
+func (c *TaskContext) HasScopes(scopeSets ...[]string) bool {
+	for _, scopes := range scopeSets {
+		satisfied := true
+		for _, required := range scopes {
+			satisfied = false
+			for _, scope := range c.Scopes {
+				if required == scope || strings.HasSuffix(scope, "*") && strings.HasPrefix(required, scope[0:len(scope)-1]) {
+					satisfied = true
+					break
+				}
+			}
+			if !satisfied {
+				break
+			}
+		}
+		if satisfied {
+			return true
+		}
+	}
+	return false
 }
