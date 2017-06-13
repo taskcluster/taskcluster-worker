@@ -3,6 +3,7 @@ package qemuengine
 import (
 	"net/http"
 	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
@@ -50,7 +51,20 @@ func newSandboxBuilder(
 		sb.machine = vm.NewMachine(payload.Machine)
 	}
 
-	// TODO: ensure task.scopes satisfies: imageFetcher.Scopes(payload.Image)
+	// Check that task.scopes satisfies one of required scope-sets
+	scopeSets := imageFetcher.Scopes(payload.Image)
+	if !c.HasScopes(scopeSets...) {
+		var options []string
+		for _, scopes := range scopeSets {
+			options = append(options, strings.Join(scopes, ", "))
+		}
+		sb.imageError = runtime.NewMalformedPayloadError(
+			`task.scopes must satisfy at-least one of the scope-sets: ` + strings.Join(options, " or "),
+		)
+		close(imageDone)
+		// Return immediately, so we don't start downloading the image
+		return sb
+	}
 
 	// Start downloading and extracting the image
 	go func() {
