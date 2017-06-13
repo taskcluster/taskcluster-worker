@@ -13,7 +13,8 @@ import (
 var imageFetcher = fetcher.Combine(
 	// Allow fetching images from URL
 	fetcher.URL,
-	// TODO: Create fetcher that can fetch from queue
+	// Allow fetching images from queue artifacts
+	fetcher.Artifact,
 )
 
 type fetchImageContext struct {
