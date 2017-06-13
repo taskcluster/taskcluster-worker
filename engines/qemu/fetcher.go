@@ -34,6 +34,9 @@ func imageDownloader(c *runtime.TaskContext, image interface{}) image.Downloader
 		err = imageFetcher.Fetch(fetchImageContext{c}, image, &fetcher.FileReseter{File: target})
 		if err != nil {
 			defer target.Close()
+			if fetcher.IsBrokenReferenceError(err) {
+				return runtime.NewMalformedPayloadError("unable to fetch image, error:", err)
+			}
 			return err
 		}
 		return target.Close()
