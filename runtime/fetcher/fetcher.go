@@ -49,5 +49,6 @@ type Fetcher interface {
 
 	// Fetch a reference to a target, sending progress to Context as well
 	// as returning a human readable error message, if fetching fails.
+	// If the referenced resource doesn't exist it returns a BrokenReferenceError.
 	Fetch(context Context, reference interface{}, target WriteSeekReseter) error
 }

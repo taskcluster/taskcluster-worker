@@ -75,8 +75,11 @@ func fetchURLWithRetries(ctx context.Context, u string, target WriteSeekReseter)
 		// If err is a persistentError or retry greater than maxRetries
 		// then we return an error
 		retry++
-		if _, ok := err.(persistentError); ok || retry > maxRetries {
-			return fmt.Errorf("GET %s - %s", u, err)
+		if IsBrokenReferenceError(err) {
+			return err
+		}
+		if retry > maxRetries {
+			return newBrokenReferenceError("exhausted retries trying to GET '%s', last error: %s", u, err)
 		}
 
 		// Sleep before we retry
@@ -88,22 +91,11 @@ func fetchURLWithRetries(ctx context.Context, u string, target WriteSeekReseter)
 	}
 }
 
-// persistentError is used to wrap errors that shouldn't be retried
-type persistentError string
-
-func (e persistentError) Error() string {
-	return string(e)
-}
-
-func newPersistentError(format string, a ...interface{}) error {
-	return persistentError(fmt.Sprintf(format, a...))
-}
-
 func fetchURL(ctx context.Context, u string, target io.Writer) error {
 	// Create a new request
 	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
-		return newPersistentError("invalid URL: %s", err)
+		return newBrokenReferenceError("invalid URL: %s", err)
 	}
 
 	// Do the request with context
@@ -123,9 +115,9 @@ func fetchURL(ctx context.Context, u string, target io.Writer) error {
 			body = string(p)
 		}
 		if 400 <= res.StatusCode && res.StatusCode < 500 {
-			return newPersistentError("status: %d, body: %s", res.StatusCode, body)
+			return newBrokenReferenceError("failed to fetch %s, statusCode: %d, body: %s", u, res.StatusCode, body)
 		}
-		return fmt.Errorf("status: %d, body: %s", res.StatusCode, body)
+		return fmt.Errorf("statusCode: %d, body: %s", res.StatusCode, body)
 	}
 
 	// Otherwise copy body to target
