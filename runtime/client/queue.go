@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"regexp"
 	"time"
 
@@ -31,6 +32,7 @@ type Queue interface {
 	PollTaskUrls(string, string) (*queue.PollTaskUrlsResponse, error)
 	CancelTask(string) (*queue.TaskStatusResponse, error)
 	CreateArtifact(string, string, string, *queue.PostArtifactRequest) (*queue.PostArtifactResponse, error)
+	GetArtifact_SignedURL(string, string, string, time.Duration) (*url.URL, error)
 }
 
 // MockQueue is a mocked TaskCluster queue client.  Calls to methods exposed by the queue
@@ -101,6 +103,12 @@ func (m *MockQueue) ReportException(taskID, runID string, payload *queue.TaskExc
 func (m *MockQueue) CreateArtifact(taskID, runID, name string, payload *queue.PostArtifactRequest) (*queue.PostArtifactResponse, error) {
 	args := m.Called(taskID, runID, name, payload)
 	return args.Get(0).(*queue.PostArtifactResponse), args.Error(1)
+}
+
+// GetArtifact_SignedURL is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.GetArtifact_SignedURL
+func (m *MockQueue) GetArtifact_SignedURL(taskID, runID, name string, duration time.Duration) (*url.URL, error) {
+	args := m.Called(taskID, runID, name, duration)
+	return args.Get(0).(*url.URL), args.Error(1)
 }
 
 // PostAnyArtifactRequest matches if queue.PostArtifactRequest is called
