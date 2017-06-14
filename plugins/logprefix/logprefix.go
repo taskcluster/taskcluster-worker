@@ -71,10 +71,10 @@ func (p *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskP
 	taskCount := atomic.AddInt64(&p.taskCount, 1) - 1
 
 	keys := map[string]string{
-		"TaskId":            options.TaskContext.TaskID,
-		"RunId":             strconv.Itoa(options.TaskContext.RunID),
-		"HostBootTime":      p.bootTime,
-		"TasksSinceStartup": strconv.FormatInt(taskCount, 10),
+		"taskId":            options.TaskContext.TaskID,
+		"runId":             strconv.Itoa(options.TaskContext.RunID),
+		"hostBootTime":      p.bootTime,
+		"tasksSinceStartup": strconv.FormatInt(taskCount, 10),
 	}
 
 	// Construct list of all keys (so we can sort it)
