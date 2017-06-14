@@ -8,6 +8,7 @@ import (
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/httpbackoff"
 	tcindex "github.com/taskcluster/taskcluster-client-go/index"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
 type indexFetcher struct{}
@@ -16,9 +17,23 @@ type indexFetcher struct{}
 var Index Fetcher = indexFetcher{}
 
 var indexSchema = schematypes.Object{
+	Title: "Index Reference",
+	Description: util.Markdown(`
+		Object referencing a given artifact by name from a task indexed under the
+		given 'namespace'.
+	`),
 	Properties: schematypes.Properties{
-		"namespace": schematypes.String{},
-		"artifact":  schematypes.String{},
+		"namespace": schematypes.String{
+			Title:         "Namespace",
+			Description:   util.Markdown(`Index namespace under which to find the 'taskId' to fetch the artifact from`),
+			Pattern:       `^[a-zA-Z0-9_!~*'()%-]+$`,
+			MaximumLength: 1024,
+		},
+		"artifact": schematypes.String{
+			Title:         "Artifact",
+			Description:   util.Markdown(`Name of artifact to fetch.`),
+			MaximumLength: 1024,
+		},
 	},
 	Required: []string{"namespace", "artifact"},
 }
@@ -39,7 +54,7 @@ func (indexFetcher) NewReference(ctx Context, options interface{}) (Reference, e
 	// Lookup index
 	index := tcindex.New(nil)
 	// TODO: Rewrite the golang taskcluster client library, so this isn't so ugly
-	// TODO: Expose indexBaseUrl from TaskContext
+	// TODO: Expose indexBaseUrl from TaskContext, or expose Index client from context, so we can mock this...
 	index.Context = ctx
 	index.Authenticate = false
 	ns, err := index.FindTask(r.Namespace)
