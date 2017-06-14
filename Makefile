@@ -24,10 +24,14 @@ prechecks:
 	@test "0$(GO_MIN)" -ge 8 || (echo "Require go version 1.x, where x>=8; however found '$(GO_VERSION)'" && false)
 
 build:
-	go fmt $$(go list ./... | grep -v /vendor/)
+	CGO_ENABLED=$(CGO_ENABLED) go build
+
+install:
 	CGO_ENABLED=$(CGO_ENABLED) go install
 
 rebuild: prechecks build test lint
+
+reinstall: prechecks install test lint
 
 check: test
 	# tests should fail if go fmt results in uncommitted code

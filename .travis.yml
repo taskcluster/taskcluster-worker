@@ -38,8 +38,8 @@ install:
 
 script:
 # note - below, || is used rather than && to ensure we only get zero exit code if all is ok
-  - "test $GOOS != windows || make build"
-  - "test $GOOS == windows || (make prechecks build check && ${GOPATH}/bin/gotestcover -v -coverprofile=coverage.report $(go list ./... | grep -v /vendor/) && go tool cover -func=coverage.report)"
+  - "test $GOOS != windows || make install"
+  - "test $GOOS == windows || (make prechecks install check && ${GOPATH}/bin/gotestcover -v -coverprofile=coverage.report $(go list ./... | grep -v /vendor/) && go tool cover -func=coverage.report)"
 
 after_script:
   - "test $GOOS == windows || ($HOME/gopath/bin/goveralls -coverprofile=coverage.report -service=travis-ci)"
