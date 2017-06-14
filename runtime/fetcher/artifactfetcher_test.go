@@ -15,7 +15,7 @@ func TestArtifactFetcherScopesPublic(t *testing.T) {
 		"artifact": "public/logs/live.log",
 	})
 	assert.NoError(t, err)
-	assert.EqualValues(t, [][]string{[]string{}}, ref.Scopes())
+	assert.EqualValues(t, [][]string{{}}, ref.Scopes())
 }
 
 func TestArtifactFetcherScopesPrivate(t *testing.T) {
@@ -26,5 +26,5 @@ func TestArtifactFetcherScopesPrivate(t *testing.T) {
 		"artifact": "private/logs/live.log",
 	})
 	assert.NoError(t, err)
-	assert.EqualValues(t, [][]string{[]string{"queue:get-artifact:private/logs/live.log"}}, ref.Scopes())
+	assert.EqualValues(t, [][]string{{"queue:get-artifact:private/logs/live.log"}}, ref.Scopes())
 }
