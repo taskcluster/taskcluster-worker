@@ -2,6 +2,7 @@ package qemuengine
 
 import (
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -11,6 +12,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/network"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/fetcher"
 )
 
 type sandboxBuilder struct {
@@ -51,33 +53,59 @@ func newSandboxBuilder(
 		sb.machine = vm.NewMachine(payload.Machine)
 	}
 
-	// Check that task.scopes satisfies one of required scope-sets
-	scopeSets := imageFetcher.Scopes(payload.Image)
-	if !c.HasScopes(scopeSets...) {
-		var options []string
-		for _, scopes := range scopeSets {
-			options = append(options, strings.Join(scopes, ", "))
-		}
-		sb.imageError = runtime.NewMalformedPayloadError(
-			`task.scopes must satisfy at-least one of the scope-sets: ` + strings.Join(options, " or "),
-		)
-		close(imageDone)
-		// Return immediately, so we don't start downloading the image
-		return sb
-	}
-
 	// Start downloading and extracting the image
 	go func() {
+		var scopeSets [][]string
+		var inst *image.Instance
+
+		ctx := &fetchImageContext{c}
+		ref, err := imageFetcher.NewReference(ctx, payload.Image)
+		if err != nil {
+			goto handleErr
+		}
+
+		// Check that task.scopes satisfies one of required scope-sets
+		scopeSets = ref.Scopes()
+		if !c.HasScopes(scopeSets...) {
+			var options []string
+			for _, scopes := range scopeSets {
+				options = append(options, strings.Join(scopes, ", "))
+			}
+			err = runtime.NewMalformedPayloadError(
+				`task.scopes must satisfy at-least one of the scope-sets: ` + strings.Join(options, " or "),
+			)
+			goto handleErr
+		}
+
 		debug("fetching image: %#v (if not already present)", payload.Image)
-		inst, err := e.imageManager.Instance(imageFetcher.HashKey(payload.Image), imageDownloader(c, payload.Image))
+		inst, err = e.imageManager.Instance(ref.HashKey(), func(imageFile string) error {
+			target, cerr := os.Create(imageFile)
+			if cerr != nil {
+				return cerr
+			}
+			cerr = ref.Fetch(ctx, &fetcher.FileReseter{File: target})
+			if cerr != nil {
+				defer target.Close()
+				return cerr
+			}
+			return target.Close()
+		})
 		debug("fetched image: %#v", payload.Image)
+
+	handleErr:
+		// Transform broken reference to malformed payload
+		if fetcher.IsBrokenReferenceError(err) {
+			err = runtime.NewMalformedPayloadError("unable to fetch image, error:", err)
+		}
 
 		sb.m.Lock()
 		// if already discarded then we don't set the image... instead we release it
 		// immediately. We don't want to risk leaking an image and run out of
 		// storage, as the GC won't be able to dispose it.
 		if sb.discarded {
-			inst.Release()
+			if inst != nil {
+				inst.Release()
+			}
 		} else {
 			sb.image = inst
 			sb.imageError = err

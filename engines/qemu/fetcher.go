@@ -2,9 +2,7 @@ package qemuengine
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/fetcher"
 )
@@ -23,22 +21,4 @@ type fetchImageContext struct {
 
 func (c fetchImageContext) Progress(description string, percent float64) {
 	c.Log(fmt.Sprintf("Fetching image: %s - %f %%", description, percent))
-}
-
-func imageDownloader(c *runtime.TaskContext, image interface{}) image.Downloader {
-	return func(imageFile string) error {
-		target, err := os.Create(imageFile)
-		if err != nil {
-			return err
-		}
-		err = imageFetcher.Fetch(fetchImageContext{c}, image, &fetcher.FileReseter{File: target})
-		if err != nil {
-			defer target.Close()
-			if fetcher.IsBrokenReferenceError(err) {
-				return runtime.NewMalformedPayloadError("unable to fetch image, error:", err)
-			}
-			return err
-		}
-		return target.Close()
-	}
 }
