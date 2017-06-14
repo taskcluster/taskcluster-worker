@@ -22,5 +22,5 @@ type fetchImageContext struct {
 }
 
 func (c fetchImageContext) Progress(description string, percent float64) {
-	c.Log(fmt.Sprintf("Fetching image: %s - %f %%", description, percent))
+	c.Log(fmt.Sprintf("Fetching image: %s - %.0f %%", description, percent))
 }
