@@ -33,6 +33,7 @@ import (
 	_ "github.com/taskcluster/taskcluster-worker/commands/schema"
 	_ "github.com/taskcluster/taskcluster-worker/commands/shell"
 	_ "github.com/taskcluster/taskcluster-worker/commands/shell-server"
+	_ "github.com/taskcluster/taskcluster-worker/commands/version"
 	_ "github.com/taskcluster/taskcluster-worker/commands/work"
 	_ "github.com/taskcluster/taskcluster-worker/config/abs"
 	_ "github.com/taskcluster/taskcluster-worker/config/configtest"
