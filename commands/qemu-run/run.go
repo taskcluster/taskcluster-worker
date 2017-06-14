@@ -85,6 +85,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 		if ferr != nil {
 			return ferr
 		}
+		defer f.Close()
 		_, ferr = io.Copy(target, f)
 		return ferr
 	})
