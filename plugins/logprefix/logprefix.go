@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/host"
 	schematypes "github.com/taskcluster/go-schematypes"
+	"github.com/taskcluster/taskcluster-worker/commands/version"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 )
 
@@ -35,6 +36,15 @@ func (provider) ConfigSchema() schematypes.Schema {
 func (provider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
 	keys := make(map[string]string)
 	schematypes.MustValidateAndMap(configSchema, options.Config, &keys)
+
+	// Add version and revision, if these exist and don't overwrite configured
+	// keys
+	if _, ok := keys["version"]; ok && version.Version() != "" {
+		keys["version"] = version.Version()
+	}
+	if _, ok := keys["revision"]; ok && version.Revision() != "" {
+		keys["revision"] = version.Revision()
+	}
 
 	// Print a neat message to make debugging config easier.
 	// Presumably, config files inject stuff into this section using
