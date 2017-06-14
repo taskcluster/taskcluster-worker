@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -112,12 +113,14 @@ func (img *image) loadImage(download Downloader, done chan<- struct{}) {
 	// Create image folder
 	err := os.Mkdir(img.folder, 0777)
 	if err != nil {
+		err = errors.Wrap(err, "failed to create image folder")
 		goto cleanup
 	}
 
 	// Create image file
 	imageFile, err = os.Create(imageFilePath)
 	if err != nil {
+		err = errors.Wrap(err, "failed to create image file")
 		goto cleanup
 	}
 
@@ -131,6 +134,7 @@ func (img *image) loadImage(download Downloader, done chan<- struct{}) {
 	err = imageFile.Close()
 	imageFile = nil // don't close twice
 	if err != nil {
+		err = errors.Wrap(err, "failed to close image file")
 		goto cleanup
 	}
 
