@@ -14,7 +14,7 @@ import (
 
 type artifactFetcher struct{}
 
-// Artifact is a Fetcher for downloading from an taskId, artifact tuple
+// Artifact is a Fetcher for downloading from an (taskId, artifact) tuple
 var Artifact Fetcher = artifactFetcher{}
 
 var artifactSchema = schematypes.Object{
@@ -80,6 +80,7 @@ func (r *artifactReference) Fetch(ctx Context, target WriteSeekReseter) error {
 	// Construct URL
 	var u string
 	if r.isPublic() {
+		// TODO: Get queueBaseUrl from TaskContext somehow...
 		u = fmt.Sprintf("https://queue.taskcluster.net/v1/task/%s/runs/%d/artifacts/%s", r.TaskID, r.RunID, r.Artifact)
 	} else {
 		u2, err := ctx.Queue().GetArtifact_SignedURL(r.TaskID, strconv.Itoa(r.RunID), r.Artifact, 25*time.Minute)
