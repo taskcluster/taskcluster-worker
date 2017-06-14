@@ -1,7 +1,6 @@
 package fetcher
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -60,7 +59,7 @@ func (u *urlReference) Fetch(ctx Context, target WriteSeekReseter) error {
 
 // fetchURLWithRetries will download URL u to target with retries, using subject
 // in error messages and progress updates
-func fetchURLWithRetries(ctx context.Context, subject, u string, target WriteSeekReseter) error {
+func fetchURLWithRetries(ctx Context, subject, u string, target WriteSeekReseter) error {
 	retry := 0
 	for {
 		// Fetch URL, if no error then we're done
@@ -91,7 +90,7 @@ func fetchURLWithRetries(ctx context.Context, subject, u string, target WriteSee
 	}
 }
 
-func fetchURL(ctx context.Context, subject, u string, target io.Writer) error {
+func fetchURL(ctx Context, subject, u string, target io.Writer) error {
 	// Create a new request
 	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -120,8 +119,28 @@ func fetchURL(ctx context.Context, subject, u string, target io.Writer) error {
 		return fmt.Errorf("statusCode: %d, body: %s", res.StatusCode, body)
 	}
 
-	// Otherwise copy body to target
-	_, err = io.Copy(target, res.Body)
+	// Report download progress
+	r := ioext.TellReader{Reader: res.Body}
+	// We only progress, if some content length is provided
+	if res.ContentLength != -1 {
+		done := make(chan struct{})
+		defer close(done)
+		go func() {
+			for {
+				select {
+				case <-time.After(10 * time.Second):
+					ctx.Progress(subject, float64(r.Tell())/float64(res.ContentLength))
+				case <-ctx.Done():
+					return
+				case <-done:
+					return
+				}
+			}
+		}()
+	}
+
+	// Copy body to target
+	_, err = io.Copy(target, &r)
 	if err != nil {
 		return fmt.Errorf("connection broken: %s", err)
 	}
