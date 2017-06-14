@@ -2,6 +2,7 @@ package qemurun
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,7 +12,6 @@ import (
 
 	graceful "gopkg.in/tylerb/graceful.v1"
 
-	"github.com/cespare/cp"
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
@@ -80,8 +80,13 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 
 	// Get an instance of the image
 	monitor.Info("Creating instance of image")
-	image, err := manager.Instance("image", func(target string) error {
-		return cp.CopyFile(target, imageFile)
+	image, err := manager.Instance("image", func(target *os.File) error {
+		f, ferr := os.Open(imageFile)
+		if ferr != nil {
+			return ferr
+		}
+		_, ferr = io.Copy(target, f)
+		return ferr
 	})
 	if err != nil {
 		monitor.Panic("Failed to create instance of image, error: ", err)
