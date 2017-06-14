@@ -54,22 +54,15 @@ func DownloadImage(url string) Downloader {
 	//       downloading from a URL to a file or stream with retries, etc. is a
 	//       common thing. Using range headers for retries and getting integrity
 	//       checks right is hard.
-	return func(target string) error {
-		// Create output file
-		out, err := os.Create(target)
-		if err != nil {
-			return err
-		}
-		defer out.Close()
-
+	return func(target *os.File) error {
 		attempt := 1
 		for {
 			// Move to start of file and truncate the file
-			_, err = out.Seek(0, 0)
+			_, err := target.Seek(0, 0)
 			if err != nil {
 				panic("Unable to seek to file start")
 			}
-			err = out.Truncate(0)
+			err = target.Truncate(0)
 			if err != nil {
 				panic("Unable to truncate file")
 			}
@@ -93,7 +86,7 @@ func DownloadImage(url string) Downloader {
 			// TODO: Make integrity check with x-amx-meta-content-sha256 (if present)
 			// TODO: Use range headers for retry, if supported and checksum for
 			//       integrity check is present (otherwise request from start)
-			_, err = io.Copy(out, res.Body)
+			_, err = io.Copy(target, res.Body)
 			res.Body.Close()
 			if err == nil {
 				return nil
