@@ -22,6 +22,22 @@ func TestLogPrefixAddTaskID(*testing.T) {
 	}.Test()
 }
 
+func TestLogPrefixAddTaskCount(*testing.T) {
+	plugintest.Case{
+		Payload: `{
+			"delay": 0,
+			"function": "true",
+			"argument": ""
+		}`,
+		TaskID:        "Ghv98GSxQL2dR7eD8hXbMw",
+		PluginConfig:  `{}`,
+		Plugin:        "logprefix",
+		PluginSuccess: true,
+		EngineSuccess: true,
+		MatchLog:      "TasksSinceBoot",
+	}.Test()
+}
+
 func TestLogPrefixConfiguredKeys(*testing.T) {
 	plugintest.Case{
 		Payload: `{
