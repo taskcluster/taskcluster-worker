@@ -78,17 +78,8 @@ func newSandboxBuilder(
 		}
 
 		debug("fetching image: %#v (if not already present)", payload.Image)
-		inst, err = e.imageManager.Instance(ref.HashKey(), func(imageFile string) error {
-			target, cerr := os.Create(imageFile)
-			if cerr != nil {
-				return cerr
-			}
-			cerr = ref.Fetch(ctx, &fetcher.FileReseter{File: target})
-			if cerr != nil {
-				defer target.Close()
-				return cerr
-			}
-			return target.Close()
+		inst, err = e.imageManager.Instance(ref.HashKey(), func(imageFile *os.File) error {
+			return ref.Fetch(ctx, &fetcher.FileReseter{File: imageFile})
 		})
 		debug("fetched image: %#v", payload.Image)
 
