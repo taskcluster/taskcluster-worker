@@ -34,7 +34,7 @@ func TestLogPrefixAddTaskCount(*testing.T) {
 		Plugin:        "logprefix",
 		PluginSuccess: true,
 		EngineSuccess: true,
-		MatchLog:      "TasksSinceBoot",
+		MatchLog:      "TasksSinceStartup",
 	}.Test()
 }
 
