@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/pkg/errors"
@@ -18,8 +19,9 @@ type provider struct {
 
 type plugin struct {
 	plugins.PluginBase
-	keys     map[string]string
-	bootTime string
+	keys      map[string]string
+	bootTime  string
+	taskCount int64 // Count number of tasks processed
 }
 
 func init() {
@@ -54,10 +56,15 @@ func (provider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error)
 }
 
 func (p *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
+	// Increment number of tasks processed, get the count and subtract one as we
+	// want to report zero for the first task
+	taskCount := atomic.AddInt64(&p.taskCount, 1) - 1
+
 	keys := map[string]string{
-		"TaskId":       options.TaskContext.TaskID,
-		"RunId":        strconv.Itoa(options.TaskContext.RunID),
-		"HostBootTime": p.bootTime,
+		"TaskId":         options.TaskContext.TaskID,
+		"RunId":          strconv.Itoa(options.TaskContext.RunID),
+		"HostBootTime":   p.bootTime,
+		"TasksSinceBoot": strconv.FormatInt(taskCount, 10),
 	}
 
 	// Construct list of all keys (so we can sort it)
