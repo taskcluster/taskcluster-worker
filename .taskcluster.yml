@@ -49,7 +49,7 @@ tasks:
           git clean -d -f -e '/vendor/*' -x
           # sometimes `govendor sync` fails first time, so run again, if fails first time
           govendor sync || govendor sync
-          make rebuild check
+          make reinstall check
       artifacts:
         public/build/taskcluster-worker-linux-amd64:
           path: "/go/bin/taskcluster-worker"
@@ -101,7 +101,7 @@ tasks:
         - ':: sometimes `govendor sync` fails first time, so run again, if fails first time'
         - 'govendor sync || govendor sync'
         - 'C:\taskcluster-worker-test-creds.cmd'
-        - '"C:\mozilla-build\msys\bin\bash.exe" --login -c "cd ${GOPATH}/src/github.com/taskcluster/taskcluster-worker && make rebuild check"'
+        - '"C:\mozilla-build\msys\bin\bash.exe" --login -c "cd ${GOPATH}/src/github.com/taskcluster/taskcluster-worker && make reinstall check"'
       mounts:
         - cacheName: taskcluster-worker-checkout-1
           directory: gopath/src
@@ -157,7 +157,7 @@ tasks:
             git clean -d -f -e '/vendor/*' -x
             # sometimes `govendor sync` fails first time, so run again, if fails first time
             govendor sync || govendor sync
-            make rebuild check
+            make reinstall check
             cd ../../../../..
             mkdir -p public/build
             mv "${GOPATH}/bin/taskcluster-worker" public/build/taskcluster-worker-darwin-amd64
@@ -237,7 +237,7 @@ tasks:
           # sometimes `govendor sync` fails first time, so run again, if fails first time
           govendor sync || govendor sync
           # build tc-worker
-          make build
+          make install
           # generate docs
           taskcluster-worker schema config -o docs/config-schema.json
           # install taskcluster-lib-docs

@@ -13,6 +13,8 @@ GO_MIN := $(shell echo "$(GO_VERSION)" | cut -f2 -d'.')
 
 uname := $(shell uname)
 CGO_ENABLED := 1
+LDFLAGS := "-X github.com/taskcluster/taskcluster-worker/commands/version.version=`git tag -l 'v*.*.*' --points-at HEAD | head -n1` \
+						-X github.com/taskcluster/taskcluster-worker/commands/version.revision=`git rev-parse HEAD`"
 
 .PHONY: all prechecks build rebuild check test dev-test tc-worker-env tc-worker tc-worker-env-tests
 
@@ -24,10 +26,14 @@ prechecks:
 	@test "0$(GO_MIN)" -ge 8 || (echo "Require go version 1.x, where x>=8; however found '$(GO_VERSION)'" && false)
 
 build:
-	go fmt $$(go list ./... | grep -v /vendor/)
-	CGO_ENABLED=$(CGO_ENABLED) go install
+	CGO_ENABLED=$(CGO_ENABLED) go build -ldflags $(LDFLAGS)
+
+install:
+	CGO_ENABLED=$(CGO_ENABLED) go install -ldflags $(LDFLAGS)
 
 rebuild: prechecks build test lint
+
+reinstall: prechecks install test lint
 
 check: test
 	# tests should fail if go fmt results in uncommitted code

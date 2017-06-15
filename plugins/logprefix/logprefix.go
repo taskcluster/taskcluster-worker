@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/host"
 	schematypes "github.com/taskcluster/go-schematypes"
+	"github.com/taskcluster/taskcluster-worker/commands/version"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 )
 
@@ -36,6 +37,15 @@ func (provider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error)
 	keys := make(map[string]string)
 	schematypes.MustValidateAndMap(configSchema, options.Config, &keys)
 
+	// Add version and revision, if these exist and don't overwrite configured
+	// keys
+	if _, ok := keys["version"]; ok && version.Version() != "" {
+		keys["version"] = version.Version()
+	}
+	if _, ok := keys["revision"]; ok && version.Revision() != "" {
+		keys["revision"] = version.Revision()
+	}
+
 	// Print a neat message to make debugging config easier.
 	// Presumably, config files inject stuff into this section using
 	// transforms, so it's nice to have some log.
@@ -61,10 +71,10 @@ func (p *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskP
 	taskCount := atomic.AddInt64(&p.taskCount, 1) - 1
 
 	keys := map[string]string{
-		"TaskId":            options.TaskContext.TaskID,
-		"RunId":             strconv.Itoa(options.TaskContext.RunID),
-		"HostBootTime":      p.bootTime,
-		"TasksSinceStartup": strconv.FormatInt(taskCount, 10),
+		"taskId":            options.TaskContext.TaskID,
+		"runId":             strconv.Itoa(options.TaskContext.RunID),
+		"hostBootTime":      p.bootTime,
+		"tasksSinceStartup": strconv.FormatInt(taskCount, 10),
 	}
 
 	// Construct list of all keys (so we can sort it)

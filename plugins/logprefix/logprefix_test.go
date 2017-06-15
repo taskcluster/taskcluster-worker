@@ -34,7 +34,7 @@ func TestLogPrefixAddTaskCount(*testing.T) {
 		Plugin:        "logprefix",
 		PluginSuccess: true,
 		EngineSuccess: true,
-		MatchLog:      "TasksSinceBoot",
+		MatchLog:      "tasksSinceStartup",
 	}.Test()
 }
 
@@ -83,7 +83,7 @@ func TestLogPrefixOverwriteBuiltin(*testing.T) {
 		}`,
 		TaskID: "Ghv98GSxQL2dR7eD8hXbMw",
 		PluginConfig: `{
-			"TaskId": "fakeTaskId"
+			"taskId": "fakeTaskId"
 		}`,
 		Plugin:        "logprefix",
 		PluginSuccess: true,
