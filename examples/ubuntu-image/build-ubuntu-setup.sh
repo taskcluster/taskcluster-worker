@@ -9,7 +9,8 @@ ISO=`mktemp`;
 TCWORKER=`mktemp`;
 
 echo '### Building taskcluster-worker for host (for building image)'
-go build -o "$TCWORKER" github.com/taskcluster/taskcluster-worker
+make build -C "$DIR/../.."
+mv "$DIR/../../taskcluster-worker" "$TCWORKER"
 
 echo '### Packaging data.iso'
 cp "$DIR/data"/* "$DATA/"

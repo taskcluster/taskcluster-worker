@@ -54,7 +54,7 @@ tc-worker-env:
 	docker build -t taskcluster/tc-worker-env -f tc-worker-env.Dockerfile .
 
 tc-worker:
-	CGO_ENABLED=$(CGO_ENABLED) GOARCH=amd64 ./docker-tests.sh go build
+	CGO_ENABLED=$(CGO_ENABLED) GOARCH=amd64 ./docker-tests.sh go build -ldflags $(LDFLAGS)
 	docker build -t taskcluster/tc-worker -f tc-worker.Dockerfile .
 
 tc-worker-env-tests:
