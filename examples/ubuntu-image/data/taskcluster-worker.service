@@ -1,6 +1,7 @@
 [Unit]
 Description=QEMU guest tools for taskcluster-worker
-After=network-online.target
+After=docker.service
+Requires=network-online.target
 
 [Service]
 Type=simple
