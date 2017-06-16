@@ -2,7 +2,7 @@ package fetcher
 
 import "fmt"
 
-// BrokenReferenceError is used to communicated references that are broken.
+// BrokenReferenceError is used to communicate references that are broken.
 // Error message shall be some human-readable explanation of why fetching failed
 // and is expected to fail consistently.
 type BrokenReferenceError struct {
