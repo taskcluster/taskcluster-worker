@@ -366,6 +366,12 @@
 			"revisionTime": "2017-04-13T22:51:09Z"
 		},
 		{
+			"checksumSHA1": "R32NrZ6Q3DDlu+LNdi4AnnjTsAg=",
+			"path": "github.com/taskcluster/taskcluster-client-go/index",
+			"revision": "ccd1bb49e35fb0bd48c510d144fd5f2d054e815a",
+			"revisionTime": "2017-06-12T10:23:26Z"
+		},
+		{
 			"checksumSHA1": "bNFuBG/RryZaHXV9krlZyU7KrGQ=",
 			"path": "github.com/taskcluster/taskcluster-client-go/queue",
 			"revision": "23a058fed14aecf11e5f0a57c9f3bc7f31adc725",

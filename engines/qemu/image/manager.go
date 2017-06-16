@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -21,10 +22,10 @@ type Manager struct {
 	monitor     runtime.Monitor
 }
 
-// Downloader is a function capable of downloading an image to an imageFile.
+// Downloader is a function capable of downloading an image to an *os.File.
 // The downloader writes the image file to the imageFile supplied, and returns
 // an error if all retries etc. fails.
-type Downloader func(imageFile string) error
+type Downloader func(imageFile *os.File) error
 
 // image represents an image of which multiple instances can be created
 type image struct {
@@ -106,11 +107,20 @@ func (m *Manager) Instance(imageID string, download Downloader) (*Instance, erro
 }
 
 func (img *image) loadImage(download Downloader, done chan<- struct{}) {
-	imageFile := filepath.Join(img.manager.imageFolder, slugid.Nice()+".tar.zst")
+	imageFilePath := filepath.Join(img.manager.imageFolder, slugid.Nice()+".tar.zst")
+	var imageFile *os.File
 
 	// Create image folder
 	err := os.Mkdir(img.folder, 0777)
 	if err != nil {
+		err = errors.Wrap(err, "failed to create image folder")
+		goto cleanup
+	}
+
+	// Create image file
+	imageFile, err = os.Create(imageFilePath)
+	if err != nil {
+		err = errors.Wrap(err, "failed to create image file")
 		goto cleanup
 	}
 
@@ -120,21 +130,34 @@ func (img *image) loadImage(download Downloader, done chan<- struct{}) {
 		goto cleanup
 	}
 
+	// close image file
+	err = imageFile.Close()
+	imageFile = nil // don't close twice
+	if err != nil {
+		err = errors.Wrap(err, "failed to close image file")
+		goto cleanup
+	}
+
 	// Extract image and validate image
-	img.machine, err = extractImage(imageFile, img.folder)
+	img.machine, err = extractImage(imageFilePath, img.folder)
 	if err != nil {
 		goto cleanup
 	}
 
 	// Clean up if there is any error
 cleanup:
+	// Close image file, if still open
+	if imageFile != nil {
+		imageFile.Close()
+	}
+
 	// Delete the image file
-	e := os.RemoveAll(imageFile)
+	e := os.RemoveAll(imageFilePath)
 	if e != nil {
 		img.manager.monitor.ReportWarning(e, "Failed to delete image file")
 	}
 
-	// If there was an err, set ima.err and remove it from cache
+	// If there was an err, set img.err and remove it from cache
 	if err != nil {
 		img.err = err
 		// We should always remove a failed attempt from the cache

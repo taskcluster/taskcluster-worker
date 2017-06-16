@@ -8,7 +8,6 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/network"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime"
-	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
 type engine struct {
@@ -105,22 +104,14 @@ func (e *engine) Capabilities() engines.Capabilities {
 }
 
 type payloadType struct {
-	Image   string      `json:"image"`
+	Image   interface{} `json:"image"`
 	Command []string    `json:"command"`
 	Machine interface{} `json:"machine,omitempty"`
 }
 
 var payloadSchema = schematypes.Object{
 	Properties: schematypes.Properties{
-		"image": schematypes.URI{
-			Title: "Image to download",
-			Description: util.Markdown(`
-				URL to an image file. This is a zstd compressed
-				tar-archive containing a raw disk image 'disk.img', a qcow2
-				overlay 'layer.qcow2' and a machine definition file
-				'machine.json'. Refer to engine documentation for more details.
-			`),
-		},
+		"image": imageFetcher.Schema(),
 		"command": schematypes.Array{
 			Title:       "Command to run",
 			Description: `Command and arguments to execute on the guest.`,

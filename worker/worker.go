@@ -335,6 +335,7 @@ func (w *Worker) processClaim(claim taskClaim) {
 			Created:  time.Time(claim.Task.Created),
 			Deadline: time.Time(claim.Task.Deadline),
 			Expires:  time.Time(claim.Task.Expires),
+			Scopes:   claim.Task.Scopes,
 		},
 	})
 
