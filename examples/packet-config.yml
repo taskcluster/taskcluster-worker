@@ -15,11 +15,12 @@ config:
     native:
       createUser:     false
     qemu:
-      maxConcurrency: 2
-      imageFolder:    /mnt/images
-      socketFolder:   /mnt/sockets
-      machineOptions:
-        maxMemory:    4096
+      limits:
+        defaultThreads: 1
+        maxCPUs:        2
+        maxMemory:      4096
+      network:
+        subnets:      2
   minimumDiskSpace:   10000000  # 10 GB
   minimumMemory:      1000000   # 1 GB
   monitor:
