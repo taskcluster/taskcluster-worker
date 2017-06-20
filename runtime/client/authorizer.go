@@ -16,22 +16,22 @@ import (
 // An Authorizer is an interface for an object that can sign a request with
 // taskcluster credentials.
 type Authorizer interface {
-	SignedHeader(method string, URL *url.URL, payload json.RawMessage) (string, error)
+	SignHeader(method string, URL *url.URL, payload json.RawMessage) (string, error)
 	SignURL(URL *url.URL, expiration time.Duration) (*url.URL, error)
 	WithAuthorizedScopes(scopes ...string) Authorizer
 }
 
 type authorizer struct {
-	getCredentials   func() (clientID, accessToken, certificate string, err error)
+	getCredentials   func() (clientID string, accessToken string, certificate string, err error)
 	authorizedScopes []string
 }
 
 // NewAuthorizer returns an authorizer that signs with credntials from getCredentials
-func NewAuthorizer(getCredentials func() (clientID, accessToken, certificate string, err error)) Authorizer {
+func NewAuthorizer(getCredentials func() (clientID string, accessToken string, certificate string, err error)) Authorizer {
 	return &authorizer{getCredentials, nil}
 }
 
-func (a *authorizer) SignedHeader(method string, URL *url.URL, payload json.RawMessage) (string, error) {
+func (a *authorizer) SignHeader(method string, URL *url.URL, payload json.RawMessage) (string, error) {
 	clientID, accessToken, certificate, err := a.getCredentials()
 	if err != nil {
 		return "", err
@@ -65,7 +65,7 @@ func (a *authorizer) SignedHeader(method string, URL *url.URL, payload json.RawM
 		ext["certificate"] = json.RawMessage(certificate)
 	}
 	if a.authorizedScopes != nil {
-		ext["authorizedScopes"], _ = json.Marshal(a.authorizedScopes)
+		ext["authorizedScopes"] = a.authorizedScopes
 	}
 	if len(ext) != 0 {
 		data, _ := json.Marshal(ext)
@@ -116,7 +116,7 @@ func (a *authorizer) SignURL(URL *url.URL, expiration time.Duration) (*url.URL, 
 		ext["certificate"] = json.RawMessage(certificate)
 	}
 	if a.authorizedScopes != nil {
-		ext["authorizedScopes"], _ = json.Marshal(a.authorizedScopes)
+		ext["authorizedScopes"] = a.authorizedScopes
 	}
 	if len(ext) != 0 {
 		data, _ := json.Marshal(ext)
