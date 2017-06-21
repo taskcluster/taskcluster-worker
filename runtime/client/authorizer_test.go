@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	got "github.com/taskcluster/go-got"
@@ -51,7 +52,7 @@ func TestIntersectScopes(t *testing.T) {
 	))
 }
 
-func testAuthorizer(secret string, clientScopes, requiredScopes, authorizedScopes []string, expectOk bool) func(*testing.T) {
+func testAuthorizerSignHeader(secret string, clientScopes, requiredScopes, authorizedScopes []string, expectOk bool) func(*testing.T) {
 	return func(t *testing.T) {
 		u, _ := url.Parse("https://auth.taskcluster.net/v1/test-authenticate")
 		a := NewAuthorizer(func() (string, string, string, error) {
@@ -86,13 +87,48 @@ func testAuthorizer(secret string, clientScopes, requiredScopes, authorizedScope
 	}
 }
 
-func TestAuthorizer(t *testing.T) {
-	t.Run("empty scopes", testAuthorizer("no-secret", []string{}, []string{}, nil, true))
-	t.Run("a, b", testAuthorizer("no-secret", []string{"a", "b"}, []string{}, nil, true))
-	t.Run("a required", testAuthorizer("no-secret", []string{"a", "b"}, []string{"a"}, nil, true))
-	t.Run("aa cover by a*", testAuthorizer("no-secret", []string{"a*", "b"}, []string{"aa"}, nil, true))
-	t.Run("authorizedScopes", testAuthorizer("no-secret", []string{"a", "b"}, []string{"a"}, []string{"a"}, true))
-	t.Run("authorizedScopes w. aa*", testAuthorizer("no-secret", []string{"a*", "b"}, []string{"aa"}, []string{"aa*"}, true))
-	t.Run("authorizedScopes fail", testAuthorizer("no-secret", []string{"a*", "b"}, []string{"aa"}, []string{"a"}, false))
-	t.Run("a, b - wrong key", testAuthorizer("wrong-secret", []string{"a", "b"}, []string{}, nil, false))
+func TestAuthorizerSignHeader(t *testing.T) {
+	t.Run("empty scopes", testAuthorizerSignHeader("no-secret", []string{}, []string{}, nil, true))
+	t.Run("a, b", testAuthorizerSignHeader("no-secret", []string{"a", "b"}, []string{}, nil, true))
+	t.Run("a required", testAuthorizerSignHeader("no-secret", []string{"a", "b"}, []string{"a"}, nil, true))
+	t.Run("aa cover by a*", testAuthorizerSignHeader("no-secret", []string{"a*", "b"}, []string{"aa"}, nil, true))
+	t.Run("authorizedScopes", testAuthorizerSignHeader("no-secret", []string{"a", "b"}, []string{"a"}, []string{"a"}, true))
+	t.Run("authorizedScopes w. aa*", testAuthorizerSignHeader("no-secret", []string{"a*", "b"}, []string{"aa"}, []string{"aa*"}, true))
+	t.Run("authorizedScopes fail", testAuthorizerSignHeader("no-secret", []string{"a*", "b"}, []string{"aa"}, []string{"a"}, false))
+	t.Run("a, b - wrong key", testAuthorizerSignHeader("wrong-secret", []string{"a", "b"}, []string{}, nil, false))
+}
+
+func testAuthorizerSignURL(secret string, authorizedScopes []string, expectOk bool) func(*testing.T) {
+	return func(t *testing.T) {
+		u, _ := url.Parse("https://auth.taskcluster.net/v1/test-authenticate-get")
+		a := NewAuthorizer(func() (string, string, string, error) {
+			return "tester", secret, "", nil
+		})
+		if authorizedScopes != nil {
+			a = a.WithAuthorizedScopes(authorizedScopes...)
+		}
+		u2, err := a.SignURL(u, 15*time.Minute)
+		assert.NoError(t, err, "SignURL failed")
+		g := got.New()
+		res, err := g.Get(u2.String()).Send()
+		if expectOk {
+			assert.NoError(t, err, "request failed")
+			if e, ok := err.(got.BadResponseCodeError); ok {
+				t.Error(string(e.Body))
+			}
+			if err == nil {
+				assert.Equal(t, http.StatusOK, res.StatusCode, "expected 200 ok")
+			}
+		} else {
+			if _, ok := err.(got.BadResponseCodeError); !ok {
+				assert.Fail(t, "Expected bad response code")
+			}
+		}
+	}
+}
+
+func TestAuthorizerSignURL(t *testing.T) {
+	t.Run("simple", testAuthorizerSignURL("no-secret", nil, true))
+	t.Run("wrong secret", testAuthorizerSignURL("wrong-secret", nil, false))
+	t.Run("authorizedScopes", testAuthorizerSignURL("no-secret", []string{"test:auth*"}, true))
 }
