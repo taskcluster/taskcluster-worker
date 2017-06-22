@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/pkg/errors"
 	schematypes "github.com/taskcluster/go-schematypes"
@@ -74,26 +75,28 @@ func (p *taskPlugin) BuildSandbox(sandboxBuilder engines.SandboxBuilder) error {
 }
 
 func (p *taskPlugin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-
 	// Parse request URL
-	u, err := url.Parse("https://" + r.URL.Path)
+	raw := r.URL.Path
+	if strings.HasPrefix(raw, "/") {
+		raw = raw[1:]
+	}
+	u, err := url.Parse("https://" + raw)
 	if err != nil {
 		debug("bad URL: '%s'", r.URL.Path)
-		p.context.LogError(fmt.Sprintf("tcproxy received path: '%s' which it failed to parse as a URL", r.URL.Path))
+		p.context.LogError(fmt.Sprintf("tcproxy received path: '%s' which it failed to parse as a URL", raw))
 		w.WriteHeader(http.StatusBadRequest)
 		data, _ := json.MarshalIndent(struct {
 			Code    string `json:"code"`
 			Message string `json:"message"`
 		}{
 			Code:    "InvalidRequestUrl",
-			Message: "tcproxy assumes <path> is on the form <hostname>/<resource>[?<query>], instead received: '" + r.URL.Path + "'",
+			Message: "tcproxy assumes <path> is on the form <hostname>/<resource>[?<query>], instead received: '" + raw + "'",
 		}, "", "  ")
 		w.Write(data)
 		return
 	}
 
-	debug("proxing: '%s'", r.URL.Path)
+	debug("proxing: '%s'", raw)
 
 	// Create request
 	req, _ := http.NewRequest(r.Method, u.String(), r.Body)

@@ -75,6 +75,13 @@ type Case struct {
 	// If true, requires that the plugin called StopGracefully
 	StoppedGracefully bool
 
+	// ClientID to be passed to TaskContext
+	ClientID string
+	// AccessToken to be assed to TaskContext
+	AccessToken string
+	// Certificate to be passed to TaskContext
+	Certificate string
+
 	// Each of these functions is called at the time specified in the name
 	BeforeBuildSandbox func(Options)
 	AfterBuildSandbox  func(Options)
@@ -118,6 +125,9 @@ func (c Case) Test() {
 
 	if c.QueueMock != nil {
 		controller.SetQueueClient(c.QueueMock)
+	}
+	if c.ClientID != "" {
+		controller.SetCredentials(c.ClientID, c.AccessToken, c.Certificate)
 	}
 
 	reason := runtime.ReasonNoException
