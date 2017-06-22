@@ -128,7 +128,7 @@ func fetchURL(ctx Context, subject, u string, target io.Writer) error {
 		go func() {
 			for {
 				select {
-				case <-time.After(10 * time.Second):
+				case <-time.After(5 * time.Second):
 					ctx.Progress(subject, float64(r.Tell())/float64(res.ContentLength))
 				case <-ctx.Done():
 					return
