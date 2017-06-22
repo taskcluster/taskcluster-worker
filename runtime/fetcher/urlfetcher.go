@@ -123,6 +123,7 @@ func fetchURL(ctx Context, subject, u string, target io.Writer) error {
 	r := ioext.TellReader{Reader: res.Body}
 	// We only progress, if some content length is provided
 	if res.ContentLength != -1 {
+		ctx.Progress(subject, 0)
 		done := make(chan struct{})
 		defer close(done)
 		go func() {
@@ -143,6 +144,11 @@ func fetchURL(ctx Context, subject, u string, target io.Writer) error {
 	_, err = io.Copy(target, &r)
 	if err != nil {
 		return fmt.Errorf("connection broken: %s", err)
+	}
+
+	// Report download completed
+	if res.ContentLength != -1 {
+		ctx.Progress(subject, 1)
 	}
 
 	return nil
