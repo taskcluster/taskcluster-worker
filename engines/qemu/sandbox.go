@@ -1,11 +1,12 @@
 package qemuengine
 
 import (
-	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
@@ -85,11 +86,11 @@ func newSandbox(
 
 func (s *sandbox) handleRequest(w http.ResponseWriter, r *http.Request) {
 	// Sanity checks and identifiation of name/hostname/virtualhost/folder
-	if r.URL.Path[0] != '/' {
+	if r.URL.RawPath[0] != '/' {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	p := strings.SplitN(r.URL.Path[1:], "/", 2)
+	p := strings.SplitN(r.URL.RawPath[1:], "/", 2)
 	if len(p) != 2 {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -106,8 +107,23 @@ func (s *sandbox) handleRequest(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	r.URL.Path = path
-	r.URL.RawPath = "" // TODO: implement this if we ever need it
+
+	// Rewrite URL.Path/RawPath and forward to the proxy handler
+	var err error
+	r.URL.Path, err = url.PathUnescape(path)
+	if err != nil {
+		incidentID := s.monitor.ReportError(
+			errors.Wrap(err, "PathUnscape failed"),
+			"error interpreting RawPath: ", r.URL.RawPath,
+		)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{
+			"code": "InternalWorkerProxyError",
+			"message": "internal error in taskcluster-worker proxy, incidentID: ` + incidentID + `"
+		}`))
+		return
+	}
+	r.URL.RawPath = path
 	h.ServeHTTP(w, r)
 }
 
