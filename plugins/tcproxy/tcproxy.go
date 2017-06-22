@@ -76,10 +76,7 @@ func (p *taskPlugin) BuildSandbox(sandboxBuilder engines.SandboxBuilder) error {
 
 func (p *taskPlugin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Parse request URL
-	raw := r.URL.Path
-	if strings.HasPrefix(raw, "/") {
-		raw = raw[1:]
-	}
+	raw := strings.TrimPrefix(r.URL.Path, "/")
 	u, err := url.Parse("https://" + raw)
 	if err != nil {
 		debug("bad URL: '%s'", r.URL.Path)
@@ -125,7 +122,7 @@ func (p *taskPlugin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	req.Header.Set("Authorization", signature)
 
 	// Set TaskContext, so request can be aborted
-	req.WithContext(p.context)
+	req = req.WithContext(p.context)
 
 	// Send request
 	res, err := http.DefaultClient.Do(req)
