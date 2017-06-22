@@ -338,6 +338,11 @@ func (w *Worker) processClaim(claim taskClaim) {
 			Scopes:   claim.Task.Scopes,
 		},
 	})
+	run.SetCredentials(
+		claim.Credentials.ClientID,
+		claim.Credentials.AccessToken,
+		claim.Credentials.Certificate,
+	)
 
 	// runId as string for use in requests
 	runID := strconv.Itoa(claim.RunID)
@@ -379,6 +384,11 @@ func (w *Worker) processClaim(claim taskClaim) {
 				Certificate: result.Credentials.Certificate,
 			})
 			run.SetQueueClient(q) // update queue client on the run
+			run.SetCredentials(
+				result.Credentials.ClientID,
+				result.Credentials.AccessToken,
+				result.Credentials.Certificate,
+			)
 		}
 	}()
 
