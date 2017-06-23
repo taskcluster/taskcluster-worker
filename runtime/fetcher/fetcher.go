@@ -3,10 +3,15 @@ package fetcher
 import (
 	"context"
 	"io"
+	"time"
 
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 )
+
+// Time between progress reports, defined here so it can easily be modified in
+// tests where a 5s delay is undesirable.
+var progressReportInterval = 5 * time.Second
 
 // Context for fetching resource from a reference.
 type Context interface {

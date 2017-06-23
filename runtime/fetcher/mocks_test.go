@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,7 +14,9 @@ import (
 
 type mockContext struct {
 	context.Context
-	queue client.Queue
+	queue           client.Queue
+	m               sync.Mutex
+	progressReports []float64
 }
 
 func (c *mockContext) Queue() client.Queue {
@@ -21,7 +24,16 @@ func (c *mockContext) Queue() client.Queue {
 }
 
 func (c *mockContext) Progress(description string, percent float64) {
-	debug("Progress: %s - %d %%", description, percent)
+	c.m.Lock()
+	defer c.m.Unlock()
+	debug("Progress: %s - %.02f %%", description, percent*100)
+	c.progressReports = append(c.progressReports, percent)
+}
+
+func (c *mockContext) ProgressReports() []float64 {
+	c.m.Lock()
+	defer c.m.Unlock()
+	return c.progressReports
 }
 
 type mockWriteSeekReseter struct {
