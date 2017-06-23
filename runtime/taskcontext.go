@@ -67,6 +67,10 @@ type TaskContext struct {
 	queue       client.Queue
 	status      TaskStatus
 	done        chan struct{}
+	authorizer  client.Authorizer
+	clientID    string
+	accessToken string
+	certificate string
 }
 
 // TaskContextController exposes logic for controlling the TaskContext.
@@ -89,6 +93,15 @@ func NewTaskContext(tempLogFile string, task TaskInfo) (*TaskContext, *TaskConte
 		TaskInfo:    task,
 		done:        make(chan struct{}),
 	}
+	ctx.authorizer = client.NewAuthorizer(func() (string, string, string, error) {
+		ctx.mu.RLock()
+		defer ctx.mu.RUnlock()
+
+		if ctx.clientID == "" || ctx.accessToken == "" {
+			panic(errors.New("TaskContext doesn't have clientID and accessToken"))
+		}
+		return ctx.clientID, ctx.accessToken, ctx.certificate, nil
+	})
 	return ctx, &TaskContextController{ctx}, nil
 }
 
@@ -116,8 +129,9 @@ func (c *TaskContextController) Dispose() error {
 // interaction with the queue.
 func (c *TaskContextController) SetQueueClient(client client.Queue) {
 	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.queue = client
-	c.mu.Unlock()
 }
 
 // Queue will return a client for the TaskCluster Queue.  This client
@@ -126,7 +140,29 @@ func (c *TaskContextController) SetQueueClient(client client.Queue) {
 func (c *TaskContext) Queue() client.Queue {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+	// TODO: Remove this method when client library has been rewritten to consume
+	// 			 a Authorizor implementation
 	return c.queue
+}
+
+// Authorizer can sign requests with temporary credentials associated with the
+// task.
+//
+// Notice, when blindly forwarding requests task.scopes should be set as
+// authorizedScopes, otherwise artifact upload and resolution will possible.
+func (c *TaskContext) Authorizer() client.Authorizer {
+	return c.authorizer
+}
+
+// SetCredentials is used to provide the task-specific temporary credentials,
+// and update these whenever they change.
+func (c *TaskContextController) SetCredentials(clientID, accessToken, certificate string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.clientID = clientID
+	c.accessToken = accessToken
+	c.certificate = certificate
 }
 
 // Deadline returns empty time and false, this is implemented to satisfy

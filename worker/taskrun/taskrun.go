@@ -93,6 +93,14 @@ func (t *TaskRun) SetQueueClient(queue client.Queue) {
 	}
 }
 
+// SetCredentials is used to provide the task-specific temporary credentials,
+// and update these whenever they change.
+func (t *TaskRun) SetCredentials(clientID, accessToken, certificate string) {
+	if t.controller != nil {
+		t.controller.SetCredentials(clientID, accessToken, certificate)
+	}
+}
+
 // Abort will interrupt task execution.
 func (t *TaskRun) Abort(reason AbortReason) {
 	t.m.Lock()

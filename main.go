@@ -55,6 +55,7 @@ import (
 	_ "github.com/taskcluster/taskcluster-worker/plugins/plugintest"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/reboot"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/success"
+	_ "github.com/taskcluster/taskcluster-worker/plugins/tcproxy"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/watchdog"
 )
 
