@@ -33,6 +33,7 @@ config:
     env:            {}
     livelog:        {}
     logprefix:      {}
+    tcproxy:        {}
     maxruntime:
       maxRunTime:   '1 hour'
       perTaskLimit: 'allow'
