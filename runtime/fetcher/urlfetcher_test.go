@@ -29,6 +29,15 @@ func TestUrlFetcher(t *testing.T) {
 			w.WriteHeader(200)
 			w.Write([]byte("status-ok"))
 
+		case "/streaming":
+			// streaming without Content-Length
+			w.WriteHeader(200)
+			for i := 0; i < 10; i++ {
+				time.Sleep(10 * time.Millisecond)
+				w.Write([]byte("hello\n"))
+				w.(http.Flusher).Flush()
+			}
+
 		case "/slow":
 			w.Header().Set("Content-Length", "60")
 			w.WriteHeader(200)
@@ -74,6 +83,17 @@ func TestUrlFetcher(t *testing.T) {
 		err = ref.Fetch(ctx, w)
 		require.NoError(t, err)
 		require.Equal(t, "status-ok", w.String())
+		require.Equal(t, 1, count)
+	})
+
+	t.Run("streaming-ok", func(t *testing.T) {
+		count = 0
+		w := &mockWriteSeekReseter{}
+		ref, err := URL.NewReference(ctx, s.URL+"/streaming")
+		require.NoError(t, err)
+		err = ref.Fetch(ctx, w)
+		require.NoError(t, err)
+		require.Contains(t, w.String(), "hello")
 		require.Equal(t, 1, count)
 	})
 
