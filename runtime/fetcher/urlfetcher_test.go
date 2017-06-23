@@ -11,7 +11,9 @@ import (
 )
 
 func TestUrlFetcher(t *testing.T) {
-	ctx := &mockContext{context.Background(), nil}
+	ctx := &mockContext{
+		Context: context.Background(),
+	}
 
 	// HACK: Reduce backOff.MaxDelay for the duration of this test
 	maxDelay := backOff.MaxDelay
@@ -26,6 +28,26 @@ func TestUrlFetcher(t *testing.T) {
 		case "/ok":
 			w.WriteHeader(200)
 			w.Write([]byte("status-ok"))
+
+		case "/streaming":
+			// streaming without Content-Length
+			w.WriteHeader(200)
+			for i := 0; i < 10; i++ {
+				time.Sleep(10 * time.Millisecond)
+				w.Write([]byte("hello\n"))
+				w.(http.Flusher).Flush()
+			}
+
+		case "/slow":
+			w.Header().Set("Content-Length", "60")
+			w.WriteHeader(200)
+			debug("starting slow response")
+			for i := 0; i < 10; i++ {
+				time.Sleep(100 * time.Millisecond)
+				w.Write([]byte("hello\n"))
+				w.(http.Flusher).Flush()
+			}
+			debug("finished slow response")
 
 		case "/client-error":
 			w.WriteHeader(400)
@@ -62,6 +84,41 @@ func TestUrlFetcher(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "status-ok", w.String())
 		require.Equal(t, 1, count)
+	})
+
+	t.Run("streaming-ok", func(t *testing.T) {
+		count = 0
+		w := &mockWriteSeekReseter{}
+		ref, err := URL.NewReference(ctx, s.URL+"/streaming")
+		require.NoError(t, err)
+		err = ref.Fetch(ctx, w)
+		require.NoError(t, err)
+		require.Contains(t, w.String(), "hello")
+		require.Equal(t, 1, count)
+	})
+
+	t.Run("slow progress reports", func(t *testing.T) {
+		// Spoof progress report for this test case
+		origProgressReportInterval := progressReportInterval
+		progressReportInterval = 100 * time.Millisecond
+		defer func() {
+			progressReportInterval = origProgressReportInterval
+		}()
+
+		ctx2 := &mockContext{Context: context.Background()}
+		count = 0
+		w := &mockWriteSeekReseter{}
+		ref, err := URL.NewReference(ctx2, s.URL+"/slow")
+		require.NoError(t, err)
+		err = ref.Fetch(ctx2, w)
+		require.NoError(t, err)
+		require.Equal(t, 1, count)
+		require.True(t, len(ctx2.ProgressReports()) > 3, "expected more than 3 progress reports")
+		var prev float64
+		for _, report := range ctx2.ProgressReports() {
+			require.True(t, prev <= report, "Reporting shouldn't go backwards")
+			prev = report
+		}
 	})
 
 	t.Run("client-error", func(t *testing.T) {

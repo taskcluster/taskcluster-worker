@@ -3,10 +3,15 @@ package fetcher
 import (
 	"context"
 	"io"
+	"time"
 
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 )
+
+// Time between progress reports, defined here so it can easily be modified in
+// tests where a 5s delay is undesirable.
+var progressReportInterval = 5 * time.Second
 
 // Context for fetching resource from a reference.
 type Context interface {
@@ -16,7 +21,7 @@ type Context interface {
 	//     "Fetching <description> - <percent> %"
 	// The <percent> is given as a float between 0 and 1, when formatting
 	// consumers may wish to round to one decimal using "%.0f" formatting.
-	// Progress reports won't be sent more than once every 10 seconds.
+	// Progress reports won't be sent more than once every 5 seconds.
 	Progress(description string, percent float64)
 }
 

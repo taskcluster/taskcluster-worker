@@ -122,13 +122,15 @@ func fetchURL(ctx Context, subject, u string, target io.Writer) error {
 	// Report download progress
 	r := ioext.TellReader{Reader: res.Body}
 	// We only progress, if some content length is provided
+	done := make(chan struct{})
+	finishedReporting := make(chan struct{})
 	if res.ContentLength != -1 {
-		done := make(chan struct{})
-		defer close(done)
+		ctx.Progress(subject, 0)
 		go func() {
+			defer close(finishedReporting)
 			for {
 				select {
-				case <-time.After(10 * time.Second):
+				case <-time.After(progressReportInterval):
 					ctx.Progress(subject, float64(r.Tell())/float64(res.ContentLength))
 				case <-ctx.Done():
 					return
@@ -137,12 +139,24 @@ func fetchURL(ctx Context, subject, u string, target io.Writer) error {
 				}
 			}
 		}()
+	} else {
+		close(finishedReporting)
 	}
 
 	// Copy body to target
 	_, err = io.Copy(target, &r)
+
+	close(done)         // Stop progress reporting
+	<-finishedReporting // wait for reporting to be finished
+
+	// Return any error
 	if err != nil {
 		return fmt.Errorf("connection broken: %s", err)
+	}
+
+	// Report download completed
+	if res.ContentLength != -1 {
+		ctx.Progress(subject, 1)
 	}
 
 	return nil
