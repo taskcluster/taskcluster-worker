@@ -93,6 +93,8 @@ func (s *sandbox) handleRequest(w http.ResponseWriter, r *http.Request) {
 	} else {
 		origPath = r.URL.Path
 	}
+	debug("handling request: %s", origPath)
+
 	if len(origPath) == 0 || origPath[0] != '/' {
 		w.WriteHeader(http.StatusNotFound)
 		return

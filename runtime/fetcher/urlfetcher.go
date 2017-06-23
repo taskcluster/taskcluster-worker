@@ -139,6 +139,8 @@ func fetchURL(ctx Context, subject, u string, target io.Writer) error {
 				}
 			}
 		}()
+	} else {
+		close(finishedReporting)
 	}
 
 	// Copy body to target
