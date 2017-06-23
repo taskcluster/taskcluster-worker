@@ -86,11 +86,18 @@ func newSandbox(
 
 func (s *sandbox) handleRequest(w http.ResponseWriter, r *http.Request) {
 	// Sanity checks and identifiation of name/hostname/virtualhost/folder
-	if r.URL.RawPath[0] != '/' {
+	var origPath string
+	isRawPath := r.URL.RawPath != ""
+	if isRawPath {
+		origPath = r.URL.RawPath
+	} else {
+		origPath = r.URL.Path
+	}
+	if len(origPath) == 0 || origPath[0] != '/' {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	p := strings.SplitN(r.URL.RawPath[1:], "/", 2)
+	p := strings.SplitN(origPath[1:], "/", 2)
 	if len(p) != 2 {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -108,22 +115,15 @@ func (s *sandbox) handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Rewrite URL.Path/RawPath and forward to the proxy handler
-	var err error
-	r.URL.Path, err = url.PathUnescape(path)
-	if err != nil {
-		incidentID := s.monitor.ReportError(
-			errors.Wrap(err, "PathUnscape failed"),
-			"error interpreting RawPath: ", r.URL.RawPath,
-		)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{
-			"code": "InternalWorkerProxyError",
-			"message": "internal error in taskcluster-worker proxy, incidentID: ` + incidentID + `"
-		}`))
-		return
+	// Rewrite the path
+	if isRawPath {
+		r.URL.Path, _ = url.PathUnescape(path)
+		r.URL.RawPath = path
+	} else {
+		r.URL.Path = path
+		r.URL.RawPath = ""
 	}
-	r.URL.RawPath = path
+
 	h.ServeHTTP(w, r)
 }
 
