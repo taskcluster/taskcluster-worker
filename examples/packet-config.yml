@@ -32,6 +32,7 @@ config:
     artifacts:      {}
     env:            {}
     livelog:        {}
+    logprefix:      {}
     maxruntime:
       maxRunTime:   '1 hour'
       perTaskLimit: 'allow'
