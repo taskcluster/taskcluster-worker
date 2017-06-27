@@ -209,7 +209,6 @@ func (c *TaskContext) Abort() {
 		close(c.done)
 	}
 	c.mu.Unlock()
-	return
 }
 
 // IsAborted returns true if the current status is Aborted
@@ -230,7 +229,6 @@ func (c *TaskContext) Cancel() {
 		close(c.done)
 	}
 	c.mu.Unlock()
-	return
 }
 
 // IsCancelled returns true if the current status is Cancelled
