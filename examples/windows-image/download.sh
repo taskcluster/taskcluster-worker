@@ -20,7 +20,7 @@ if ! [ -f "$INSTALLER_ISO" ]; then
   fi
 
   echo 'Downloading Windows ISO'
-  aws s3 cp "s3://$INSTALLER_S3_BUCKET/$INSTALLER_S3_KEY" "$INSTALLER_ISO"
+  aws --region us-west-2 s3 cp --only-show-errors "s3://$INSTALLER_S3_BUCKET/$INSTALLER_S3_KEY" "$INSTALLER_ISO"
 fi
 
 # Download virtio ISO

@@ -7,9 +7,12 @@ source "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/constants.sh"
 "$DIR/download.sh"
 
 # Create temporary files
-DATA=`mktemp -d`;
-ISO="$DIR/cache/data.iso";
-TCWORKER=`mktemp`;
+DATA=`mktemp -d`
+ISO="$DIR/cache/data.iso"
+TCWORKER=`mktemp`
+
+# Run govendor sync
+govendor sync
 
 echo '### Building taskcluster-worker for host (for building image)'
 go build -o "$TCWORKER" github.com/taskcluster/taskcluster-worker
