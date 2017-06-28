@@ -54,7 +54,7 @@ config:
     logprefix:      {}
     tcproxy:        {}
     maxruntime:
-      maxRunTime:   '1 hour'
+      maxRunTime:   '4 hours'
       perTaskLimit: 'allow'
     success:        {}
   temporaryFolder:  /mnt/tmp
