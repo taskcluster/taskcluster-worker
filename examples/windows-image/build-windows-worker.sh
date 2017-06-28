@@ -27,7 +27,7 @@ cp "$DIR/data"/* "$DATA/"
 genisoimage -vJrV DATA_VOLUME -input-charset utf-8 -o "$ISO" "$DATA"
 
 echo "### Building $WORKER_IMAGE_NAME"
-"$TCWORKER" qemu-build --boot "$INSTALLER_ISO" --cdrom "$ISO" --size "$DISKSIZE" \
+"$TCWORKER" qemu-build --no-vnc --boot "$INSTALLER_ISO" --cdrom "$ISO" --size "$DISKSIZE" \
   from-new "$DIR/machine.json" "$DIR/cache/$WORKER_IMAGE_NAME"
 
 echo '### Removing temporary files'
