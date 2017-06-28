@@ -3,6 +3,9 @@
 # Load constants
 source "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/constants.sh"
 
+# Download ISOs
+./download.sh
+
 # Create temporary files
 DATA=`mktemp -d`;
 ISO="$DIR/cache/data.iso";
