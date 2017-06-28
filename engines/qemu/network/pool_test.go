@@ -25,8 +25,23 @@ func TestNetworkCreateDestroy(t *testing.T) {
 
 	for i := 0; i < 2; i++ {
 		var c interface{}
+		// Example config for hostnames and srv records are purely illustrative,
+		// added to ensure that we test that schematypes.MustValidateAndMap won't
+		// panic...
 		err := json.Unmarshal([]byte(`{
-			"subnets": 3
+			"subnets": 3,
+			"hostRecords": [{
+				"names": ["taskcluster.local"],
+				"ipv4": "127.0.0.1"
+			}],
+			"srvRecords": [{
+				"service": "taskcluster-worker-metadata-service",
+				"protocol": "TCP",
+				"target": "taskcluster.local",
+				"port": 80,
+				"priority": 0,
+				"weight": 0
+			}]
 		}`), &c)
 		require.NoError(t, err, "Failed to parse JSON")
 

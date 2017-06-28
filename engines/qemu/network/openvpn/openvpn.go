@@ -131,9 +131,10 @@ func New(options Options) (*VPN, error) {
 	arg("nobind")
 	if c.Compression != "" {
 		if c.Compression == "none" {
-			arg("compress", "")
+			arg("compress")
+		} else {
+			arg("compress", c.Compression)
 		}
-		arg("compress", c.Compression)
 	}
 
 	// Tun device
