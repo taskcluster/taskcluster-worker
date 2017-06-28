@@ -6,7 +6,7 @@ RUN apt-get update -y \
  && apt-get upgrade -y \
  && apt-get install -y \
     qemu-system-x86 qemu-utils dnsmasq-base iptables iproute2 \
-    git curl screen nano genisoimage build-essential openvpn s3cmd jq
+    git curl screen nano genisoimage build-essential openvpn s3cmd jq 7z
 
 # Install golang 1.8
 RUN curl -L https://storage.googleapis.com/golang/go1.8.linux-amd64.tar.gz > /tmp/go.tar.gz \
