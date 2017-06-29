@@ -15,6 +15,8 @@ var imageFetcher = fetcher.Combine(
 	fetcher.Artifact,
 	// Allow fetching images from queue referenced by index namespace
 	fetcher.Index,
+	// Allow fetching images from URL + hash
+	fetcher.URLHash,
 )
 
 type fetchImageContext struct {

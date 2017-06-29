@@ -20,8 +20,8 @@ genisoimage -vJrV DATA_VOLUME -input-charset utf-8 -o "$ISO" "$DATA";
 
 echo "Building image"
 "$DIR/../../../taskcluster-worker" qemu-build --no-vnc --cdrom "$ISO" \
-  from-image "$DIR/tinycore-setup.tar.zst" "$DIR/tinycore-worker.tar.zst";
+  from-image "$DIR/tinycore-setup.tar.zst" "$DIR/tinycore-worker.tar.zst"
 
 echo "Removing temporary files"
-rm -rf "$DATA";
-rm -f "$ISO";
+rm -rf "$DATA"
+rm -f "$ISO"

@@ -80,6 +80,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 		_, err := io.Copy(w, r)
 		if err != nil {
 			monitor.Error("Failed to post entire log, error: ", err)
+		} else {
 			err = w.Close()
 			<-done
 		}

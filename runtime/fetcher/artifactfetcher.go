@@ -91,7 +91,7 @@ func (r *artifactReference) Scopes() [][]string {
 	return [][]string{{"queue:get-artifact:" + r.Artifact}}
 }
 
-func (r *artifactReference) Fetch(ctx Context, target WriteSeekReseter) error {
+func (r *artifactReference) Fetch(ctx Context, target WriteReseter) error {
 	// Construct URL
 	var u string
 	if r.isPublic() {

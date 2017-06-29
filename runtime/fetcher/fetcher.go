@@ -25,13 +25,12 @@ type Context interface {
 	Progress(description string, percent float64)
 }
 
-// WriteSeekReseter is a io.Writer + io.Seeker + io.Closer with Reset()
+// WriteReseter is a io.Writer with Reset()
 // method that discards everything written and starts over from scratch.
 //
 // This is easily implemented by wrapping os.File with FileReseter.
-type WriteSeekReseter interface {
+type WriteReseter interface {
 	io.Writer
-	io.Seeker
 	Reset() error
 }
 
@@ -52,7 +51,7 @@ type Reference interface {
 	// Fetch a reference to a target, sending progress to Context as well
 	// as returning a human readable error message, if fetching fails.
 	// If the referenced resource doesn't exist it returns a BrokenReferenceError.
-	Fetch(context Context, target WriteSeekReseter) error
+	Fetch(context Context, target WriteReseter) error
 }
 
 // A Fetcher specifies a schema for references that it knows how to fetch.

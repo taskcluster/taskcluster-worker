@@ -15,6 +15,8 @@ sudo umount /dev/sr0
 # Run backup (otherwise changes on tinycore isn't saved)
 filetool.sh -b
 
+echo "Testing taskcluster-worker qemu-guest-tools" | DEBUG=* /opt/taskcluster-worker qemu-guest-tools post-log -
+echo "Install completed" | curl -X POST -N --data-binary @- http://169.254.169.254/engine/v1/log
+
 # Shutdown the system image is now customized
 sudo poweroff
-

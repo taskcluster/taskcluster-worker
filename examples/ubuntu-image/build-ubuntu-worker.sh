@@ -33,8 +33,7 @@ sed -i "/label install/ilabel autoinstall\n\
   kernel /install/vmlinuz\n\
   append file=/cdrom/custom-data/worker.seed \
     initrd=/install/initrd.gz auto=true priority=high \
-    preseed/file=/cdrom/custom-data/worker.seed \
-    preseed/file/checksum=$SEED_CHECKSUM --" "$DATA/isolinux/txt.cfg"
+    preseed/file=/cdrom/custom-data/worker.seed --" "$DATA/isolinux/txt.cfg"
 
 echo '### Adding custom-data folder'
 mkdir "$DATA/custom-data"

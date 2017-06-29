@@ -20,7 +20,7 @@ const (
 	formatRaw   = "raw"
 )
 
-const maxImageSize = int64(30 * 1024 * 1024 * 1024) // Use int64 for i386 builds
+const maxImageSize = int64(50 * 1024 * 1024 * 1024) // Use int64 for i386 builds
 
 // RandomMAC generates a new random MAC with the local bit set.
 func RandomMAC() string {
