@@ -2,7 +2,10 @@ package webhookserver
 
 import (
 	"net"
+	"strings"
 	"time"
+
+	"github.com/taskcluster/slugid-go/slugid"
 
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
@@ -19,6 +22,15 @@ var localtunnelConfigSchema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"provider": schematypes.StringEnum{Options: []string{"localtunnel"}},
 		"baseUrl":  schematypes.URI{},
+	},
+	Required: []string{"provider"},
+}
+
+var webhooktunnelConfigSchema = schematypes.Object{
+	Properties: schematypes.Properties{
+		"provider":            schematypes.StringEnum{Options: []string{"webhooktunnel"}},
+		"proxyUrl":            schematypes.URI{},
+		"webhooktunnelSecret": schematypes.String{},
 	},
 	Required: []string{"provider"},
 }
@@ -74,6 +86,7 @@ var ConfigSchema schematypes.Schema = schematypes.OneOf{
 	localhostConfigSchema,
 	localtunnelConfigSchema,
 	statelessDNSConfigSchema,
+	webhooktunnelConfigSchema,
 }
 
 // Server abstracts various WebHookServer implementations
@@ -88,17 +101,19 @@ type Server interface {
 // Config passed must match ConfigSchema.
 func NewServer(config interface{}) (Server, error) {
 	var c struct {
-		Provider           string        `json:"provider"`
-		ServerIP           string        `json:"serverIp"`
-		ServerPort         int           `json:"serverPort"`
-		NetworkInterface   string        `json:"networkInterface"`
-		ExposedPort        int           `json:"exposedPort"`
-		TLSCertificate     string        `json:"tlsCertificate"`
-		TLSKey             string        `json:"tlsKey"`
-		StatelessDNSSecret string        `json:"statelessDNSSecret"`
-		StatelessDNSDomain string        `json:"statelessDNSDomain"`
-		Expiration         time.Duration `json:"expiration"`
-		BaseURL            string        `json:"baseUrl"`
+		Provider            string        `json:"provider"`
+		ServerIP            string        `json:"serverIp"`
+		ServerPort          int           `json:"serverPort"`
+		NetworkInterface    string        `json:"networkInterface"`
+		ExposedPort         int           `json:"exposedPort"`
+		TLSCertificate      string        `json:"tlsCertificate"`
+		TLSKey              string        `json:"tlsKey"`
+		StatelessDNSSecret  string        `json:"statelessDNSSecret"`
+		StatelessDNSDomain  string        `json:"statelessDNSDomain"`
+		Expiration          time.Duration `json:"expiration"`
+		BaseURL             string        `json:"baseUrl"`
+		ProxyURL            string        `json:"proxyUrl"`
+		WebhooktunnelSecret string        `json:"webhooktunnelSecret"`
 	}
 	schematypes.MustValidate(ConfigSchema, config)
 	if schematypes.MustMap(localhostConfigSchema, config, &c) == nil {
@@ -106,6 +121,12 @@ func NewServer(config interface{}) (Server, error) {
 	}
 	if schematypes.MustMap(localtunnelConfigSchema, config, &c) == nil {
 		return NewLocalTunnel(c.BaseURL)
+	}
+	if schematypes.MustMap(webhooktunnelConfigSchema, config, &c) == nil {
+		id := strings.ToLower(slugid.Nice())
+		authorizer := genWebhooktunnelAuthorizer(c.WebhooktunnelSecret)
+		s, err := NewWebhookTunnel(id, c.ProxyURL, authorizer)
+		return s, err
 	}
 	if schematypes.MustMap(statelessDNSConfigSchema, config, &c) == nil {
 		s, err := NewLocalServer(
