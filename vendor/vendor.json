@@ -396,16 +396,16 @@
 			"revisionTime": "2017-06-29T16:13:10Z"
 		},
 		{
-			"checksumSHA1": "IHlE4TYdfJIcOye/j5pAT3Ud8ho=",
+			"checksumSHA1": "NorQF5CSKrkTGPq34EsRI44xCXI=",
 			"path": "github.com/taskcluster/webhooktunnel/whclient",
-			"revision": "6af62b541931c916b61ca5649f49a78579d3cc7f",
-			"revisionTime": "2017-06-29T16:13:10Z"
+			"revision": "049796898bd756a92141522d21356d9fba42eb19",
+			"revisionTime": "2017-07-05T22:51:22Z"
 		},
 		{
-			"checksumSHA1": "s7KvYNX1JQgYMeuz6h8wAxenWMs=",
+			"checksumSHA1": "pgfTziE0vPP0YiySU+ZAqIFJSQ0=",
 			"path": "github.com/taskcluster/webhooktunnel/wsmux",
-			"revision": "6af62b541931c916b61ca5649f49a78579d3cc7f",
-			"revisionTime": "2017-06-29T16:13:10Z"
+			"revision": "049796898bd756a92141522d21356d9fba42eb19",
+			"revisionTime": "2017-07-05T22:51:22Z"
 		},
 		{
 			"checksumSHA1": "Jggs+SsefVhBtVaWOqlFnsXICkk=",
