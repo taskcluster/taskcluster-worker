@@ -50,8 +50,6 @@ config:
   temporaryFolder:  /var/tmp/tc-worker-tmp
   webHookServer:
     provider: webhooktunnel
-    proxyUrl: 'ws://...'
-    webhooktunnelSecret: test-secret
   minimumDiskSpace:   10000000  # 10 GB
   minimumMemory:      1000000   # 1 GB
   monitor:

@@ -3,27 +3,12 @@ package webhookserver
 import (
 	"net/http"
 	"sync"
-	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/taskcluster/slugid-go/slugid"
+	"github.com/taskcluster/taskcluster-client-go/auth"
+	"github.com/taskcluster/webhooktunnel/util"
 	"github.com/taskcluster/webhooktunnel/whclient"
 )
-
-func genWebhooktunnelAuthorizer(secret string) whclient.Authorizer {
-	return func(id string) (string, error) {
-		now := time.Now()
-		expires := now.Add(30 * 24 * time.Hour)
-		token := jwt.New(jwt.SigningMethodHS256)
-		token.Claims.(jwt.MapClaims)["iat"] = now.Unix() - 300
-		token.Claims.(jwt.MapClaims)["exp"] = expires.Unix()
-		token.Claims.(jwt.MapClaims)["nbf"] = now.Unix() - 300
-
-		token.Claims.(jwt.MapClaims)["tid"] = id
-		tokenString, err := token.SignedString([]byte(secret))
-		return tokenString, err
-	}
-}
 
 // WebhookTunnel
 type WebhookTunnel struct {
@@ -34,11 +19,19 @@ type WebhookTunnel struct {
 }
 
 // NewWebhookTunnel returns a pointer to a new WebhookTunnel instance
-func NewWebhookTunnel(workerID string, proxyAddr string, authorizer whclient.Authorizer) (*WebhookTunnel, error) {
+func NewWebhookTunnel(whresp *auth.WebhooktunnelTokenResponse) (*WebhookTunnel, error) {
+	// This hack is needed since proxyURL in auth config is set as a http url
+	proxyURL := whresp.ProxyURL
+	if proxyURL[:2] != "ws" {
+		proxyURL = util.MakeWsURL(proxyURL)
+	}
+
 	client, err := whclient.New(whclient.Config{
-		ID:        workerID,
-		ProxyAddr: proxyAddr,
-		Authorize: authorizer,
+		ID:        whresp.TunnelID,
+		ProxyAddr: proxyURL,
+		Authorize: func(id string) (string, error) {
+			return whresp.Token, nil
+		},
 	})
 
 	if err != nil {
