@@ -16,7 +16,10 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
+
+var debug = util.Debug("qemubuild")
 
 func buildImage(
 	monitor runtime.Monitor,
@@ -82,7 +85,7 @@ func buildImage(
 	}
 
 	// Setup logService so that logs can be posted to meta-service at:
-	// http://169.254.169.254/v1/log
+	// http://169.254.169.254/engine/v1/log
 	net.SetHandler(&logService{Destination: os.Stdout})
 
 	// Create virtual machine
