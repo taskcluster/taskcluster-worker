@@ -5,7 +5,7 @@ MAINTAINER Jonas Finnemann Jensen <jopsen@gmail.com>
 RUN apt-get update -y \
  && apt-get upgrade -y \
  && apt-get install -y \
-    qemu-system-x86 qemu-utils dnsmasq-base iptables iproute2 \
+    qemu-system-x86 qemu-utils dnsmasq-base iptables iproute2 netcat-openbsd \
     git curl screen nano genisoimage build-essential openvpn awscli jq p7zip-full
 
 # Install golang 1.8

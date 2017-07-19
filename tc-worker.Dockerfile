@@ -5,7 +5,7 @@ MAINTAINER Jonas Finnemann Jensen <jopsen@gmail.com>
 RUN apt-get update -y \
  && apt-get upgrade -y \
  && apt-get install -y \
-    qemu-system-x86 qemu-utils dnsmasq-base iptables iproute2 openvpn \
+    qemu-system-x86 qemu-utils dnsmasq-base iptables iproute2 openvpn netcat-openbsd \
  && apt-get clean -y \
  && rm -rf /var/lib/apt/lists/
 
