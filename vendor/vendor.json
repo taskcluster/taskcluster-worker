@@ -64,6 +64,12 @@
 			"revisionTime": "2015-08-27T20:02:57Z"
 		},
 		{
+			"checksumSHA1": "2Fy1Y6Z3lRRX1891WF/+HT4XS2I=",
+			"path": "github.com/dgrijalva/jwt-go",
+			"revision": "2268707a8f0843315e2004ee4f1d021dc08baedf",
+			"revisionTime": "2017-02-01T22:58:49Z"
+		},
+		{
 			"checksumSHA1": "vMyAhiOqLvwMPXNaRrSfSvJp1dA=",
 			"path": "github.com/digitalocean/go-libvirt",
 			"revision": "754c709cd3e8b44df38586b87d3bb13366380047",
@@ -148,10 +154,10 @@
 			"revisionTime": "2016-07-29T03:38:29Z"
 		},
 		{
-			"checksumSHA1": "klfNfdEPsrWYLps2qBkLgfJsNYI=",
+			"checksumSHA1": "hEnH6sgR83Qfx7UNnphNNlelmj0=",
 			"path": "github.com/gorilla/websocket",
-			"revision": "2d1e4548da234d9cb742cc3628556fef86aafbac",
-			"revisionTime": "2016-09-12T15:30:41Z"
+			"revision": "ea4d1f681babbce9545c9c5f3d5194a789c89f5b",
+			"revisionTime": "2017-06-20T19:01:03Z"
 		},
 		{
 			"checksumSHA1": "IyHKjCdrqRRLTAKBHEh6wUhkgiI=",
@@ -354,16 +360,16 @@
 			"revisionTime": "2017-02-22T01:37:00Z"
 		},
 		{
-			"checksumSHA1": "/D5Zh31yiQafcHoXxdfU8FErLM4=",
+			"checksumSHA1": "dK3vEsrwRHwQbmlEmIIGzlZm29I=",
 			"path": "github.com/taskcluster/taskcluster-client-go",
-			"revision": "23a058fed14aecf11e5f0a57c9f3bc7f31adc725",
-			"revisionTime": "2017-04-13T22:51:09Z"
+			"revision": "0adb988569ffd40f68ed3422835325cfb03581c5",
+			"revisionTime": "2017-07-06T18:25:07Z"
 		},
 		{
-			"checksumSHA1": "mUzvuAzVrPU0206K5ti5q/sURck=",
+			"checksumSHA1": "DA5jpMoJqpZr+pBnZpZtG+FYSzo=",
 			"path": "github.com/taskcluster/taskcluster-client-go/auth",
-			"revision": "23a058fed14aecf11e5f0a57c9f3bc7f31adc725",
-			"revisionTime": "2017-04-13T22:51:09Z"
+			"revision": "0adb988569ffd40f68ed3422835325cfb03581c5",
+			"revisionTime": "2017-07-06T18:25:07Z"
 		},
 		{
 			"checksumSHA1": "R32NrZ6Q3DDlu+LNdi4AnnjTsAg=",
@@ -382,6 +388,36 @@
 			"path": "github.com/taskcluster/taskcluster-client-go/secrets",
 			"revision": "23a058fed14aecf11e5f0a57c9f3bc7f31adc725",
 			"revisionTime": "2017-04-13T22:51:09Z"
+		},
+		{
+			"checksumSHA1": "Ovethd0h0S1L+6k28lqJyYXTmuY=",
+			"path": "github.com/taskcluster/webhooktunnel",
+			"revision": "8a82e7eea9a1b31168147c69a82b649ae3d90728",
+			"revisionTime": "2017-07-21T18:25:03Z"
+		},
+		{
+			"checksumSHA1": "t6eOsjNEsMwHWPfZIuMAx3A+DFU=",
+			"path": "github.com/taskcluster/webhooktunnel/util",
+			"revision": "8a82e7eea9a1b31168147c69a82b649ae3d90728",
+			"revisionTime": "2017-07-21T18:25:03Z"
+		},
+		{
+			"checksumSHA1": "HqyG247A/t1I3lD/VVlZ5AjtPaA=",
+			"path": "github.com/taskcluster/webhooktunnel/whclient",
+			"revision": "8a82e7eea9a1b31168147c69a82b649ae3d90728",
+			"revisionTime": "2017-07-21T18:25:03Z"
+		},
+		{
+			"checksumSHA1": "O3NRnHZlxNw02ofW+ZtY3KPzakM=",
+			"path": "github.com/taskcluster/webhooktunnel/whproxy",
+			"revision": "8a82e7eea9a1b31168147c69a82b649ae3d90728",
+			"revisionTime": "2017-07-21T18:25:03Z"
+		},
+		{
+			"checksumSHA1": "pgfTziE0vPP0YiySU+ZAqIFJSQ0=",
+			"path": "github.com/taskcluster/webhooktunnel/wsmux",
+			"revision": "8a82e7eea9a1b31168147c69a82b649ae3d90728",
+			"revisionTime": "2017-07-21T18:25:03Z"
 		},
 		{
 			"checksumSHA1": "Jggs+SsefVhBtVaWOqlFnsXICkk=",

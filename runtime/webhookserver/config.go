@@ -5,6 +5,7 @@ import (
 	"time"
 
 	schematypes "github.com/taskcluster/go-schematypes"
+	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
@@ -19,6 +20,13 @@ var localtunnelConfigSchema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"provider": schematypes.StringEnum{Options: []string{"localtunnel"}},
 		"baseUrl":  schematypes.URI{},
+	},
+	Required: []string{"provider"},
+}
+
+var webhooktunnelConfigSchema = schematypes.Object{
+	Properties: schematypes.Properties{
+		"provider": schematypes.StringEnum{Options: []string{"webhooktunnel"}},
 	},
 	Required: []string{"provider"},
 }
@@ -74,6 +82,7 @@ var ConfigSchema schematypes.Schema = schematypes.OneOf{
 	localhostConfigSchema,
 	localtunnelConfigSchema,
 	statelessDNSConfigSchema,
+	webhooktunnelConfigSchema,
 }
 
 // Server abstracts various WebHookServer implementations
@@ -85,8 +94,9 @@ type Server interface {
 // NewServer returns a Server implementing WebHookServer, choosing the
 // implemetation based on the configuration passed in.
 //
-// Config passed must match ConfigSchema.
-func NewServer(config interface{}) (Server, error) {
+// Config passed must match ConfigSchema
+// Credentials are required if the WebhookServer is Webhooktunnel
+func NewServer(config interface{}, credentials *tcclient.Credentials) (Server, error) {
 	var c struct {
 		Provider           string        `json:"provider"`
 		ServerIP           string        `json:"serverIp"`
@@ -99,6 +109,7 @@ func NewServer(config interface{}) (Server, error) {
 		StatelessDNSDomain string        `json:"statelessDNSDomain"`
 		Expiration         time.Duration `json:"expiration"`
 		BaseURL            string        `json:"baseUrl"`
+		ProxyURL           string        `json:"proxyUrl"`
 	}
 	schematypes.MustValidate(ConfigSchema, config)
 	if schematypes.MustMap(localhostConfigSchema, config, &c) == nil {
@@ -106,6 +117,10 @@ func NewServer(config interface{}) (Server, error) {
 	}
 	if schematypes.MustMap(localtunnelConfigSchema, config, &c) == nil {
 		return NewLocalTunnel(c.BaseURL)
+	}
+	if schematypes.MustMap(webhooktunnelConfigSchema, config, &c) == nil {
+		s, err := NewWebhookTunnel(credentials)
+		return s, err
 	}
 	if schematypes.MustMap(statelessDNSConfigSchema, config, &c) == nil {
 		s, err := NewLocalServer(
