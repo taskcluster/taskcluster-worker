@@ -1,10 +1,12 @@
 package webhookserver
 
 import (
+	"errors"
 	"net/http"
 	"sync"
 
 	"github.com/taskcluster/slugid-go/slugid"
+	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/auth"
 	"github.com/taskcluster/webhooktunnel/util"
 	"github.com/taskcluster/webhooktunnel/whclient"
@@ -19,20 +21,31 @@ type WebhookTunnel struct {
 }
 
 // NewWebhookTunnel returns a pointer to a new WebhookTunnel instance
-func NewWebhookTunnel(whresp *auth.WebhooktunnelTokenResponse) (*WebhookTunnel, error) {
-	// This hack is needed since proxyURL in auth config is set as a http url
-	proxyURL := whresp.ProxyURL
-	if proxyURL[:2] != "ws" {
-		proxyURL = util.MakeWsURL(proxyURL)
+func NewWebhookTunnel(credentials *tcclient.Credentials) (*WebhookTunnel, error) {
+	configurer := func() (whclient.Config, error) {
+		authClient := auth.New(credentials)
+		whresp, err := authClient.WebhooktunnelToken()
+		if err != nil {
+			return whclient.Config{}, errors.New("could not get token from tc-auth")
+		}
+
+		// This hack is needed since proxyURL in auth config is set as a http url
+		proxyURL := whresp.ProxyURL
+		if proxyURL[:2] != "ws" {
+			proxyURL = util.MakeWsURL(proxyURL)
+		}
+
+		return whclient.Config{
+			ID:        whresp.TunnelID,
+			ProxyAddr: proxyURL,
+			Token:     whresp.Token,
+		}, nil
 	}
 
-	client, err := whclient.New(whclient.Config{
-		ID:        whresp.TunnelID,
-		ProxyAddr: proxyURL,
-		Authorize: func(id string) (string, error) {
-			return whresp.Token, nil
-		},
-	})
+	client, err := whclient.New(configurer)
+	if err == whclient.ErrAuthFailed {
+		client, err = whclient.New(configurer)
+	}
 
 	if err != nil {
 		return nil, err
@@ -43,7 +56,9 @@ func NewWebhookTunnel(whresp *auth.WebhooktunnelTokenResponse) (*WebhookTunnel, 
 		client:   client,
 	}
 
-	go http.Serve(wt.client, http.HandlerFunc(wt.handle))
+	go func() {
+		http.Serve(wt.client, http.HandlerFunc(wt.handle))
+	}()
 	return wt, nil
 }
 

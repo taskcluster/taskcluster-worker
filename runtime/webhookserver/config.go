@@ -6,7 +6,6 @@ import (
 
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-client-go"
-	"github.com/taskcluster/taskcluster-client-go/auth"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
@@ -120,12 +119,7 @@ func NewServer(config interface{}, credentials *tcclient.Credentials) (Server, e
 		return NewLocalTunnel(c.BaseURL)
 	}
 	if schematypes.MustMap(webhooktunnelConfigSchema, config, &c) == nil {
-		authCl := auth.New(credentials)
-		whresp, err := authCl.WebhooktunnelToken()
-		if err != nil {
-			return nil, err
-		}
-		s, err := NewWebhookTunnel(whresp)
+		s, err := NewWebhookTunnel(credentials)
 		return s, err
 	}
 	if schematypes.MustMap(statelessDNSConfigSchema, config, &c) == nil {

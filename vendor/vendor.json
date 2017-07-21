@@ -390,22 +390,34 @@
 			"revisionTime": "2017-04-13T22:51:09Z"
 		},
 		{
-			"checksumSHA1": "t6eOsjNEsMwHWPfZIuMAx3A+DFU=",
-			"path": "github.com/taskcluster/webhooktunnel/util",
-			"revision": "6af62b541931c916b61ca5649f49a78579d3cc7f",
-			"revisionTime": "2017-06-29T16:13:10Z"
+			"checksumSHA1": "Ovethd0h0S1L+6k28lqJyYXTmuY=",
+			"path": "github.com/taskcluster/webhooktunnel",
+			"revision": "8a82e7eea9a1b31168147c69a82b649ae3d90728",
+			"revisionTime": "2017-07-21T18:25:03Z"
 		},
 		{
-			"checksumSHA1": "NorQF5CSKrkTGPq34EsRI44xCXI=",
+			"checksumSHA1": "t6eOsjNEsMwHWPfZIuMAx3A+DFU=",
+			"path": "github.com/taskcluster/webhooktunnel/util",
+			"revision": "8a82e7eea9a1b31168147c69a82b649ae3d90728",
+			"revisionTime": "2017-07-21T18:25:03Z"
+		},
+		{
+			"checksumSHA1": "HqyG247A/t1I3lD/VVlZ5AjtPaA=",
 			"path": "github.com/taskcluster/webhooktunnel/whclient",
-			"revision": "049796898bd756a92141522d21356d9fba42eb19",
-			"revisionTime": "2017-07-05T22:51:22Z"
+			"revision": "8a82e7eea9a1b31168147c69a82b649ae3d90728",
+			"revisionTime": "2017-07-21T18:25:03Z"
+		},
+		{
+			"checksumSHA1": "O3NRnHZlxNw02ofW+ZtY3KPzakM=",
+			"path": "github.com/taskcluster/webhooktunnel/whproxy",
+			"revision": "8a82e7eea9a1b31168147c69a82b649ae3d90728",
+			"revisionTime": "2017-07-21T18:25:03Z"
 		},
 		{
 			"checksumSHA1": "pgfTziE0vPP0YiySU+ZAqIFJSQ0=",
 			"path": "github.com/taskcluster/webhooktunnel/wsmux",
-			"revision": "049796898bd756a92141522d21356d9fba42eb19",
-			"revisionTime": "2017-07-05T22:51:22Z"
+			"revision": "8a82e7eea9a1b31168147c69a82b649ae3d90728",
+			"revisionTime": "2017-07-21T18:25:03Z"
 		},
 		{
 			"checksumSHA1": "Jggs+SsefVhBtVaWOqlFnsXICkk=",
