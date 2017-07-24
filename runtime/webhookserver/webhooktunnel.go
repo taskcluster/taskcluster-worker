@@ -31,14 +31,13 @@ func NewWebhookTunnel(credentials *tcclient.Credentials) (*WebhookTunnel, error)
 
 		// This hack is needed since proxyURL in auth config is set as a http url
 		proxyURL := whresp.ProxyURL
-		if proxyURL[:2] != "ws" {
-			proxyURL = util.MakeWsURL(proxyURL)
-		}
+		proxyURL = util.MakeWsURL(proxyURL)
 
 		return whclient.Config{
 			ID:        whresp.TunnelID,
 			ProxyAddr: proxyURL,
 			Token:     whresp.Token,
+			UseDomain: true,
 		}, nil
 	}
 

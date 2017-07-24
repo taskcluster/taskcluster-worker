@@ -392,32 +392,32 @@
 		{
 			"checksumSHA1": "Ovethd0h0S1L+6k28lqJyYXTmuY=",
 			"path": "github.com/taskcluster/webhooktunnel",
-			"revision": "8a82e7eea9a1b31168147c69a82b649ae3d90728",
-			"revisionTime": "2017-07-21T18:25:03Z"
+			"revision": "5e499abb4a54ed6aca036d5e1edfbde009ffbcfb",
+			"revisionTime": "2017-07-22T04:58:15Z"
 		},
 		{
-			"checksumSHA1": "t6eOsjNEsMwHWPfZIuMAx3A+DFU=",
+			"checksumSHA1": "FKwSb/1dCkSpzF2Q/ZZa+Pxm4Zk=",
 			"path": "github.com/taskcluster/webhooktunnel/util",
-			"revision": "8a82e7eea9a1b31168147c69a82b649ae3d90728",
-			"revisionTime": "2017-07-21T18:25:03Z"
+			"revision": "5e499abb4a54ed6aca036d5e1edfbde009ffbcfb",
+			"revisionTime": "2017-07-22T04:58:15Z"
 		},
 		{
-			"checksumSHA1": "HqyG247A/t1I3lD/VVlZ5AjtPaA=",
+			"checksumSHA1": "iuLKiMCnlSlHq646b3wnCTdj8zU=",
 			"path": "github.com/taskcluster/webhooktunnel/whclient",
-			"revision": "8a82e7eea9a1b31168147c69a82b649ae3d90728",
-			"revisionTime": "2017-07-21T18:25:03Z"
+			"revision": "5e499abb4a54ed6aca036d5e1edfbde009ffbcfb",
+			"revisionTime": "2017-07-22T04:58:15Z"
 		},
 		{
-			"checksumSHA1": "O3NRnHZlxNw02ofW+ZtY3KPzakM=",
+			"checksumSHA1": "DTkBgMiVLQnesnn9Sawe+gM+0rs=",
 			"path": "github.com/taskcluster/webhooktunnel/whproxy",
-			"revision": "8a82e7eea9a1b31168147c69a82b649ae3d90728",
-			"revisionTime": "2017-07-21T18:25:03Z"
+			"revision": "5e499abb4a54ed6aca036d5e1edfbde009ffbcfb",
+			"revisionTime": "2017-07-22T04:58:15Z"
 		},
 		{
 			"checksumSHA1": "pgfTziE0vPP0YiySU+ZAqIFJSQ0=",
 			"path": "github.com/taskcluster/webhooktunnel/wsmux",
-			"revision": "8a82e7eea9a1b31168147c69a82b649ae3d90728",
-			"revisionTime": "2017-07-21T18:25:03Z"
+			"revision": "5e499abb4a54ed6aca036d5e1edfbde009ffbcfb",
+			"revisionTime": "2017-07-22T04:58:15Z"
 		},
 		{
 			"checksumSHA1": "Jggs+SsefVhBtVaWOqlFnsXICkk=",
