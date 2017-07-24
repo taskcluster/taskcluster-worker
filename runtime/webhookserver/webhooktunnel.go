@@ -12,7 +12,7 @@ import (
 	"github.com/taskcluster/webhooktunnel/whclient"
 )
 
-// WebhookTunnel
+// WebhookTunnel wraps a whclient instance as a WebHookServer
 type WebhookTunnel struct {
 	m        sync.RWMutex
 	handlers map[string]http.Handler
