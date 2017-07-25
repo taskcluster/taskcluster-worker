@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	schematypes "github.com/taskcluster/go-schematypes"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
 type urlHashFetcher struct{}
@@ -27,6 +28,14 @@ type urlHashReference struct {
 var URLHash Fetcher = urlHashFetcher{}
 
 var urlHashSchema schematypes.Schema = schematypes.Object{
+	Title: "Fetch from URL with Hash",
+	Description: util.Markdown(`
+		Fetch resource from a URL and validate against given hash.
+
+		Hash must be specified in hexadecimal notation, you may specify none or all
+		of 'md5', 'sha1', 'sha256', or 'sha512', all specified hashes will be
+		validated. If no hash is specified, no validation will be done.
+	`),
 	Properties: schematypes.Properties{
 		"url": schematypes.URI{
 			Title:       "URL",
