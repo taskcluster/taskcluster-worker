@@ -53,13 +53,13 @@ func (u *urlReference) Scopes() [][]string {
 	return [][]string{{}} // Set containing the empty-scope-set
 }
 
-func (u *urlReference) Fetch(ctx Context, target WriteSeekReseter) error {
+func (u *urlReference) Fetch(ctx Context, target WriteReseter) error {
 	return fetchURLWithRetries(ctx, u.url, u.url, target)
 }
 
 // fetchURLWithRetries will download URL u to target with retries, using subject
 // in error messages and progress updates
-func fetchURLWithRetries(ctx Context, subject, u string, target WriteSeekReseter) error {
+func fetchURLWithRetries(ctx Context, subject, u string, target WriteReseter) error {
 	retry := 0
 	for {
 		// Fetch URL, if no error then we're done
