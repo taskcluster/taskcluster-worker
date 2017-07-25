@@ -119,6 +119,7 @@ func (u *urlHashReference) Fetch(ctx Context, target WriteReseter) error {
 		h, w.hashes = w.hashes[0], w.hashes[1:]
 		hashsum := hex.EncodeToString(h.Sum(nil))
 		if u.MD5 != hashsum {
+			target.Reset()
 			return newBrokenReferenceError(u.URL, fmt.Sprintf(
 				"did not match declared MD5, expected '%s', computed: '%s'",
 				u.MD5, hashsum,
@@ -129,6 +130,7 @@ func (u *urlHashReference) Fetch(ctx Context, target WriteReseter) error {
 		h, w.hashes = w.hashes[0], w.hashes[1:]
 		hashsum := hex.EncodeToString(h.Sum(nil))
 		if u.SHA1 != hashsum {
+			target.Reset()
 			return newBrokenReferenceError(u.URL, fmt.Sprintf(
 				"did not match declared SHA1, expected '%s', computed: '%s'",
 				u.SHA1, hashsum,
@@ -139,6 +141,7 @@ func (u *urlHashReference) Fetch(ctx Context, target WriteReseter) error {
 		h, w.hashes = w.hashes[0], w.hashes[1:]
 		hashsum := hex.EncodeToString(h.Sum(nil))
 		if u.SHA256 != hashsum {
+			target.Reset()
 			return newBrokenReferenceError(u.URL, fmt.Sprintf(
 				"did not match declared SHA256, expected '%s', computed: '%s'",
 				u.SHA256, hashsum,
@@ -149,6 +152,7 @@ func (u *urlHashReference) Fetch(ctx Context, target WriteReseter) error {
 		h, w.hashes = w.hashes[0], w.hashes[1:]
 		hashsum := hex.EncodeToString(h.Sum(nil))
 		if u.SHA512 != hashsum {
+			target.Reset()
 			return newBrokenReferenceError(u.URL, fmt.Sprintf(
 				"did not match declared SHA512, expected '%s', computed: '%s'",
 				u.SHA512, hashsum,
@@ -174,5 +178,5 @@ func (w *hashWriteReseter) Reset() error {
 	for _, h := range w.hashes {
 		h.Reset()
 	}
-	return w.Reset()
+	return w.Target.Reset()
 }
