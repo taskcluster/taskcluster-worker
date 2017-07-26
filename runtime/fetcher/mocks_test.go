@@ -3,7 +3,6 @@ package fetcher
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"sync"
 	"testing"
@@ -36,12 +35,12 @@ func (c *mockContext) ProgressReports() []float64 {
 	return c.progressReports
 }
 
-type mockWriteSeekReseter struct {
+type mockWriteReseter struct {
 	offset int64
 	buffer []byte
 }
 
-func (w *mockWriteSeekReseter) Write(p []byte) (int, error) {
+func (w *mockWriteReseter) Write(p []byte) (int, error) {
 	offset := w.offset + int64(len(p))
 	if int64(len(w.buffer)) < offset {
 		w.buffer = append(w.buffer, make([]byte, offset-int64(len(w.buffer)))...)
@@ -51,41 +50,18 @@ func (w *mockWriteSeekReseter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (w *mockWriteSeekReseter) Seek(offset int64, whence int) (int64, error) {
-	switch whence {
-	case io.SeekStart:
-	case io.SeekCurrent:
-		offset += w.offset
-	case io.SeekEnd:
-		offset += int64(len(w.buffer))
-	default:
-		panic("whence value not supported")
-	}
-
-	// Check boundary
-	if offset < 0 {
-		return w.offset, fmt.Errorf("Can't seek to negative offset: %d", offset)
-	}
-	if offset > int64(len(w.buffer)) {
-		panic("Seeking past end of file is implementation defined behavior, don't!")
-	}
-	w.offset = offset
-
-	return w.offset, nil
-}
-
-func (w *mockWriteSeekReseter) Reset() error {
+func (w *mockWriteReseter) Reset() error {
 	w.offset = 0
 	w.buffer = nil
 	return nil
 }
 
-func (w *mockWriteSeekReseter) String() string {
+func (w *mockWriteReseter) String() string {
 	return string(w.buffer)
 }
 
 func TestMockWriteSeekReseter(t *testing.T) {
-	w := &mockWriteSeekReseter{}
+	w := &mockWriteReseter{}
 	_, err := io.Copy(w, bytes.NewBufferString("test"))
 	require.NoError(t, err)
 	require.Equal(t, w.String(), "test")
@@ -99,34 +75,4 @@ func TestMockWriteSeekReseter(t *testing.T) {
 	_, err = io.Copy(w, bytes.NewBufferString(" test again"))
 	require.NoError(t, err)
 	require.Equal(t, w.String(), "test again test again")
-
-	// Seek start
-	_, err = w.Seek(0, io.SeekStart)
-	require.NoError(t, err)
-	_, err = io.Copy(w, bytes.NewBufferString("TEST again"))
-	require.NoError(t, err)
-	require.Equal(t, w.String(), "TEST again test again")
-
-	// Seek end with offset
-	_, err = w.Seek(-5, io.SeekEnd)
-	require.NoError(t, err)
-	_, err = io.Copy(w, bytes.NewBufferString("AGAIN"))
-	require.NoError(t, err)
-	require.Equal(t, w.String(), "TEST again test AGAIN")
-
-	// Seek end
-	_, err = w.Seek(0, io.SeekEnd)
-	require.NoError(t, err)
-	_, err = io.Copy(w, bytes.NewBufferString("!"))
-	require.NoError(t, err)
-	require.Equal(t, w.String(), "TEST again test AGAIN!")
-
-	// Seek start with offset + seek current
-	_, err = w.Seek(0, io.SeekStart)
-	require.NoError(t, err)
-	_, err = w.Seek(5, io.SeekCurrent)
-	require.NoError(t, err)
-	_, err = io.Copy(w, bytes.NewBufferString("-----"))
-	require.NoError(t, err)
-	require.Equal(t, w.String(), "TEST ----- test AGAIN!")
 }
