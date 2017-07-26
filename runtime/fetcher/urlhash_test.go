@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
-	"hash"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -26,8 +25,7 @@ func TestUrlHashFetcher(t *testing.T) {
 	backOff.MaxDelay = 100 * time.Millisecond
 	defer func() { backOff.MaxDelay = maxDelay }()
 
-	var h hash.Hash
-	h = md5.New()
+	h := md5.New()
 	h.Write([]byte("status-ok"))
 	md5ok := hex.EncodeToString(h.Sum(nil))
 	h = sha1.New()
