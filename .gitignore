@@ -10,3 +10,4 @@ coverage.out
 /vendor/*/
 /config.env
 /examples/ubuntu-image/cache/
+/examples/windows-image/cache/
