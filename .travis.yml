@@ -4,7 +4,7 @@ go: 1.8
 
 env:
   - MY_GOOS=linux
-    MY_GOARCH=amd64
+  - MY_GOARCH=amd64
 
 matrix:
   include:
