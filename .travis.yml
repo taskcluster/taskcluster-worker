@@ -20,6 +20,10 @@ matrix:
       env:
         - MY_GOOS=windows
         - MY_GOARCH=386
+    - os: linux
+      env:
+        - MY_GOOS=linux
+        - MY_GOARCH=amd64
 
 before_install:
   - go get github.com/kardianos/govendor
