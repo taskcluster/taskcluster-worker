@@ -81,7 +81,7 @@ func New(config interface{}) (w *Worker, err error) {
 
 	// Create webhookserver
 	if c.WebHookServer != nil {
-		w.webhookserver, err = webhookserver.NewServer(c.WebHookServer)
+		w.webhookserver, err = webhookserver.NewServer(c.WebHookServer, &c.Credentials)
 		if err != nil {
 			w.monitor.ReportError(err, "worker.New() failed to setup webhookserver")
 			err = runtime.ErrFatalInternalError
