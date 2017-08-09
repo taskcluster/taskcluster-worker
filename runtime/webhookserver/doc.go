@@ -11,7 +11,7 @@
 // Webhooktunnel is an implementation of webhookserver which allows exposing
 // endpoints without having to open any ports, public or otherwise. It uses
 // webhookclient to connect to the proxy and multiplexes streams over websocket,
-// and exposes a net.Listener interface. This allows http to be served using
-// the client object as a listener. This results in a more secure worker.
+// and exposes a net.Listener interface which can be used by http.Server. This
+// results in a more secure worker.
 // Webhooktunnel requires TC credentials.
 package webhookserver
