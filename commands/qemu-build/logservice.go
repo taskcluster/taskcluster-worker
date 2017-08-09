@@ -12,6 +12,7 @@ type logService struct {
 }
 
 func (l *logService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	debug("log service: %s -- %s", r.Method, r.URL.Path)
 	if r.Method == http.MethodPost && r.URL.Path == "/engine/v1/log" {
 		_, err := io.Copy(l.Destination, r.Body)
 		if err != nil {

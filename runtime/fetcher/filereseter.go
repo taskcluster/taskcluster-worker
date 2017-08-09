@@ -2,7 +2,7 @@ package fetcher
 
 import "os"
 
-// FileReseter implements WriteSeekReseter for an *os.File instance
+// FileReseter implements WriteReseter for an *os.File instance
 type FileReseter struct {
 	*os.File
 }

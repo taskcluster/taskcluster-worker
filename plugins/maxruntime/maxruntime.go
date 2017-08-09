@@ -91,8 +91,8 @@ func (p *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskP
 	// Return malformed payload if maxRunTime is more than global limit
 	if maxRunTime > p.MaxRunTime {
 		return nil, runtime.NewMalformedPayloadError(
-			"task.payload.maxRunTime may not exceeed", p.MaxRunTime.String(),
-			"as is configured the maximum runtime for this workerType",
+			"task.payload.maxRunTime may not exceeed ", p.MaxRunTime.String(),
+			" as is configured the maximum runtime for this workerType",
 		)
 	}
 
