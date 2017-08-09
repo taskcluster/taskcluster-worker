@@ -390,466 +390,400 @@
 			"revisionTime": "2017-04-13T22:51:09Z"
 		},
 		{
-			"checksumSHA1": "fRgEjOp6VghgAdqi6OnUy35PGvA=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker",
+			"checksumSHA1": "Dj09yJk8O+GrmFIA/pxeGyy6JPo=",
 			"path": "github.com/taskcluster/taskcluster-worker",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "IWA62m/wUmiVqR9zhkdqzC/MF+M=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/commands",
 			"path": "github.com/taskcluster/taskcluster-worker/commands",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "XRToC1gSYKls7Y8uJEr1krUwCsk=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/commands/daemon",
 			"path": "github.com/taskcluster/taskcluster-worker/commands/daemon",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "zIJ6nvN/tJwM6uLuTwFNJXc8jTQ=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/commands/help",
 			"path": "github.com/taskcluster/taskcluster-worker/commands/help",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "Ua84Iul70b2JFbxMOxVMmapDP8U=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/commands/qemu-build",
 			"path": "github.com/taskcluster/taskcluster-worker/commands/qemu-build",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "4jMAZ7OGTqLkdVShw9z1PeAPB5M=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/commands/qemu-guest-tools",
 			"path": "github.com/taskcluster/taskcluster-worker/commands/qemu-guest-tools",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "S5ArevoXuWIAemUzjhPhu0P3AYg=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/commands/qemu-run",
 			"path": "github.com/taskcluster/taskcluster-worker/commands/qemu-run",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "DJ4a+JoxZw04RZJhMwVnsu1/39g=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/commands/schema",
 			"path": "github.com/taskcluster/taskcluster-worker/commands/schema",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "P3i97OXjkw2EfnOO6xIV8N/JlS0=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/commands/shell",
 			"path": "github.com/taskcluster/taskcluster-worker/commands/shell",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "JGEa0YG+M3ngCH4r1ElSTx8NIEk=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/commands/shell-server",
 			"path": "github.com/taskcluster/taskcluster-worker/commands/shell-server",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "xCL6liFKCeVjdCBsuRU3+3datFU=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/commands/version",
 			"path": "github.com/taskcluster/taskcluster-worker/commands/version",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "3ExFU/Np7iYmvCx+MLrsEYaXzLY=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/commands/work",
 			"path": "github.com/taskcluster/taskcluster-worker/commands/work",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "0taFD10cNUUiir2GgvXKfY+RwZM=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/config",
 			"path": "github.com/taskcluster/taskcluster-worker/config",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "PJxjFkSpsYPXDQXK2+FPiO5jS1s=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/config/abs",
 			"path": "github.com/taskcluster/taskcluster-worker/config/abs",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "RMQMmIIxIzgJlFEAeSO8GkO9o0k=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/config/configtest",
 			"path": "github.com/taskcluster/taskcluster-worker/config/configtest",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "FZEcRZ9RJSGw+qorKjHJ7lLUCIo=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/config/env",
 			"path": "github.com/taskcluster/taskcluster-worker/config/env",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "5ijHt6WWyWKjHGNrY2M+crVSWuM=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/config/hostcredentials",
 			"path": "github.com/taskcluster/taskcluster-worker/config/hostcredentials",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "v27ZSPL64boJF0QEqUPtqon5egI=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/config/packet",
 			"path": "github.com/taskcluster/taskcluster-worker/config/packet",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "UwD6cYZhU3giokSmEVsjaEEMNX8=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/config/secrets",
 			"path": "github.com/taskcluster/taskcluster-worker/config/secrets",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "9ehS5HKYfRdnjeXYARIujoTrSSY=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/engines",
 			"path": "github.com/taskcluster/taskcluster-worker/engines",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "PSvM61to9ihflQOgvMiyxowTSVY=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/engines/enginetest",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/enginetest",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "J3iAb5L0OgYkTHzg307iI5opeZ8=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/engines/mock",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/mock",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "8UHs0Vu64rocF4iUDND9LM1NyGk=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/engines/mock/mocknet",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/mock/mocknet",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "1KeS+Ury0Tpv9zcZ8yFZEQPUzz4=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/engines/native",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/native",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "mlm9HuX4fCTvTlTjwq1QuOUhBjI=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/engines/native/system",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/native/system",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "5pShL5EDqwxpVCzHSRStELJHTJI=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/engines/qemu",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/qemu",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "K2dvJJuATQAxut4kZfhWKL8S2T4=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/engines/qemu/image",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/qemu/image",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "c7jsfrbHbzZqF8qaARfni1hCAwE=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "QfXauE9GwIcNVoIeOLZgcVI8p4Q=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/engines/qemu/network",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/qemu/network",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "UpFmvqaLh0CUUFNI9Xu9xD47+1w=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/engines/qemu/network/openvpn",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/qemu/network/openvpn",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "6MUYjaYGrMe3sdwsNMrQT5SyqD4=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/engines/qemu/vm",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/qemu/vm",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "rj40R2El1oOg3/9iZLkXDH3HRh8=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/engines/script",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/script",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "WVrlIWnlos7uNEqXm/464JjVzx8=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/plugins",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "yleyIOZn+qvz4pT/2apSTx4gUtw=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/plugins/artifacts",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/artifacts",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "eI/qBC3EbOKrNVHvAnyvEN6HQEc=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/plugins/env",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/env",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "+k/vqo/p3+j59oaOlet7jtaC7s4=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/plugins/interactive",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/interactive",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "kRMMvPRmiQS+adX2WpSpQE6Lknc=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/plugins/interactive/displayclient",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/interactive/displayclient",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "txNYI8q+RVmDjdXINbQWVd5D/ME=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/plugins/interactive/displayconsts",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/interactive/displayconsts",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "LpvpU4YpZxpbhktN5vt4HduKgBc=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/plugins/interactive/pty",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/interactive/pty",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "fM81DWWVXNF/D4sre+PJa2kt6H8=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/plugins/interactive/shellclient",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/interactive/shellclient",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "hKHh0R1SIVMVNALWRZW5GrzWo3M=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/plugins/interactive/shellconsts",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/interactive/shellconsts",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "k6aj6HJJv0E5a+yWxCnSKfMRNYQ=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/plugins/livelog",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/livelog",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "nP8HP5BJlYLwKCgoJYNYZOq9hgo=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/plugins/logprefix",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/logprefix",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "FrJNsjN0iN4sBa0LdTmDTm9Ukf0=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/plugins/maxruntime",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/maxruntime",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "gCWNjjW7AGqo4hAWxsAPNzqYnOk=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/plugins/plugintest",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/plugintest",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "Z5+XMUgt4xyOnFX0JfjSb+dBhrw=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/plugins/reboot",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/reboot",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "hmgNhv9SLI3KIrmNJB27Ba/aQi0=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/plugins/stoponerror",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/stoponerror",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "E5LoCofL6OHrPZjkGdXx6ykkkZs=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/plugins/success",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/success",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "OHKS3ZCuP2BQhJJG5bPtpYnbCuY=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/plugins/tcproxy",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/tcproxy",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "zDJyKq1fIzcIJ550bYR2U9gBRyw=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/plugins/watchdog",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/watchdog",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "vv81wnHana3+rknzCwpryDZhgIM=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/runtime",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "AKxvbFUgn4HNHQMHLwvtvgN+ve0=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/runtime/atomics",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime/atomics",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "VR4ZQ0xdsydPvU/8+4Gv2jagvHQ=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/runtime/client",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime/client",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "ASnzAq7UhAvhevkVIMyugU5bdpk=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/runtime/fetcher",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime/fetcher",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "LEyzm5LKqu/kbQvJGaE7v0hMgQ4=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/runtime/gc",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime/gc",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "MzRSxY5ImMcybOBL5vwuV3O4fRA=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/runtime/ioext",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime/ioext",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "QpAE8fK/nlDZ6yH0zzkkt1tnNiU=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/runtime/mocks",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime/mocks",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "IJE3LcwKqBC2aO/KYIFkS+VCfRI=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/runtime/monitoring",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime/monitoring",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "yF9KiJ3nCxRGD/d4w87PTjz40SA=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/runtime/util",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime/util",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
-			"checksumSHA1": "VzCG1pOXLdxM8B8z5/SNg/vqw6M=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/runtime/webhookserver",
+			"checksumSHA1": "/koKi1lbqWHdnUPQN1zhYK1hxEg=",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime/webhookserver",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "wKhDfktXl8Ns1LBwNEHTX+3nHdM=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/test",
 			"path": "github.com/taskcluster/taskcluster-worker/test",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "m0TWcfsNg8/8Q/i3qetN6YEivcg=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/test/nativetest",
 			"path": "github.com/taskcluster/taskcluster-worker/test/nativetest",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "wMQp8DjD9GQKBNeH+2Ud0euPwDs=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/worker",
 			"path": "github.com/taskcluster/taskcluster-worker/worker",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "NQhq0ZkADDMrg36nYZEF5q9gS/E=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/worker/taskrun",
 			"path": "github.com/taskcluster/taskcluster-worker/worker/taskrun",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "duQ5TDF2iCVzfMxBgJVgWvEgUg0=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/worker/workertest",
 			"path": "github.com/taskcluster/taskcluster-worker/worker/workertest",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "Ge+9S+vOIgcfWYzZRuu8rgo/RqE=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/taskcluster-worker/worker/workertest/fakequeue",
 			"path": "github.com/taskcluster/taskcluster-worker/worker/workertest/fakequeue",
-			"revision": "3ed14bbd67614aebb1a8cd14a7f11f0b3ea54479",
-			"revisionTime": "2017-07-25T15:02:24Z"
+			"revision": "9e2ce24aedb1fc1f918b9705401333ac5016b867",
+			"revisionTime": "2017-08-09T17:18:11Z"
 		},
 		{
 			"checksumSHA1": "SeU/g0O6sCj2Ce+hdBHMDWlL3oc=",
