@@ -8,7 +8,6 @@ import (
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/auth"
-	"github.com/taskcluster/webhooktunnel/util"
 	"github.com/taskcluster/webhooktunnel/whclient"
 )
 
@@ -29,15 +28,10 @@ func NewWebhookTunnel(credentials *tcclient.Credentials) (*WebhookTunnel, error)
 			return whclient.Config{}, errors.New("could not get token from tc-auth")
 		}
 
-		// This hack is needed since proxyURL in auth config is set as a http url
-		proxyURL := whresp.ProxyURL
-		proxyURL = util.MakeWsURL(proxyURL)
-
 		return whclient.Config{
 			ID:        whresp.TunnelID,
-			ProxyAddr: proxyURL,
+			ProxyAddr: whresp.ProxyURL,
 			Token:     whresp.Token,
-			UseDomain: true,
 		}, nil
 	}
 
@@ -56,7 +50,7 @@ func NewWebhookTunnel(credentials *tcclient.Credentials) (*WebhookTunnel, error)
 	}
 
 	go func() {
-		http.Serve(wt.client, http.HandlerFunc(wt.handle))
+		_ = http.Serve(wt.client, http.HandlerFunc(wt.handle))
 	}()
 	return wt, nil
 }

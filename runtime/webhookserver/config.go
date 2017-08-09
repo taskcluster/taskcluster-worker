@@ -93,9 +93,8 @@ type Server interface {
 
 // NewServer returns a Server implementing WebHookServer, choosing the
 // implemetation based on the configuration passed in.
-//
-// Config passed must match ConfigSchema
-// Credentials are required if the WebhookServer is Webhooktunnel
+// Config passed must match ConfigSchema.
+// Credentials are required if the WebhookServer is Webhooktunnel.
 func NewServer(config interface{}, credentials *tcclient.Credentials) (Server, error) {
 	var c struct {
 		Provider           string        `json:"provider"`
