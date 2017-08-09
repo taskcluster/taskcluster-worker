@@ -148,10 +148,10 @@
 			"revisionTime": "2016-07-29T03:38:29Z"
 		},
 		{
-			"checksumSHA1": "klfNfdEPsrWYLps2qBkLgfJsNYI=",
+			"checksumSHA1": "hEnH6sgR83Qfx7UNnphNNlelmj0=",
 			"path": "github.com/gorilla/websocket",
-			"revision": "2d1e4548da234d9cb742cc3628556fef86aafbac",
-			"revisionTime": "2016-09-12T15:30:41Z"
+			"revision": "a91eba7f97777409bc2c443f5534d41dd20c5720",
+			"revisionTime": "2017-03-19T17:27:27Z"
 		},
 		{
 			"checksumSHA1": "IyHKjCdrqRRLTAKBHEh6wUhkgiI=",
@@ -391,7 +391,6 @@
 		},
 		{
 			"checksumSHA1": "FKwSb/1dCkSpzF2Q/ZZa+Pxm4Zk=",
-			"origin": "github.com/taskcluster/taskcluster-worker/vendor/github.com/taskcluster/webhooktunnel/util",
 			"path": "github.com/taskcluster/webhooktunnel/util",
 			"revision": "dbd8372cc9a8c79f52401456748e3c7f8e78688b",
 			"revisionTime": "2017-08-08T17:31:32Z"
