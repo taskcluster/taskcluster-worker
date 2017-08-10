@@ -78,6 +78,12 @@ func (wt *WebhookTunnel) Stop() {
 }
 
 func (wt *WebhookTunnel) handle(w http.ResponseWriter, r *http.Request) {
+	// URL Path format: "/" + slugid(22 characters) + <endpoint>
+	if len(r.URL.Path) < 24 || r.URL.Path[23] != '/' {
+		http.NotFound(w, r)
+		return
+	}
+
 	id, path := r.URL.Path[1:23], r.URL.Path[23:]
 
 	wt.m.RLock()
