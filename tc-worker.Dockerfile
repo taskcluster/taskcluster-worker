@@ -5,17 +5,18 @@ MAINTAINER Jonas Finnemann Jensen <jopsen@gmail.com>
 RUN apt-get update -y \
  && apt-get upgrade -y \
  && apt-get install -y \
-    qemu-system-x86 qemu-utils dnsmasq-base iptables iproute2 openvpn netcat-openbsd \
+    qemu-system-x86 qemu-utils dnsmasq-base iptables iproute2 openvpn \
+    netcat-openbsd p7zip-full genisoimage \
  && apt-get clean -y \
  && rm -rf /var/lib/apt/lists/
 
 # Install zstd 1.1.4
 RUN apt-get update -y \
  && apt-get install -y curl build-essential \
- && curl -L https://github.com/facebook/zstd/archive/v1.1.4.tar.gz > /tmp/zstd.tar.gz \
+ && curl -L https://github.com/facebook/zstd/archive/v1.3.0.tar.gz > /tmp/zstd.tar.gz \
  && tar -xvf /tmp/zstd.tar.gz -C /tmp \
- && make -C /tmp/zstd-1.1.4/programs install \
- && rm -rf /tmp/zstd-1.1.4/ /tmp/zstd.tar.gz \
+ && make -C /tmp/zstd-1.3.0/programs install \
+ && rm -rf /tmp/zstd-1.3.0/ /tmp/zstd.tar.gz \
  && apt-get purge -y curl build-essential \
  && apt-get auto-remove -y \
  && apt-get clean -y \
