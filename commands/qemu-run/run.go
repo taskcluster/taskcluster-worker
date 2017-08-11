@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -40,8 +41,9 @@ and give you an VNC viewer to get you into the virtual machine.
 usage: taskcluster-worker qemu-run [options] <image> -- <command>...
 
 options:
-  -V --vnc      Open a VNC display
-  -h --help     Show this screen.
+     --vnc <port>   Expose VNC on given port.
+     --meta <port>  Expose metadata service on port [default: 8080].
+  -h --help         Show this screen.
 `
 }
 
@@ -49,7 +51,14 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	// Read arguments
 	imageFile := arguments["<image>"].(string)
 	command := arguments["<command>"].([]string)
-	vnc := arguments["--vnc"].(bool)
+	vncPort, err := strconv.ParseInt(arguments["--vnc"].(string), 10, 32)
+	if err != nil {
+		panic(fmt.Sprint("Couldn't parse --vnc, error: ", err))
+	}
+	metaPort, err := strconv.ParseInt(arguments["--meta"].(string), 10, 32)
+	if err != nil {
+		panic(fmt.Sprint("Couldn't parse --meta, error: ", err))
+	}
 
 	// Create temporary storage and environment
 	storage, err := runtime.NewTemporaryStorage(os.TempDir())
@@ -141,7 +150,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	interactiveServer := graceful.Server{
 		Timeout: 30 * time.Second,
 		Server: &http.Server{
-			Addr:    "localhost:8080",
+			Addr:    fmt.Sprintf(":%d", metaPort),
 			Handler: interactiveHandler,
 		},
 		NoSignalHandling: true,
@@ -154,8 +163,8 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 
 	// Start vncviewer
 	done := make(chan struct{})
-	if vnc {
-		go StartVNCViewer(vm.VNCSocket(), done)
+	if vncPort != 0 {
+		go ExposeVNC(vm.VNCSocket(), int(vncPort), done)
 	}
 
 	// Wait for SIGINT/SIGKILL or vm.Done

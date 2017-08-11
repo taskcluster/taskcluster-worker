@@ -23,11 +23,11 @@ usage:
 	taskcluster-worker qemu-build [options] from-image <image.tar.zst> <result.tar.zst>
 
 options:
-     --no-vnc       	Do not open a VNC display.
-     --size <size>  	Size of the image in GiB [default: 10].
-     --boot <file>  	File to use as cd-rom 1 and boot medium.
-     --cdrom <file>	 	File to use as cd-rom 2 (drivers etc).
-  -h --help         	Show this screen.
+     --vnc <port>     Expose VNC on given port.
+     --size <size>    Size of the image in GiB [default: 10].
+     --boot <file>    File to use as cd-rom 1 and boot medium.
+     --cdrom <file>   File to use as cd-rom 2 (drivers etc).
+  -h --help           Show this screen.
 `
 }
 
@@ -39,7 +39,10 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	outputFile := arguments["<result.tar.zst>"].(string)
 	fromNew := arguments["from-new"].(bool)
 	fromImage := arguments["from-image"].(bool)
-	novnc := arguments["--no-vnc"].(bool)
+	vncPort, err := strconv.ParseInt(arguments["--vnc"].(string), 10, 32)
+	if err != nil {
+		monitor.Panic("Couldn't parse --vnc, error: ", err)
+	}
 	boot, _ := arguments["--boot"].(string)
 	cdrom, _ := arguments["--cdrom"].(string)
 	size, err := strconv.ParseInt(arguments["--size"].(string), 10, 32)
@@ -62,6 +65,6 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 
 	return buildImage(
 		monitor, inputFile, outputFile,
-		fromImage, novnc, boot, cdrom, int(size),
+		fromImage, int(vncPort), boot, cdrom, int(size),
 	) == nil
 }
