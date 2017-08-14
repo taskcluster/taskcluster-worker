@@ -51,9 +51,13 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	// Read arguments
 	imageFile := arguments["<image>"].(string)
 	command := arguments["<command>"].([]string)
-	vncPort, err := strconv.ParseInt(arguments["--vnc"].(string), 10, 32)
-	if err != nil {
-		panic(fmt.Sprint("Couldn't parse --vnc, error: ", err))
+	var vncPort int64
+	var err error
+	if vnc, ok := arguments["--vnc"].(string); ok {
+		vncPort, err = strconv.ParseInt(vnc, 10, 32)
+		if err != nil {
+			panic(fmt.Sprint("Couldn't parse --vnc, error: ", err))
+		}
 	}
 	metaPort, err := strconv.ParseInt(arguments["--meta"].(string), 10, 32)
 	if err != nil {
