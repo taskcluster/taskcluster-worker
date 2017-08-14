@@ -6,32 +6,23 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"time"
+	"path/filepath"
+
+	"github.com/fsnotify/fsnotify"
+	"github.com/pkg/errors"
 )
 
-// StartVNCViewer will start a "vncviewer" and connect it to "socket".
-// Stopping when done is closed.
-func StartVNCViewer(socket string, done <-chan struct{}) {
-	// Poll for socket
-	for {
-		_, err := os.Stat(socket)
-		if !os.IsNotExist(err) {
-			break
-		}
-		select {
-		case <-done:
-			return // abort
-		default:
-		}
-		time.Sleep(200 * time.Millisecond)
-	}
+// ExposeVNC will forward requests on given port to given socket until done is
+// closed.
+func ExposeVNC(socket string, port int, done <-chan struct{}) {
+	// Wait for VNC socket to available
+	waitForSocket(socket, done)
 
-	// Listen on localhost for connections
-	listener, err := net.Listen("tcp", "127.0.0.1:59007")
+	// Create a TCP listener
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
-		fmt.Println("Failed to listen on PORT 59007, error: ", err)
+		panic(fmt.Sprintf("Failed to listen on PORT %d, error: %s", port, err))
 	}
-	fmt.Println("Listening for vnc clients on localhost:59007")
 
 	// Proxy vnc connections to the unix domain socket
 	go func() {
@@ -49,6 +40,41 @@ func StartVNCViewer(socket string, done <-chan struct{}) {
 		}
 	}()
 
+	// When we're told we're done we close the listener
+	<-done
+	listener.Close()
+}
+
+func waitForSocket(socket string, done <-chan struct{}) {
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		panic(errors.Wrap(err, "Failed to setup file system monitoring"))
+	}
+	defer w.Close()
+
+	if err = w.Add(filepath.Dir(socket)); err != nil {
+		panic(errors.Wrap(err, "Failed to monitor socket folder"))
+	}
+
+	for {
+		if _, err := os.Stat(socket); err == nil || !os.IsNotExist(err) {
+			return
+		}
+
+		select {
+		case <-w.Events:
+		case <-done:
+			return
+		}
+	}
+}
+
+// StartVNCViewer will start a "vncviewer" and connect it to "socket".
+// Stopping when done is closed.
+func StartVNCViewer(socket string, done <-chan struct{}) {
+	waitForSocket(socket, done)
+	go ExposeVNC(socket, 59007, done)
+
 	// Launch vinagre
 	cmd := exec.Command("vinagre", "localhost:59007")
 	if err := cmd.Start(); err != nil {
@@ -57,7 +83,6 @@ func StartVNCViewer(socket string, done <-chan struct{}) {
 
 	// When we're told we're done we close the listener and kill vinagre
 	<-done
-	listener.Close()
 	cmd.Process.Kill()
 }
 

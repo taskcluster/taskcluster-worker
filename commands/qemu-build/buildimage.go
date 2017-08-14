@@ -24,9 +24,9 @@ var debug = util.Debug("qemubuild")
 func buildImage(
 	monitor runtime.Monitor,
 	inputFile, outputFile string,
-	fromImage, novnc bool,
-	boot,
-	cdrom string,
+	fromImage bool,
+	vncPort int,
+	boot, cdrom string,
 	size int,
 ) error {
 	// Find absolute outputFile
@@ -100,9 +100,9 @@ func buildImage(
 	monitor.Info("Starting virtual machine")
 	vm.Start()
 
-	// Open VNC display
-	if !novnc {
-		go qemurun.StartVNCViewer(vm.VNCSocket(), vm.Done)
+	// Expose VNC socket
+	if vncPort != 0 {
+		go qemurun.ExposeVNC(vm.VNCSocket(), vncPort, vm.Done)
 	}
 
 	// Wait for interrupt to gracefully kill everything
