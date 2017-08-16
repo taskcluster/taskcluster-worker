@@ -39,9 +39,13 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	outputFile := arguments["<result.tar.zst>"].(string)
 	fromNew := arguments["from-new"].(bool)
 	fromImage := arguments["from-image"].(bool)
-	vncPort, err := strconv.ParseInt(arguments["--vnc"].(string), 10, 32)
-	if err != nil {
-		monitor.Panic("Couldn't parse --vnc, error: ", err)
+	var vncPort int64
+	var err error
+	if vnc, ok := arguments["--vnc"].(string); ok {
+		vncPort, err = strconv.ParseInt(vnc, 10, 32)
+		if err != nil {
+			monitor.Panic("Couldn't parse --vnc, error: ", err)
+		}
 	}
 	boot, _ := arguments["--boot"].(string)
 	cdrom, _ := arguments["--cdrom"].(string)

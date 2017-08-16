@@ -20,6 +20,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/plugins/interactive"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 	"github.com/taskcluster/taskcluster-worker/runtime/monitoring"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
@@ -41,9 +42,11 @@ and give you an VNC viewer to get you into the virtual machine.
 usage: taskcluster-worker qemu-run [options] <image> -- <command>...
 
 options:
-     --vnc <port>   Expose VNC on given port.
-     --meta <port>  Expose metadata service on port [default: 8080].
-  -h --help         Show this screen.
+     --vnc <port>         Expose VNC on given port.
+     --meta <port>        Expose metadata service on port [default: 8080].
+     --keep-alive         Keep the VM running until signal is received.
+     --log-level <level>  Log level debug, info, warning, error [default: warning].
+  -h --help               Show this screen.
 `
 }
 
@@ -51,9 +54,15 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	// Read arguments
 	imageFile := arguments["<image>"].(string)
 	command := arguments["<command>"].([]string)
-	vncPort, err := strconv.ParseInt(arguments["--vnc"].(string), 10, 32)
-	if err != nil {
-		panic(fmt.Sprint("Couldn't parse --vnc, error: ", err))
+	keepAlive := arguments["--keep-alive"].(bool)
+	logLevel := arguments["--log-level"].(string)
+	var vncPort int64
+	var err error
+	if vnc, ok := arguments["--vnc"].(string); ok {
+		vncPort, err = strconv.ParseInt(vnc, 10, 32)
+		if err != nil {
+			panic(fmt.Sprint("Couldn't parse --vnc, error: ", err))
+		}
 	}
 	metaPort, err := strconv.ParseInt(arguments["--meta"].(string), 10, 32)
 	if err != nil {
@@ -69,7 +78,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 		TemporaryStorage: storage,
 	}
 
-	monitor := monitoring.NewLoggingMonitor("info", nil, "").WithTag("component", "qemu-run")
+	monitor := monitoring.NewLoggingMonitor(logLevel, nil, "").WithTag("component", "qemu-run")
 
 	// Create a temporary folder
 	tempFolder := filepath.Join("/tmp", slugid.Nice())
@@ -123,11 +132,15 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	monitor.Info("Creating meta-data service")
 	var shellServer *interactive.ShellServer
 	var displayServer *interactive.DisplayServer
+	retval := atomics.NewBool(false)
 	ms := metaservice.New(command, make(map[string]string), os.Stdout, func(result bool) {
-		fmt.Println("### Task Completed, result = ", result)
-		shellServer.WaitAndClose()
-		displayServer.Abort()
-		vm.Kill()
+		monitor.Info("Task Completed, result = ", result)
+		if !keepAlive {
+			retval.Set(result)
+			shellServer.WaitAndClose()
+			displayServer.Abort()
+			vm.Kill()
+		}
 	}, environment)
 
 	// Setup http handler for network
@@ -173,10 +186,10 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	select {
 	case <-c:
 		signal.Stop(c)
-		fmt.Println("### Terminating QEMU")
+		monitor.Info("Terminating QEMU")
 		vm.Kill()
 	case <-vm.Done:
-		fmt.Println("### QEMU terminated")
+		monitor.Info("QEMU terminated")
 	}
 	close(done)
 
@@ -186,5 +199,5 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 
 	// Clean up anything left in the garbage collector
 	gc.CollectAll()
-	return true
+	return retval.Get()
 }
