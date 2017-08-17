@@ -142,6 +142,12 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 		}
 		testShellCatStdErr(t, meta)
 	})
+	t.Run("Shell TTY", func(t *testing.T) {
+		if goruntime.GOOS == "windows" {
+			t.Skip("Not supported - test doesn't pass on windows yet")
+		}
+		testShellTTY(t, meta)
+	})
 }
 
 func testShellHello(t *testing.T, meta *metaservice.MetaService) {
@@ -262,4 +268,22 @@ func testShellCatStdErr(t *testing.T, meta *metaservice.MetaService) {
 	outputDone.Wait()
 	assert(t, bytes.Equal(output, input), "Expected data to match input, ",
 		"len(input) = ", len(input), " len(output) = ", len(output))
+}
+
+func testShellTTY(t *testing.T, meta *metaservice.MetaService) {
+	debug("### Test meta.Shell (using 'exit 0' in TTY)")
+	shell, err := meta.ExecShell(nil, true)
+	nilOrFatal(t, err, "Failed to call meta.ExecShell()")
+
+	// Discard stderr
+	go io.Copy(ioutil.Discard, shell.StdoutPipe())
+	//go io.Copy(ioutil.Discard, shell.StderrPipe())
+	go func() {
+		time.Sleep(200 * time.Millisecond) // Just to give sh a chance to sit idle
+		shell.StdinPipe().Write([]byte("exit 0\n"))
+	}()
+
+	success, err := shell.Wait()
+	nilOrFatal(t, err, "Got an error from shell.Wait, error: ", err)
+	assert(t, success, "Expected success from shell, we closed with end of stdin")
 }
