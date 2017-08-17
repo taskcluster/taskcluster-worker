@@ -275,9 +275,8 @@ func testShellTTY(t *testing.T, meta *metaservice.MetaService) {
 	shell, err := meta.ExecShell(nil, true)
 	nilOrFatal(t, err, "Failed to call meta.ExecShell()")
 
-	// Discard stderr
+	// Discard stdout (ignore stderr, as it's the same)
 	go io.Copy(ioutil.Discard, shell.StdoutPipe())
-	//go io.Copy(ioutil.Discard, shell.StderrPipe())
 	go func() {
 		time.Sleep(200 * time.Millisecond) // Just to give sh a chance to sit idle
 		shell.StdinPipe().Write([]byte("exit 0\n"))
