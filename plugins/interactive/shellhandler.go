@@ -78,7 +78,7 @@ func (s *ShellHandler) Communicate(setSize SetSizeFunc, abort func() error) {
 
 	go s.readMessages()
 
-	s.streamingDone.Add(3)
+	s.streamingDone.Add(2)
 	go s.transmitStream(s.stdoutReader, shellconsts.StreamStdout)
 	go s.transmitStream(s.stderrReader, shellconsts.StreamStderr)
 	go s.sendAcks()
@@ -332,8 +332,6 @@ func (s *ShellHandler) readMessages() {
 }
 
 func (s *ShellHandler) sendAcks() {
-	defer s.streamingDone.Done()
-
 	// reserve a buffer for sending acknowledgments
 	ack := make([]byte, 2+4)
 	ack[0] = shellconsts.MessageTypeAck

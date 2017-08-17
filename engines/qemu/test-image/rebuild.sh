@@ -19,7 +19,7 @@ cp "$DIR/worker.sh" "$DATA/worker.sh";
 genisoimage -vJrV DATA_VOLUME -input-charset utf-8 -o "$ISO" "$DATA";
 
 echo "Building image"
-"$DIR/../../../taskcluster-worker" qemu-build --no-vnc --cdrom "$ISO" \
+"$DIR/../../../taskcluster-worker" qemu-build --cdrom "$ISO" \
   from-image "$DIR/tinycore-setup.tar.zst" "$DIR/tinycore-worker.tar.zst"
 
 echo "Removing temporary files"

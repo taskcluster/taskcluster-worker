@@ -122,6 +122,21 @@ func TestSystemSafely(t *testing.T) {
 		require.Contains(t, out.String(), homeDir)
 	})
 
+	t.Run("StartProcess Print Dir, Open stdin", func(t *testing.T) {
+		stdin, _, err := os.Pipe() // workaround: https://github.com/golang/go/issues/10338
+		require.NoError(t, err, "failed to create pipe")
+		var out bytes.Buffer
+		p, err := StartProcess(ProcessOptions{
+			Arguments:     testPrintDir,
+			Stdin:         stdin, // stdin is left open
+			Stdout:        ioext.WriteNopCloser(&out),
+			WorkingFolder: homeDir,
+		})
+		require.NoError(t, err)
+		require.True(t, p.Wait())
+		require.Contains(t, out.String(), homeDir)
+	})
+
 	t.Run("StartProcess TTY Print Dir", func(t *testing.T) {
 		if rt.GOOS == "darwin" {
 			t.Skip("TODO: fix test case on OS X, no idea why it fails")
@@ -129,6 +144,25 @@ func TestSystemSafely(t *testing.T) {
 		var out bytes.Buffer
 		p, err := StartProcess(ProcessOptions{
 			Arguments:     testPrintDir,
+			Stdout:        ioext.WriteNopCloser(&out),
+			WorkingFolder: homeDir,
+			TTY:           true,
+		})
+		require.NoError(t, err)
+		require.True(t, p.Wait())
+		require.Contains(t, out.String(), homeDir)
+	})
+
+	t.Run("StartProcess TTY Print Dir, Open stdin", func(t *testing.T) {
+		if rt.GOOS == "darwin" {
+			t.Skip("TODO: fix test case on OS X, no idea why it fails")
+		}
+		stdin, _, err := os.Pipe() // workaround: https://github.com/golang/go/issues/10338
+		require.NoError(t, err, "failed to create pipe")
+		var out bytes.Buffer
+		p, err := StartProcess(ProcessOptions{
+			Arguments:     testPrintDir,
+			Stdin:         stdin, // stdin is left open
 			Stdout:        ioext.WriteNopCloser(&out),
 			WorkingFolder: homeDir,
 			TTY:           true,
