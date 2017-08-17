@@ -194,10 +194,8 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 	} else {
 		p.pty, err = pty.Start(p.cmd)
 		if options.Stdin != nil {
-			p.sockets.Add(1)
 			go func() {
 				io.Copy(p.pty, options.Stdin)
-				p.sockets.Done()
 				// Kill process when stdin ends (if running as TTY)
 				p.Kill()
 			}()
