@@ -47,6 +47,11 @@ func CurrentUser() (*User, error) {
 	}, nil
 }
 
+// FindUser will get a User record representing the user with given username.
+func FindUser(username string) (*User, error) {
+	panic("Not implemented")
+}
+
 // CreateUser will create a new user, with the given homeFolder, set the user
 // owner of the homeFolder, and assign the user membership of given groups.
 func CreateUser(homeFolder string, groups []*Group) (*User, error) {
