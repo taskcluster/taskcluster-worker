@@ -73,7 +73,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	monitor := monitoring.NewLoggingMonitor("info", nil, "").WithTag("component", "qemu-guest-tools")
 
 	host := arguments["--host"].(string)
-	configFile := arguments["--config"].(string)
+	configFile, _ := arguments["--config"].(string)
 
 	// Load configuration
 	var C config
