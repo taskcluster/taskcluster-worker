@@ -26,6 +26,7 @@ import (
 )
 
 type guestTools struct {
+	config        config
 	baseURL       string
 	got           *got.Got
 	gotpoll       *got.Got
@@ -42,7 +43,7 @@ var backOff = &got.BackOff{
 	MaxDelay:            5 * time.Second,
 }
 
-func new(host string, monitor runtime.Monitor) *guestTools {
+func new(config config, host string, monitor runtime.Monitor) *guestTools {
 	got := got.New()
 	got.Client = &http.Client{Timeout: 5 * time.Second}
 	got.MaxSize = 10 * 1024 * 1024
@@ -56,6 +57,7 @@ func new(host string, monitor runtime.Monitor) *guestTools {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &guestTools{
+		config:        config,
 		baseURL:       "http://" + host + "/",
 		got:           got,
 		gotpoll:       &gotpoll,
@@ -96,25 +98,45 @@ func (g *guestTools) Run() {
 	taskLog, logSent := g.CreateTaskLog()
 
 	// Construct environment variables
-	env := make(map[string]string, len(os.Environ())+len(task.Env))
+	env := make(map[string]string, len(os.Environ())+len(g.config.Env)+len(task.Env))
 	for _, e := range os.Environ() {
 		parts := strings.SplitN(e, "=", 2)
 		env[parts[0]] = parts[1]
+	}
+	for k, v := range g.config.Env {
+		env[k] = v
 	}
 	for k, v := range task.Env {
 		env[k] = v
 	}
 
+	result := "failed"
+	var proc *system.Process
+
+	// Find user, if any
+	var err error
+	var owner *system.User
+	if g.config.User != "" {
+		owner, err = system.FindUser(g.config.User)
+		if err != nil {
+			g.monitor.Errorf(
+				"Couldn't find user referenced in qemu-guest-tools configuration: %s", g.config.User,
+			)
+			goto resolved
+		}
+	}
+
 	// Execute the task
-	proc, err := system.StartProcess(system.ProcessOptions{
-		Arguments:   task.Command,
-		Environment: env,
-		TTY:         true,
-		Stdout:      taskLog,
-		Stderr:      nil, // implies use of stdout
+	proc, err = system.StartProcess(system.ProcessOptions{
+		Arguments:     append(g.config.Entrypoint, task.Command...),
+		Environment:   env,
+		WorkingFolder: g.config.WorkDir,
+		Owner:         owner,
+		TTY:           true,
+		Stdout:        taskLog,
+		Stderr:        nil, // implies use of stdout
 	})
 
-	result := "failed"
 	if err == nil {
 		// kill if 'killed' is done
 		done := make(chan struct{})
@@ -132,6 +154,7 @@ func (g *guestTools) Run() {
 		close(done)
 	}
 
+resolved:
 	// Close/flush the task log
 	err = taskLog.Close()
 	if err != nil {
@@ -344,9 +367,13 @@ func (g *guestTools) doExecShell(ID string, command []string, tty bool) {
 
 	// Set command to standard shell, if no command is given
 	if len(command) == 0 {
-		command = []string{"sh"}
-		if goruntime.GOOS == "windows" {
-			command = []string{"cmd.exe"}
+		if len(g.config.Shell) != 0 {
+			command = g.config.Shell
+		} else {
+			command = []string{"sh"}
+			if goruntime.GOOS == "windows" {
+				command = []string{"cmd.exe"}
+			}
 		}
 	}
 
@@ -355,14 +382,37 @@ func (g *guestTools) doExecShell(ID string, command []string, tty bool) {
 		stderr = handler.StderrPipe()
 	}
 
+	// Construct environment variables
+	env := make(map[string]string, len(os.Environ())+len(g.config.Env))
+	for _, e := range os.Environ() {
+		parts := strings.SplitN(e, "=", 2)
+		env[parts[0]] = parts[1]
+	}
+	for k, v := range g.config.Env {
+		env[k] = v
+	}
+
+	// Find user, if any
+	var owner *system.User
+	if g.config.User != "" {
+		owner, err = system.FindUser(g.config.User)
+		if err != nil {
+			g.monitor.Errorf(
+				"Couldn't find user referenced in qemu-guest-tools configuration: %s", g.config.User,
+			)
+		}
+	}
+
 	// Create a shell
 	proc, err := system.StartProcess(system.ProcessOptions{
-		Arguments:   command,
-		Environment: nil, // TODO: Use env vars from command
-		TTY:         tty,
-		Stdin:       handler.StdinPipe(),
-		Stdout:      handler.StdoutPipe(),
-		Stderr:      stderr,
+		Arguments:     command,
+		Environment:   env, // TODO: Use env vars from command
+		Owner:         owner,
+		WorkingFolder: g.config.WorkDir,
+		TTY:           tty,
+		Stdin:         handler.StdinPipe(),
+		Stdout:        handler.StdoutPipe(),
+		Stderr:        stderr,
 	})
 
 	handler.Communicate(func(cols, rows uint16) error {
