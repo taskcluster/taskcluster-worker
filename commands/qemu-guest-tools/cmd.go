@@ -13,6 +13,7 @@
 package qemuguesttools
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -86,6 +87,7 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 		if err := yaml.Unmarshal(data, &c); err != nil {
 			monitor.Panicf("Failed to parse configFile: %s, error: %s", configFile, err)
 		}
+		c = convertSimpleJSONTypes(c)
 		if err := configSchema.Validate(c); err != nil {
 			monitor.Panicf("Invalid configFile: %s, error: %s", configFile, err)
 		}
@@ -126,4 +128,29 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	g.ProcessActions()
 
 	return true
+}
+
+func convertSimpleJSONTypes(val interface{}) interface{} {
+	switch val := val.(type) {
+	case []interface{}:
+		r := make([]interface{}, len(val))
+		for i, v := range val {
+			r[i] = convertSimpleJSONTypes(v)
+		}
+		return r
+	case map[interface{}]interface{}:
+		r := make(map[string]interface{})
+		for k, v := range val {
+			s, ok := k.(string)
+			if !ok {
+				s = fmt.Sprintf("%v", k)
+			}
+			r[s] = convertSimpleJSONTypes(v)
+		}
+		return r
+	case int:
+		return float64(val)
+	default:
+		return val
+	}
 }
