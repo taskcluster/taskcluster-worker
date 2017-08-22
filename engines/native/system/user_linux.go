@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/taskcluster/slugid-go/slugid"
 )
 
@@ -26,7 +27,7 @@ type User struct {
 func CurrentUser() (*User, error) {
 	osUser, err := user.Current()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to get current user")
 	}
 
 	// Uid and Gid are always decimal numbers on posix systems
@@ -49,7 +50,27 @@ func CurrentUser() (*User, error) {
 
 // FindUser will get a User record representing the user with given username.
 func FindUser(username string) (*User, error) {
-	panic("Not implemented")
+	osUser, err := user.Lookup(username)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to lookup user: %s", username)
+	}
+
+	// Uid and Gid are always decimal numbers on posix systems
+	uid, err := strconv.Atoi(osUser.Uid)
+	if err != nil {
+		panic(fmt.Sprintf("Could not convert %s to integer: %s", osUser.Uid, err))
+	}
+	gid, err := strconv.Atoi(osUser.Gid)
+	if err != nil {
+		panic(fmt.Sprintf("Could not convert %s to integer: %s", osUser.Gid, err))
+	}
+
+	return &User{
+		uid:        uint32(uid),
+		gid:        uint32(gid),
+		name:       osUser.Username,
+		homeFolder: osUser.HomeDir,
+	}, nil
 }
 
 // CreateUser will create a new user, with the given homeFolder, set the user

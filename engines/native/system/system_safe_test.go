@@ -39,6 +39,15 @@ func TestSystemSafely(t *testing.T) {
 		assert.NotEmpty(t, u.Name())
 	})
 
+	t.Run("FindUser", func(t *testing.T) {
+		if rt.GOOS != "linux" {
+			t.Skip("FindUser only implemented on linux so far")
+		}
+		nobody, err := FindUser(testNobodyUser)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, nobody.Name())
+	})
+
 	t.Run("FindGroup", func(t *testing.T) {
 		t.Skip("Not implemented on windows yet")
 		g, err := FindGroup(testGroup)
