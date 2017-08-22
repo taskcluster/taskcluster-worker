@@ -1,6 +1,7 @@
 package system
 
 // test variables
+var testNobodyUser = "Nobody" // We should check if this exists
 var testGroup = "Administrator"
 var testCat = []string{`c:\Windows\system32\cmd.exe`, "/C", "type con"}
 var testTrue = []string{`c:\Windows\system32\cmd.exe`, "/C", "exit 0"}

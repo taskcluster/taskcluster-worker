@@ -1,6 +1,7 @@
 package system
 
 // test variables
+var testNobodyUser = "nobody"
 var testGroup = "admin"
 var testCat = []string{"/bin/cat", "-"}
 var testTrue = []string{"/usr/bin/true"}

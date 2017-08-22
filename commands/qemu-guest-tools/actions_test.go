@@ -58,7 +58,7 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 	}
 
 	// Create an run guest-tools
-	g := new(u.Host, mocks.NewMockMonitor(true))
+	g := new(config{}, u.Host, mocks.NewMockMonitor(true))
 
 	// start processing actions
 	go g.ProcessActions()

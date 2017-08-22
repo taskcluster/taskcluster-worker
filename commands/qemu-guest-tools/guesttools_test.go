@@ -58,7 +58,7 @@ func TestGuestToolsSuccess(t *testing.T) {
 	}
 
 	// Create an run guest-tools
-	g := new(u.Host, mocks.NewMockMonitor(true))
+	g := new(config{}, u.Host, mocks.NewMockMonitor(true))
 	g.Run()
 
 	// Check the state
@@ -110,7 +110,7 @@ func TestGuestToolsFailed(t *testing.T) {
 	}
 
 	// Create an run guest-tools
-	g := new(u.Host, mocks.NewMockMonitor(true))
+	g := new(config{}, u.Host, mocks.NewMockMonitor(true))
 	g.Run()
 
 	// Check the state
@@ -192,7 +192,7 @@ func TestGuestToolsLiveLog(t *testing.T) {
 	}()
 
 	// Create an run guest-tools
-	g := new(u.Host, mocks.NewMockMonitor(true))
+	g := new(config{}, u.Host, mocks.NewMockMonitor(true))
 	g.Run()
 	writer.Close()
 	logDone.Wait()
@@ -269,7 +269,7 @@ func TestGuestToolsKill(t *testing.T) {
 	}()
 
 	// Create an run guest-tools
-	g := new(u.Host, mocks.NewMockMonitor(true))
+	g := new(config{}, u.Host, mocks.NewMockMonitor(true))
 
 	// start processing actions
 	go g.ProcessActions()
