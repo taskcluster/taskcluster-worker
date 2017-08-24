@@ -59,24 +59,7 @@ config:
     success:        {}
   temporaryFolder:  /mnt/tmp
   webHookServer:
-    provider:           stateless-dns
-    expiration:         '1 day'
-    serverIp:           {$packet: public-ipv4}
-    serverPort:         {$env: PORT, type: number}
-    networkInterface:   eth0
-    exposedPort:        {$env: PORT, type: number}
-    tlsCertificate:
-      $secret:  project/taskcluster/taskcluster-worker/stateless-dns
-      key:      certificate
-    tlsKey:
-      $secret:  project/taskcluster/taskcluster-worker/stateless-dns
-      key:      tlsKey
-    statelessDNSSecret:
-      $secret:  project/taskcluster/taskcluster-worker/stateless-dns
-      key:      secret
-    statelessDNSDomain:
-      $secret:  project/taskcluster/taskcluster-worker/stateless-dns
-      key:      domain
+    provider:       webhooktunnel
   worker:
     concurrency:          2
     minimumReclaimDelay:  30
