@@ -238,3 +238,8 @@ func isDuplicateID(d dscl, name string, id int) (bool, error) {
 
 	return n > 1, nil
 }
+
+// Groups returns a list of user groups
+func (u *User) Groups() []*Group {
+	panic("user.Groups() is not implemented on OS X yet")
+}

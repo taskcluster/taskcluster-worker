@@ -85,6 +85,9 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 	if options.Owner != nil {
 		panic("Not implemented: Support for creating processes under a different user is not yet implemented on windows")
 	}
+	if len(options.Groups) > 0 {
+		panic("Not implemented: Support for setting groups on windows is not implemented yet")
+	}
 
 	// Start the process
 	p.cmd.Stdin = options.Stdin

@@ -52,3 +52,8 @@ func (u *User) Name() string {
 func (u *User) Home() string {
 	return u.homeFolder
 }
+
+// Groups returns a list of user groups
+func (u *User) Groups() []*Group {
+	panic("user.Groups() is not implemented on Windows yet")
+}

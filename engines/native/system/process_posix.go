@@ -150,7 +150,7 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 		// accounts unable to execute process.
 		// If the passed owner matches the current user, we set owner to
 		// nil to allow non-root accounts to succeed.
-		if currentUser.uid == options.Owner.uid {
+		if currentUser.uid == options.Owner.uid && len(options.Groups) == 0 {
 			options.Owner = nil
 		}
 	}
@@ -173,10 +173,15 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 
 	// Set owner for the process
 	if options.Owner != nil {
+		var groups []uint32
+		for _, g := range options.Groups {
+			groups = append(groups, uint32(g.gid))
+		}
 		p.cmd.SysProcAttr = &syscall.SysProcAttr{
 			Credential: &syscall.Credential{
-				Uid: options.Owner.uid,
-				Gid: options.Owner.gid,
+				Uid:    options.Owner.uid,
+				Gid:    options.Owner.gid,
+				Groups: groups,
 			},
 		}
 	}

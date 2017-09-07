@@ -171,3 +171,24 @@ func (u *User) Name() string {
 func (u *User) Home() string {
 	return u.homeFolder
 }
+
+// Groups returns a list of user groups
+func (u *User) Groups() []*Group {
+	usr, err := user.LookupId(strconv.Itoa(int(u.uid)))
+	if err != nil {
+		panic(errors.Wrap(err, "failed to find user when looking up groups"))
+	}
+	grps, err := usr.GroupIds()
+	if err != nil {
+		panic(errors.Wrap(err, "failed to list groups from user"))
+	}
+	var groups []*Group
+	for _, gid := range grps {
+		g, err := strconv.Atoi(gid)
+		if err != nil {
+			panic("expected group ids to be integers on linux")
+		}
+		groups = append(groups, &Group{gid: g})
+	}
+	return groups
+}
