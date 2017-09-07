@@ -71,10 +71,27 @@ func (tp *taskPlugin) setup() {
 	}
 
 	tp.url, tp.detach = tp.environment.WebHookServer.AttachHook(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Expose-Headers", "X-Streaming")
-		w.Header().Set("X-Streaming", "true") // Allow clients to detect that we're streaming
+		if r.Method == http.MethodHead {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
+		// Get an HTTP flusher if supported in the current context, or wrap in
+		// a NopFlusher, if flushing isn't available.
+		wf, ok := w.(ioext.WriteFlusher)
+		if ok {
+			w.Header().Set("X-Streaming", "true") // Allow clients to detect that we're streaming
+		} else {
+			wf = ioext.NopFlusher(w)
+		}
 
 		// TODO (garndt): add support for range headers.  Might not be used at all currently
 		logReader, err := tp.context.NewLogReader()
@@ -85,13 +102,7 @@ func (tp *taskPlugin) setup() {
 		}
 		defer logReader.Close()
 
-		// Get an HTTP flusher if supported in the current context, or wrap in
-		// a NopFlusher, if flushing isn't available.
-		wf, ok := w.(ioext.WriteFlusher)
-		if !ok {
-			wf = ioext.NopFlusher(w)
-		}
-
+		w.WriteHeader(http.StatusOK)
 		ioext.CopyAndFlush(wf, logReader, 100*time.Millisecond)
 	}))
 
