@@ -17,10 +17,10 @@ config:
     qemu:
       limits:
         defaultThreads: 1
-        maxCPUs:        2
-        maxMemory:      4096
+        maxCPUs:        4
+        maxMemory:      3072
       network:
-        subnets:      2
+        subnets:      1
         hostRecords:
           - names:
               - $secret:  project/taskcluster/taskcluster-worker/kms
@@ -78,7 +78,7 @@ config:
       $secret:  project/taskcluster/taskcluster-worker/stateless-dns
       key:      domain
   worker:
-    concurrency:          2
+    concurrency:          1
     minimumReclaimDelay:  30
     pollingInterval:      5
     reclaimOffset:        300
