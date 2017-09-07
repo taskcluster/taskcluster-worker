@@ -173,10 +173,15 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 
 	// Set owner for the process
 	if options.Owner != nil {
+		var groups []uint32
+		for _, g := range options.Groups {
+			groups = append(groups, uint32(g.gid))
+		}
 		p.cmd.SysProcAttr = &syscall.SysProcAttr{
 			Credential: &syscall.Credential{
-				Uid: options.Owner.uid,
-				Gid: options.Owner.gid,
+				Uid:    options.Owner.uid,
+				Gid:    options.Owner.gid,
+				Groups: groups,
 			},
 		}
 	}

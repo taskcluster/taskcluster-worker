@@ -9,6 +9,7 @@ type ProcessOptions struct {
 	Environment   map[string]string // Environment variables
 	WorkingFolder string            // Working directory, if not HOME
 	Owner         *User             // User to run process as, nil to use current
+	Groups        []*Group          // Groups to run the process with, only if user is set
 	Stdin         io.ReadCloser     // Stream with stdin, or nil if nothing
 	Stdout        io.WriteCloser    // Stream for stdout
 	Stderr        io.WriteCloser    // Stream for stderr, or nil if using stdout
