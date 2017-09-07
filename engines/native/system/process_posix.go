@@ -150,7 +150,7 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 		// accounts unable to execute process.
 		// If the passed owner matches the current user, we set owner to
 		// nil to allow non-root accounts to succeed.
-		if currentUser.uid == options.Owner.uid {
+		if currentUser.uid == options.Owner.uid && len(options.Groups) == 0 {
 			options.Owner = nil
 		}
 	}
