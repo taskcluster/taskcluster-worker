@@ -175,8 +175,9 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 	if options.Owner != nil {
 		p.cmd.SysProcAttr = &syscall.SysProcAttr{
 			Credential: &syscall.Credential{
-				Uid: options.Owner.uid,
-				Gid: options.Owner.gid,
+				Uid:    options.Owner.uid,
+				Gid:    options.Owner.gid,
+				Groups: options.Owner.gids,
 			},
 		}
 	}
