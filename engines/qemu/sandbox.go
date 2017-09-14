@@ -49,7 +49,7 @@ func newSandbox(
 		//  - machine from engine config
 		//  - default machine (hardcoded into vm.NewVirtualMachine)
 		vm.OverwriteMachine(image, machine.WithDefaults(image.Machine()).WithDefaults(e.defaultMachine)),
-		network, e.socketFolder.Path(), "", "",
+		network, e.socketFolder.Path(), "", "", vm.LinuxBootOptions{},
 		monitor.WithTag("component", "vm"),
 	)
 	if err != nil {

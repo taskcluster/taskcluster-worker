@@ -28,6 +28,16 @@ const (
 	qmpSocketFile = "qmp.sock"
 )
 
+// LinuxBootOptions holds optionals boot options for Linux.
+// These are exclusively useful for building images and should not be used in
+// production when running per-task VMs. But they can greatly simplify image
+// building by facilitating injection of arguments for the Linux kernel.
+type LinuxBootOptions struct {
+	Kernel string // -kernel <bzImage>
+	Append string // -append <cmdline>
+	Initrd string // -initrd <file>
+}
+
 // VirtualMachine holds the QEMU process and associated resources.
 // This is useful as the VM remains alive in the ResultSet stage, as we use
 // guest tools to copy files from the virtual machine.
@@ -55,6 +65,7 @@ type VirtualMachine struct {
 func NewVirtualMachine(
 	limits MachineLimits,
 	image Image, network Network, socketFolder, cdrom1, cdrom2 string,
+	bootOptions LinuxBootOptions,
 	monitor runtime.Monitor,
 ) (*VirtualMachine, error) {
 	// Get machine definition and set defaults
@@ -115,6 +126,16 @@ func NewVirtualMachine(
 		"-uuid", o.UUID,
 		"-k", o.KeyboardLayout,
 	)
+
+	if bootOptions.Kernel != "" {
+		option("kernel", bootOptions.Kernel, nil)
+	}
+	if bootOptions.Append != "" {
+		option("append", bootOptions.Append, nil)
+	}
+	if bootOptions.Initrd != "" {
+		option("initrd", bootOptions.Initrd, nil)
+	}
 
 	option("boot", "", args{
 		"menu":   "off",
