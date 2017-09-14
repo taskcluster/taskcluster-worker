@@ -3,6 +3,7 @@ package qemubuild
 import (
 	"strconv"
 
+	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime/monitoring"
 )
 
@@ -19,15 +20,18 @@ image and two ISO files to mounted as CDs and creates a virtual machine that
 will be saved to disk when terminated.
 
 usage:
-	taskcluster-worker qemu-build [options] from-new <machine.json> <result.tar.zst>
-	taskcluster-worker qemu-build [options] from-image <image.tar.zst> <result.tar.zst>
+  taskcluster-worker qemu-build [options] from-new <machine.json> <result.tar.zst>
+  taskcluster-worker qemu-build [options] from-image <image.tar.zst> <result.tar.zst>
 
 options:
-     --vnc <port>     Expose VNC on given port.
-     --size <size>    Size of the image in GiB [default: 10].
-     --boot <file>    File to use as cd-rom 1 and boot medium.
-     --cdrom <file>   File to use as cd-rom 2 (drivers etc).
-  -h --help           Show this screen.
+     --vnc <port>       Expose VNC on given port.
+     --size <size>      Size of the image in GiB [default: 10].
+     --boot <file>      File to use as cd-rom 1 and boot medium.
+     --cdrom <file>     File to use as cd-rom 2 (drivers etc).
+     --kernel <image>   Multi-boot option -kernel for QEMU.
+     --append <cmdline> Multi-boot option -append for QEMU.
+     --initrd <file>    Multi-boot option -initrd for QEMU.
+  -h --help             Show this screen.
 `
 }
 
@@ -67,8 +71,12 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 		inputFile = arguments["<image.tar.zst>"].(string)
 	}
 
+	linuxBootOptions := vm.LinuxBootOptions{}
+
 	return buildImage(
 		monitor, inputFile, outputFile,
-		fromImage, int(vncPort), boot, cdrom, int(size),
+		fromImage, int(vncPort),
+		boot, cdrom, linuxBootOptions,
+		int(size),
 	) == nil
 }
