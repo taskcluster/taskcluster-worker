@@ -122,7 +122,8 @@ func (cmd) Execute(arguments map[string]interface{}) bool {
 	monitor.Info("Creating virtual machine")
 	vm, err := vm.NewVirtualMachine(
 		image.Machine().DeriveLimits(), image, net, tempFolder,
-		"", "", monitor.WithTag("component", "vm"),
+		"", "", vm.LinuxBootOptions{},
+		monitor.WithTag("component", "vm"),
 	)
 	if err != nil {
 		monitor.Panic("Failed to create virtual-machine, error: ", err)

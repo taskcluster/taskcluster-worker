@@ -27,6 +27,7 @@ func buildImage(
 	fromImage bool,
 	vncPort int,
 	boot, cdrom string,
+	linuxBootOptions vm.LinuxBootOptions,
 	size int,
 ) error {
 	// Find absolute outputFile
@@ -90,7 +91,11 @@ func buildImage(
 
 	// Create virtual machine
 	monitor.Info("Creating virtual machine")
-	vm, err := vm.NewVirtualMachine(img.Machine().DeriveLimits(), img, net, socketFolder, boot, cdrom, monitor.WithTag("component", "vm"))
+	vm, err := vm.NewVirtualMachine(
+		img.Machine().DeriveLimits(), img, net, socketFolder,
+		boot, cdrom, linuxBootOptions,
+		monitor.WithTag("component", "vm"),
+	)
 	if err != nil {
 		monitor.Error("Failed to recreated virtual-machine, error: ", err)
 		return err

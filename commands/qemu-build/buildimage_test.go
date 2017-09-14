@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/taskcluster/slugid-go/slugid"
+	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 )
 
@@ -47,7 +48,7 @@ func TestBuildImage(t *testing.T) {
 
 	err = buildImage(
 		monitor, inputImageFile, outputFile,
-		true, vncPort, isofile, cdrom, 1,
+		true, vncPort, isofile, cdrom, vm.LinuxBootOptions{}, 1,
 	)
 	if err != nil {
 		panic(err)
