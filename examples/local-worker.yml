@@ -1,0 +1,57 @@
+# Configuration file for people running tc-worker locally
+# Environment variables:
+#  - TASKCLUSTER_CLIENT_ID, and
+#  - TASKCLUSTER_ACCESS_TOKEN, credentials with required scopes.
+#  - WORKER_TYPE, any string authorized by scopes (max 22 chars),
+#  - WORKER_ID, any string authorized by scopes (max 22 chars).
+# Scopes required:
+#  - auth:webhooktunnel
+#  - auth:statsum:test-dummy-worker
+#  - auth:sentry:test-dummy-worker
+#  - queue:claim-work:localprovisioner/$WORKER_TYPE
+#  - queue:worker-id:local-worker/$WORKER_ID
+# Once setup you obtain JSON schema for the task.payload with:
+#  $ taskcluster-worker schema payload local-worker.yml
+# and run the worker with command:
+#  $ taskcluster-worker work local-worker.yml
+transforms:
+  - env
+config:
+  credentials:
+    clientId:       {$env: TASKCLUSTER_CLIENT_ID}
+    accessToken:    {$env: TASKCLUSTER_ACCESS_TOKEN}
+  engine: native
+  engines:
+    native:
+      createUser: false  # set true if you want a per-task user
+  minimumDiskSpace: 4294967296  # if < 4GB space then GC caches
+  minimumMemory: 1073741824 # if < 1 GB space then GC resources
+  monitor:
+    logLevel: warning
+    project:  test-dummy-worker  # request different project if you care about stats
+  plugins:
+    disabled:
+      - reboot  # don't want tasks rebooting my machine
+      - tcproxy # native engine doesn't support proxy attachements
+    interactive:    {}
+    artifacts:      {}
+    env:            {}
+    livelog:        {}
+    logprefix:      {}
+    tcproxy:        {}
+    maxruntime:
+      maxRunTime:   '4 hours'
+      perTaskLimit: 'allow'
+    success:        {}
+  temporaryFolder: /tmp/work-space  # TODO: Probably pick a folder with more space
+  webHookServer:
+    provider: webhooktunnel  # Expose livelog through webhooktunnel, requires: auth:webhooktunnel
+  worker:
+    concurrency: 1  # number of tasks to run in parallel
+    provisionerId: localprovisioner
+    workerType: {$env: WORKER_TYPE}
+    workerGroup: local-worker
+    workerId: {$env: WORKER_ID}
+    minimumReclaimDelay: 30
+    reclaimOffset: 300
+    pollingInterval: 30  # poll for tasks every 30s
