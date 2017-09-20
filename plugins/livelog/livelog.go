@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -197,9 +198,10 @@ func (tp *taskPlugin) uploadLog() error {
 			"Content-Encoding": "gzip",
 		},
 	})
-
 	if err != nil {
-		return err
+		err = errors.Wrap(err, "failed to upload live_backing.log")
+		tp.monitor.Error(err)
+		return err // Upload error isn't fatal
 	}
 
 	backingURL := fmt.Sprintf("https://queue.taskcluster.net/v1/task/%s/runs/%d/artifacts/public/logs/live_backing.log", tp.context.TaskInfo.TaskID, tp.context.TaskInfo.RunID)
@@ -210,8 +212,9 @@ func (tp *taskPlugin) uploadLog() error {
 		Expires:  tp.context.TaskInfo.Expires,
 	})
 	if err != nil {
+		err = errors.Wrap(err, "failed to update live.log")
 		tp.monitor.Error(err)
-		return err
+		return runtime.ErrNonFatalInternalError // Upload error isn't fatal
 	}
 
 	return nil
