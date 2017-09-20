@@ -147,7 +147,10 @@ func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser, additionalArt
 	}
 	for {
 		attempts++
-		stream.Seek(0, 0)
+		_, err := stream.Seek(0, 0)
+		if err != nil {
+			return err
+		}
 		req := &http.Request{
 			Method:        "PUT",
 			URL:           u,

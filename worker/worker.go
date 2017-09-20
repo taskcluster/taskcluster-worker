@@ -96,6 +96,8 @@ func New(config interface{}) (w *Worker, err error) {
 		TemporaryStorage: w.temporaryStorage,
 		WebHookServer:    w.webhookserver,
 		Worker:           &w.lifeCycleTracker,
+		WorkerGroup:      c.WorkerOptions.WorkerGroup,
+		WorkerID:         c.WorkerOptions.WorkerID,
 	}
 
 	// Create engine
@@ -317,6 +319,11 @@ func (w *Worker) processClaim(claim taskClaim) {
 		Certificate: claim.Credentials.Certificate,
 	})
 
+	// Convert task definition to interface{} form
+	var jsontask interface{}
+	rawTask, _ := json.Marshal(claim.Task)
+	_ = json.Unmarshal(rawTask, jsontask)
+
 	// Create a taskrun
 	var payload map[string]interface{}
 	if json.Unmarshal(claim.Task.Payload, &payload) != nil {
@@ -336,6 +343,7 @@ func (w *Worker) processClaim(claim taskClaim) {
 			Deadline: time.Time(claim.Task.Deadline),
 			Expires:  time.Time(claim.Task.Expires),
 			Scopes:   claim.Task.Scopes,
+			Task:     jsontask,
 		},
 	})
 	run.SetCredentials(
