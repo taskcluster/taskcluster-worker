@@ -20,7 +20,7 @@ const (
 var configSchema = schematypes.Object{
 	Title: "Artifact Configuration",
 	Description: util.Markdown(`
-		Configuration for artifact plugin, this is mostly COT (chain-of-trust)
+		Configuration for artifact plugin. This is mostly COT (chain-of-trust)
 		configuration, such as private key.
 	`),
 	Properties: schematypes.Properties{
@@ -30,15 +30,15 @@ var configSchema = schematypes.Object{
 				GPG armoured private key (unencrypted) for signing chain-of-trust
 				certificates.
 
-				If not given chain-of-trust signing will be disabled.
+				If not given, chain-of-trust signing will be disabled.
 			`),
 		},
 		"alwaysCreateCOT": schematypes.Boolean{
 			Title: "Always Create COT Certificate",
 			Description: util.Markdown(`
-				If set to 'true' all tasks will receive a chain-of-trust certificate.
+				If set to 'true', all tasks will receive a chain-of-trust certificate.
 
-				Otherwise, chain-of-trust certicates is a feature that can enabled on
+				Otherwise, chain-of-trust certicates is a feature that can be enabled on
 				a per-task level, using a setting in 'task.payload'.
 			`),
 		},

@@ -386,19 +386,16 @@ func (tp *taskPlugin) processFile(result engines.ResultSet, a artifact) {
 	}
 
 	// Compute artifact hash for chain-of-trust
-	if err = tp.hashArtifact(a.Name, r); err != nil {
-		goto error
+	if err = tp.hashArtifact(a.Name, r); err == nil {
+		// Let's upload from r
+		err = tp.context.UploadS3Artifact(runtime.S3Artifact{
+			Name:     a.Name,
+			Mimetype: mtype,
+			Stream:   r,
+			Expires:  a.Expires,
+		})
 	}
 
-	// Let's upload from r
-	err = tp.context.UploadS3Artifact(runtime.S3Artifact{
-		Name:     a.Name,
-		Mimetype: mtype,
-		Stream:   r,
-		Expires:  a.Expires,
-	})
-
-error:
 	if err != nil && err != context.Canceled {
 		tp.nonFatalErr.Set(true)
 		i := tp.monitor.ReportError(err, "Failed to upload artifact")
@@ -436,20 +433,17 @@ func (tp *taskPlugin) processDirectory(result engines.ResultSet, a artifact) {
 
 		var uerr error
 		// Compute artifact hash for chain-of-trust
-		if uerr = tp.hashArtifact(name, r); uerr != nil {
-			goto error
+		if uerr = tp.hashArtifact(name, r); uerr == nil {
+			// Upload artifact
+			debug(" - Uploading %s from %s -> %s", p, a.Path, name)
+			uerr = tp.context.UploadS3Artifact(runtime.S3Artifact{
+				Name:     name,
+				Expires:  a.Expires,
+				Stream:   r,
+				Mimetype: mtype,
+			})
 		}
 
-		// Upload artifact
-		debug(" - Uploading %s from %s -> %s", p, a.Path, name)
-		uerr = tp.context.UploadS3Artifact(runtime.S3Artifact{
-			Name:     name,
-			Expires:  a.Expires,
-			Stream:   r,
-			Mimetype: mtype,
-		})
-
-	error:
 		// If we have an upload error, that's just a internal non-fatal error.
 		// We ignore the error, if TaskContext was canceled, as requests should be
 		// aborted when that happens.

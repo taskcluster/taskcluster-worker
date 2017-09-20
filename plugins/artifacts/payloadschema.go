@@ -35,13 +35,13 @@ var artifactSchema = schematypes.Array{
 				Description: util.Markdown(`
 					Artifacts can be either an individual 'file' or a 'directory'
 					containing potentially multiple files with recursively included
-					subdirectories
+					subdirectories.
 				`),
 				Options: []string{typeFile, typeDirectory},
 			},
 			"path": schematypes.String{
 				Title:       "Artifact Path",
-				Description: "File system path of artifact",
+				Description: "File system path of the artifact",
 				Pattern:     `^.*[^/]$`,
 			},
 			"name": schematypes.String{
