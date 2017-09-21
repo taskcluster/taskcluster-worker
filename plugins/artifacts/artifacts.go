@@ -43,7 +43,6 @@ type plugin struct {
 	plugins.PluginBase
 	environment *runtime.Environment
 	privateKey  *openpgp.Entity // nil, if COT is disabled
-	config      config
 }
 
 type taskPlugin struct {
@@ -82,7 +81,7 @@ func (pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, 
 			return nil, errors.Wrap(err, "Failed to load private key")
 		}
 		if len(keyring) != 1 {
-			return nil, fmt.Errorf("Expected exactly one private key found: %d", len(keyring))
+			return nil, fmt.Errorf("Expected exactly one private key, found: %d", len(keyring))
 		}
 		key = keyring[0]
 	}
@@ -90,7 +89,6 @@ func (pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, 
 	return &plugin{
 		environment: options.Environment,
 		privateKey:  key,
-		config:      c,
 	}, nil
 }
 
@@ -101,24 +99,20 @@ func (p *plugin) PayloadSchema() schematypes.Object {
 		},
 	}
 	if p.privateKey != nil {
-		if !p.config.AlwaysCreateCOT {
-			schema.Properties["chainOfTrust"] = schematypes.Boolean{
-				Title: "Create chain-of-trust Certificate",
-				Description: util.Markdown(`
-					Generate a 'public/chainOfTrust.json.asc' artifact with signed hashes
-					of the artifacts generated from this task.
-				`),
-			}
+		schema.Properties["chainOfTrust"] = schematypes.Boolean{
+			Title: "Create chain-of-trust Certificate",
+			Description: util.Markdown(`
+				Generate a 'public/chainOfTrust.json.asc' artifact with signed hashes
+				of the artifacts generated from this task.
+			`),
 		}
-		if p.config.CreateCertifiedLog == optionOptional {
-			schema.Properties["certifiedLog"] = schematypes.Boolean{
-				Title: "Create Certified Log",
-				Description: util.Markdown(`
-					Default log artifact is not covered by 'public/chainOfTrust.json.asc',
-					if this is set to 'true' an artifact 'public/logs/certified.log' will
-					be created and covered by chain-of-trust certificate.
-				`),
-			}
+		schema.Properties["certifiedLog"] = schematypes.Boolean{
+			Title: "Create Certified Log",
+			Description: util.Markdown(`
+				Default log artifact is not covered by 'public/chainOfTrust.json.asc',
+				if this is set to 'true' an artifact 'public/logs/certified.log' will
+				be created and covered by chain-of-trust certificate.
+			`),
 		}
 	}
 	return schema
@@ -131,8 +125,8 @@ func (p *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskP
 	return &taskPlugin{
 		plugin:       p,
 		artifacts:    P.Artifacts,
-		createCOT:    p.privateKey != nil && (p.config.AlwaysCreateCOT || P.CreateCOT),
-		certifiedLog: p.privateKey != nil && (p.config.CreateCertifiedLog == optionAlways || P.CertifiedLog),
+		createCOT:    p.privateKey != nil && P.CreateCOT,
+		certifiedLog: p.privateKey != nil && P.CertifiedLog,
 		uploaded:     make(map[string][]byte),
 		context:      options.TaskContext,
 		monitor:      options.Monitor,
