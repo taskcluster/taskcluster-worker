@@ -1,14 +1,24 @@
 package artifacts
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"mime"
 	"path"
 	"path/filepath"
 	"strings"
 	"sync"
 
+	"golang.org/x/crypto/openpgp"
+	"golang.org/x/crypto/openpgp/clearsign"
+
+	"github.com/pkg/errors"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
@@ -31,40 +41,95 @@ type pluginProvider struct {
 
 type plugin struct {
 	plugins.PluginBase
+	environment *runtime.Environment
+	privateKey  *openpgp.Entity // nil, if COT is disabled
 }
 
 type taskPlugin struct {
 	plugins.TaskPluginBase
-	context     *runtime.TaskContext
-	artifacts   []artifact
-	monitor     runtime.Monitor
-	failed      atomics.Bool                    // If true, Stopped() returns false
-	mErrors     sync.Mutex                      // Guards errors
-	errors      []runtime.MalformedPayloadError // errors to be returned from Stopped()
-	nonFatalErr atomics.Bool                    // if true, Stopped() returns non-fatal error
-	fatalErr    atomics.Bool                    // if true, Stopped() returns fatal error
+	plugin       *plugin
+	context      *runtime.TaskContext
+	artifacts    []artifact
+	createCOT    bool
+	certifiedLog bool
+	uploaded     map[string][]byte // Map from artifact to sha256 hash
+	mUploaded    sync.Mutex
+	monitor      runtime.Monitor
+	failed       atomics.Bool                    // If true, Stopped() returns false
+	mErrors      sync.Mutex                      // Guards errors
+	errors       []runtime.MalformedPayloadError // errors to be returned from Stopped()
+	nonFatalErr  atomics.Bool                    // if true, Stopped() returns non-fatal error
+	fatalErr     atomics.Bool                    // if true, Stopped() returns fatal error
 }
 
 func init() {
 	plugins.Register("artifacts", pluginProvider{})
 }
 
-func (pluginProvider) NewPlugin(plugins.PluginOptions) (plugins.Plugin, error) {
-	return &plugin{}, nil
+func (pluginProvider) ConfigSchema() schematypes.Schema {
+	return configSchema
+}
+
+func (pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
+	var c config
+	schematypes.MustValidateAndMap(configSchema, options.Config, &c)
+
+	var key *openpgp.Entity
+	if c.PrivateKey != "" {
+		keyring, err := openpgp.ReadArmoredKeyRing(bytes.NewBufferString(c.PrivateKey))
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to load private key")
+		}
+		if len(keyring) != 1 {
+			return nil, fmt.Errorf("Expected exactly one private key, found: %d", len(keyring))
+		}
+		key = keyring[0]
+	}
+
+	return &plugin{
+		environment: options.Environment,
+		privateKey:  key,
+	}, nil
 }
 
 func (p *plugin) PayloadSchema() schematypes.Object {
-	return payloadSchema
+	schema := schematypes.Object{
+		Properties: schematypes.Properties{
+			"artifacts": artifactSchema,
+		},
+	}
+	if p.privateKey != nil {
+		schema.Properties["chainOfTrust"] = schematypes.Boolean{
+			Title: "Create chain-of-trust Certificate",
+			Description: util.Markdown(`
+				Generate a 'public/chainOfTrust.json.asc' artifact with signed hashes
+				of the artifacts generated from this task.
+			`),
+		}
+		schema.Properties["certifiedLog"] = schematypes.Boolean{
+			Title: "Create Certified Log",
+			Description: util.Markdown(`
+				Default log artifact is not covered by 'public/chainOfTrust.json.asc',
+				if this is set to 'true' an artifact 'public/logs/certified.log' will
+				be created and covered by chain-of-trust certificate.
+			`),
+		}
+	}
+	return schema
 }
 
 func (p *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPlugin, error) {
 	var P payload
-	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &P)
+	schematypes.MustValidateAndMap(p.PayloadSchema(), options.Payload, &P)
 
 	return &taskPlugin{
-		artifacts: P.Artifacts,
-		context:   options.TaskContext,
-		monitor:   options.Monitor,
+		plugin:       p,
+		artifacts:    P.Artifacts,
+		createCOT:    p.privateKey != nil && P.CreateCOT,
+		certifiedLog: p.privateKey != nil && P.CertifiedLog,
+		uploaded:     make(map[string][]byte),
+		context:      options.TaskContext,
+		monitor:      options.Monitor,
 	}, nil
 }
 
@@ -100,6 +165,134 @@ func (tp *taskPlugin) Stopped(result engines.ResultSet) (bool, error) {
 		err = runtime.ErrFatalInternalError
 	}
 	return !tp.failed.Get(), err
+}
+
+func (tp *taskPlugin) hashArtifact(name string, r io.ReadSeeker) error {
+	// Skip if no COT is to be generated
+	if !tp.createCOT {
+		return nil
+	}
+
+	var err error
+	h := sha256.New()
+	if _, err = io.Copy(h, r); err != nil {
+		return errors.Wrap(err, "failed to hash artifact from reader")
+	}
+	if _, err = r.Seek(0, 0); err != nil {
+		return errors.Wrap(err, "failed to seek artifact reader to start")
+	}
+
+	// Set artifact hash in uploaded for COT generation
+	tp.mUploaded.Lock()
+	defer tp.mUploaded.Unlock()
+	tp.uploaded[name] = h.Sum(nil)
+
+	return nil
+}
+
+func (tp *taskPlugin) Finished(success bool) error {
+	// Skip if no COT is to be generated
+	if !tp.createCOT {
+		return nil
+	}
+
+	// Upload certified log if requested
+	if tp.certifiedLog {
+		const certifiedLogName = "public/logs/certified.log"
+
+		r, err := tp.context.ExtractLog()
+		if err != nil {
+			return err
+		}
+		defer r.Close()
+
+		// Compute artifact hash for chain-of-trust
+		if err = tp.hashArtifact(certifiedLogName, r); err != nil {
+			return err
+		}
+
+		compressed, err := tp.plugin.environment.TemporaryStorage.NewFile()
+		if err != nil {
+			return err
+		}
+		defer compressed.Close()
+
+		// Compress log
+		zipper := gzip.NewWriter(compressed)
+		if _, err = io.Copy(zipper, r); err != nil {
+			return errors.Wrap(err, "failed to compress log")
+		}
+		if err = zipper.Close(); err != nil {
+			return errors.Wrap(err, "failed to close compressing of log")
+		}
+		_, err = compressed.Seek(0, 0)
+		if err != nil {
+			return errors.Wrap(err, "Failed to seek to start of compressed log")
+		}
+
+		// Let's upload from compressed
+		err = tp.context.UploadS3Artifact(runtime.S3Artifact{
+			Name:     certifiedLogName,
+			Mimetype: "text/plain; charset=utf-8",
+			Stream:   compressed,
+			Expires:  tp.context.TaskInfo.Expires,
+			AdditionalHeaders: map[string]string{
+				"Content-Encoding": "gzip",
+			},
+		})
+		if err != nil {
+			err = errors.Wrap(err, "failed to upload certified.log")
+			tp.monitor.Error(err)
+			return runtime.ErrNonFatalInternalError // We don't expect upload errors to be fatal
+		}
+	}
+
+	COT := chainOfTrust{
+		Version:     1,
+		TaskID:      tp.context.TaskID,
+		RunID:       tp.context.RunID,
+		WorkerGroup: tp.plugin.environment.WorkerGroup,
+		WorkerID:    tp.plugin.environment.WorkerID,
+		Environment: map[string]interface{}{},
+		Task:        tp.context.Task,
+		Artifacts:   make(map[string]cotArtifact),
+	}
+	for name, hash := range tp.uploaded {
+		COT.Artifacts[name] = cotArtifact{
+			Sha256: hex.EncodeToString(hash),
+		}
+	}
+	data, err := json.MarshalIndent(COT, "", "  ")
+	if err != nil {
+		panic(errors.Wrap(err, "failed to serialize COT certificate"))
+	}
+	cot := bytes.NewBuffer(nil)
+	w, err := clearsign.Encode(cot, tp.plugin.privateKey.PrivateKey, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to setup signing of COT certificate")
+	}
+	_, err = w.Write(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to write COT certificate")
+	}
+	err = w.Close()
+	if err != nil {
+		return errors.Wrap(err, "failed to sign COT certificate")
+	}
+
+	const cotCertificateName = "public/chainOfTrust.json.asc"
+	err = tp.context.UploadS3Artifact(runtime.S3Artifact{
+		Name:     cotCertificateName,
+		Mimetype: "text/plain; charset=utf-8",
+		Stream:   ioext.NopCloser(bytes.NewReader(cot.Bytes())),
+		Expires:  tp.context.TaskInfo.Expires,
+	})
+	if err != nil {
+		err = errors.Wrap(err, "failed to upload COT certificate")
+		tp.monitor.Error(err)
+		return runtime.ErrNonFatalInternalError // We don't expect upload errors to be fatal
+	}
+	return nil
 }
 
 const (
@@ -186,13 +379,16 @@ func (tp *taskPlugin) processFile(result engines.ResultSet, a artifact) {
 		mtype = unknownMimetype
 	}
 
-	// Let's upload from r
-	err = tp.context.UploadS3Artifact(runtime.S3Artifact{
-		Name:     a.Name,
-		Mimetype: mtype,
-		Stream:   r,
-		Expires:  a.Expires,
-	})
+	// Compute artifact hash for chain-of-trust
+	if err = tp.hashArtifact(a.Name, r); err == nil {
+		// Let's upload from r
+		err = tp.context.UploadS3Artifact(runtime.S3Artifact{
+			Name:     a.Name,
+			Mimetype: mtype,
+			Stream:   r,
+			Expires:  a.Expires,
+		})
+	}
 
 	if err != nil && err != context.Canceled {
 		tp.nonFatalErr.Set(true)
@@ -226,14 +422,21 @@ func (tp *taskPlugin) processDirectory(result engines.ResultSet, a artifact) {
 			mtype = unknownMimetype
 		}
 
-		// Upload artifact
-		debug(" - Uploading %s from %s -> %s", p, a.Path, path.Join(a.Name, p))
-		uerr := tp.context.UploadS3Artifact(runtime.S3Artifact{
-			Name:     path.Join(a.Name, p),
-			Expires:  a.Expires,
-			Stream:   r,
-			Mimetype: mtype,
-		})
+		// Construct artifact name
+		name := path.Join(a.Name, p)
+
+		var uerr error
+		// Compute artifact hash for chain-of-trust
+		if uerr = tp.hashArtifact(name, r); uerr == nil {
+			// Upload artifact
+			debug(" - Uploading %s from %s -> %s", p, a.Path, name)
+			uerr = tp.context.UploadS3Artifact(runtime.S3Artifact{
+				Name:     name,
+				Expires:  a.Expires,
+				Stream:   r,
+				Mimetype: mtype,
+			})
+		}
 
 		// If we have an upload error, that's just a internal non-fatal error.
 		// We ignore the error, if TaskContext was canceled, as requests should be

@@ -49,6 +49,7 @@ type TaskInfo struct {
 	Deadline time.Time
 	Expires  time.Time
 	Scopes   []string
+	Task     interface{} // task definition in map[string]interface{} types..
 }
 
 // The TaskContext exposes generic properties and functionality related to a

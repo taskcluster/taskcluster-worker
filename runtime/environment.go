@@ -14,5 +14,7 @@ type Environment struct {
 	TemporaryStorage
 	webhookserver.WebHookServer // Optional, may be nil if not available
 	Monitor
-	Worker Stoppable
+	Worker      Stoppable
+	WorkerGroup string
+	WorkerID    string
 }
