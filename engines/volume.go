@@ -1,5 +1,39 @@
 package engines
 
+import (
+	"io"
+	"os"
+)
+
+// The VolumeBuilder interface wraps the process of building a volume.
+// Notably, it permits writing of files and folders into the volume before it
+// is created.
+//
+// Once a BuildVolume() or Discard() have been called the VolumeBuilder object
+// is invalid and resources held by it should be considered transferred or
+// released.
+type VolumeBuilder interface {
+	// Write a file or folder to the Volume being built, may return
+	// ErrFeatureNotSupported, if the kind of os.FileInfo written isn't supported.
+	//
+	// If writing a folder or other entry without content WriteEntry() may return
+	// nil instead of an io.WriteCloser. In this case the caller would
+	// receive nil, nil from the method call.
+	//
+	// Non-fatal errors: ErrFeatureNotSupported
+	WriteEntry(info os.FileInfo) (io.WriteCloser, error)
+
+	// Build a volume from the information passed in.
+	//
+	// This invalidates the VolumeBuilder, which cannot be reused.
+	BuildVolume() (Volume, error)
+
+	// Discard resources held by the VolumeBuilder
+	//
+	// This invalidates the VolumeBuilder, which cannot be reused.
+	Discard() error
+}
+
 // Volume that we can modify and mount on a Sandbox.
 //
 // Note, that engine implementations are not responsible for tracking the
@@ -12,6 +46,18 @@ package engines
 type Volume interface {
 	// Dispose deletes all resources used by the Volume.
 	Dispose() error
+}
+
+// VolumeBuilderBase is a base implemenation of VolumeBuilder. It will implement
+// all optional methods such that they return ErrFeatureNotSupported.
+//
+// Implementors of VolumeBuilder should embed this struct to ensure source
+// compatibility when we add more optional methods to VolumeBuilder.
+type VolumeBuilderBase struct{}
+
+// Discard returns nil, indicating that resources was released
+func (VolumeBuilderBase) Discard() error {
+	return nil
 }
 
 // VolumeBase is a base implemenation of Volume. It will implement all
