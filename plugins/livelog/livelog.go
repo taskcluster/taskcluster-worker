@@ -176,7 +176,7 @@ func (tp *taskPlugin) uploadLog() error {
 
 	zip := gzip.NewWriter(tempFile)
 	if _, err = io.Copy(zip, file); err != nil {
-		return errors.Wrap(err, "failed to compressed log")
+		return errors.Wrap(err, "failed to compress log")
 	}
 
 	if err = zip.Close(); err != nil {
