@@ -152,20 +152,32 @@ func (s *sandbox) SetEnvironmentVariable(name string, value string) error {
 var functions = map[string]func(*sandbox, string) (bool, error){
 	"true":  func(s *sandbox, arg string) (bool, error) { return true, nil },
 	"false": func(s *sandbox, arg string) (bool, error) { return false, nil },
-	"set-volume": func(s *sandbox, arg string) (bool, error) {
-		mount := s.mounts[arg]
+	"write-volume": func(s *sandbox, arg string) (bool, error) {
+		// Parse arg as: <mountPoint>/<file_name>:<file_data>
+		args := strings.SplitN(arg, "/", 2)
+		volume_name := args[0]
+		args = strings.SplitN(args[1], ":", 2)
+		file_name := args[0]
+		file_data := args[1]
+		mount := s.mounts[volume_name]
 		if mount == nil || mount.readOnly {
 			return false, nil
 		}
-		mount.volume.value = true
+		mount.volume.files[file_name] = file_data
 		return true, nil
 	},
-	"get-volume": func(s *sandbox, arg string) (bool, error) {
-		mount := s.mounts[arg]
+	"read-volume": func(s *sandbox, arg string) (bool, error) {
+		// Parse arg as: <mountPoint>/<file_name>
+		args := strings.SplitN(arg, "/", 2)
+		volume_name := args[0]
+		file_name := args[1]
+
+		mount := s.mounts[volume_name]
 		if mount == nil {
 			return false, nil
 		}
-		return mount.volume.value, nil
+		s.context.Log(mount.volume.files[file_name])
+		return mount.volume.files[file_name] != "", nil
 	},
 	"ping-proxy": func(s *sandbox, arg string) (bool, error) {
 		u, err := url.Parse(arg)

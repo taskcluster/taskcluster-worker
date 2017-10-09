@@ -80,7 +80,20 @@ func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sandb
 	}, nil
 }
 
-func (engine) NewCacheFolder() (engines.Volume, error) {
+func (engine) VolumeSchema() schematypes.Schema {
+	return schematypes.Object{}
+}
+
+func (engine) NewVolumeBuilder(options interface{}) (engines.VolumeBuilder, error) {
 	// Create a new cache folder
-	return &volume{}, nil
+	return &volume{
+		files: make(map[string]string),
+	}, nil
+}
+
+func (engine) NewVolume(options interface{}) (engines.Volume, error) {
+	// Create a new cache folder
+	return &volume{
+		files: make(map[string]string),
+	}, nil
 }
