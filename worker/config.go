@@ -21,6 +21,7 @@ type options struct {
 	ReclaimOffset       int    `json:"reclaimOffset"`
 	MinimumReclaimDelay int    `json:"minimumReclaimDelay"`
 	Concurrency         int    `json:"concurrency"`
+	EnableSuperseding   bool   `json:"enableSuperseding"`
 }
 
 type configType struct {
@@ -108,6 +109,16 @@ var optionsSchema schematypes.Schema = schematypes.Object{
 			Description: "The number of tasks that this worker supports running in parallel.",
 			Minimum:     1,
 			Maximum:     1000,
+		},
+		"enableSuperseding": schematypes.Boolean{
+			Title: "Enable Superseding",
+			Description: util.Markdown(`
+				If superseding is enabled, tasks can specify a URL that returns a list
+				of taskIds that supersedes the given task.
+
+				For details see [superseding documentation](https://docs.taskcluster.net` +
+				`/reference/platform/taskcluster-queue/docs/superseding).
+			`),
 		},
 	},
 	Required: []string{
