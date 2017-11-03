@@ -16,8 +16,7 @@ var provider = &enginetest.EngineProvider{
         "arg": {"type": "string"}
       },
       "required": ["arg"]
-    },
-    "expiration": 3
+    }
   }`,
 }
 
@@ -45,26 +44,25 @@ func TestStderrPrefixing(t *t.T) {
 		EngineProvider: &enginetest.EngineProvider{
 			Engine: "script",
 			Config: `{
-		    "command": ["bash", "-ec", "v=$(cat);  echo \"$v\" | grep hello-world && (>&2 echo \"$v\") ; echo \"$v\" | grep success > /dev/null"],
-		    "schema": {
-		      "type": "object",
-		      "properties": {
-		        "arg": {"type": "string"}
-		      },
-		      "required": ["arg"]
-		    },
-		    "expiration": 3
-		  }`,
+        "command": ["bash", "-ec", "v=$(cat);  echo \"$v\" | grep hello-world && (>&2 echo \"$v\") ; echo \"$v\" | grep success > /dev/null"],
+          "schema": {
+            "type": "object",
+            "properties": {
+              "arg": {"type": "string"}
+            },
+            "required": ["arg"]
+          }
+      }`,
 		},
 		Target: "[worker:error]",
 		TargetPayload: `{
-	    "arg": "hello-world, this is a successful task"
-	  }`,
+      "arg": "hello-world, this is a successful task"
+    }`,
 		FailingPayload: `{
-	    "arg": "hello-world, this is a failing task"
-	  }`,
+      "arg": "hello-world, this is a failing task"
+    }`,
 		SilentPayload: `{
-	    "arg": "This is a successful task, that doesn't log target string"
-	  }`,
+      "arg": "This is a successful task, that doesn't log target string"
+    }`,
 	}).Test()
 }
