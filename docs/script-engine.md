@@ -76,13 +76,13 @@ In the configuration example above the command/script configured was
 `['/usr/bin/bash', '/home/jonasfj/worker-script.sh']`. This command will
 executed for each task with the following interface:
 
- * **`stdin`** of the command will be feed the parts of `task.payload` matching
+ * **`stdin`** of the command will passed the parts of `task.payload` matching
    configured schema, after which `stdin` is closed.
- * **Environment variables** `TASK_ID` and `RUN_ID` will be made available to
+ * **Environment variables** `TASK_ID` and `RUN_ID` will be accessible to
    the command.
- * **Current working directory** for the command will set to a temporary folder
+ * **Current working directory** for the command will be a temporary folder
    that will be deleted once the task is completed. This folder will contain
-   a `./artifacts/` folder that artifacts should be written to.
+   an `./artifacts/` folder that artifacts should be written to.
    (notice that public artifacts must be written to `./artifacts/public/...`)
  * **`stdout`** of the command will exposed as task log.
  * **`stderr`** of the command will have lines prefixed `[worker:error]` and
@@ -102,3 +102,31 @@ executed for each task with the following interface:
 
 Naturally, a script like `'/home/jonasfj/worker-script.sh'` should start by
 reading `stdin` until `EOF` and then parse the bytes read as UTF-8 encoded JSON.
+
+The command script should generally avoid to resolve tasks with `internal-error`,
+however, this can be useful in cases where the inexplicable errors occurs.
+From the interface specification above there are two ways to report
+`internal-error`, namely exit codes `3` and `4`. The difference between these
+is that `4` will stop the worker process from claiming more tasks and terminate.
+
+
+Robust Deployments
+==================
+
+When deploying taskcluster-worker it is often useful to configure the machine
+such that if the worker process exits, the machine will be _reset_, and the
+worker process restarted. Exactly what it means to _reset_ the machine depends
+on the scenario, it could be:
+ * Restarting the machine,
+ * Destroy virtual machine and start from a snapshot, or,
+ * Clean-up some folders and restart taskcluster-worker.
+
+The idea is that `taskcluster-worker` will exit, if it encounters a fatal
+internal-error. This could be consistent network errors, exit code `4` from
+script, or some other internal error. While not all internal errors are fatal,
+the `stoponerror` plugin can be used to terminate on any internal error.
+
+By doing a best-effort reset and restarting `taskcluster-worker` when it exits,
+it is possible to make a very robust deployment. Using the `watchdog` and
+`maxruntime` plugins it is easy to ensure that `taskcluster-worker` will exit
+should get stuck somewhere in the task processing cycle.
