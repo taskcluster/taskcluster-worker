@@ -1,6 +1,7 @@
 package scriptengine
 
 import (
+	"io"
 	"mime"
 	"os"
 	"os/exec"
@@ -17,21 +18,24 @@ const artifactFolder = "artifacts"
 
 type sandbox struct {
 	engines.SandboxBase
-	context     *runtime.TaskContext
-	engine      *engine
-	cmd         *exec.Cmd
-	folder      runtime.TemporaryFolder
-	resolve     atomics.Once
-	resultSet   engines.ResultSet
-	resultError error
-	resultAbort error
-	monitor     runtime.Monitor
-	aborted     atomics.Bool
-	done        chan struct{}
+	context      *runtime.TaskContext
+	engine       *engine
+	cmd          *exec.Cmd
+	stderrCloser io.Closer
+	folder       runtime.TemporaryFolder
+	resolve      atomics.Once
+	resultSet    engines.ResultSet
+	resultError  error
+	resultAbort  error
+	monitor      runtime.Monitor
+	aborted      atomics.Bool
+	done         chan struct{}
 }
 
 func (s *sandbox) run() {
 	err := s.cmd.Wait()
+	s.stderrCloser.Close()
+
 	success := err == nil
 	var resultError error
 	if e, ok := err.(*exec.ExitError); ok {

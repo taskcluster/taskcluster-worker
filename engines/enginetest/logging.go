@@ -36,7 +36,7 @@ func (c *LoggingTestCase) grepLogFromPayload(payload string, needle string, succ
 	log := r.ReadLog()
 	retval := strings.Contains(log, needle)
 	if retval != match {
-		fmt.Println("--- Couldn't find: ", needle, " in log: ---")
+		fmt.Println("--- Searched for needle: ", needle, " in log: ---")
 		fmt.Println(log)
 		fmt.Println("--- END OF LOG ---")
 	}
