@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"syscall"
-	"time"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -156,17 +155,11 @@ func (s *sandbox) uploadArtifacts() error {
 		// Find filename
 		name, _ := filepath.Rel(folder, p)
 
-		// Ensure expiration is no later than task.expires
-		expires := time.Now().Add(time.Duration(s.engine.config.Expiration) * 24 * time.Hour)
-		if s.context.Expires.Before(expires) {
-			expires = s.context.Expires
-		}
-
 		// Upload artifact
 		err = s.context.UploadS3Artifact(runtime.S3Artifact{
 			Name:     filepath.ToSlash(name),
 			Mimetype: mimeType,
-			Expires:  expires,
+			Expires:  s.context.Expires, // use task expiration
 			Stream:   f,
 		})
 
