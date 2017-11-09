@@ -465,6 +465,9 @@ func (w *Worker) processClaim(claim taskClaim) {
 // superseding returns any superseding task, and a function to be called when
 // processed to resolve other superseded tasks.
 func (w *Worker) superseding(claim taskClaim) (taskClaim, func()) {
+	// Create monitor for any problems we run into
+	m := w.monitor.WithPrefix("superseding")
+
 	var payload struct {
 		SupersederURL string `json:"supersederUrl"`
 	}
@@ -482,7 +485,7 @@ func (w *Worker) superseding(claim taskClaim) (taskClaim, func()) {
 	g := got.New()
 	r, err := g.Get(payload.SupersederURL + "?taskId=" + claim.Status.TaskID).Send()
 	if err != nil {
-		// TODO: warn logging
+		m.Warnf("failed to contact supersederUrl: '%s'", payload.SupersederURL)
 		return claim, func() {}
 	}
 
@@ -490,7 +493,7 @@ func (w *Worker) superseding(claim taskClaim) (taskClaim, func()) {
 		Supersedes []string `json:"supersedes"`
 	}
 	if json.Unmarshal(r.Body, &result) != nil {
-		// TODO: warn logging
+		m.Warnf("failed to JSON parse result from supersederUrl: '%s'", payload.SupersederURL)
 		return claim, func() {}
 	}
 
@@ -499,7 +502,7 @@ func (w *Worker) superseding(claim taskClaim) (taskClaim, func()) {
 		taskID := result.Supersedes[i]
 		s, qerr := w.queue.Status(taskID)
 		if qerr != nil {
-			// TODO: info logging
+			m.WithTag("taskId", taskID).Infof("unable to get task status, error: %v", qerr)
 			return
 		}
 		runID := len(s.Status.Runs) - 1
@@ -511,7 +514,10 @@ func (w *Worker) superseding(claim taskClaim) (taskClaim, func()) {
 			WorkerGroup: w.options.WorkerGroup,
 		})
 		if qerr != nil {
-			// TODO: info logging
+			m.WithTags(map[string]string{
+				"taskId": taskID,
+				"runId":  strconv.Itoa(runID),
+			}).Debug("unable to claimTask from superseder, error: %v", qerr)
 			return
 		}
 		claimAttempts[i] = taskClaim(*c)
@@ -545,7 +551,10 @@ func (w *Worker) superseding(claim taskClaim) (taskClaim, func()) {
 				q := w.newQueueClient(ctx, asClientCredentials(claims[i].Credentials))
 				result, qerr := q.ReclaimTask(taskID, runID)
 				if qerr != nil {
-					// TODO: warn log error
+					m.WithTags(map[string]string{
+						"taskId": taskID,
+						"runId":  runID,
+					}).Warnf("failed reclaimTask error: %v", qerr)
 					return
 				}
 				claims[i].Credentials = result.Credentials
@@ -558,7 +567,10 @@ func (w *Worker) superseding(claim taskClaim) (taskClaim, func()) {
 					Reason: "superseded",
 				})
 				if qerr != nil {
-					// TODO: warn log error
+					m.WithTags(map[string]string{
+						"taskId": taskID,
+						"runId":  runID,
+					}).Warnf("failed to reportException with reason superseded, error: %v", qerr)
 				}
 				return
 			}
