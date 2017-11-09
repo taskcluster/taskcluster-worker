@@ -24,6 +24,7 @@ import (
 //  * createTask
 //  * cancelTask
 //  * claimWork
+//  * claimTask
 //  * reclaimTask
 //  * reportCompleted
 //  * reportFailed
@@ -94,6 +95,7 @@ var (
 	patternCreateTask          = regexp.MustCompile("^/task/([a-zA-Z0-9_-]{22})$")
 	patternStatus              = regexp.MustCompile("^/task/([a-zA-Z0-9_-]{22})/status$")
 	patternCancelTask          = regexp.MustCompile("^/task/([a-zA-Z0-9_-]{22})/cancel$")
+	patternClaimTask           = regexp.MustCompile("^/task/([a-zA-Z0-9_-]{22})/runs/([0-9]+)/claim$")
 	patternReclaimTask         = regexp.MustCompile("^/task/([a-zA-Z0-9_-]{22})/runs/([0-9]+)/reclaim$")
 	patternReportCompleted     = regexp.MustCompile("^/task/([a-zA-Z0-9_-]{22})/runs/([0-9]+)/completed$")
 	patternReportFailed        = regexp.MustCompile("^/task/([a-zA-Z0-9_-]{22})/runs/([0-9]+)/failed$")
@@ -294,6 +296,47 @@ func (q *FakeQueue) claimWork(provisionerID, workerType string, payload *queue.C
 
 	finished.Do(nil)
 	return result
+}
+
+func (q *FakeQueue) claimTask(taskID string, runID int, payload *queue.TaskClaimRequest) interface{} {
+	t, ok := q.tasks[taskID]
+	if !ok || len(t.status.Runs) <= runID {
+		return resourceNotFoundError
+	}
+
+	if t.status.Runs[runID].State == statusRunning {
+		if payload.WorkerGroup != t.status.Runs[runID].WorkerGroup || payload.WorkerID != t.status.Runs[runID].WorkerID {
+			return restError{
+				StatusCode: http.StatusConflict,
+				Code:       "RequestConflict",
+				Message:    "run claimed by another worker",
+			}
+		}
+	} else if t.status.Runs[runID].State != statusPending {
+		return restError{
+			StatusCode: http.StatusConflict,
+			Code:       "RequestConflict",
+			Message:    "run not pending",
+		}
+	}
+
+	// Set run properties
+	t.status.Runs[runID].Started = tcclient.Time(time.Now())
+	t.status.Runs[runID].WorkerGroup = payload.WorkerGroup
+	t.status.Runs[runID].WorkerID = payload.WorkerID
+	t.status.Runs[runID].TakenUntil = tcclient.Time(time.Now().Add(5 * time.Minute))
+	t.status.Runs[runID].State = statusRunning
+	t.status.State = statusRunning
+
+	return queue.TaskClaimResponse{
+		Credentials: fakeCredentials,
+		RunID:       runID,
+		Status:      t.status,
+		TakenUntil:  t.status.Runs[runID].TakenUntil,
+		Task:        t.task,
+		WorkerGroup: payload.WorkerGroup,
+		WorkerID:    payload.WorkerID,
+	}
 }
 
 func (q *FakeQueue) reclaimTask(taskID string, runID int) interface{} {
@@ -670,6 +713,19 @@ func (q *FakeQueue) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if m := patternCancelTask.FindStringSubmatch(p); len(m) > 0 && r.Method == http.MethodPost {
 		debug(" -> queue.cancelTask(%s)", m[1])
 		reply(w, r, q.cancelTask(m[1]))
+		return
+	}
+
+	// POST /task/<taskId>/runs/<runId>/claim
+	if m := patternClaimTask.FindStringSubmatch(p); len(m) > 0 && r.Method == http.MethodPost {
+		runID, _ := strconv.Atoi(m[2])
+		debug(" -> queue.claimTask(%s, %d)", m[1], runID)
+		var payload queue.TaskClaimRequest
+		if err := json.Unmarshal(data, &payload); err != nil {
+			reply(w, r, invalidJSONPayloadError)
+			return
+		}
+		reply(w, r, q.claimTask(m[1], runID, &payload))
 		return
 	}
 
