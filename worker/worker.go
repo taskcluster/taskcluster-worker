@@ -3,12 +3,12 @@ package worker
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/pkg/errors"
 	got "github.com/taskcluster/go-got"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/httpbackoff"
@@ -468,24 +468,32 @@ func (w *Worker) superseding(claim taskClaim) (taskClaim, func()) {
 	// Create monitor for any problems we run into
 	m := w.monitor.WithPrefix("superseding")
 
-	var payload struct {
-		SupersederURL string `json:"supersederUrl"`
-	}
+	var payload map[string]interface{}
 	if json.Unmarshal(claim.Task.Payload, &payload) != nil {
 		// Do nothing, if there is an error, it'll show up later and logging will be
 		// more natural.
 		return claim, func() {}
 	}
+
+	// Take supersederUrl out of the payload
+	supersederURL, hasSupersederURL := payload["supersederUrl"].(string)
+	delete(payload, "supersederUrl")
+	var err error
+	claim.Task.Payload, err = json.Marshal(payload)
+	if err != nil {
+		panic(errors.Wrap(err, "failed to serialize data we know to be JSON"))
+	}
+
 	// Do nothing, if there is no supersederUrl
-	if payload.SupersederURL == "" {
+	if !hasSupersederURL || supersederURL == "" {
 		return claim, func() {}
 	}
 
 	// Fetch list of superseding tasks from superseder
 	g := got.New()
-	r, err := g.Get(payload.SupersederURL + "?taskId=" + claim.Status.TaskID).Send()
+	r, err := g.Get(supersederURL + "?taskId=" + claim.Status.TaskID).Send()
 	if err != nil {
-		m.Warnf("failed to contact supersederUrl: '%s'", payload.SupersederURL)
+		m.Warnf("failed to contact supersederUrl: '%s'", supersederURL)
 		return claim, func() {}
 	}
 
@@ -493,13 +501,18 @@ func (w *Worker) superseding(claim taskClaim) (taskClaim, func()) {
 		Supersedes []string `json:"supersedes"`
 	}
 	if json.Unmarshal(r.Body, &result) != nil {
-		m.Warnf("failed to JSON parse result from supersederUrl: '%s'", payload.SupersederURL)
+		m.Warnf("failed to JSON parse result from supersederUrl: '%s'", supersederURL)
 		return claim, func() {}
 	}
 
 	claimAttempts := make([]taskClaim, len(result.Supersedes))
 	util.Spawn(len(result.Supersedes), func(i int) {
 		taskID := result.Supersedes[i]
+		// Don't attempt to reclaim the initial task
+		if taskID == claim.Status.TaskID {
+			return
+		}
+		// Get state of the task, to find runID
 		s, qerr := w.queue.Status(taskID)
 		if qerr != nil {
 			m.WithTag("taskId", taskID).Infof("unable to get task status, error: %v", qerr)
@@ -576,6 +589,16 @@ func (w *Worker) superseding(claim taskClaim) (taskClaim, func()) {
 			}
 		}
 	})
+
+	// Remove supersederUrl from payload, so that it doesn't create malformed-payload
+	payload = make(map[string]interface{})
+	if json.Unmarshal(claim.Task.Payload, &payload) == nil {
+		delete(payload, "supersederUrl")
+		claim.Task.Payload, err = json.Marshal(payload)
+		if err != nil {
+			panic(errors.Wrap(err, "failed to serialize data known to be JSON"))
+		}
+	}
 
 	// Return primary claim, and done() function to stop reclaiming and resolve
 	return claim, func() {
