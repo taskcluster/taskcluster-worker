@@ -87,7 +87,7 @@ func (p *plugin) waitForTimeout() {
 }
 
 func (p *plugin) Touch() {
-	p.Monitor.Info("watchdog touched")
+	p.Monitor.Debug("watchdog touched")
 
 	p.m.Lock()
 	defer p.m.Unlock()

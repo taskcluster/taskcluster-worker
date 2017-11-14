@@ -3,6 +3,22 @@
 	"ignore": "test",
 	"package": [
 		{
+			"path": "Add",
+			"revision": ""
+		},
+		{
+			"path": "fetch",
+			"revision": ""
+		},
+		{
+			"path": "folder",
+			"revision": ""
+		},
+		{
+			"path": "from",
+			"revision": ""
+		},
+		{
 			"checksumSHA1": "2avCvSn0XonfApKKuTMyiQmk7s0=",
 			"path": "github.com/Sirupsen/logrus",
 			"revision": "3ec0642a7fb6488f65b06f9040adc67e3990296a",
@@ -158,6 +174,12 @@
 			"path": "github.com/gorilla/websocket",
 			"revision": "a91eba7f97777409bc2c443f5534d41dd20c5720",
 			"revisionTime": "2017-03-19T17:27:27Z"
+		},
+		{
+			"checksumSHA1": "5mkxnv32zZlZ1OQwXAIKy8+ZfOI=",
+			"path": "github.com/goware/prefixer",
+			"revision": "395022866408d928fc2439f7eac73dd8d370ec1d",
+			"revisionTime": "2016-01-18T17:23:47Z"
 		},
 		{
 			"checksumSHA1": "IyHKjCdrqRRLTAKBHEh6wUhkgiI=",
@@ -550,6 +572,34 @@
 			"path": "gopkg.in/yaml.v2",
 			"revision": "31c299268d302dd0aa9a0dcf765a3d58971ac83f",
 			"revisionTime": "2016-09-12T16:56:03Z"
+		},
+		{
+			"path": "new",
+			"revision": ""
+		},
+		{
+			"path": "or",
+			"revision": ""
+		},
+		{
+			"path": "packages",
+			"revision": ""
+		},
+		{
+			"path": "remote",
+			"revision": ""
+		},
+		{
+			"path": "repository.",
+			"revision": ""
+		},
+		{
+			"path": "update",
+			"revision": ""
+		},
+		{
+			"path": "vendor",
+			"revision": ""
 		}
 	],
 	"rootPath": "github.com/taskcluster/taskcluster-worker"

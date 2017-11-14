@@ -1,11 +1,12 @@
 package scriptengine
 
 import (
+	"io"
 	"mime"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"time"
+	"syscall"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -16,25 +17,50 @@ const artifactFolder = "artifacts"
 
 type sandbox struct {
 	engines.SandboxBase
-	context     *runtime.TaskContext
-	engine      *engine
-	cmd         *exec.Cmd
-	folder      runtime.TemporaryFolder
-	resolve     atomics.Once
-	resultSet   engines.ResultSet
-	resultError error
-	resultAbort error
-	monitor     runtime.Monitor
-	aborted     atomics.Bool
-	done        chan struct{}
+	context      *runtime.TaskContext
+	engine       *engine
+	cmd          *exec.Cmd
+	stderrCloser io.Closer
+	folder       runtime.TemporaryFolder
+	resolve      atomics.Once
+	resultSet    engines.ResultSet
+	resultError  error
+	resultAbort  error
+	monitor      runtime.Monitor
+	aborted      atomics.Bool
+	done         chan struct{}
 }
 
 func (s *sandbox) run() {
 	err := s.cmd.Wait()
-	success := err == nil
+	s.stderrCloser.Close()
 
-	// if error wasn't because script exited non-zero, then we have a problem
-	if _, ok := err.(*exec.ExitError); err != nil && !ok {
+	success := err == nil
+	var resultError error
+	if e, ok := err.(*exec.ExitError); ok {
+		if status, ok := e.Sys().(syscall.WaitStatus); ok {
+			switch status.ExitStatus() {
+			case 0:
+				// this shouldn't be possible...
+				s.monitor.ReportError(err, "got an exec.ExitError with exit code zero")
+				resultError = runtime.ErrFatalInternalError
+			case 1:
+				// default value for success is false
+			case 2:
+				resultError = runtime.NewMalformedPayloadError("task.payload parameters are not permitted")
+			case 3:
+				resultError = runtime.ErrNonFatalInternalError
+			case 4:
+				resultError = runtime.ErrFatalInternalError
+			default:
+				s.monitor.Errorf("script exited with unhandled exit-code: %d", status.ExitStatus())
+				resultError = runtime.ErrFatalInternalError
+			}
+		} else {
+			debug("platform doesn't seem to support exit codes")
+		}
+	} else if err != nil {
+		// if error wasn't because script exited non-zero, then we have a problem
 		s.monitor.Error("Script execution failed, error: ", err)
 	}
 
@@ -58,7 +84,11 @@ func (s *sandbox) run() {
 			s.monitor.Errorf("Failed to remove temporary folder, error: %s", err)
 		}
 
-		s.resultSet = &resultSet{success: success}
+		if resultError == nil {
+			s.resultSet = &resultSet{success: success}
+		} else {
+			s.resultError = resultError
+		}
 		s.resultAbort = engines.ErrSandboxTerminated
 	})
 }
@@ -125,17 +155,11 @@ func (s *sandbox) uploadArtifacts() error {
 		// Find filename
 		name, _ := filepath.Rel(folder, p)
 
-		// Ensure expiration is no later than task.expires
-		expires := time.Now().Add(time.Duration(s.engine.config.Expiration) * 24 * time.Hour)
-		if s.context.Expires.Before(expires) {
-			expires = s.context.Expires
-		}
-
 		// Upload artifact
 		err = s.context.UploadS3Artifact(runtime.S3Artifact{
 			Name:     filepath.ToSlash(name),
 			Mimetype: mimeType,
-			Expires:  expires,
+			Expires:  s.context.Expires, // use task expiration
 			Stream:   f,
 		})
 

@@ -11,6 +11,7 @@ import (
 	raven "github.com/getsentry/raven-go"
 	"github.com/pborman/uuid"
 	"github.com/taskcluster/statsum"
+	"github.com/taskcluster/taskcluster-worker/commands/version"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 )
@@ -173,6 +174,14 @@ func (m *monitor) submitError(err error, message string, level raven.Severity, i
 	}
 	tags["incidentId"] = incidentID.String()
 	tags["prefix"] = m.prefix
+	tags["version"] = "unknown"
+	tags["revision"] = "unknown"
+	if version.Version() != "" {
+		tags["version"] = version.Version()
+	}
+	if version.Revision() != "" {
+		tags["revision"] = version.Revision()
+	}
 
 	// Get client with fresh sentry DSN (if cached is old)
 	client, rerr := m.sentry.Client()

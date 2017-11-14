@@ -176,16 +176,16 @@ func (tp *taskPlugin) uploadLog() error {
 
 	zip := gzip.NewWriter(tempFile)
 	if _, err = io.Copy(zip, file); err != nil {
-		return err
+		return errors.Wrap(err, "failed to compress log")
 	}
 
 	if err = zip.Close(); err != nil {
-		return err
+		return errors.Wrap(err, "failed to finish log compression")
 	}
 
-	_, err = tempFile.Seek(0, 0)
+	_, err = tempFile.Seek(0, io.SeekStart)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to reset temporary file to start")
 	}
 
 	debug("Uploading live_backing.log")

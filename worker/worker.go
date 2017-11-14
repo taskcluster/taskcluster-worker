@@ -425,6 +425,10 @@ func (w *Worker) processClaim(claim taskClaim) {
 			_, err = q.ReportFailed(claim.Status.TaskID, runID)
 		}
 	}
+	if e, ok := err.(httpbackoff.BadHttpResponseCode); ok && e.HttpResponseCode == 409 {
+		monitor.Info("request conflict reporting task resolution, task was probably cancelled")
+		err = nil // ignore error
+	}
 	if err != nil {
 		monitor.ReportError(err, "failed to report task resolution")
 		w.plugin.ReportNonFatalError() // This is bad, but no need for it to be fatal
