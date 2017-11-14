@@ -89,9 +89,8 @@ type Engine interface {
 	// NewVolumeBuilder returns a VolumeBuilder for constructing a volume for this
 	// engine, the options must match the VolumeSchema() defined by this engine.
 	//
-	// This method may return ErrFeatureNotSupported, because volumes are not
-	// supported, or because it only supports building empty volumes using
-	// NewVolume().
+	// This method may return ErrFeatureNotSupported, if volumes are not supported,
+	// or if the engine only supports building empty volumes using NewVolume().
 	//
 	// Non-fatal errors: ErrFeatureNotSupported
 	NewVolumeBuilder(options interface{}) (VolumeBuilder, error)
