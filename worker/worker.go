@@ -158,7 +158,7 @@ func (w *Worker) PayloadSchema() schematypes.Schema {
 		))
 	}
 	// Adding supersederUrl to payload schema
-	// NOTE: This probably be removed when someday superseding is implemented in the queue
+	// NOTE: This can be removed when someday superseding is implemented in the queue
 	if w.options.EnableSuperseding {
 		payloadSchema.Properties["supersederUrl"] = schematypes.URI{
 			Title: "Superseder URL",
@@ -475,7 +475,9 @@ func (w *Worker) superseding(claim taskClaim) (taskClaim, func()) {
 		return claim, func() {}
 	}
 
-	// Take supersederUrl out of the payload
+	// Take supersederUrl out of the payload, as it would break the payload
+	// validation done in TaskRun. We attempt to hide superseding from the rest
+	// of the worker implementation, so that it's only creating a hack here.
 	supersederURL, hasSupersederURL := payload["supersederUrl"].(string)
 	delete(payload, "supersederUrl")
 	var err error
@@ -614,7 +616,7 @@ func (w *Worker) superseding(claim taskClaim) (taskClaim, func()) {
 				cancelled.Do(cancel)
 			}
 		}()
-		// Stop reclaiming, this cases tasks to resolve superseded
+		// Stop reclaiming, this causes the other tasks to resolve superseded
 		stopReclaiming.Do(nil)
 		// Wait for tasks to be resolved
 		tasksResolved.Wait()
