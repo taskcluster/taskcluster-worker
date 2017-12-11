@@ -38,6 +38,7 @@ type Case struct {
 // A Task to be included in a worker test case
 type Task struct {
 	Title           string                  // Optional title (for debugging)
+	Scopes          []string                // Task scopes
 	Payload         string                  // Task payload as JSON
 	Success         bool                    // True, if task should be successfully
 	Exception       runtime.ExceptionReason // Reason, if exception is expected
@@ -239,6 +240,7 @@ func (c Case) testWithQueue(t *testing.T, q *queue.Queue, l fakequeue.Listener) 
 		if title == "" {
 			title = fmt.Sprintf("Task %d", i)
 		}
+		tdef.Scopes = task.Scopes
 		tdef.Metadata.Name = title
 		tdef.Metadata.Description = "Task from taskcluster-worker integration tests"
 		tdef.Metadata.Source = "https://github.com/taskcluster/taskcluster-worker/tree/master/worker/workertest/workertest.go"
