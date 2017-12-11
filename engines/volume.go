@@ -1,9 +1,6 @@
 package engines
 
-import (
-	"io"
-	"os"
-)
+import "io"
 
 // The VolumeBuilder interface wraps the process of building a volume.
 // Notably, it permits writing of files and folders into the volume before it
@@ -13,15 +10,17 @@ import (
 // is invalid and resources held by it should be considered transferred or
 // released.
 type VolumeBuilder interface {
-	// Write a file or folder to the Volume being built, may return
-	// ErrFeatureNotSupported, if the kind of os.FileInfo written isn't supported.
+	// Write a folder to the volume being built.
 	//
-	// If writing a folder or other entry without content WriteEntry() may return
-	// nil instead of an io.WriteCloser. In this case the caller would
-	// receive nil, nil from the method call.
+	// Name must be a slash separated path, there is no requirement that
+	// intermediate folders have been created.
+	WriteFolder(name string) error
+
+	// Write a file to the volime being built.
 	//
-	// Non-fatal errors: ErrFeatureNotSupported
-	WriteEntry(info os.FileInfo) (io.WriteCloser, error)
+	// Name must be a slash separated path, there is no requirement that
+	// intermediate folders have been created.
+	WriteFile(name string) io.WriteCloser
 
 	// Build a volume from the information passed in.
 	//
