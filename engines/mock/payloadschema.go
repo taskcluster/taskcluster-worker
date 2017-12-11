@@ -31,6 +31,7 @@ var payloadSchema = schematypes.Object{
 				"false",
 				"write-volume",
 				"read-volume",
+				"get-url",
 				"ping-proxy",
 				"write-log",
 				"write-error-log",
