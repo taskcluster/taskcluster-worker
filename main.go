@@ -47,6 +47,7 @@ import (
 	_ "github.com/taskcluster/taskcluster-worker/engines/qemu"
 	_ "github.com/taskcluster/taskcluster-worker/engines/script"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/artifacts"
+	_ "github.com/taskcluster/taskcluster-worker/plugins/cache"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/env"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/interactive"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/livelog"
