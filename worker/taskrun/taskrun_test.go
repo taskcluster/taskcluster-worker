@@ -32,6 +32,10 @@ func TestTaskRun(t *testing.T) {
 		GarbageCollector: gc,
 		TemporaryStorage: storage,
 		WebHookServer:    server,
+		ProvisionerID:    "taskrun-tests",
+		WorkerType:       "taskrun-worker",
+		WorkerGroup:      "taskrun-tests",
+		WorkerID:         "localhost",
 	}
 
 	options := Options{

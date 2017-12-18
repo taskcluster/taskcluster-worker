@@ -143,6 +143,10 @@ func newTestEnvironment() *runtime.Environment {
 		GarbageCollector: &gc.GarbageCollector{},
 		TemporaryStorage: folder,
 		Monitor:          mocks.NewMockMonitor(true),
+		ProvisionerID:    "enginetest-provisioner",
+		WorkerType:       "enginetest-worker",
+		WorkerGroup:      "enginetest-tests",
+		WorkerID:         "localhost",
 	}
 }
 
