@@ -19,7 +19,7 @@ type fileSystem interface {
 
 // extractArchive detects archive type from source and extracts to target
 // If this fails due to archive format then it returns MalformedPayloadError
-func extractArchive(source io.ReadSeeker, target fileSystem) error {
+func extractArchive(source io.Reader, target fileSystem) error {
 	// Ensure we do buffered I/O
 	br := bufio.NewReaderSize(source, 4096)
 	head, _ := br.Peek(512)
