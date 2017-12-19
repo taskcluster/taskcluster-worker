@@ -18,6 +18,10 @@ func (pluginProvider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, 
 	assert(e.Monitor != nil, "PluginOptions.Environment.Monitor is nil!")
 	assert(e.TemporaryStorage != nil, "PluginOptions.Environment.TemporaryStorage is nil!")
 	assert(e.WebHookServer != nil, "PluginOptions.Environment.WebHookServer is nil!")
+	assert(e.ProvisionerID != "", "PluginOptions.Environment.ProvisionerID is empty string")
+	assert(e.WorkerType != "", "PluginOptions.Environment.WorkerType is empty string")
+	assert(e.WorkerGroup != "", "PluginOptions.Environment.WorkerGroup is empty string")
+	assert(e.WorkerID != "", "PluginOptions.Environment.WorkerID is empty string")
 	return plugin{}, nil
 }
 

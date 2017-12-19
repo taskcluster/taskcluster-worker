@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +10,7 @@ import (
 
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 
@@ -86,7 +86,7 @@ type TaskContextController struct {
 func NewTaskContext(tempLogFile string, task TaskInfo) (*TaskContext, *TaskContextController, error) {
 	logStream, err := stream.New(tempLogFile)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrap(err, "failed to create temporary file for storing log")
 	}
 	ctx := &TaskContext{
 		logStream:   logStream,
@@ -187,6 +187,8 @@ func (c *TaskContext) Err() error {
 	// NOTE: This method is implemented to support the context.Context interface
 	//       and may not return anything but context.Canceled or
 	//       context.DeadlineExceeded.
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	if c.status == Aborted || c.status == Cancelled {
 		return context.Canceled
 	}
@@ -203,13 +205,13 @@ func (c *TaskContext) Abort() {
 	// TODO: (jonasfj): Remove this method TaskContext
 	// TODO (garndt): add abort/cancel channels for plugins to listen on
 	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.status = Aborted
 	select {
 	case <-c.done:
 	default:
 		close(c.done)
 	}
-	c.mu.Unlock()
 }
 
 // IsAborted returns true if the current status is Aborted

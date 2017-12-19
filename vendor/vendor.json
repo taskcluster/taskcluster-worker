@@ -160,6 +160,12 @@
 			"revisionTime": "2017-03-19T17:27:27Z"
 		},
 		{
+			"checksumSHA1": "5mkxnv32zZlZ1OQwXAIKy8+ZfOI=",
+			"path": "github.com/goware/prefixer",
+			"revision": "395022866408d928fc2439f7eac73dd8d370ec1d",
+			"revisionTime": "2016-01-18T17:23:47Z"
+		},
+		{
 			"checksumSHA1": "IyHKjCdrqRRLTAKBHEh6wUhkgiI=",
 			"path": "github.com/jbuchbinder/gopnm",
 			"revision": "5176c556b9ce7e87b54b92744dc86f058f520e86",
@@ -372,22 +378,28 @@
 			"revisionTime": "2017-07-06T18:25:07Z"
 		},
 		{
-			"checksumSHA1": "R32NrZ6Q3DDlu+LNdi4AnnjTsAg=",
+			"checksumSHA1": "8li21JoI/8M5rZySD68A7d10vac=",
 			"path": "github.com/taskcluster/taskcluster-client-go/index",
-			"revision": "ccd1bb49e35fb0bd48c510d144fd5f2d054e815a",
-			"revisionTime": "2017-06-12T10:23:26Z"
+			"revision": "0adb988569ffd40f68ed3422835325cfb03581c5",
+			"revisionTime": "2017-07-06T18:25:07Z"
 		},
 		{
-			"checksumSHA1": "bNFuBG/RryZaHXV9krlZyU7KrGQ=",
+			"checksumSHA1": "jcRqERO5lLkfVZNLNGHOuJTbNXc=",
+			"path": "github.com/taskcluster/taskcluster-client-go/purgecache",
+			"revision": "0adb988569ffd40f68ed3422835325cfb03581c5",
+			"revisionTime": "2017-07-06T18:25:07Z"
+		},
+		{
+			"checksumSHA1": "2ejtALFm/1HFJnQNZ1km6luvmB8=",
 			"path": "github.com/taskcluster/taskcluster-client-go/queue",
-			"revision": "23a058fed14aecf11e5f0a57c9f3bc7f31adc725",
-			"revisionTime": "2017-04-13T22:51:09Z"
+			"revision": "0adb988569ffd40f68ed3422835325cfb03581c5",
+			"revisionTime": "2017-07-06T18:25:07Z"
 		},
 		{
-			"checksumSHA1": "VIDHtEubzOxKcii86F5bSwcPMw8=",
+			"checksumSHA1": "ESepjdHscCzf9sKlXSBAGRNN5kA=",
 			"path": "github.com/taskcluster/taskcluster-client-go/secrets",
-			"revision": "23a058fed14aecf11e5f0a57c9f3bc7f31adc725",
-			"revisionTime": "2017-04-13T22:51:09Z"
+			"revision": "0adb988569ffd40f68ed3422835325cfb03581c5",
+			"revisionTime": "2017-07-06T18:25:07Z"
 		},
 		{
 			"checksumSHA1": "SeU/g0O6sCj2Ce+hdBHMDWlL3oc=",
@@ -538,6 +550,24 @@
 			"path": "gopkg.in/djherbis/stream.v1",
 			"revision": "f0541db8ef04758adee7c69853244546e6c6e5cf",
 			"revisionTime": "2016-07-24T20:26:31Z"
+		},
+		{
+			"checksumSHA1": "EWPoHd6k70ZxvNR2zKUdcIYNl3k=",
+			"path": "gopkg.in/h2non/filetype.v1",
+			"revision": "22e255079ab40241c671d457081831d972f0436b",
+			"revisionTime": "2017-08-03T09:23:50Z"
+		},
+		{
+			"checksumSHA1": "OmK2aAXxzKRJ9xNhXCcC43fpwqI=",
+			"path": "gopkg.in/h2non/filetype.v1/matchers",
+			"revision": "22e255079ab40241c671d457081831d972f0436b",
+			"revisionTime": "2017-08-03T09:23:50Z"
+		},
+		{
+			"checksumSHA1": "vPleg/8tgVv8jnMqT7zEQ0jWW2M=",
+			"path": "gopkg.in/h2non/filetype.v1/types",
+			"revision": "22e255079ab40241c671d457081831d972f0436b",
+			"revisionTime": "2017-08-03T09:23:50Z"
 		},
 		{
 			"checksumSHA1": "hiOUviIMDKo7y918uBiEhfJyOkk=",

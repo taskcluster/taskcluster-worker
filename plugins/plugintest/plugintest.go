@@ -316,6 +316,10 @@ func newTestEnvironment() runtime.Environment {
 		TemporaryStorage: folder,
 		Monitor:          mocks.NewMockMonitor(true),
 		Worker:           &runtime.LifeCycleTracker{},
+		ProvisionerID:    "dummy-provisioner",
+		WorkerType:       "dummy-worker-type",
+		WorkerGroup:      "dummy-worker-group",
+		WorkerID:         "dummy-worker-id",
 	}
 }
 

@@ -100,6 +100,8 @@ func New(config interface{}) (w *Worker, err error) {
 		Worker:           &w.lifeCycleTracker,
 		WorkerGroup:      c.WorkerOptions.WorkerGroup,
 		WorkerID:         c.WorkerOptions.WorkerID,
+		ProvisionerID:    c.WorkerOptions.ProvisionerID,
+		WorkerType:       c.WorkerOptions.WorkerType,
 	}
 
 	// Create engine
@@ -441,6 +443,10 @@ func (w *Worker) processClaim(claim taskClaim) {
 		} else {
 			_, err = q.ReportFailed(claim.Status.TaskID, runID)
 		}
+	}
+	if e, ok := err.(httpbackoff.BadHttpResponseCode); ok && e.HttpResponseCode == 409 {
+		monitor.Info("request conflict reporting task resolution, task was probably cancelled")
+		err = nil // ignore error
 	}
 	if err != nil {
 		monitor.ReportError(err, "failed to report task resolution")

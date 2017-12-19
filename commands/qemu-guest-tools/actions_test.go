@@ -41,6 +41,10 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 	}
 	environment := &runtime.Environment{
 		TemporaryStorage: storage,
+		ProvisionerID:    "dummy-provisioner",
+		WorkerType:       "dummy-worker",
+		WorkerGroup:      "dummy-tests",
+		WorkerID:         "localhost",
 	}
 
 	logTask := bytes.NewBuffer(nil)

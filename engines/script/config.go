@@ -6,9 +6,8 @@ import (
 )
 
 type configType struct {
-	Command    []string `json:"command"`
-	Expiration int      `json:"expiration"`
-	Schema     struct {
+	Command []string `json:"command"`
+	Schema  struct {
 		Type       string                 `json:"type"`
 		Properties map[string]interface{} `json:"properties"`
 		Required   []string               `json:"required"`
@@ -44,16 +43,9 @@ var configSchema = schematypes.Object{
 				"required",
 			},
 		},
-		"expiration": schematypes.Integer{
-			Title:       "Artifact Expiration",
-			Description: "Number of days before artifact expiration.",
-			Minimum:     1,
-			Maximum:     365,
-		},
 	},
 	Required: []string{
 		"command",
 		"schema",
-		"expiration",
 	},
 }

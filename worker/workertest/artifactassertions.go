@@ -21,6 +21,14 @@ func GrepArtifact(substring string) func(t *testing.T, a Artifact) {
 	}
 }
 
+// NotGrepArtifact creates an assertion that holds if the artifact does not
+// contain the given substring.
+func NotGrepArtifact(substring string) func(t *testing.T, a Artifact) {
+	return func(t *testing.T, a Artifact) {
+		assert.NotContains(t, string(a.Data), substring, "Expected substring to NOT be in artifact: %s", a.Name)
+	}
+}
+
 // LogArtifact creates an assetion that logs the artifact, to test log.
 // This is mostly useful when developing integration tests.
 func LogArtifact() func(t *testing.T, a Artifact) {
