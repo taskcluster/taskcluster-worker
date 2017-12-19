@@ -29,6 +29,10 @@ func TestGuestToolsSuccess(t *testing.T) {
 	environment := &runtime.Environment{
 		TemporaryStorage: storage,
 		Monitor:          mocks.NewMockMonitor(true),
+		ProvisionerID:    "dummy-provisioner",
+		WorkerType:       "dummy-worker",
+		WorkerGroup:      "dummy-tests",
+		WorkerID:         "localhost",
 	}
 
 	// platform specific hello world command
@@ -81,6 +85,10 @@ func TestGuestToolsFailed(t *testing.T) {
 	environment := &runtime.Environment{
 		TemporaryStorage: storage,
 		Monitor:          mocks.NewMockMonitor(true),
+		ProvisionerID:    "dummy-provisioner",
+		WorkerType:       "dummy-worker",
+		WorkerGroup:      "dummy-tests",
+		WorkerID:         "localhost",
 	}
 
 	// platform specific hello world command
@@ -142,6 +150,10 @@ func TestGuestToolsLiveLog(t *testing.T) {
 	}
 	environment := &runtime.Environment{
 		TemporaryStorage: storage,
+		ProvisionerID:    "dummy-provisioner",
+		WorkerType:       "dummy-worker",
+		WorkerGroup:      "dummy-tests",
+		WorkerID:         "localhost",
 	}
 
 	// platform specific hello world command
@@ -216,6 +228,10 @@ func TestGuestToolsKill(t *testing.T) {
 	environment := &runtime.Environment{
 		TemporaryStorage: storage,
 		Monitor:          mocks.NewMockMonitor(true),
+		ProvisionerID:    "dummy-provisioner",
+		WorkerType:       "dummy-worker",
+		WorkerGroup:      "dummy-tests",
+		WorkerID:         "localhost",
 	}
 
 	// platform specific hello world command

@@ -12,6 +12,7 @@ matrix:
       env:
         - MY_GOOS=darwin
         - MY_GOARCH=amd64
+        - DEBUG=*
     - os: linux
       env:
         - MY_GOOS=windows
