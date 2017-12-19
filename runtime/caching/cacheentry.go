@@ -66,14 +66,14 @@ func (e *cacheEntry) release() {
 
 	debug("cache entry '%s' released to cache, refCount: %d", e.optionsHash, e.refCount-1)
 
+	// Make sure we don't go negative
+	if e.refCount == 0 {
+		panic(fmt.Errorf("cacheEntry had refCount == 0 when decremented for resource type: %T", e.resource))
+	}
+
 	// Decrement reference count
 	e.refCount--
 	e.lastUsed = time.Now()
-
-	// Make sure we don't go negative
-	if e.refCount < 0 {
-		panic(fmt.Errorf("cacheEntry had refCount < 0 for resource type: %T", e.resource))
-	}
 
 	// If refCount is zero and this entry is scheduled to be purge, we dispose of it
 	if e.refCount == 0 && e.purge {
