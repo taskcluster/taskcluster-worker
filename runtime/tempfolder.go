@@ -29,6 +29,7 @@ type TemporaryFolder interface {
 
 // TemporaryFile is a temporary file that will be removed when closed.
 type TemporaryFile interface {
+	Truncate(size int64) error
 	io.ReadWriteSeeker
 	io.Closer
 	Path() string

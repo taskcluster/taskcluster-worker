@@ -1,10 +1,10 @@
 package webhookserver
 
 import (
-	"errors"
 	"net/http"
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/auth"
@@ -25,7 +25,7 @@ func NewWebhookTunnel(credentials *tcclient.Credentials) (*WebhookTunnel, error)
 		authClient := auth.New(credentials)
 		whresp, err := authClient.WebhooktunnelToken()
 		if err != nil {
-			return whclient.Config{}, errors.New("could not get token from tc-auth")
+			return whclient.Config{}, errors.Wrap(err, "could not get token from tc-auth")
 		}
 
 		return whclient.Config{

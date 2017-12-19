@@ -3,22 +3,6 @@
 	"ignore": "test",
 	"package": [
 		{
-			"path": "Add",
-			"revision": ""
-		},
-		{
-			"path": "fetch",
-			"revision": ""
-		},
-		{
-			"path": "folder",
-			"revision": ""
-		},
-		{
-			"path": "from",
-			"revision": ""
-		},
-		{
 			"checksumSHA1": "2avCvSn0XonfApKKuTMyiQmk7s0=",
 			"path": "github.com/Sirupsen/logrus",
 			"revision": "3ec0642a7fb6488f65b06f9040adc67e3990296a",
@@ -394,22 +378,28 @@
 			"revisionTime": "2017-07-06T18:25:07Z"
 		},
 		{
-			"checksumSHA1": "R32NrZ6Q3DDlu+LNdi4AnnjTsAg=",
+			"checksumSHA1": "8li21JoI/8M5rZySD68A7d10vac=",
 			"path": "github.com/taskcluster/taskcluster-client-go/index",
-			"revision": "ccd1bb49e35fb0bd48c510d144fd5f2d054e815a",
-			"revisionTime": "2017-06-12T10:23:26Z"
+			"revision": "0adb988569ffd40f68ed3422835325cfb03581c5",
+			"revisionTime": "2017-07-06T18:25:07Z"
 		},
 		{
-			"checksumSHA1": "bNFuBG/RryZaHXV9krlZyU7KrGQ=",
+			"checksumSHA1": "jcRqERO5lLkfVZNLNGHOuJTbNXc=",
+			"path": "github.com/taskcluster/taskcluster-client-go/purgecache",
+			"revision": "0adb988569ffd40f68ed3422835325cfb03581c5",
+			"revisionTime": "2017-07-06T18:25:07Z"
+		},
+		{
+			"checksumSHA1": "2ejtALFm/1HFJnQNZ1km6luvmB8=",
 			"path": "github.com/taskcluster/taskcluster-client-go/queue",
-			"revision": "23a058fed14aecf11e5f0a57c9f3bc7f31adc725",
-			"revisionTime": "2017-04-13T22:51:09Z"
+			"revision": "0adb988569ffd40f68ed3422835325cfb03581c5",
+			"revisionTime": "2017-07-06T18:25:07Z"
 		},
 		{
-			"checksumSHA1": "VIDHtEubzOxKcii86F5bSwcPMw8=",
+			"checksumSHA1": "ESepjdHscCzf9sKlXSBAGRNN5kA=",
 			"path": "github.com/taskcluster/taskcluster-client-go/secrets",
-			"revision": "23a058fed14aecf11e5f0a57c9f3bc7f31adc725",
-			"revisionTime": "2017-04-13T22:51:09Z"
+			"revision": "0adb988569ffd40f68ed3422835325cfb03581c5",
+			"revisionTime": "2017-07-06T18:25:07Z"
 		},
 		{
 			"checksumSHA1": "SeU/g0O6sCj2Ce+hdBHMDWlL3oc=",
@@ -562,6 +552,24 @@
 			"revisionTime": "2016-07-24T20:26:31Z"
 		},
 		{
+			"checksumSHA1": "EWPoHd6k70ZxvNR2zKUdcIYNl3k=",
+			"path": "gopkg.in/h2non/filetype.v1",
+			"revision": "22e255079ab40241c671d457081831d972f0436b",
+			"revisionTime": "2017-08-03T09:23:50Z"
+		},
+		{
+			"checksumSHA1": "OmK2aAXxzKRJ9xNhXCcC43fpwqI=",
+			"path": "gopkg.in/h2non/filetype.v1/matchers",
+			"revision": "22e255079ab40241c671d457081831d972f0436b",
+			"revisionTime": "2017-08-03T09:23:50Z"
+		},
+		{
+			"checksumSHA1": "vPleg/8tgVv8jnMqT7zEQ0jWW2M=",
+			"path": "gopkg.in/h2non/filetype.v1/types",
+			"revision": "22e255079ab40241c671d457081831d972f0436b",
+			"revisionTime": "2017-08-03T09:23:50Z"
+		},
+		{
 			"checksumSHA1": "hiOUviIMDKo7y918uBiEhfJyOkk=",
 			"path": "gopkg.in/tylerb/graceful.v1",
 			"revision": "50a48b6e73fcc75b45e22c05b79629a67c79e938",
@@ -572,34 +580,6 @@
 			"path": "gopkg.in/yaml.v2",
 			"revision": "31c299268d302dd0aa9a0dcf765a3d58971ac83f",
 			"revisionTime": "2016-09-12T16:56:03Z"
-		},
-		{
-			"path": "new",
-			"revision": ""
-		},
-		{
-			"path": "or",
-			"revision": ""
-		},
-		{
-			"path": "packages",
-			"revision": ""
-		},
-		{
-			"path": "remote",
-			"revision": ""
-		},
-		{
-			"path": "repository.",
-			"revision": ""
-		},
-		{
-			"path": "update",
-			"revision": ""
-		},
-		{
-			"path": "vendor",
-			"revision": ""
 		}
 	],
 	"rootPath": "github.com/taskcluster/taskcluster-worker"

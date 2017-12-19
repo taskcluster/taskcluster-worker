@@ -29,8 +29,9 @@ var payloadSchema = schematypes.Object{
 			Options: []string{
 				"true",
 				"false",
-				"set-volume",
-				"get-volume",
+				"write-volume",
+				"read-volume",
+				"get-url",
 				"ping-proxy",
 				"write-log",
 				"write-error-log",

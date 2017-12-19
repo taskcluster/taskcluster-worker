@@ -98,6 +98,8 @@ func New(config interface{}) (w *Worker, err error) {
 		Worker:           &w.lifeCycleTracker,
 		WorkerGroup:      c.WorkerOptions.WorkerGroup,
 		WorkerID:         c.WorkerOptions.WorkerID,
+		ProvisionerID:    c.WorkerOptions.ProvisionerID,
+		WorkerType:       c.WorkerOptions.WorkerType,
 	}
 
 	// Create engine

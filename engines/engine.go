@@ -82,18 +82,24 @@ type Engine interface {
 	// Non-fatal errors: MalformedPayloadError, ErrMaxConcurrencyExceeded.
 	NewSandboxBuilder(options SandboxOptions) (SandboxBuilder, error)
 
-	// NewCacheFolder returns a new Volume backed by a file system folder
-	// if cache-folders folders are supported, otherwise it must return
-	// ErrFeatureNotSupported.
-	//
-	// Non-fatal errors: ErrFeatureNotSupported
-	NewCacheFolder() (Volume, error)
+	// VolumeSchema returns a JSON schema description of the volume options,
+	// accepted by this engine.
+	VolumeSchema() schematypes.Schema
 
-	// NewMemoryDisk returns a new Volume backed by a ramdisk, if ramdisks are
-	// supported, otherwise it must return ErrFeatureNotSupported.
+	// NewVolumeBuilder returns a VolumeBuilder for constructing a volume for this
+	// engine, the options must match the VolumeSchema() defined by this engine.
+	//
+	// This method may return ErrFeatureNotSupported, if volumes are not supported,
+	// or if the engine only supports building empty volumes using NewVolume().
 	//
 	// Non-fatal errors: ErrFeatureNotSupported
-	NewMemoryDisk() (Volume, error)
+	NewVolumeBuilder(options interface{}) (VolumeBuilder, error)
+
+	// NewVolume returns a new empty Volume, may return
+	// ErrFeatureNotSupported, if not supported.
+	//
+	// Non-fatal errors: ErrFeatureNotSupported
+	NewVolume(options interface{}) (Volume, error)
 
 	// Dispose cleans up any resources held by the engine. The engine object
 	// cannot be used after Dispose() has been called.
@@ -153,15 +159,21 @@ func (EngineBase) Capabilities() Capabilities {
 	return Capabilities{}
 }
 
-// NewCacheFolder returns ErrFeatureNotSupported indicating that the feature
+// VolumeSchema returns an empty schematypes.Object indicating no options for
+// volume creation
+func (EngineBase) VolumeSchema() schematypes.Schema {
+	return schematypes.Object{}
+}
+
+// NewVolumeBuilder returns ErrFeatureNotSupported indicating that the feature
 // isn't supported.
-func (EngineBase) NewCacheFolder() (Volume, error) {
+func (EngineBase) NewVolumeBuilder(options interface{}) (VolumeBuilder, error) {
 	return nil, ErrFeatureNotSupported
 }
 
-// NewMemoryDisk returns ErrFeatureNotSupported indicating that the feature
+// NewVolume returns ErrFeatureNotSupported indicating that the feature
 // isn't supported.
-func (EngineBase) NewMemoryDisk() (Volume, error) {
+func (EngineBase) NewVolume(options interface{}) (Volume, error) {
 	return nil, ErrFeatureNotSupported
 }
 

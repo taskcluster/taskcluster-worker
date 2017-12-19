@@ -79,7 +79,7 @@ func (gc *GarbageCollector) Register(resource Disposable) {
 // maybe have been disposed of while waiting for the GC lock. Say if the GC was
 // running when you made this call.
 //
-// Note, you don't have to use this method. When you resouce is in a state
+// Note, you don't have to use this method. When you resource is in a state
 // where you don't want it to be disposed just ensure that Dispose() returns
 // ErrDisposableInUse.
 func (gc *GarbageCollector) Unregister(resource Disposable) bool {
