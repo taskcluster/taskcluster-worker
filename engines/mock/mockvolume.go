@@ -26,7 +26,7 @@ func (w *fileWriter) Close() error {
 	w.Volume.m.Lock()
 	defer w.Volume.m.Unlock()
 
-	w.Volume.files[w.Name] = string(w.Bytes())
+	w.Volume.files[w.Name] = w.String()
 	return nil
 }
 
