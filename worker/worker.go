@@ -318,7 +318,7 @@ func (w *Worker) processClaim(claim taskClaim) {
 	defer w.activeTasks.Decrement()
 
 	// If superseding is enabled, find superseding if one is available
-	// NOTE: This can be removed when some day superseding is implemented in the queue
+	// NOTE: This can be removed when superseding is implemented in the queue
 	if w.options.EnableSuperseding {
 		var done func()
 		claim, done = w.superseding(claim)
