@@ -35,7 +35,7 @@ func (e ExceptionReason) String() string {
 	case ReasonInternalError:
 		return "internal-error"
 	case ReasonSuperseded:
-		return "superceded"
+		return "superseded"
 	case ReasonIntermittentTask:
 		return "intermittent-task"
 	}

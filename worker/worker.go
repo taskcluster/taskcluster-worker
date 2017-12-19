@@ -3,12 +3,13 @@ package worker
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/pkg/errors"
+	got "github.com/taskcluster/go-got"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/httpbackoff"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
@@ -21,6 +22,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 	"github.com/taskcluster/taskcluster-worker/runtime/monitoring"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 	"github.com/taskcluster/taskcluster-worker/worker/taskrun"
 )
@@ -69,7 +71,7 @@ func New(config interface{}) (w *Worker, err error) {
 	// Create queue client that is aborted when life-cycle ends
 	w.queue = w.newQueueClient(&lifeCycleContext{
 		LifeCycle: &w.lifeCycleTracker,
-	}, c.Credentials)
+	}, &c.Credentials)
 
 	// Create temporary storage
 	w.temporaryStorage, err = runtime.NewTemporaryStorage(c.TemporaryFolder)
@@ -156,6 +158,17 @@ func (w *Worker) PayloadSchema() schematypes.Schema {
 		panic(fmt.Sprintf(
 			"Conflicting plugin and engine payload properties, error: %s", err,
 		))
+	}
+	// Adding supersederUrl to payload schema
+	// NOTE: This can be removed when someday superseding is implemented in the queue
+	if w.options.EnableSuperseding {
+		payloadSchema.Properties["supersederUrl"] = schematypes.URI{
+			Title: "Superseder URL",
+			Description: util.Markdown(`
+				URL to the superseder service, See [superseding documentation](https://docs.taskcluster.net` +
+				`/reference/platform/taskcluster-queue/docs/superseding) for details.
+			`),
+		}
 	}
 	return payloadSchema
 }
@@ -278,8 +291,8 @@ type taskClaim struct {
 }
 
 // Utility function to create a queue client object
-func (w *Worker) newQueueClient(ctx context.Context, creds tcclient.Credentials) client.Queue {
-	q := queue.New(&creds)
+func (w *Worker) newQueueClient(ctx context.Context, creds *tcclient.Credentials) client.Queue {
+	q := queue.New(creds)
 	if w.queueBaseURL != "" {
 		q.BaseURL = w.queueBaseURL
 	}
@@ -306,6 +319,14 @@ func (w *Worker) processClaim(claim taskClaim) {
 	// Decrement number of active tasks when we're done processing the task
 	defer w.activeTasks.Decrement()
 
+	// If superseding is enabled, find superseding if one is available
+	// NOTE: This can be removed when superseding is implemented in the queue
+	if w.options.EnableSuperseding {
+		var done func()
+		claim, done = w.superseding(claim)
+		defer done()
+	}
+
 	// Create monitor for this task
 	monitor := w.monitor.WithTags(map[string]string{
 		"taskId": claim.Status.TaskID,
@@ -315,7 +336,7 @@ func (w *Worker) processClaim(claim taskClaim) {
 	defer monitor.Info("done processing task")
 
 	// Create task client
-	q := w.newQueueClient(context.Background(), tcclient.Credentials{
+	q := w.newQueueClient(context.Background(), &tcclient.Credentials{
 		ClientID:    claim.Credentials.ClientID,
 		AccessToken: claim.Credentials.AccessToken,
 		Certificate: claim.Credentials.Certificate,
@@ -388,11 +409,7 @@ func (w *Worker) processClaim(claim taskClaim) {
 
 			// Update takenUntil and create a new queue client
 			takenUntil = time.Time(result.TakenUntil)
-			q = w.newQueueClient(context.Background(), tcclient.Credentials{
-				ClientID:    result.Credentials.ClientID,
-				AccessToken: result.Credentials.AccessToken,
-				Certificate: result.Credentials.Certificate,
-			})
+			q = w.newQueueClient(context.Background(), asClientCredentials(result.Credentials))
 			run.SetQueueClient(q) // update queue client on the run
 			run.SetCredentials(
 				result.Credentials.ClientID,
@@ -448,6 +465,179 @@ func (w *Worker) processClaim(claim taskClaim) {
 		}
 		monitor.Error("fatal error from TaskRun.Dispose() stopping now")
 		w.StopNow()
+	}
+}
+
+// superseding returns any superseding task, and a function to be called when
+// processed to resolve other superseded tasks.
+func (w *Worker) superseding(claim taskClaim) (taskClaim, func()) {
+	// Create monitor for any problems we run into
+	m := w.monitor.WithPrefix("superseding")
+
+	var payload map[string]interface{}
+	if json.Unmarshal(claim.Task.Payload, &payload) != nil {
+		// Do nothing, if there is an error, it'll show up later and logging will be
+		// more natural.
+		return claim, func() {}
+	}
+
+	// Take supersederUrl out of the payload, as it would break the payload
+	// validation done in TaskRun. We attempt to hide superseding from the rest
+	// of the worker implementation, so that it's only creating a hack here.
+	supersederURL, hasSupersederURL := payload["supersederUrl"].(string)
+	delete(payload, "supersederUrl")
+	var err error
+	claim.Task.Payload, err = json.Marshal(payload)
+	if err != nil {
+		panic(errors.Wrap(err, "failed to serialize data we know to be JSON"))
+	}
+
+	// Do nothing, if there is no supersederUrl
+	if !hasSupersederURL || supersederURL == "" {
+		return claim, func() {}
+	}
+
+	// Fetch list of superseding tasks from superseder
+	g := got.New()
+	r, err := g.Get(supersederURL + "?taskId=" + claim.Status.TaskID).Send()
+	if err != nil {
+		m.Warnf("failed to contact supersederUrl: '%s'", supersederURL)
+		return claim, func() {}
+	}
+
+	var result struct {
+		Supersedes []string `json:"supersedes"`
+	}
+	if json.Unmarshal(r.Body, &result) != nil {
+		m.Warnf("failed to JSON parse result from supersederUrl: '%s'", supersederURL)
+		return claim, func() {}
+	}
+
+	claimAttempts := make([]taskClaim, len(result.Supersedes))
+	util.Spawn(len(result.Supersedes), func(i int) {
+		taskID := result.Supersedes[i]
+		// Don't attempt to reclaim the initial task
+		if taskID == claim.Status.TaskID {
+			return
+		}
+		// Get state of the task, to find runID
+		s, qerr := w.queue.Status(taskID)
+		if qerr != nil {
+			m.WithTag("taskId", taskID).Infof("unable to get task status, error: %v", qerr)
+			return
+		}
+		runID := len(s.Status.Runs) - 1
+		if runID < 0 || s.Status.Runs[runID].State != "pending" {
+			return
+		}
+		c, qerr := w.queue.ClaimTask(taskID, strconv.Itoa(runID), &queue.TaskClaimRequest{
+			WorkerID:    w.options.WorkerID,
+			WorkerGroup: w.options.WorkerGroup,
+		})
+		if qerr != nil {
+			m.WithTags(map[string]string{
+				"taskId": taskID,
+				"runId":  strconv.Itoa(runID),
+			}).Debug("unable to claimTask from superseder, error: %v", qerr)
+			return
+		}
+		claimAttempts[i] = taskClaim(*c)
+	})
+
+	// remove invalid claims
+	claims := []taskClaim{claim}
+	for _, claim := range claimAttempts {
+		if claim.Status.TaskID != "" {
+			claims = append(claims, claim)
+		}
+	}
+
+	// Take the last claim we have, as the task we run
+	claim = claims[len(claims)-1]
+	claims = claims[:len(claims)-1]
+
+	// Start a reclaiming loop, and finish off by resolving superseded
+	var stopReclaiming atomics.Once
+	var tasksResolved atomics.WaitGroup
+	tasksResolved.Add(len(claims))
+	ctx, cancel := context.WithCancel(context.Background())
+	go util.Spawn(len(claims), func(i int) {
+		defer tasksResolved.Done()
+		taskID := claims[i].Status.TaskID
+		runID := strconv.Itoa(claims[i].RunID)
+		for {
+			select {
+			case <-time.After(10 * time.Minute):
+				// reclaim claims[i]
+				q := w.newQueueClient(ctx, asClientCredentials(claims[i].Credentials))
+				result, qerr := q.ReclaimTask(taskID, runID)
+				if qerr != nil {
+					m.WithTags(map[string]string{
+						"taskId": taskID,
+						"runId":  runID,
+					}).Warnf("failed reclaimTask error: %v", qerr)
+					return
+				}
+				claims[i].Credentials = result.Credentials
+				claims[i].TakenUntil = result.TakenUntil
+			case <-stopReclaiming.Done():
+				// resolve claims[i] as superseded
+				q := w.newQueueClient(ctx, asClientCredentials(claims[i].Credentials))
+				// TODO: Upload artifacts
+				_, qerr := q.ReportException(taskID, runID, &queue.TaskExceptionRequest{
+					Reason: "superseded",
+				})
+				if qerr != nil {
+					m.WithTags(map[string]string{
+						"taskId": taskID,
+						"runId":  runID,
+					}).Warnf("failed to reportException with reason superseded, error: %v", qerr)
+				}
+				return
+			}
+		}
+	})
+
+	// Remove supersederUrl from payload, so that it doesn't create malformed-payload
+	payload = make(map[string]interface{})
+	if json.Unmarshal(claim.Task.Payload, &payload) == nil {
+		delete(payload, "supersederUrl")
+		claim.Task.Payload, err = json.Marshal(payload)
+		if err != nil {
+			panic(errors.Wrap(err, "failed to serialize data known to be JSON"))
+		}
+	}
+
+	// Return primary claim, and done() function to stop reclaiming and resolve
+	return claim, func() {
+		// Call cancel() once to abort the Context used, after 90s as we don't
+		// want to hang because of some bug...
+		var cancelled atomics.Once
+		defer cancelled.Do(cancel)
+		go func() {
+			select {
+			case <-cancelled.Done():
+				return
+			case <-time.After(90 * time.Second):
+				cancelled.Do(cancel)
+			}
+		}()
+		// Stop reclaiming, this causes the other tasks to resolve superseded
+		stopReclaiming.Do(nil)
+		// Wait for tasks to be resolved
+		tasksResolved.Wait()
+	}
+}
+
+func asClientCredentials(c struct {
+	AccessToken string `json:"accessToken"`
+	Certificate string `json:"certificate"`
+	ClientID    string `json:"clientId"`
+}) *tcclient.Credentials {
+	return &tcclient.Credentials{
+		ClientID:    c.ClientID,
+		AccessToken: c.AccessToken,
+		Certificate: c.Certificate,
 	}
 }
 
