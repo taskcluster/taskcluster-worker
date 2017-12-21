@@ -5,9 +5,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/takama/daemon"
 	"github.com/taskcluster/taskcluster-worker/config"
+	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/monitoring"
 	"github.com/taskcluster/taskcluster-worker/worker"
 )
 
@@ -17,23 +18,17 @@ type service struct {
 	args map[string]interface{}
 }
 
-func (svc *service) Run() (string, error) {
-	logger := logrus.New()
-	err := setupSyslog(logger)
-	if err != nil {
-		return "Could not create syslog", err
-	}
-
+func (svc *service) Run(monitor runtime.Monitor) (string, error) {
 	// load configuration file
-	config, err := config.LoadFromFile(svc.args["<config-file>"].(string))
+	config, err := config.LoadFromFile(svc.args["<config-file>"].(string), monitor)
 	if err != nil {
-		logger.WithError(err).Error("Failed to open configuration file")
+		monitor.ReportError(err, "Failed to open configuration file")
 		return "Failed to open configuration file", err
 	}
 
 	w, err := worker.New(config)
 	if err != nil {
-		logger.WithError(err).Error("Could not create worker")
+		monitor.ReportError(err, "Could not create worker")
 		return "Could not create worker", err
 	}
 
@@ -50,26 +45,33 @@ func (svc *service) Run() (string, error) {
 
 // Manage by daemon commands or run the daemon
 func (svc *service) Manage() (string, error) {
+	monitor := monitoring.PreConfig()
+
 	// if received any kind of command, do it
 	if svc.args["install"].(bool) {
 		args := []string{"daemon", "run", svc.args["<config-file>"].(string)}
+		monitor.Info("installing daemon")
 		return svc.Install(args...)
 	}
 
 	if svc.args["remove"].(bool) {
+		monitor.Info("removing daemon")
 		return svc.Remove()
 	}
 
 	if svc.args["start"].(bool) {
+		monitor.Info("starting daemon")
 		return svc.Start()
 	}
 
 	if svc.args["stop"].(bool) {
+		monitor.Info("stopping daemon")
 		return svc.Stop()
 	}
 
 	if svc.args["run"].(bool) {
-		return svc.Run()
+		monitor.Info("running daemon")
+		return svc.Run(monitor)
 	}
 
 	return usage(), nil

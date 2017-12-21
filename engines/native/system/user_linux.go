@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/taskcluster/slugid-go/slugid"
 )
 
@@ -16,8 +17,9 @@ const systemUserDel = "/usr/sbin/userdel"
 
 // User is a representation of a system user account.
 type User struct {
-	uid        uint32 // user id
-	gid        uint32 // primary group id
+	uid        uint32   // user id
+	gid        uint32   // primary group id
+	gids       []uint32 // users group memberships
 	name       string
 	homeFolder string
 }
@@ -26,7 +28,7 @@ type User struct {
 func CurrentUser() (*User, error) {
 	osUser, err := user.Current()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to get current user")
 	}
 
 	// Uid and Gid are always decimal numbers on posix systems
@@ -39,9 +41,64 @@ func CurrentUser() (*User, error) {
 		panic(fmt.Sprintf("Could not convert %s to integer: %s", osUser.Gid, err))
 	}
 
+	// Find group ids
+	gids, err := findGroupIds(osUser)
+	if err != nil {
+		return nil, err
+	}
+
 	return &User{
 		uid:        uint32(uid),
 		gid:        uint32(gid),
+		gids:       gids,
+		name:       osUser.Username,
+		homeFolder: osUser.HomeDir,
+	}, nil
+}
+
+func findGroupIds(osUser *user.User) ([]uint32, error) {
+	sgids, err := osUser.GroupIds()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to list groups for current user")
+	}
+	gids := make([]uint32, len(sgids))
+	for i, sgid := range sgids {
+		igid, err := strconv.Atoi(sgid)
+		if err != nil {
+			panic(errors.Wrap(err, "Could not convert group id to integer"))
+		}
+		gids[i] = uint32(igid)
+	}
+	return gids, nil
+}
+
+// FindUser will get a User record representing the user with given username.
+func FindUser(username string) (*User, error) {
+	osUser, err := user.Lookup(username)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to lookup user: %s", username)
+	}
+
+	// Uid and Gid are always decimal numbers on posix systems
+	uid, err := strconv.Atoi(osUser.Uid)
+	if err != nil {
+		panic(fmt.Sprintf("Could not convert %s to integer: %s", osUser.Uid, err))
+	}
+	gid, err := strconv.Atoi(osUser.Gid)
+	if err != nil {
+		panic(fmt.Sprintf("Could not convert %s to integer: %s", osUser.Gid, err))
+	}
+
+	// Find group ids
+	gids, err := findGroupIds(osUser)
+	if err != nil {
+		return nil, err
+	}
+
+	return &User{
+		uid:        uint32(uid),
+		gid:        uint32(gid),
+		gids:       gids,
 		name:       osUser.Username,
 		homeFolder: osUser.HomeDir,
 	}, nil
@@ -107,7 +164,23 @@ func CreateUser(homeFolder string, groups []*Group) (*User, error) {
 		return nil, fmt.Errorf("Failed to chown homeFolder, error: %s", err)
 	}
 
-	return &User{uint32(uid), uint32(gid), name, homeFolder}, nil
+	// Find group ids
+	osUser, err := user.Lookup(name)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to lookup user: %s", name)
+	}
+	gids, err := findGroupIds(osUser)
+	if err != nil {
+		return nil, err
+	}
+
+	return &User{
+		uid:        uint32(uid),
+		gid:        uint32(gid),
+		gids:       gids,
+		name:       name,
+		homeFolder: homeFolder,
+	}, nil
 }
 
 // Remove will remove a user and all associated resources.

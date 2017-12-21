@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"net/http"
 	"strings"
-	"sync"
 )
 
 // PingPath is the path that PingProxyPayload should hit on the proxy.
@@ -150,11 +149,8 @@ func (c *ProxyTestCase) TestParallelPings() {
 
 // Test runs all tests for the ProxyTestCase is parallel
 func (c *ProxyTestCase) Test() {
-	wg := sync.WaitGroup{}
-	wg.Add(4)
-	go func() { c.TestPingProxyPayload(); wg.Done() }()
-	go func() { c.TestPing404IsUnsuccessful(); wg.Done() }()
-	go func() { c.TestLiveLogging(); wg.Done() }()
-	go func() { c.TestParallelPings(); wg.Done() }()
-	wg.Wait()
+	c.TestPingProxyPayload()
+	c.TestPing404IsUnsuccessful()
+	c.TestLiveLogging()
+	c.TestParallelPings()
 }

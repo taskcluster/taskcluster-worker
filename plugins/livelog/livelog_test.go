@@ -37,10 +37,26 @@ func TestLiveLogStreaming(t *testing.T) {
 				u := <-livelog
 				assert.Contains(t, u, "http", "Expected a redirect URL")
 
-				// Open request to livelog
-				req, err := http.NewRequest("GET", u, nil)
+				// Attempt a HEAD request
+				req, err := http.NewRequest("HEAD", u, nil)
 				require.NoError(t, err)
 				res, err := http.DefaultClient.Do(req)
+				require.NoError(t, err)
+				res.Body.Close()
+				require.Equal(t, http.StatusOK, res.StatusCode)
+
+				// Attempt a POST request
+				req, err = http.NewRequest("POST", u, nil)
+				require.NoError(t, err)
+				res, err = http.DefaultClient.Do(req)
+				require.NoError(t, err)
+				res.Body.Close()
+				require.Equal(t, http.StatusMethodNotAllowed, res.StatusCode)
+
+				// Open request to livelog
+				req, err = http.NewRequest("GET", u, nil)
+				require.NoError(t, err)
+				res, err = http.DefaultClient.Do(req)
 				require.NoError(t, err)
 				defer res.Body.Close()
 

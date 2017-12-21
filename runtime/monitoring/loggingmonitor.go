@@ -18,7 +18,7 @@ type loggingMonitor struct {
 
 // NewLoggingMonitor creates a monitor that just logs everything. This won't
 // attempt to send anything to sentry or statsum.
-func NewLoggingMonitor(logLevel string, tags map[string]string) runtime.Monitor {
+func NewLoggingMonitor(logLevel string, tags map[string]string, syslogName string) runtime.Monitor {
 	// Create logger and parse logLevel
 	logger := logrus.New()
 	switch strings.ToLower(logLevel) {
@@ -44,9 +44,17 @@ func NewLoggingMonitor(logLevel string, tags map[string]string) runtime.Monitor 
 		fields[k] = v
 	}
 
-	return &loggingMonitor{
+	m := &loggingMonitor{
 		Entry: logrus.NewEntry(logger).WithFields(fields),
 	}
+
+	if syslogName != "" {
+		if err := setupSyslog(logger, syslogName); err != nil {
+			m.ReportError(err, "Cannot set up syslog output")
+		}
+	}
+
+	return m
 }
 
 func (m *loggingMonitor) Measure(name string, value ...float64) {

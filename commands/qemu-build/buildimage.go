@@ -1,26 +1,33 @@
 package qemubuild
 
 import (
-	"errors"
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
 
+	"github.com/pkg/errors"
+	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/commands/qemu-run"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/network"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
+
+var debug = util.Debug("qemubuild")
 
 func buildImage(
 	monitor runtime.Monitor,
 	inputFile, outputFile string,
-	fromImage, novnc bool,
-	boot,
-	cdrom string,
+	fromImage bool,
+	vncPort int,
+	boot, cdrom string,
+	linuxBootOptions vm.LinuxBootOptions,
 	size int,
 ) error {
 	// Find absolute outputFile
@@ -41,7 +48,7 @@ func buildImage(
 	var img *image.MutableImage
 	if !fromImage {
 		// Read machine definition
-		machine, err2 := vm.LoadMachine(inputFile)
+		machine, err2 := newMachineFromFile(inputFile)
 		if err2 != nil {
 			monitor.Error("Failed to load machine file from ", inputFile, " error: ", err2)
 			return err2
@@ -79,12 +86,16 @@ func buildImage(
 	}
 
 	// Setup logService so that logs can be posted to meta-service at:
-	// http://169.254.169.254/v1/log
+	// http://169.254.169.254/engine/v1/log
 	net.SetHandler(&logService{Destination: os.Stdout})
 
 	// Create virtual machine
 	monitor.Info("Creating virtual machine")
-	vm, err := vm.NewVirtualMachine(img.Machine().Options(), img, net, socketFolder, boot, cdrom, monitor.WithTag("component", "vm"))
+	vm, err := vm.NewVirtualMachine(
+		img.Machine().DeriveLimits(), img, net, socketFolder,
+		boot, cdrom, linuxBootOptions,
+		monitor.WithTag("component", "vm"),
+	)
 	if err != nil {
 		monitor.Error("Failed to recreated virtual-machine, error: ", err)
 		return err
@@ -94,9 +105,9 @@ func buildImage(
 	monitor.Info("Starting virtual machine")
 	vm.Start()
 
-	// Open VNC display
-	if !novnc {
-		go qemurun.StartVNCViewer(vm.VNCSocket(), vm.Done)
+	// Expose VNC socket
+	if vncPort != 0 {
+		go qemurun.ExposeVNC(vm.VNCSocket(), vncPort, vm.Done)
 	}
 
 	// Wait for interrupt to gracefully kill everything
@@ -132,4 +143,44 @@ func buildImage(
 	}
 
 	return nil
+}
+
+// load vm.Machine from file without migration
+func newMachineFromFile(machineFile string) (*vm.Machine, error) {
+	// Read machine.json
+	machineData, err := ioext.BoundedReadFile(machineFile, 1024*1024)
+	if err == ioext.ErrFileTooBig {
+		return nil, runtime.NewMalformedPayloadError(
+			"The file 'machine.json' larger than 1MiB. JSON files must be small.")
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "faild to read 'machine.json'")
+	}
+
+	// Parse JSON
+	var data interface{}
+	if err = json.Unmarshal(machineData, &data); err != nil {
+		return nil, runtime.NewMalformedPayloadError(
+			"Invalid JSON in 'machine.json', error: ", err)
+	}
+
+	// Validate against schema
+	verr := vm.MachineSchema.Validate(data)
+	if e, ok := verr.(*schematypes.ValidationError); ok {
+		issues := e.Issues("machine")
+		errs := make([]runtime.MalformedPayloadError, len(issues))
+		for i, issue := range issues {
+			errs[i] = runtime.NewMalformedPayloadError(issue.String())
+		}
+		return nil, runtime.MergeMalformedPayload(append([]runtime.MalformedPayloadError{
+			runtime.NewMalformedPayloadError("Invalid machine definition in 'machine.json'"),
+		}, errs...)...)
+	} else if verr != nil {
+		return nil, runtime.NewMalformedPayloadError("task.payload schema violation: ", verr)
+	}
+
+	// Create machine
+	m := vm.NewMachine(data)
+
+	return &m, nil
 }

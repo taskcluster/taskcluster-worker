@@ -68,7 +68,7 @@ func New(options Options) *TaskRun {
 	var err error
 	t.taskContext, t.controller, err = runtime.NewTaskContext(
 		t.environment.TemporaryStorage.NewFilePath(),
-		t.taskInfo, t.environment.WebHookServer,
+		t.taskInfo,
 	)
 	if err != nil {
 		t.monitor.WithTag("stage", "init").ReportError(err, "failed to create TaskContext")
@@ -90,6 +90,14 @@ func New(options Options) *TaskRun {
 func (t *TaskRun) SetQueueClient(queue client.Queue) {
 	if t.controller != nil {
 		t.controller.SetQueueClient(queue)
+	}
+}
+
+// SetCredentials is used to provide the task-specific temporary credentials,
+// and update these whenever they change.
+func (t *TaskRun) SetCredentials(clientID, accessToken, certificate string) {
+	if t.controller != nil {
+		t.controller.SetCredentials(clientID, accessToken, certificate)
 	}
 }
 
@@ -167,7 +175,9 @@ func (t *TaskRun) RunToStage(targetStage Stage) {
 		if err != nil || incidentID != "" {
 			reason := runtime.ReasonInternalError
 			if e, ok := runtime.IsMalformedPayloadError(err); ok {
-				t.controller.LogError(e.Error())
+				for _, m := range e.Messages() {
+					t.controller.LogError(m)
+				}
 				reason = runtime.ReasonMalformedPayload
 			} else if err == runtime.ErrNonFatalInternalError {
 				t.nonFatalErr.Set(true)

@@ -2,7 +2,6 @@ package enginetest
 
 import (
 	"log"
-	"sync"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -65,10 +64,7 @@ func (c *EnvVarTestCase) TestInvalidVariableNames() {
 
 // Test runs all tests in parallel
 func (c *EnvVarTestCase) Test() {
-	wg := sync.WaitGroup{}
-	wg.Add(3)
-	go func() { c.TestPrintVariable(); wg.Done() }()
-	go func() { c.TestVariableNameConflict(); wg.Done() }()
-	go func() { c.TestInvalidVariableNames(); wg.Done() }()
-	wg.Wait()
+	c.TestPrintVariable()
+	c.TestVariableNameConflict()
+	c.TestInvalidVariableNames()
 }

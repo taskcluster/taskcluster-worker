@@ -34,10 +34,6 @@ func assert(t *testing.T, condition bool, a ...interface{}) {
 }
 
 func TestGuestToolsProcessingActions(t *testing.T) {
-	// Doesn't currently run on Windows, let's skip until Windows is a priority
-	if goruntime.GOOS == "windows" {
-		t.Skip("Skipping on Windows - when we start supporting Windows, we should reenable!")
-	}
 	// Create temporary storage
 	storage, err := runtime.NewTemporaryStorage(os.TempDir())
 	if err != nil {
@@ -45,6 +41,10 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 	}
 	environment := &runtime.Environment{
 		TemporaryStorage: storage,
+		ProvisionerID:    "dummy-provisioner",
+		WorkerType:       "dummy-worker",
+		WorkerGroup:      "dummy-tests",
+		WorkerID:         "localhost",
 	}
 
 	logTask := bytes.NewBuffer(nil)
@@ -62,7 +62,7 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 	}
 
 	// Create an run guest-tools
-	g := new(u.Host, mocks.NewMockMonitor(true))
+	g := new(config{}, u.Host, mocks.NewMockMonitor(true))
 
 	// start processing actions
 	go g.ProcessActions()
@@ -131,9 +131,27 @@ func TestGuestToolsProcessingActions(t *testing.T) {
 	assert(t, err == nil, "Didn't expect any error")
 
 	////////////////////
-	testShellHello(t, meta)
-	testShellCat(t, meta)
-	testShellCatStdErr(t, meta)
+	t.Run("Shell Hello", func(t *testing.T) {
+		testShellHello(t, meta)
+	})
+	t.Run("Shell Cat", func(t *testing.T) {
+		if goruntime.GOOS == "windows" {
+			t.Skip("Not supported - test doesn't pass on windows yet")
+		}
+		testShellCat(t, meta)
+	})
+	t.Run("Shell Cat Stderr", func(t *testing.T) {
+		if goruntime.GOOS == "windows" {
+			t.Skip("Not supported - test doesn't pass on windows yet")
+		}
+		testShellCatStdErr(t, meta)
+	})
+	t.Run("Shell TTY", func(t *testing.T) {
+		if goruntime.GOOS == "windows" {
+			t.Skip("Not supported - test doesn't pass on windows yet")
+		}
+		testShellTTY(t, meta)
+	})
 }
 
 func testShellHello(t *testing.T, meta *metaservice.MetaService) {
@@ -254,4 +272,21 @@ func testShellCatStdErr(t *testing.T, meta *metaservice.MetaService) {
 	outputDone.Wait()
 	assert(t, bytes.Equal(output, input), "Expected data to match input, ",
 		"len(input) = ", len(input), " len(output) = ", len(output))
+}
+
+func testShellTTY(t *testing.T, meta *metaservice.MetaService) {
+	debug("### Test meta.Shell (using 'exit 0' in TTY)")
+	shell, err := meta.ExecShell(nil, true)
+	nilOrFatal(t, err, "Failed to call meta.ExecShell()")
+
+	// Discard stdout (ignore stderr, as it's the same)
+	go io.Copy(ioutil.Discard, shell.StdoutPipe())
+	go func() {
+		time.Sleep(200 * time.Millisecond) // Just to give sh a chance to sit idle
+		shell.StdinPipe().Write([]byte("exit 0\n"))
+	}()
+
+	success, err := shell.Wait()
+	nilOrFatal(t, err, "Got an error from shell.Wait, error: ", err)
+	assert(t, success, "Expected success from shell, we closed with end of stdin")
 }

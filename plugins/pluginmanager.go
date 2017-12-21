@@ -15,11 +15,14 @@ import (
 // Timeout for all plugin hooks. If a plugin hook takes longer than this the
 // PluginManager will assume livelock and return ErrFatalInternalError
 //
-// No plugin hook should take more than 45 minutes. Note, it's not important to
+// No plugin hook should take more than 30 minutes. Note, it's not important to
 // lower this number. This is for livelock detection, we report this to sentry
 // and kill the worker. This is intended to detect lack of progress, such that
 // the underlying bug can be fixed.
-const pluginHookTimeout = 45 * time.Minute
+//
+// This provides better errors than watchdog, and should therefore be configured
+// with a lower timeout than the watchdog which defaults to 45 minutes.
+const pluginHookTimeout = 30 * time.Minute
 
 // A PluginManager combines a collection of plugins and implements an interface
 // similar to Plugin. The interface is not exactly the same, notably, if there
@@ -89,30 +92,26 @@ func PluginManagerConfigSchema() schematypes.Object {
 	}
 
 	s := schematypes.Object{
-		MetaData: schematypes.MetaData{
-			Title: "Plugin Configuration",
-			Description: `
-				Mapping from plugin name to plugin configuration.
-				A plugin is enabled if it has an entry in this mapping, and
-				isn't explicitly listed as 'disabled'. Even plugins that
-				don't require configuration must have an entry, in these
-				cases, empty object will suffice.
-			`,
-		},
+		Title: "Plugin Configuration",
+		Description: util.Markdown(`
+			Mapping from plugin name to plugin configuration.
+			A plugin is enabled if it has an entry in this mapping, and
+			isn't explicitly listed as 'disabled'. Even plugins that
+			don't require configuration must have an entry, in these
+			cases, empty object will suffice.
+		`),
 		Properties: schematypes.Properties{
 			"disabled": schematypes.Array{
-				MetaData: schematypes.MetaData{
-					Title: "Disabled Plugins",
-					Description: `List of disabled plugins. If a plugin is not listed
-												as disabled here, even if its configuration key is
-												present`,
-				},
+				Title: "Disabled Plugins",
+				Description: util.Markdown(`
+					List of disabled plugins. If a plugin is not listed as
+					disabled here, even if its configuration key is present
+				`),
 				Items: schematypes.StringEnum{
 					Options: pluginNames,
 				},
 			},
 		},
-		Required: []string{"disabled"},
 	}
 	for name, provider := range plugins {
 		cs := provider.ConfigSchema()
@@ -158,7 +157,9 @@ func NewPluginManager(options PluginOptions) (*PluginManager, error) {
 	// Find plugins to load
 	var enabled []string
 	var disabled []string
-	schematypes.MustValidateAndMap(configSchema.Properties["disabled"], config["disabled"], &disabled)
+	if _, ok := config["disabled"]; ok {
+		schematypes.MustValidateAndMap(configSchema.Properties["disabled"], config["disabled"], &disabled)
+	}
 
 	// Find list of enabled plugins
 	for name := range config {

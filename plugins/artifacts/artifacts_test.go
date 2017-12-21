@@ -55,6 +55,7 @@ func TestArtifactsNone(t *testing.T) {
 				"argument": "whatever"
 			}`,
 			Plugin:        "artifacts",
+			PluginConfig:  `{}`,
 			TestStruct:    t,
 			PluginSuccess: true,
 			EngineSuccess: true,
@@ -72,6 +73,7 @@ func TestArtifactsEmpty(t *testing.T) {
 				"artifacts": []
 			}`,
 			Plugin:        "artifacts",
+			PluginConfig:  `{}`,
 			TestStruct:    t,
 			PluginSuccess: true,
 			EngineSuccess: true,
@@ -96,6 +98,7 @@ func TestArtifactsFile(t *testing.T) {
 				]
 			}`,
 			Plugin:        "artifacts",
+			PluginConfig:  `{}`,
 			TestStruct:    t,
 			PluginSuccess: true,
 			EngineSuccess: true,
@@ -120,6 +123,7 @@ func TestArtifactsDirectory(t *testing.T) {
 				]
 			}`,
 			Plugin:        "artifacts",
+			PluginConfig:  `{}`,
 			TestStruct:    t,
 			PluginSuccess: true,
 			EngineSuccess: true,

@@ -17,10 +17,16 @@ import (
 // LocalServer is a WebHookServer implementation that exposes webhooks on a
 // local port directly exposed to the internet.
 type LocalServer struct {
-	m      sync.RWMutex
-	server *graceful.Server
-	hooks  map[string]http.Handler
-	url    string
+	m          sync.RWMutex
+	server     *graceful.Server
+	hooks      map[string]http.Handler
+	publicIP   []byte
+	publicPort int
+	subdomain  string
+	dnsSecret  string
+	expiration time.Duration
+	url        string
+	urlOffset  time.Time
 }
 
 // NewLocalServer creates a WebHookServer that listens on publicIP, publicPort
@@ -37,8 +43,18 @@ func NewLocalServer(
 	subdomain, dnsSecret, tlsCert, tlsKey string,
 	expiration time.Duration,
 ) (*LocalServer, error) {
+	// 24 hours expiration is usually sane..
+	if expiration == 0 {
+		expiration = 24 * time.Hour
+	}
+
 	s := &LocalServer{
-		hooks: make(map[string]http.Handler),
+		hooks:      make(map[string]http.Handler),
+		publicIP:   publicIP,
+		publicPort: publicPort,
+		subdomain:  subdomain,
+		dnsSecret:  dnsSecret,
+		expiration: expiration,
 	}
 
 	// Address that we should be listening on
@@ -104,30 +120,42 @@ func NewLocalServer(
 		}
 	}
 
-	// Construct hostname (using stateless-dns-go)
-	host := hostname.New(
-		publicIP,
-		subdomain,
-		time.Now().Add(expiration),
-		dnsSecret,
-	)
-
-	// Construct URL
-	proto := "http"
-	port := ""
-	if s.server.TLSConfig != nil {
-		proto = "https"
-		if publicPort != 443 {
-			port = fmt.Sprintf(":%d", publicPort)
-		}
-	} else {
-		if publicPort != 80 {
-			port = fmt.Sprintf(":%d", publicPort)
-		}
-	}
-	s.url = proto + "://" + host + port + "/"
-
 	return s, nil
+}
+
+const dnsExpirationOffset = 30 * time.Minute
+
+func (s *LocalServer) getURL() string {
+	if s.url == "" || s.urlOffset.Before(time.Now()) {
+		// Offset the URL expiration... so we don't have to create a new hostname
+		// for each and every webhook
+		s.urlOffset = time.Now().Add(dnsExpirationOffset)
+
+		// Construct hostname (using stateless-dns-go)
+		host := hostname.New(
+			s.publicIP,
+			s.subdomain,
+			s.urlOffset.Add(s.expiration),
+			s.dnsSecret,
+		)
+
+		// Construct URL
+		proto := "http"
+		port := ""
+		if s.server.TLSConfig != nil {
+			proto = "https"
+			if s.publicPort != 443 {
+				port = fmt.Sprintf(":%d", s.publicPort)
+			}
+		} else {
+			if s.publicPort != 80 {
+				port = fmt.Sprintf(":%d", s.publicPort)
+			}
+		}
+		s.url = proto + "://" + host + port + "/"
+	}
+
+	return s.url
 }
 
 // ListenAndServe starts the local server listening
@@ -177,7 +205,7 @@ func (s *LocalServer) AttachHook(handler http.Handler) (url string, detach func(
 	s.hooks[id] = handler
 
 	// Create url and detach function
-	url = s.url + id + "/"
+	url = s.getURL() + id + "/"
 	detach = func() {
 		s.m.Lock()
 		defer s.m.Unlock()

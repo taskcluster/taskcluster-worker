@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -32,6 +33,7 @@ type taskPlugin struct {
 	plugins.TaskPluginBase
 	context     *runtime.TaskContext
 	url         string
+	detach      func()
 	log         *logrus.Entry
 	environment *runtime.Environment
 	expiration  tcclient.Time
@@ -62,7 +64,36 @@ func (p plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskPl
 }
 
 func (tp *taskPlugin) setup() {
-	tp.url = tp.context.AttachWebHook(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	defer tp.setupDone.Done()
+
+	if tp.environment.WebHookServer == nil {
+		tp.monitor.Info("livelog disabled when WebHookServer isn't provided")
+		return
+	}
+
+	tp.url, tp.detach = tp.environment.WebHookServer.AttachHook(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Streaming")
+		if r.Method == http.MethodHead {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
+		// Get an HTTP flusher if supported in the current context, or wrap in
+		// a NopFlusher, if flushing isn't available.
+		wf, ok := w.(ioext.WriteFlusher)
+		if ok {
+			w.Header().Set("X-Streaming", "true") // Allow clients to detect that we're streaming
+		} else {
+			wf = ioext.NopFlusher(w)
+		}
+
 		// TODO (garndt): add support for range headers.  Might not be used at all currently
 		logReader, err := tp.context.NewLogReader()
 		if err != nil {
@@ -72,13 +103,7 @@ func (tp *taskPlugin) setup() {
 		}
 		defer logReader.Close()
 
-		// Get an HTTP flusher if supported in the current context, or wrap in
-		// a NopFlusher, if flushing isn't available.
-		wf, ok := w.(ioext.WriteFlusher)
-		if !ok {
-			wf = ioext.NopFlusher(w)
-		}
-
+		w.WriteHeader(http.StatusOK)
 		ioext.CopyAndFlush(wf, logReader, 100*time.Millisecond)
 	}))
 
@@ -94,7 +119,6 @@ func (tp *taskPlugin) setup() {
 		// This isn't good, but let's not consider it fatal...
 		tp.setupErr = runtime.ErrNonFatalInternalError
 	}
-	tp.setupDone.Done()
 }
 
 func (tp *taskPlugin) Finished(success bool) error {
@@ -121,7 +145,22 @@ func (tp *taskPlugin) Exception(runtime.ExceptionReason) error {
 	return err
 }
 
+func (tp *taskPlugin) Dispose() error {
+	// Detach livelog webhook, if not already done
+	if tp.detach != nil {
+		tp.detach()
+		tp.detach = nil
+	}
+	return nil
+}
+
 func (tp *taskPlugin) uploadLog() error {
+	// Detach livelog webhook
+	if tp.detach != nil {
+		tp.detach()
+		tp.detach = nil
+	}
+
 	file, err := tp.context.ExtractLog()
 	if err != nil {
 		return err
@@ -137,16 +176,16 @@ func (tp *taskPlugin) uploadLog() error {
 
 	zip := gzip.NewWriter(tempFile)
 	if _, err = io.Copy(zip, file); err != nil {
-		return err
+		return errors.Wrap(err, "failed to compress log")
 	}
 
 	if err = zip.Close(); err != nil {
-		return err
+		return errors.Wrap(err, "failed to finish log compression")
 	}
 
-	_, err = tempFile.Seek(0, 0)
+	_, err = tempFile.Seek(0, io.SeekStart)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to reset temporary file to start")
 	}
 
 	debug("Uploading live_backing.log")
@@ -159,9 +198,10 @@ func (tp *taskPlugin) uploadLog() error {
 			"Content-Encoding": "gzip",
 		},
 	})
-
 	if err != nil {
-		return err
+		err = errors.Wrap(err, "failed to upload live_backing.log")
+		tp.monitor.Error(err)
+		return err // Upload error isn't fatal
 	}
 
 	backingURL := fmt.Sprintf("https://queue.taskcluster.net/v1/task/%s/runs/%d/artifacts/public/logs/live_backing.log", tp.context.TaskInfo.TaskID, tp.context.TaskInfo.RunID)
@@ -172,8 +212,9 @@ func (tp *taskPlugin) uploadLog() error {
 		Expires:  tp.context.TaskInfo.Expires,
 	})
 	if err != nil {
+		err = errors.Wrap(err, "failed to update live.log")
 		tp.monitor.Error(err)
-		return err
+		return runtime.ErrNonFatalInternalError // Upload error isn't fatal
 	}
 
 	return nil

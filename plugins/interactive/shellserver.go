@@ -140,8 +140,8 @@ func (s *ShellServer) handleShell(ws *websocket.Conn, shell engines.Shell) {
 
 	// Connect pipes
 	wg := sync.WaitGroup{}
-	wg.Add(3)
-	go copyCloseDone(shell.StdinPipe(), handler.StdinPipe(), &wg)
+	wg.Add(2)
+	go ioext.CopyAndClose(shell.StdinPipe(), handler.StdinPipe())
 	go copyCloseDone(handler.StdoutPipe(), shell.StdoutPipe(), &wg)
 	go copyCloseDone(handler.StderrPipe(), shell.StderrPipe(), &wg)
 

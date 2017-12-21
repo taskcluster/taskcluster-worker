@@ -117,7 +117,7 @@ func (p *EngineProvider) releaseEngine() {
 }
 
 func (p *EngineProvider) newTestTaskContext() (*runtime.TaskContext, *runtime.TaskContextController) {
-	ctx, control, err := runtime.NewTaskContext(p.environment.TemporaryStorage.NewFilePath(), runtime.TaskInfo{}, nil)
+	ctx, control, err := runtime.NewTaskContext(p.environment.TemporaryStorage.NewFilePath(), runtime.TaskInfo{})
 	nilOrPanic(err, "Failed to create new TaskContext")
 	return ctx, control
 }
@@ -143,6 +143,10 @@ func newTestEnvironment() *runtime.Environment {
 		GarbageCollector: &gc.GarbageCollector{},
 		TemporaryStorage: folder,
 		Monitor:          mocks.NewMockMonitor(true),
+		ProvisionerID:    "enginetest-provisioner",
+		WorkerType:       "enginetest-worker",
+		WorkerGroup:      "enginetest-tests",
+		WorkerID:         "localhost",
 	}
 }
 

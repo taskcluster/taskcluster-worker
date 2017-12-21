@@ -5,6 +5,7 @@ import (
 	"time"
 
 	schematypes "github.com/taskcluster/go-schematypes"
+	"github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
@@ -23,6 +24,13 @@ var localtunnelConfigSchema = schematypes.Object{
 	Required: []string{"provider"},
 }
 
+var webhooktunnelConfigSchema = schematypes.Object{
+	Properties: schematypes.Properties{
+		"provider": schematypes.StringEnum{Options: []string{"webhooktunnel"}},
+	},
+	Required: []string{"provider"},
+}
+
 var statelessDNSConfigSchema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"provider": schematypes.StringEnum{Options: []string{"stateless-dns"}},
@@ -32,20 +40,16 @@ var statelessDNSConfigSchema = schematypes.Object{
 			Maximum: 65535,
 		},
 		"networkInterface": schematypes.String{
-			MetaData: schematypes.MetaData{
-				Description: util.Markdown(`
-					Network device webhookserver should listen on. If not supplied, it
-					binds to the interface from 'serverIp' address
-				`),
-			},
+			Description: util.Markdown(`
+				Network device webhookserver should listen on. If not supplied, it
+				binds to the interface from 'serverIp' address
+			`),
 		},
 		"exposedPort": schematypes.Integer{
-			MetaData: schematypes.MetaData{
-				Description: util.Markdown(`
-					Port webhookserver should listen on. If not supplied, it uses the
-					'serverPort' value.
-				`),
-			},
+			Description: util.Markdown(`
+				Port webhookserver should listen on. If not supplied, it uses the
+				'serverPort' value.
+			`),
 			Minimum: 0,
 			Maximum: 65535,
 		},
@@ -53,16 +57,15 @@ var statelessDNSConfigSchema = schematypes.Object{
 		"tlsKey":             schematypes.String{},
 		"statelessDNSSecret": schematypes.String{},
 		"statelessDNSDomain": schematypes.String{},
-		"maxLifeCycle": schematypes.Integer{
-			MetaData: schematypes.MetaData{
-				Title: "Maximum lifetime of the worker in seconds",
-				Description: util.Markdown(`
-					Used to limit the time period for which the DNS server will return
-					an IP for the given worker hostname.
-				`),
-			},
-			Minimum: 5 * 60,
-			Maximum: 31 * 24 * 60 * 60,
+		"expiration": schematypes.Duration{
+			Title: "URL Expiration",
+			Description: util.Markdown(`
+				Used to limit the time period for which the DNS server will return
+				an IP for the given worker hostname.
+
+				This should be larger than the maximum task runtime. If not set it'll
+				default to 1 day, which is sane for most use-cases.
+			`),
 		},
 	},
 	Required: []string{
@@ -71,7 +74,6 @@ var statelessDNSConfigSchema = schematypes.Object{
 		"serverPort",
 		"statelessDNSSecret",
 		"statelessDNSDomain",
-		"maxLifeCycle",
 	},
 }
 
@@ -80,6 +82,7 @@ var ConfigSchema schematypes.Schema = schematypes.OneOf{
 	localhostConfigSchema,
 	localtunnelConfigSchema,
 	statelessDNSConfigSchema,
+	webhooktunnelConfigSchema,
 }
 
 // Server abstracts various WebHookServer implementations
@@ -90,21 +93,22 @@ type Server interface {
 
 // NewServer returns a Server implementing WebHookServer, choosing the
 // implemetation based on the configuration passed in.
-//
 // Config passed must match ConfigSchema.
-func NewServer(config interface{}) (Server, error) {
+// Credentials are required if the WebhookServer is Webhooktunnel.
+func NewServer(config interface{}, credentials *tcclient.Credentials) (Server, error) {
 	var c struct {
-		Provider           string `json:"provider"`
-		ServerIP           string `json:"serverIp"`
-		ServerPort         int    `json:"serverPort"`
-		NetworkInterface   string `json:"networkInterface"`
-		ExposedPort        int    `json:"exposedPort"`
-		TLSCertificate     string `json:"tlsCertificate"`
-		TLSKey             string `json:"tlsKey"`
-		StatelessDNSSecret string `json:"statelessDNSSecret"`
-		StatelessDNSDomain string `json:"statelessDNSDomain"`
-		MaxLifeCycle       int    `json:"maxLifeCycle"`
-		BaseURL            string `json:"baseUrl"`
+		Provider           string        `json:"provider"`
+		ServerIP           string        `json:"serverIp"`
+		ServerPort         int           `json:"serverPort"`
+		NetworkInterface   string        `json:"networkInterface"`
+		ExposedPort        int           `json:"exposedPort"`
+		TLSCertificate     string        `json:"tlsCertificate"`
+		TLSKey             string        `json:"tlsKey"`
+		StatelessDNSSecret string        `json:"statelessDNSSecret"`
+		StatelessDNSDomain string        `json:"statelessDNSDomain"`
+		Expiration         time.Duration `json:"expiration"`
+		BaseURL            string        `json:"baseUrl"`
+		ProxyURL           string        `json:"proxyUrl"`
 	}
 	schematypes.MustValidate(ConfigSchema, config)
 	if schematypes.MustMap(localhostConfigSchema, config, &c) == nil {
@@ -112,6 +116,10 @@ func NewServer(config interface{}) (Server, error) {
 	}
 	if schematypes.MustMap(localtunnelConfigSchema, config, &c) == nil {
 		return NewLocalTunnel(c.BaseURL)
+	}
+	if schematypes.MustMap(webhooktunnelConfigSchema, config, &c) == nil {
+		s, err := NewWebhookTunnel(credentials)
+		return s, err
 	}
 	if schematypes.MustMap(statelessDNSConfigSchema, config, &c) == nil {
 		s, err := NewLocalServer(
@@ -121,7 +129,7 @@ func NewServer(config interface{}) (Server, error) {
 			c.StatelessDNSSecret,
 			c.TLSCertificate,
 			c.TLSKey,
-			time.Duration(c.MaxLifeCycle)*time.Second,
+			c.Expiration,
 		)
 		if err == nil {
 			go s.ListenAndServe()

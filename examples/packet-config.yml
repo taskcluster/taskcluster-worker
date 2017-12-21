@@ -10,31 +10,57 @@ config:
     # - secrets:get:project/taskcluster/taskcluster-worker/stateless-dns
     clientId:       {$env: TASKCLUSTER_CLIENT_ID}
     accessToken:    {$env: TASKCLUSTER_ACCESS_TOKEN}
-  engine: qemu
+  engine:           {$env: ENGINE}
   engines:
+    native:
+      createUser:     false
     qemu:
-      maxConcurrency: 2
-      imageFolder:    /mnt/images
-      socketFolder:   /mnt/sockets
-      machineOptions:
-        maxMemory:    4096
+      limits:
+        defaultThreads: 1
+        maxCPUs:        4
+        maxMemory:      3072
+      network:
+        subnets:      1
+        hostRecords:
+          - names:
+              - $secret:  project/taskcluster/taskcluster-worker/kms
+                key:      hostname
+            ipv4:
+              $secret:  project/taskcluster/taskcluster-worker/kms
+              key:      address
+        srvRecords:
+          - service:    _VLMCS
+            protocol:   _TCP
+            target:
+              $secret:  project/taskcluster/taskcluster-worker/kms
+              key:      hostname
+            port:       1688
+            priority:   0
+            weight:     0
+        vpnConnections:
+          - $secret:  project/taskcluster/taskcluster-worker/kms
+            key:      vpnConfig
   minimumDiskSpace:   10000000  # 10 GB
   minimumMemory:      1000000   # 1 GB
   monitor:
     logLevel:       debug
-    project:        test-dummy-worker
+    project:        {$env: PROJECT}
   plugins:
     disabled:       [reboot]
     interactive:    {}
     artifacts:      {}
     env:            {}
     livelog:        {}
-    maxruntime:     {}
+    logprefix:      {}
+    tcproxy:        {}
+    maxruntime:
+      maxRunTime:   '4 hours'
+      perTaskLimit: 'allow'
     success:        {}
   temporaryFolder:  /mnt/tmp
   webHookServer:
     provider:           stateless-dns
-    maxLifeCycle:       345600  # 4 days
+    expiration:         '1 day'
     serverIp:           {$packet: public-ipv4}
     serverPort:         {$env: PORT, type: number}
     networkInterface:   eth0
@@ -52,7 +78,7 @@ config:
       $secret:  project/taskcluster/taskcluster-worker/stateless-dns
       key:      domain
   worker:
-    concurrency:          2
+    concurrency:          1
     minimumReclaimDelay:  30
     pollingInterval:      5
     reclaimOffset:        300

@@ -2,7 +2,6 @@ package network
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -13,8 +12,12 @@ import (
 	"sync"
 	"time"
 
+	schematypes "github.com/taskcluster/go-schematypes"
+	"github.com/taskcluster/taskcluster-worker/engines/qemu/network/openvpn"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 
+	"github.com/pkg/errors"
 	"gopkg.in/tylerb/graceful.v1"
 )
 
@@ -24,13 +27,14 @@ var remoteAddrPattern = regexp.MustCompile(`^(192\.168\.\d{1,3})\.\d{1,3}:\d{1,5
 
 // Pool manages a static set of networks (TAP devices).
 type Pool struct {
-	m           sync.Mutex
-	networks    map[string]*entry // mapping from ip-prefix to entry
-	server      *graceful.Server
-	serverDone  <-chan struct{} // closed when server is stopped
-	dnsmasq     *exec.Cmd
-	dnsmasqKill atomics.Bool
-	dnsmasqDone <-chan struct{} // closed when dnsmasq is terminated
+	m          sync.Mutex
+	networks   map[string]*entry // mapping from ip-prefix to entry
+	server     *graceful.Server
+	serverDone <-chan struct{} // closed when server is stopped
+	vpns       []*openvpn.VPN
+	dnsmasq    *exec.Cmd
+	disposing  atomics.Bool   // Set when we're disposing, before killing dnsmasq
+	disposed   sync.WaitGroup // Counts subprocesses, dnsmasq and vpns
 }
 
 // entry is a strictly internal presentation of a TAP device network.
@@ -43,21 +47,53 @@ type entry struct {
 	inUse     bool
 }
 
+// PoolOptions specifies options required by NewPool
+type PoolOptions struct {
+	Config           interface{} // Must satisfy PoolConfigSchema
+	Monitor          runtime.Monitor
+	TemporaryStorage runtime.TemporaryStorage
+}
+
 // NewPool creates N virtual networks and returns Pool.
 // This should be called before the worker starts operating, we don't wish to
 // dynamically reconfigure networks at runtime.
-func NewPool(N int) (*Pool, error) {
+func NewPool(options PoolOptions) (*Pool, error) {
+	// Map config to C
+	var C poolConfig
+	schematypes.MustValidateAndMap(PoolConfigSchema, options.Config, &C)
+
 	p := &Pool{
 		networks: make(map[string]*entry),
 	}
 
-	// Maybe we could split the address space further someday in the future
-	if N > 100 {
-		return nil, fmt.Errorf("Can't create %d networks, 100 is the limit", N)
+	// Start VPN connections
+	p.vpns = make([]*openvpn.VPN, len(C.VPNs))
+	for i, cfg := range C.VPNs {
+		monitor := options.Monitor.WithPrefix("vpn").WithTag("vpn", strconv.Itoa(i))
+		var err error
+		p.vpns[i], err = openvpn.New(openvpn.Options{
+			DeviceName:       fmt.Sprintf("vpn%d", i),
+			Config:           cfg,
+			Monitor:          monitor,
+			TemporaryStorage: options.TemporaryStorage,
+		})
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to create VPN connection number %d", i)
+		}
+		p.disposed.Add(1)
+		go func(p *Pool, vpn *openvpn.VPN, m runtime.Monitor) {
+			werr := vpn.Wait()
+			p.disposed.Done()
+			// Ignore errors that happens after we've started to dispose
+			if werr != nil && !p.disposing.Get() {
+				incidentID := m.ReportError(err, "error while running VPN")
+				m.Panic("VPN crashed, incidentID:", incidentID)
+			}
+		}(p, p.vpns[i], monitor)
 	}
 
 	// Create a number of networks
-	for i := 0; i < N; i++ {
+	for i := 0; i < C.Subnets; i++ {
 		// Construct the network object
 		n, err := createNetwork(i, p)
 		if err != nil {
@@ -75,54 +111,83 @@ func NewPool(N int) (*Pool, error) {
 	}
 
 	// Create dnsmasq configuration
-	dnsmasqConfig := `
-    strict-order
-    bind-interfaces
-    except-interface=lo
-    conf-file=""
-    dhcp-no-override
-    host-record=taskcluster,` + metaDataIP + `
-    keep-in-foreground
-    bogus-priv
-    domain-needed` // Consider adding "no-ping"
+	dnsmasqConfig := []string{
+		"strict-order",
+		"bind-interfaces",
+		"except-interface=lo",
+		"conf-file=\"\"",
+		"dhcp-no-override",
+		"host-record=taskcluster," + metaDataIP,
+		"keep-in-foreground",
+		"bogus-priv",
+		"domain-needed",
+		// Consider adding "no-ping"
+	}
+	for _, rec := range C.HostRecords {
+		dnsmasqConfig = append(dnsmasqConfig,
+			"host-record="+strings.Join(append(rec.Names, rec.IPv4, rec.IPv6), ","),
+		)
+	}
+	for _, srv := range C.SRVRecords {
+		dnsmasqConfig = append(dnsmasqConfig,
+			"srv-host="+strings.Join([]string{
+				strings.Join([]string{srv.Service, srv.Protocol, srv.Domain}, "."),
+				srv.Target,
+				strconv.Itoa(srv.Port),
+				strconv.Itoa(srv.Priority),
+				strconv.Itoa(srv.Weight),
+			}, ","),
+		)
+	}
 	for _, n := range p.networks {
-		dnsmasqConfig += `
-      interface=` + n.tapDevice + `
-      dhcp-range=tag:` + n.tapDevice + `,` + n.ipPrefix + `.2,` + n.ipPrefix + `.254,255.255.255.0,20m
-      dhcp-option=tag:` + n.tapDevice + `,option:router,` + n.ipPrefix + `.1`
+		dnsmasqConfig = append(dnsmasqConfig,
+			"interface="+n.tapDevice,
+			"dhcp-range="+strings.Join([]string{
+				"tag:" + n.tapDevice,
+				n.ipPrefix + ".2",
+				n.ipPrefix + ".254",
+				"255.255.255.0",
+				"20m",
+			}, ","),
+			"dhcp-option="+strings.Join([]string{
+				"tag:" + n.tapDevice,
+				"option:router",
+				n.ipPrefix + ".1",
+			}, ","),
+		)
 	}
 
 	// Start dnsmasq
-	dnsmasqDone := make(chan struct{})
-	p.dnsmasqDone = dnsmasqDone
 	p.dnsmasq = exec.Command("dnsmasq", "--conf-file=-")
-	p.dnsmasq.Stdin = bytes.NewBufferString(dnsmasqConfig)
+	p.dnsmasq.Stdin = bytes.NewBufferString(strings.Join(dnsmasqConfig, "\n") + "\n")
 	p.dnsmasq.Stderr = nil
 	p.dnsmasq.Stdout = nil
 	err = p.dnsmasq.Start()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to start dnsmasq, error: %s", err)
+		return nil, errors.Wrap(err, "Failed to start dnsmasq")
 	}
 	// Monitor dnsmasq and panic if it crashes unexpectedly
-	go (func(p *Pool, done chan<- struct{}) {
+	p.disposed.Add(1)
+	go (func(p *Pool) {
 		werr := p.dnsmasq.Wait()
-		close(done)
-		// Ignore errors if dnsmasqKill is true, otherwise this is a fatal issue
-		if werr != nil && !p.dnsmasqKill.Get() {
+		p.disposed.Done()
+		// Ignore errors if disposing is true, otherwise this is a fatal issue
+		if werr != nil && !p.disposing.Get() {
 			// We could probably restart the dnsmasq, as long as we avoid an infinite
 			// loop that should be fine. But dnsmasq probably won't crash without a
-			// good reason.
-			// TODO: Report to sentry
-			panic(fmt.Sprint("Fatal: dnsmasq died unexpectedly, error: ", werr))
+			// good reason
+			m := options.Monitor.WithPrefix("dnsmasq")
+			incidentID := m.ReportError(werr, "dnsmasq died unexpectedly")
+			m.Panic("dnsmasq crashed, incidentID:", incidentID)
 		}
-	})(p, dnsmasqDone)
+	})(p)
 
 	// Add meta-data IP to loopback device
 	err = script([][]string{
 		{"ip", "addr", "add", metaDataIP, "dev", "lo"},
 	}, true)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to add: %s to the loopback device: %s", metaDataIP, err)
+		return nil, errors.Wrapf(err, "Failed to add: %s to the loopback device", metaDataIP)
 	}
 
 	// Create the server
@@ -142,7 +207,7 @@ func NewPool(N int) (*Pool, error) {
 	if err != nil {
 		// If this happens ensure that we have configured the loopback device with:
 		// sudo ip addr add 169.254.169.254/24 scope link dev lo
-		return nil, fmt.Errorf("Failed to listen on %s error: %s", p.server.Addr, err)
+		return nil, errors.Wrapf(err, "Failed to listen on %s", p.server.Addr)
 	}
 
 	// Start the server
@@ -157,6 +222,11 @@ func NewPool(N int) (*Pool, error) {
 	})(p, serverDone)
 
 	return p, nil
+}
+
+// Size returns the number of networks in the network Pool
+func (p *Pool) Size() int {
+	return len(p.networks)
 }
 
 func (p *Pool) dispatchRequest(w http.ResponseWriter, r *http.Request) {
@@ -283,10 +353,18 @@ func (p *Pool) Dispose() error {
 	p.server.Stop(500 * time.Millisecond)
 	<-p.serverDone
 
-	// Kills dnsmasq
-	p.dnsmasqKill.Set(true) // indicate that error exit is expected
-	p.dnsmasq.Process.Kill()
-	<-p.dnsmasqDone
+	// Indicate that error exit is expected, from dnsmasq
+	p.disposing.Set(true)
+
+	// Kill dnsmasq
+	go p.dnsmasq.Process.Kill()
+
+	// Stop all VPNs
+	for _, vpn := range p.vpns {
+		go vpn.Stop()
+	}
+	// Wait for dnsmasq and vpns to halt
+	p.disposed.Wait()
 
 	// Delete all the networks
 	errs := []string{}
@@ -338,7 +416,7 @@ func createNetwork(index int, parent *Pool) (*entry, error) {
 	}
 
 	// Create iptables rules and chains
-	err = script(ipTableRules(tapDevice, ipPrefix, false), false)
+	err = script(ipTableRules(tapDevice, ipPrefix, parent.vpns, false), false)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to setup ip-tables for tap device: %s error: %s", tapDevice, err)
 	}
@@ -361,7 +439,7 @@ func destroyNetwork(n *entry) error {
 	}
 
 	// Delete iptables rules and chains
-	err := script(ipTableRules(n.tapDevice, n.ipPrefix, true), false)
+	err := script(ipTableRules(n.tapDevice, n.ipPrefix, n.pool.vpns, true), false)
 	if err != nil {
 		return fmt.Errorf("Failed to remove ip-tables for tap device: %s, error: %s", n.tapDevice, err)
 	}

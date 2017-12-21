@@ -11,6 +11,10 @@ import (
 )
 
 func TestUrlFetcher(t *testing.T) {
+	ctx := &mockContext{
+		Context: context.Background(),
+	}
+
 	// HACK: Reduce backOff.MaxDelay for the duration of this test
 	maxDelay := backOff.MaxDelay
 	backOff.MaxDelay = 100 * time.Millisecond
@@ -24,6 +28,26 @@ func TestUrlFetcher(t *testing.T) {
 		case "/ok":
 			w.WriteHeader(200)
 			w.Write([]byte("status-ok"))
+
+		case "/streaming":
+			// streaming without Content-Length
+			w.WriteHeader(200)
+			for i := 0; i < 10; i++ {
+				time.Sleep(10 * time.Millisecond)
+				w.Write([]byte("hello\n"))
+				w.(http.Flusher).Flush()
+			}
+
+		case "/slow":
+			w.Header().Set("Content-Length", "60")
+			w.WriteHeader(200)
+			debug("starting slow response")
+			for i := 0; i < 10; i++ {
+				time.Sleep(100 * time.Millisecond)
+				w.Write([]byte("hello\n"))
+				w.(http.Flusher).Flush()
+			}
+			debug("finished slow response")
 
 		case "/client-error":
 			w.WriteHeader(400)
@@ -53,17 +77,56 @@ func TestUrlFetcher(t *testing.T) {
 
 	t.Run("status-ok", func(t *testing.T) {
 		count = 0
-		w := &mockWriteSeekReseter{}
-		err := URL.Fetch(&mockContext{context.Background(), nil}, s.URL+"/ok", w)
+		w := &mockWriteReseter{}
+		ref, err := URL.NewReference(ctx, s.URL+"/ok")
+		require.NoError(t, err)
+		err = ref.Fetch(ctx, w)
 		require.NoError(t, err)
 		require.Equal(t, "status-ok", w.String())
 		require.Equal(t, 1, count)
 	})
 
+	t.Run("streaming-ok", func(t *testing.T) {
+		count = 0
+		w := &mockWriteReseter{}
+		ref, err := URL.NewReference(ctx, s.URL+"/streaming")
+		require.NoError(t, err)
+		err = ref.Fetch(ctx, w)
+		require.NoError(t, err)
+		require.Contains(t, w.String(), "hello")
+		require.Equal(t, 1, count)
+	})
+
+	t.Run("slow progress reports", func(t *testing.T) {
+		// Spoof progress report for this test case
+		origProgressReportInterval := progressReportInterval
+		progressReportInterval = 100 * time.Millisecond
+		defer func() {
+			progressReportInterval = origProgressReportInterval
+		}()
+
+		ctx2 := &mockContext{Context: context.Background()}
+		count = 0
+		w := &mockWriteReseter{}
+		ref, err := URL.NewReference(ctx2, s.URL+"/slow")
+		require.NoError(t, err)
+		err = ref.Fetch(ctx2, w)
+		require.NoError(t, err)
+		require.Equal(t, 1, count)
+		require.True(t, len(ctx2.ProgressReports()) > 3, "expected more than 3 progress reports")
+		var prev float64
+		for _, report := range ctx2.ProgressReports() {
+			require.True(t, prev <= report, "Reporting shouldn't go backwards")
+			prev = report
+		}
+	})
+
 	t.Run("client-error", func(t *testing.T) {
 		count = 0
-		w := &mockWriteSeekReseter{}
-		err := URL.Fetch(&mockContext{context.Background(), nil}, s.URL+"/client-error", w)
+		w := &mockWriteReseter{}
+		ref, err := URL.NewReference(ctx, s.URL+"/client-error")
+		require.NoError(t, err)
+		err = ref.Fetch(ctx, w)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "client-error")
 		require.Equal(t, "", w.String())
@@ -72,8 +135,10 @@ func TestUrlFetcher(t *testing.T) {
 
 	t.Run("unauthorized", func(t *testing.T) {
 		count = 0
-		w := &mockWriteSeekReseter{}
-		err := URL.Fetch(&mockContext{context.Background(), nil}, s.URL+"/unauthorized", w)
+		w := &mockWriteReseter{}
+		ref, err := URL.NewReference(ctx, s.URL+"/unauthorized")
+		require.NoError(t, err)
+		err = ref.Fetch(ctx, w)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unauthorized")
 		require.Equal(t, "", w.String())
@@ -82,8 +147,10 @@ func TestUrlFetcher(t *testing.T) {
 
 	t.Run("forbidden", func(t *testing.T) {
 		count = 0
-		w := &mockWriteSeekReseter{}
-		err := URL.Fetch(&mockContext{context.Background(), nil}, s.URL+"/forbidden", w)
+		w := &mockWriteReseter{}
+		ref, err := URL.NewReference(ctx, s.URL+"/forbidden")
+		require.NoError(t, err)
+		err = ref.Fetch(ctx, w)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "forbidden")
 		require.Equal(t, "", w.String())
@@ -92,8 +159,10 @@ func TestUrlFetcher(t *testing.T) {
 
 	t.Run("not-found", func(t *testing.T) {
 		count = 0
-		w := &mockWriteSeekReseter{}
-		err := URL.Fetch(&mockContext{context.Background(), nil}, s.URL+"/not-found", w)
+		w := &mockWriteReseter{}
+		ref, err := URL.NewReference(ctx, s.URL+"/not-found")
+		require.NoError(t, err)
+		err = ref.Fetch(ctx, w)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "not-found")
 		require.Equal(t, "", w.String())
@@ -102,8 +171,10 @@ func TestUrlFetcher(t *testing.T) {
 
 	t.Run("server-error", func(t *testing.T) {
 		count = 0
-		w := &mockWriteSeekReseter{}
-		err := URL.Fetch(&mockContext{context.Background(), nil}, s.URL+"/server-error", w)
+		w := &mockWriteReseter{}
+		ref, err := URL.NewReference(ctx, s.URL+"/server-error")
+		require.NoError(t, err)
+		err = ref.Fetch(ctx, w)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "server-error")
 		require.Equal(t, "", w.String())

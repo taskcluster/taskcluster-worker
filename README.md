@@ -18,7 +18,7 @@ OS X™ native engine, KVM™/Xen™ engine) and adding engine-independent plugi
 Architecture
 ------------
 
-See https://docs.taskcluster.net/manual/execution/workers/taskcluster-worker
+See https://docs.taskcluster.net/reference/workers/taskcluster-worker/docs/architecture
 
 Installing From Binary
 ----------------------

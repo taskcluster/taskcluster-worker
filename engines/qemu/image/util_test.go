@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/taskcluster/slugid-go/slugid"
 )
 
@@ -36,9 +37,14 @@ func TestDownloadImageOK(t *testing.T) {
 	targetFile := filepath.Join(os.TempDir(), slugid.Nice())
 	defer os.Remove(targetFile)
 
+	target, err := os.Create(targetFile)
+	require.NoError(t, err)
+
 	// Download test url to the target file
-	err := DownloadImage(s.URL)(targetFile)
+	err = DownloadImage(s.URL)(target)
 	nilOrFatal(t, err, "Failed to download from testserver")
+	err = target.Close()
+	require.NoError(t, err)
 
 	result, err := ioutil.ReadFile(targetFile)
 	nilOrFatal(t, err, "Failed to read targetFile, error: ", err)
@@ -63,8 +69,13 @@ func TestDownloadImageRetry(t *testing.T) {
 	targetFile := filepath.Join(os.TempDir(), slugid.Nice())
 	defer os.Remove(targetFile)
 
+	target, err := os.Create(targetFile)
+	require.NoError(t, err)
+
 	// Download test url to the target file
-	err := DownloadImage(s.URL)(targetFile)
+	err = DownloadImage(s.URL)(target)
 	assert(t, err != nil, "Expected an error")
 	assert(t, count == 7, "Expected 7 attempts, got: ", count)
+	err = target.Close()
+	require.NoError(t, err)
 }

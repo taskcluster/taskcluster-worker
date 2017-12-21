@@ -2,18 +2,17 @@ package runtime
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
-	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 
 	"gopkg.in/djherbis/stream.v1"
 )
@@ -49,6 +48,8 @@ type TaskInfo struct {
 	Created  time.Time
 	Deadline time.Time
 	Expires  time.Time
+	Scopes   []string
+	Task     interface{} // task definition in map[string]interface{} types..
 }
 
 // The TaskContext exposes generic properties and functionality related to a
@@ -60,7 +61,6 @@ type TaskInfo struct {
 // properties, and abortion notifications.
 type TaskContext struct {
 	TaskInfo
-	webHookSet  *webhookserver.WebHookSet
 	logStream   *stream.Stream
 	logLocation string // Absolute path to log file
 	logClosed   bool
@@ -68,6 +68,10 @@ type TaskContext struct {
 	queue       client.Queue
 	status      TaskStatus
 	done        chan struct{}
+	authorizer  client.Authorizer
+	clientID    string
+	accessToken string
+	certificate string
 }
 
 // TaskContextController exposes logic for controlling the TaskContext.
@@ -79,20 +83,26 @@ type TaskContextController struct {
 }
 
 // NewTaskContext creates a TaskContext and associated TaskContextController
-func NewTaskContext(tempLogFile string,
-	task TaskInfo,
-	server webhookserver.WebHookServer) (*TaskContext, *TaskContextController, error) {
+func NewTaskContext(tempLogFile string, task TaskInfo) (*TaskContext, *TaskContextController, error) {
 	logStream, err := stream.New(tempLogFile)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrap(err, "failed to create temporary file for storing log")
 	}
 	ctx := &TaskContext{
 		logStream:   logStream,
 		logLocation: tempLogFile,
 		TaskInfo:    task,
-		webHookSet:  webhookserver.NewWebHookSet(server),
 		done:        make(chan struct{}),
 	}
+	ctx.authorizer = client.NewAuthorizer(func() (string, string, string, error) {
+		ctx.mu.RLock()
+		defer ctx.mu.RUnlock()
+
+		if ctx.clientID == "" || ctx.accessToken == "" {
+			panic(errors.New("TaskContext doesn't have clientID and accessToken"))
+		}
+		return ctx.clientID, ctx.accessToken, ctx.certificate, nil
+	})
 	return ctx, &TaskContextController{ctx}, nil
 }
 
@@ -104,14 +114,14 @@ func (c *TaskContextController) CloseLog() error {
 		return nil
 	}
 
+	debug("closing log on TaskContext")
 	c.logClosed = true
 	return c.logStream.Close()
 }
 
 // Dispose will clean-up all resources held by the TaskContext
 func (c *TaskContextController) Dispose() error {
-	c.webHookSet.Dispose()
-
+	debug("disposing TaskContext")
 	return c.logStream.Remove()
 }
 
@@ -120,8 +130,9 @@ func (c *TaskContextController) Dispose() error {
 // interaction with the queue.
 func (c *TaskContextController) SetQueueClient(client client.Queue) {
 	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.queue = client
-	c.mu.Unlock()
 }
 
 // Queue will return a client for the TaskCluster Queue.  This client
@@ -130,7 +141,29 @@ func (c *TaskContextController) SetQueueClient(client client.Queue) {
 func (c *TaskContext) Queue() client.Queue {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+	// TODO: Remove this method when client library has been rewritten to consume
+	// 			 a Authorizor implementation
 	return c.queue
+}
+
+// Authorizer can sign requests with temporary credentials associated with the
+// task.
+//
+// Notice, when blindly forwarding requests task.scopes should be set as
+// authorizedScopes, otherwise artifact upload and resolution will possible.
+func (c *TaskContext) Authorizer() client.Authorizer {
+	return c.authorizer
+}
+
+// SetCredentials is used to provide the task-specific temporary credentials,
+// and update these whenever they change.
+func (c *TaskContextController) SetCredentials(clientID, accessToken, certificate string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.clientID = clientID
+	c.accessToken = accessToken
+	c.certificate = certificate
 }
 
 // Deadline returns empty time and false, this is implemented to satisfy
@@ -154,6 +187,8 @@ func (c *TaskContext) Err() error {
 	// NOTE: This method is implemented to support the context.Context interface
 	//       and may not return anything but context.Canceled or
 	//       context.DeadlineExceeded.
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	if c.status == Aborted || c.status == Cancelled {
 		return context.Canceled
 	}
@@ -170,14 +205,13 @@ func (c *TaskContext) Abort() {
 	// TODO: (jonasfj): Remove this method TaskContext
 	// TODO (garndt): add abort/cancel channels for plugins to listen on
 	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.status = Aborted
 	select {
 	case <-c.done:
 	default:
 		close(c.done)
 	}
-	c.mu.Unlock()
-	return
 }
 
 // IsAborted returns true if the current status is Aborted
@@ -198,7 +232,6 @@ func (c *TaskContext) Cancel() {
 		close(c.done)
 	}
 	c.mu.Unlock()
-	return
 }
 
 // IsCancelled returns true if the current status is Cancelled
@@ -269,25 +302,25 @@ func (c *TaskContext) ExtractLog() (ioext.ReadSeekCloser, error) {
 	return file, nil
 }
 
-// AttachWebHook will take an http.Handler and expose it to the internet such
-// that requests to any sub-resource of url returned will be forwarded to the
-// handler.
-//
-// Additionally, we promise that the URL contains a cryptographically random
-// sequence of characters rendering it unpredictable. This can be used as a
-// cheap form of access-control, and it is safe as task-specific web hooks
-// are short-lived by nature.
-//
-// Example use-cases:
-//  - livelog plugin
-//  - plugins for interactive shell/display/debugger, etc.
-//  - engines that send an email and await user confirmation
-//  ...
-//
-// Implementors attaching a hook should take care to ensure that the handler
-// is able to respond with a non-2xx response, if the data it is accessing isn't
-// available anymore. All webhooks will be detached at the end of the
-// task-cycle, but not until the very end.
-func (c *TaskContext) AttachWebHook(handler http.Handler) string {
-	return c.webHookSet.AttachHook(handler)
+// HasScopes returns true, if task.scopes covers one of the scopeSets given
+func (c *TaskContext) HasScopes(scopeSets ...[]string) bool {
+	for _, scopes := range scopeSets {
+		satisfied := true
+		for _, required := range scopes {
+			satisfied = false
+			for _, scope := range c.Scopes {
+				if required == scope || strings.HasSuffix(scope, "*") && strings.HasPrefix(required, scope[0:len(scope)-1]) {
+					satisfied = true
+					break
+				}
+			}
+			if !satisfied {
+				break
+			}
+		}
+		if satisfied {
+			return true
+		}
+	}
+	return false
 }

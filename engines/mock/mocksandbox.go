@@ -152,20 +152,42 @@ func (s *sandbox) SetEnvironmentVariable(name string, value string) error {
 var functions = map[string]func(*sandbox, string) (bool, error){
 	"true":  func(s *sandbox, arg string) (bool, error) { return true, nil },
 	"false": func(s *sandbox, arg string) (bool, error) { return false, nil },
-	"set-volume": func(s *sandbox, arg string) (bool, error) {
-		mount := s.mounts[arg]
+	"write-volume": func(s *sandbox, arg string) (bool, error) {
+		// Parse arg as: <mountPoint>/<file_name>:<fileData>
+		args := strings.SplitN(arg, "/", 2)
+		volumeName := args[0]
+		args = strings.SplitN(args[1], ":", 2)
+		fileName := args[0]
+		fileData := args[1]
+		mount := s.mounts[volumeName]
 		if mount == nil || mount.readOnly {
 			return false, nil
 		}
-		mount.volume.value = true
+		mount.volume.files[fileName] = fileData
 		return true, nil
 	},
-	"get-volume": func(s *sandbox, arg string) (bool, error) {
-		mount := s.mounts[arg]
+	"read-volume": func(s *sandbox, arg string) (bool, error) {
+		// Parse arg as: <mountPoint>/<fileName>
+		args := strings.SplitN(arg, "/", 2)
+		volumeName := args[0]
+		fileName := args[1]
+
+		mount := s.mounts[volumeName]
 		if mount == nil {
 			return false, nil
 		}
-		return mount.volume.value, nil
+		s.context.Log(mount.volume.files[fileName])
+		return mount.volume.files[fileName] != "", nil
+	},
+	"get-url": func(s *sandbox, arg string) (bool, error) {
+		res, err := http.Get(arg)
+		if err != nil {
+			s.context.Log("Failed to get url: ", arg, " err: ", err)
+			return false, nil
+		}
+		defer res.Body.Close()
+		io.Copy(s.context.LogDrain(), res.Body)
+		return res.StatusCode == http.StatusOK, nil
 	},
 	"ping-proxy": func(s *sandbox, arg string) (bool, error) {
 		u, err := url.Parse(arg)

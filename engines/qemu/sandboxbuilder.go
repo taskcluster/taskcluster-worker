@@ -2,13 +2,17 @@ package qemuengine
 
 import (
 	"net/http"
+	"os"
 	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/image"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/network"
+	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/fetcher"
 )
 
 type sandboxBuilder struct {
@@ -17,6 +21,7 @@ type sandboxBuilder struct {
 	discarded  bool
 	network    *network.Network
 	command    []string
+	machine    vm.Machine
 	image      *image.Instance
 	imageError error
 	imageDone  <-chan struct{}
@@ -44,17 +49,54 @@ func newSandboxBuilder(
 		engine:    e,
 		monitor:   monitor,
 	}
+	if payload.Machine != nil {
+		sb.machine = vm.NewMachine(payload.Machine)
+	}
+
 	// Start downloading and extracting the image
 	go func() {
-		debug("downloading image: %s (if not already present)", payload.Image)
-		inst, err := e.imageManager.Instance("URL:"+payload.Image, image.DownloadImage(payload.Image))
-		debug("downloaded image: %s", payload.Image)
+		var scopeSets [][]string
+		var inst *image.Instance
+
+		ctx := &fetchImageContext{c}
+		ref, err := imageFetcher.NewReference(ctx, payload.Image)
+		if err != nil {
+			goto handleErr
+		}
+
+		// Check that task.scopes satisfies one of required scope-sets
+		scopeSets = ref.Scopes()
+		if !c.HasScopes(scopeSets...) {
+			var options []string
+			for _, scopes := range scopeSets {
+				options = append(options, strings.Join(scopes, ", "))
+			}
+			err = runtime.NewMalformedPayloadError(
+				`task.scopes must satisfy at-least one of the scope-sets: ` + strings.Join(options, " or "),
+			)
+			goto handleErr
+		}
+
+		debug("fetching image: %#v (if not already present)", payload.Image)
+		inst, err = e.imageManager.Instance(ref.HashKey(), func(imageFile *os.File) error {
+			return ref.Fetch(ctx, &fetcher.FileReseter{File: imageFile})
+		})
+		debug("fetched image: %#v", payload.Image)
+
+	handleErr:
+		// Transform broken reference to malformed payload
+		if fetcher.IsBrokenReferenceError(err) {
+			err = runtime.NewMalformedPayloadError("unable to fetch image, error:", err)
+		}
+
 		sb.m.Lock()
 		// if already discarded then we don't set the image... instead we release it
 		// immediately. We don't want to risk leaking an image and run out of
 		// storage, as the GC won't be able to dispose it.
 		if sb.discarded {
-			inst.Release()
+			if inst != nil {
+				inst.Release()
+			}
 		} else {
 			sb.image = inst
 			sb.imageError = err
@@ -143,7 +185,7 @@ func (sb *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
 
 	// Create a sandbox
 	s, err := newSandbox(
-		sb.command, sb.env, sb.proxies, sb.image, sb.network,
+		sb.command, sb.env, sb.proxies, sb.machine, sb.image, sb.network,
 		sb.context, sb.engine, sb.monitor,
 	)
 	if err != nil {

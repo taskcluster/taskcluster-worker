@@ -101,6 +101,11 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 		if _, ok := err.(*os.PathError); ok && first {
 			return engines.ErrResourceNotFound
 		}
+		// If first path is what we're walking and it's not a directory, then we
+		// didn't find folder at the given path.
+		if first && p == abspath && !info.IsDir() {
+			return engines.ErrResourceNotFound
+		}
 		first = false
 
 		// Ignore folder we can't walk (probably a permission issues)

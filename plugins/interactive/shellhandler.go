@@ -78,7 +78,7 @@ func (s *ShellHandler) Communicate(setSize SetSizeFunc, abort func() error) {
 
 	go s.readMessages()
 
-	s.streamingDone.Add(3)
+	s.streamingDone.Add(2)
 	go s.transmitStream(s.stdoutReader, shellconsts.StreamStdout)
 	go s.transmitStream(s.stderrReader, shellconsts.StreamStderr)
 	go s.sendAcks()
@@ -129,14 +129,14 @@ func (s *ShellHandler) abort() {
 	})
 }
 
-func (s *ShellHandler) send(message []byte) {
+func (s *ShellHandler) send(message []byte, ignoreIfCloseSent bool) {
 	// Write message and ensure we reset the write deadline
 	s.mWrite.Lock()
 	s.ws.SetWriteDeadline(time.Now().Add(shellconsts.ShellWriteTimeout))
 	err := s.ws.WriteMessage(websocket.BinaryMessage, message)
 	s.mWrite.Unlock()
 
-	if err != nil {
+	if err != nil && (!ignoreIfCloseSent || err != websocket.ErrCloseSent) {
 		s.monitor.Error("Failed to send message, error: ", err)
 		s.abort()
 	}
@@ -227,13 +227,13 @@ func (s *ShellHandler) transmitStream(r io.Reader, streamID byte) {
 
 		// Send payload if more than zero (zero payload indicates end of stream)
 		if n > 0 {
-			s.send(m[:2+n])
+			s.send(m[:2+n], false)
 		}
 
 		// If EOF, then we send an empty payload to signal this
 		if err == io.EOF {
 			debug("Reached EOF for streamID: %d size: %d", streamID, size)
-			s.send(m[:2])
+			s.send(m[:2], false)
 			return
 		}
 
@@ -332,8 +332,6 @@ func (s *ShellHandler) readMessages() {
 }
 
 func (s *ShellHandler) sendAcks() {
-	defer s.streamingDone.Done()
-
 	// reserve a buffer for sending acknowledgments
 	ack := make([]byte, 2+4)
 	ack[0] = shellconsts.MessageTypeAck
@@ -356,7 +354,7 @@ func (s *ShellHandler) sendAcks() {
 
 		// Send an acknowledgment message (this is for congestion control)
 		binary.BigEndian.PutUint32(ack[2:], uint32(N))
-		s.send(ack)
+		s.send(ack, true)
 	}
 	debug("Final ack for stdin sent, size: %d", size)
 }

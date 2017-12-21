@@ -12,10 +12,8 @@ var mockConfigSchema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"type": schematypes.StringEnum{Options: []string{"mock"}},
 		"panicOnError": schematypes.Boolean{
-			MetaData: schematypes.MetaData{
-				Title:       "Panic On Error",
-				Description: "Use a mock implementation of the monitor that panics on errors.",
-			},
+			Title:       "Panic On Error",
+			Description: "Use a mock implementation of the monitor that panics on errors.",
 		},
 	},
 	Required: []string{"type", "panicOnError"},
@@ -24,11 +22,9 @@ var mockConfigSchema = schematypes.Object{
 var monitorConfigSchema schematypes.Schema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"project": schematypes.String{
-			MetaData: schematypes.MetaData{
-				Title:       "Sentry/Statsum Project Name",
-				Description: "Project name to be used in sentry and statsum",
-			},
-			Pattern: "^[a-zA-Z0-9_-]{1,22}$",
+			Title:       "Sentry/Statsum Project Name",
+			Description: "Project name to be used in sentry and statsum",
+			Pattern:     "^[a-zA-Z0-9_-]{1,22}$",
 		},
 		"logLevel": schematypes.StringEnum{
 			Options: []string{
@@ -41,11 +37,13 @@ var monitorConfigSchema schematypes.Schema = schematypes.Object{
 			},
 		},
 		"tags": schematypes.Map{
-			MetaData: schematypes.MetaData{
-				Title:       "Tags",
-				Description: "Tags that should be applied to all logs/sentry entries from this worker",
-			},
-			Values: schematypes.String{},
+			Title:       "Tags",
+			Description: "Tags that should be applied to all logs/sentry entries from this worker",
+			Values:      schematypes.String{},
+		},
+		"syslog": schematypes.String{
+			Title:       "Syslog Name",
+			Description: "Name to use for process in syslog, leave as empty string to disable syslog forwarding.",
 		},
 	},
 	Required: []string{"logLevel"},
@@ -57,6 +55,12 @@ var ConfigSchema schematypes.Schema = schematypes.OneOf{
 	monitorConfigSchema,
 }
 
+// PreConfig returns a default monitor for use before the configuration is loaded.  This logs at
+// the INFO level to stderr.
+func PreConfig() runtime.Monitor {
+	return NewLoggingMonitor("info", map[string]string{}, "taskcluster-worker")
+}
+
 // New returns a runtime.Monitor strategy from config matching ConfigSchema.
 func New(config interface{}, auth client.Auth) runtime.Monitor {
 	schematypes.MustValidate(ConfigSchema, config)
@@ -66,12 +70,13 @@ func New(config interface{}, auth client.Auth) runtime.Monitor {
 		Project  string            `json:"project"`
 		LogLevel string            `json:"logLevel"`
 		Tags     map[string]string `json:"tags"`
+		Syslog   string            `json:"syslog"`
 	}
 	if schematypes.MustMap(monitorConfigSchema, config, &c) == nil {
 		if c.Project != "" {
-			return NewMonitor(c.Project, auth, c.LogLevel, c.Tags)
+			return NewMonitor(c.Project, auth, c.LogLevel, c.Tags, c.Syslog)
 		}
-		return NewLoggingMonitor(c.LogLevel, c.Tags)
+		return NewLoggingMonitor(c.LogLevel, c.Tags, c.Syslog)
 	}
 
 	// try mock schema

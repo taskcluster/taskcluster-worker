@@ -4,7 +4,6 @@ package enginetest
 
 import (
 	"log"
-	"sync"
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
@@ -54,7 +53,7 @@ func (c *VolumeTestCase) readVolume(volume engines.Volume, readOnly bool) bool {
 // TestWriteReadVolume tests that we can write and read from a volume
 func (c *VolumeTestCase) TestWriteReadVolume() {
 	c.ensureEngine()
-	volume, err := c.engine.NewCacheFolder()
+	volume, err := c.engine.NewVolume(map[string]interface{}{})
 	nilOrPanic(err, "Failed to create a new cache folder")
 	defer evalNilOrPanic(volume.Dispose, "Failed to dispose cache folder")
 	if !c.writeVolume(volume, false) {
@@ -71,7 +70,7 @@ func (c *VolumeTestCase) TestWriteReadVolume() {
 // TestReadEmptyVolume tests that read from empty volume doesn't work
 func (c *VolumeTestCase) TestReadEmptyVolume() {
 	c.ensureEngine()
-	volume, err := c.engine.NewCacheFolder()
+	volume, err := c.engine.NewVolume(map[string]interface{}{})
 	nilOrPanic(err, "Failed to create a new cache folder")
 	defer evalNilOrPanic(volume.Dispose, "Failed to dispose cache folder")
 	if c.readVolume(volume, false) {
@@ -85,7 +84,7 @@ func (c *VolumeTestCase) TestReadEmptyVolume() {
 // TestWriteToReadOnlyVolume tests that write doesn't work to a read-only volume
 func (c *VolumeTestCase) TestWriteToReadOnlyVolume() {
 	c.ensureEngine()
-	volume, err := c.engine.NewCacheFolder()
+	volume, err := c.engine.NewVolume(map[string]interface{}{})
 	nilOrPanic(err, "Failed to create a new cache folder")
 	defer evalNilOrPanic(volume.Dispose, "Failed to dispose cache folder")
 	c.writeVolume(volume, true)
@@ -97,7 +96,7 @@ func (c *VolumeTestCase) TestWriteToReadOnlyVolume() {
 // TestReadToReadOnlyVolume tests that we can read from a read-only volume
 func (c *VolumeTestCase) TestReadToReadOnlyVolume() {
 	c.ensureEngine()
-	volume, err := c.engine.NewCacheFolder()
+	volume, err := c.engine.NewVolume(map[string]interface{}{})
 	nilOrPanic(err, "Failed to create a new cache folder")
 	defer evalNilOrPanic(volume.Dispose, "Failed to dispose cache folder")
 	if !c.writeVolume(volume, false) {
@@ -114,11 +113,8 @@ func (c *VolumeTestCase) TestReadToReadOnlyVolume() {
 
 // Test runs all tests on the test case.
 func (c *VolumeTestCase) Test() {
-	wg := sync.WaitGroup{}
-	wg.Add(4)
-	go func() { c.TestWriteReadVolume(); wg.Done() }()
-	go func() { c.TestReadEmptyVolume(); wg.Done() }()
-	go func() { c.TestWriteToReadOnlyVolume(); wg.Done() }()
-	go func() { c.TestReadToReadOnlyVolume(); wg.Done() }()
-	wg.Wait()
+	c.TestWriteReadVolume()
+	c.TestReadEmptyVolume()
+	c.TestWriteToReadOnlyVolume()
+	c.TestReadToReadOnlyVolume()
 }

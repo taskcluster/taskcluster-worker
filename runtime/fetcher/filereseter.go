@@ -1,10 +1,17 @@
 package fetcher
 
-import "os"
+import "io"
 
-// FileReseter implements WriteSeekReseter for an *os.File instance
+// File interface as implemented by *os.File
+type File interface {
+	Truncate(size int64) error
+	io.Seeker
+	io.Writer
+}
+
+// FileReseter implements WriteReseter for an *os.File instance
 type FileReseter struct {
-	*os.File
+	File
 }
 
 // Reset will truncate the file and seek to the beginning.

@@ -48,7 +48,7 @@ func NewMutableImage(folder string, size int, machine *vm.Machine) (*MutableImag
 
 	return &MutableImage{
 		folder:  folder,
-		machine: machine.Clone(),
+		machine: machine,
 	}, nil
 }
 

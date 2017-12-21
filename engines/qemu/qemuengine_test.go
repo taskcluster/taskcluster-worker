@@ -57,13 +57,15 @@ func TestMain(m *testing.M) {
 var provider = &enginetest.EngineProvider{
 	Engine: "qemu",
 	Config: `{
-		"maxConcurrency":   5,
-		"imageFolder":      "/tmp/images/",
-		"socketFolder":     "/tmp/",
-		"machineOptions": {
-			"maxMemory": 512
+		"network": {
+			"subnets": 5
+		},
+		"limits": {
+			"maxMemory": 256,
+			"maxCPUs": 1,
+			"defaultThreads": 1
 		}
-  }`,
+	}`,
 }
 
 func TestLogging(t *testing.T) {
@@ -146,7 +148,6 @@ func TestArtifacts(t *testing.T) {
 			"command": ["sh", "-ec", "mkdir -p /home/tc/folder/sub-folder; echo '[hello-world]' > /home/tc/folder/hello.txt; echo '[hello-world]' > /home/tc/folder/sub-folder/hello2.txt"]
 		}`,
 	}
-
 	c.TestExtractTextFile()
 	c.TestExtractFileNotFound()
 	c.TestExtractFolderNotFound()

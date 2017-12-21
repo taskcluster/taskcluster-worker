@@ -1,6 +1,9 @@
 package mockengine
 
-import schematypes "github.com/taskcluster/go-schematypes"
+import (
+	schematypes "github.com/taskcluster/go-schematypes"
+	"github.com/taskcluster/taskcluster-worker/runtime/util"
+)
 
 type payloadType struct {
 	Delay    int    `json:"delay"`
@@ -11,25 +14,24 @@ type payloadType struct {
 var payloadSchema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"delay": schematypes.Integer{
-			MetaData: schematypes.MetaData{
-				Title: "Execution Time",
-				Description: `MockEngine is used to mock a real engine, towards that
-				end you can specify how long time the MockEngine should sleep before
-				reporting the execution as done.`,
-			},
+			Title: "Execution Time",
+			Description: util.Markdown(`
+				MockEngine is used to mock a real engine, towards that end you
+				can specify how long time the MockEngine should sleep before
+				reporting the execution as done.
+			`),
 			Minimum: 0,
 			Maximum: 5 * 60 * 1000,
 		},
 		"function": schematypes.StringEnum{
-			MetaData: schematypes.MetaData{
-				Title:       "Function to Execute",
-				Description: "MockEngine supports running one of these pre-defined functions.",
-			},
+			Title:       "Function to Execute",
+			Description: "MockEngine supports running one of these pre-defined functions.",
 			Options: []string{
 				"true",
 				"false",
-				"set-volume",
-				"get-volume",
+				"write-volume",
+				"read-volume",
+				"get-url",
 				"ping-proxy",
 				"write-log",
 				"write-error-log",
@@ -44,11 +46,11 @@ var payloadSchema = schematypes.Object{
 			},
 		},
 		"argument": schematypes.String{
-			MetaData: schematypes.MetaData{
-				Title: "Argument to be given to function",
-				Description: `This argument will be passed to function, notice that
-				not all functions take an argument and may just choose to ignore it.`,
-			},
+			Title: "Argument to be given to function",
+			Description: util.Markdown(`
+				This argument will be passed to function, notice that not all
+				functions take an argument and may just choose to ignore it.
+			`),
 			MaximumLength: 255,
 		},
 	},

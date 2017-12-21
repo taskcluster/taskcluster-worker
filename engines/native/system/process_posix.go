@@ -175,8 +175,9 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 	if options.Owner != nil {
 		p.cmd.SysProcAttr = &syscall.SysProcAttr{
 			Credential: &syscall.Credential{
-				Uid: options.Owner.uid,
-				Gid: options.Owner.gid,
+				Uid:    options.Owner.uid,
+				Gid:    options.Owner.gid,
+				Groups: options.Owner.gids,
 			},
 		}
 	}
@@ -194,10 +195,8 @@ func StartProcess(options ProcessOptions) (*Process, error) {
 	} else {
 		p.pty, err = pty.Start(p.cmd)
 		if options.Stdin != nil {
-			p.sockets.Add(1)
 			go func() {
 				io.Copy(p.pty, options.Stdin)
-				p.sockets.Done()
 				// Kill process when stdin ends (if running as TTY)
 				p.Kill()
 			}()

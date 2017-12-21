@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"sync"
 )
 
 // A LoggingTestCase holds information necessary to run tests that an engine
@@ -37,7 +36,7 @@ func (c *LoggingTestCase) grepLogFromPayload(payload string, needle string, succ
 	log := r.ReadLog()
 	retval := strings.Contains(log, needle)
 	if retval != match {
-		fmt.Println("--- Couldn't find: ", needle, " in log: ---")
+		fmt.Println("--- Searched for needle: ", needle, " in log: ---")
 		fmt.Println(log)
 		fmt.Println("--- END OF LOG ---")
 	}
@@ -70,10 +69,7 @@ func (c *LoggingTestCase) TestSilentTask() {
 
 // Test will run all logging tests
 func (c *LoggingTestCase) Test() {
-	wg := sync.WaitGroup{}
-	wg.Add(3)
-	go func() { c.TestLogTarget(); wg.Done() }()
-	go func() { c.TestLogTargetWhenFailing(); wg.Done() }()
-	go func() { c.TestSilentTask(); wg.Done() }()
-	wg.Wait()
+	c.TestLogTarget()
+	c.TestLogTargetWhenFailing()
+	c.TestSilentTask()
 }

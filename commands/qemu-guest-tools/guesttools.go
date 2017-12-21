@@ -2,6 +2,7 @@ package qemuguesttools
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -20,15 +21,15 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
-	"golang.org/x/net/context"
-	"golang.org/x/net/context/ctxhttp"
 	buffer "gopkg.in/djherbis/buffer.v1"
 	nio "gopkg.in/djherbis/nio.v2"
 )
 
 type guestTools struct {
+	config        config
 	baseURL       string
 	got           *got.Got
+	gotpoll       *got.Got
 	monitor       runtime.Monitor
 	taskLog       io.Writer
 	pollingCtx    context.Context
@@ -42,7 +43,7 @@ var backOff = &got.BackOff{
 	MaxDelay:            5 * time.Second,
 }
 
-func new(host string, monitor runtime.Monitor) *guestTools {
+func new(config config, host string, monitor runtime.Monitor) *guestTools {
 	got := got.New()
 	got.Client = &http.Client{Timeout: 5 * time.Second}
 	got.MaxSize = 10 * 1024 * 1024
@@ -50,10 +51,16 @@ func new(host string, monitor runtime.Monitor) *guestTools {
 	got.Retries = 15
 	got.BackOff = backOff
 
+	// Create got client for polling
+	gotpoll := *got
+	gotpoll.Client = &http.Client{Timeout: pollTimeout + 5*time.Second}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	return &guestTools{
+		config:        config,
 		baseURL:       "http://" + host + "/",
 		got:           got,
+		gotpoll:       &gotpoll,
 		monitor:       monitor,
 		pollingCtx:    ctx,
 		cancelPolling: cancel,
@@ -91,25 +98,45 @@ func (g *guestTools) Run() {
 	taskLog, logSent := g.CreateTaskLog()
 
 	// Construct environment variables
-	env := make(map[string]string, len(os.Environ())+len(task.Env))
+	env := make(map[string]string, len(os.Environ())+len(g.config.Env)+len(task.Env))
 	for _, e := range os.Environ() {
 		parts := strings.SplitN(e, "=", 2)
 		env[parts[0]] = parts[1]
+	}
+	for k, v := range g.config.Env {
+		env[k] = v
 	}
 	for k, v := range task.Env {
 		env[k] = v
 	}
 
+	result := "failed"
+	var proc *system.Process
+
+	// Find user, if any
+	var err error
+	var owner *system.User
+	if g.config.User != "" {
+		owner, err = system.FindUser(g.config.User)
+		if err != nil {
+			g.monitor.Errorf(
+				"Couldn't find user referenced in qemu-guest-tools configuration: %s", g.config.User,
+			)
+			goto resolved
+		}
+	}
+
 	// Execute the task
-	proc, err := system.StartProcess(system.ProcessOptions{
-		Arguments:   task.Command,
-		Environment: env,
-		TTY:         true,
-		Stdout:      taskLog,
-		Stderr:      nil, // implies use of stdout
+	proc, err = system.StartProcess(system.ProcessOptions{
+		Arguments:     append(g.config.Entrypoint, task.Command...),
+		Environment:   env,
+		WorkingFolder: g.config.WorkDir,
+		Owner:         owner,
+		TTY:           true,
+		Stdout:        taskLog,
+		Stderr:        nil, // implies use of stdout
 	})
 
-	result := "failed"
 	if err == nil {
 		// kill if 'killed' is done
 		done := make(chan struct{})
@@ -127,6 +154,7 @@ func (g *guestTools) Run() {
 		close(done)
 	}
 
+resolved:
 	// Close/flush the task log
 	err = taskLog.Close()
 	if err != nil {
@@ -182,16 +210,12 @@ func (g *guestTools) StopProcessingActions() {
 const pollTimeout = metaservice.PollTimeout + 5*time.Second
 
 func (g *guestTools) poll(ctx context.Context) {
-	// Poll the metaservice for an action to perform
-	req, err := http.NewRequest(http.MethodGet, g.url("engine/v1/poll"), nil)
-	if err != nil {
-		g.monitor.Panicln("Failed to create polling request, error: ", err)
-	}
-
 	// Do request with a timeout
-	c, _ := context.WithTimeout(ctx, pollTimeout)
-	res, err := ctxhttp.Do(c, nil, req)
-	//res, res := http.DefaultClient.Do(req)
+	ctx, cancel := context.WithTimeout(ctx, pollTimeout)
+	defer cancel()
+
+	// Poll the metaservice for an action to perform
+	res, err := g.gotpoll.Get(g.url("engine/v1/poll")).WithContext(ctx).Send()
 	if err != nil {
 		// if this wasn't a deadline exceeded error, we'll sleep a second to avoid
 		// spinning the CPU while waiting for DHCP to come up.
@@ -202,17 +226,9 @@ func (g *guestTools) poll(ctx context.Context) {
 		return
 	}
 
-	// Read the request body
-	defer res.Body.Close()
-	data, err := ioext.ReadAtMost(res.Body, 2*1024*1024)
-	if err != nil {
-		g.monitor.Error("Failed to read poll request body, error: ", err)
-		return
-	}
-
 	// Parse the request body
-	action := metaservice.Action{}
-	err = json.Unmarshal(data, &action)
+	var action metaservice.Action
+	err = json.Unmarshal(res.Body, &action)
 	if err != nil {
 		g.monitor.Error("Failed to parse poll request body, error: ", err)
 		return
@@ -351,9 +367,13 @@ func (g *guestTools) doExecShell(ID string, command []string, tty bool) {
 
 	// Set command to standard shell, if no command is given
 	if len(command) == 0 {
-		command = []string{"sh"}
-		if goruntime.GOOS == "windows" {
-			command = []string{"cmd.exe"}
+		if len(g.config.Shell) != 0 {
+			command = g.config.Shell
+		} else {
+			command = []string{"sh"}
+			if goruntime.GOOS == "windows" {
+				command = []string{"cmd.exe"}
+			}
 		}
 	}
 
@@ -362,14 +382,37 @@ func (g *guestTools) doExecShell(ID string, command []string, tty bool) {
 		stderr = handler.StderrPipe()
 	}
 
+	// Construct environment variables
+	env := make(map[string]string, len(os.Environ())+len(g.config.Env))
+	for _, e := range os.Environ() {
+		parts := strings.SplitN(e, "=", 2)
+		env[parts[0]] = parts[1]
+	}
+	for k, v := range g.config.Env {
+		env[k] = v
+	}
+
+	// Find user, if any
+	var owner *system.User
+	if g.config.User != "" {
+		owner, err = system.FindUser(g.config.User)
+		if err != nil {
+			g.monitor.Errorf(
+				"Couldn't find user referenced in qemu-guest-tools configuration: %s", g.config.User,
+			)
+		}
+	}
+
 	// Create a shell
 	proc, err := system.StartProcess(system.ProcessOptions{
-		Arguments:   command,
-		Environment: nil, // TODO: Use env vars from command
-		TTY:         tty,
-		Stdin:       handler.StdinPipe(),
-		Stdout:      handler.StdoutPipe(),
-		Stderr:      stderr,
+		Arguments:     command,
+		Environment:   env, // TODO: Use env vars from command
+		Owner:         owner,
+		WorkingFolder: g.config.WorkDir,
+		TTY:           tty,
+		Stdin:         handler.StdinPipe(),
+		Stdout:        handler.StdoutPipe(),
+		Stderr:        stderr,
 	})
 
 	handler.Communicate(func(cols, rows uint16) error {

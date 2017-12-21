@@ -4,6 +4,7 @@ package image
 
 import (
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -36,14 +37,14 @@ func TestImageManager(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		_, err1 = manager.Instance("url:test-image-1", func(target string) error {
+		_, err1 = manager.Instance("url:test-image-1", func(target *os.File) error {
 			time.Sleep(100 * time.Millisecond) // Sleep giving the second call time
 			return downloadError
 		})
 		wg.Done()
 	}()
 	time.Sleep(50 * time.Millisecond) // Sleep giving the second call time
-	instance, err2 := manager.Instance("url:test-image-1", func(target string) error {
+	instance, err2 := manager.Instance("url:test-image-1", func(target *os.File) error {
 		panic("We shouldn't get here, as the previous download haven't returned")
 	})
 	wg.Done()
@@ -53,8 +54,14 @@ func TestImageManager(t *testing.T) {
 	require.True(t, instance == nil, "Expected instance to nil, when we have an error")
 
 	debug(" - Test instantiation of image")
-	instance, err = manager.Instance("url:test-image-1", func(target string) error {
-		return copyFile(testImageFile, target)
+	instance, err = manager.Instance("url:test-image-1", func(target *os.File) error {
+		f, ferr := os.Open(testImageFile)
+		if ferr != nil {
+			return ferr
+		}
+		defer f.Close()
+		_, ferr = io.Copy(target, f)
+		return ferr
 	})
 	require.NoError(t, err, "Failed to loadImage")
 	require.True(t, instance != nil, "Expected an instance")
@@ -82,7 +89,7 @@ func TestImageManager(t *testing.T) {
 	require.True(t, info != nil, "diskImage for instance deleted after GC")
 
 	debug(" - Make a new instance")
-	instance2, err := manager.Instance("url:test-image-1", func(target string) error {
+	instance2, err := manager.Instance("url:test-image-1", func(target *os.File) error {
 		panic("We shouldn't get here, as it is currently in the cache")
 	})
 	require.NoError(t, err, "Failed to create new instance")
@@ -120,7 +127,7 @@ func TestImageManager(t *testing.T) {
 	require.True(t, os.IsNotExist(err), "Expected backingFile to be deleted after GC, file: ", backingFile)
 
 	debug(" - Check that we can indeed reload the image")
-	_, err = manager.Instance("url:test-image-1", func(target string) error {
+	_, err = manager.Instance("url:test-image-1", func(target *os.File) error {
 		return downloadError
 	})
 	require.True(t, err == downloadError, "Expected a downloadError", err)

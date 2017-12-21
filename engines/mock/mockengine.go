@@ -34,6 +34,18 @@ func (e engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 	if options.Environment.Monitor == nil {
 		panic("EngineOptions.Environment.Monitor is nil, this is a contract violation")
 	}
+	if options.Environment.ProvisionerID == "" {
+		panic("EngineOptions.Environment.ProvisionerID is empty string, this is a contract violation")
+	}
+	if options.Environment.WorkerType == "" {
+		panic("EngineOptions.Environment.WorkerType is empty string, this is a contract violation")
+	}
+	if options.Environment.WorkerGroup == "" {
+		panic("EngineOptions.Environment.WorkerGroup is empty string, this is a contract violation")
+	}
+	if options.Environment.WorkerID == "" {
+		panic("EngineOptions.Environment.WorkerID is empty string, this is a contract violation")
+	}
 	if options.Monitor == nil {
 		panic("EngineOptions.Monitor is nil, this is a contract violation")
 	}
@@ -80,7 +92,20 @@ func (e engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sandb
 	}, nil
 }
 
-func (engine) NewCacheFolder() (engines.Volume, error) {
+func (engine) VolumeSchema() schematypes.Schema {
+	return schematypes.Object{}
+}
+
+func (engine) NewVolumeBuilder(options interface{}) (engines.VolumeBuilder, error) {
 	// Create a new cache folder
-	return &volume{}, nil
+	return &volume{
+		files: make(map[string]string),
+	}, nil
+}
+
+func (engine) NewVolume(options interface{}) (engines.Volume, error) {
+	// Create a new cache folder
+	return &volume{
+		files: make(map[string]string),
+	}, nil
 }

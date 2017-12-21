@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 
 	schematypes "github.com/taskcluster/go-schematypes"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/worker"
 
 	yaml "gopkg.in/yaml.v2"
@@ -17,16 +18,12 @@ func Schema() schematypes.Object {
 		transformations = append(transformations, name)
 	}
 	s := schematypes.Object{
-		MetaData: schematypes.MetaData{
-			Title:       "Worker Configuration",
-			Description: `Initial configuration and transformations to run.`,
-		},
+		Title:       "Worker Configuration",
+		Description: `Initial configuration and transformations to run.`,
 		Properties: schematypes.Properties{
 			"transforms": schematypes.Array{
-				MetaData: schematypes.MetaData{
-					Title:       "Configuration Transformations",
-					Description: "Ordered list of transformations to run on the config.",
-				},
+				Title:       "Configuration Transformations",
+				Description: "Ordered list of transformations to run on the config.",
 				Items: schematypes.StringEnum{
 					Options: transformations,
 				},
@@ -39,7 +36,7 @@ func Schema() schematypes.Object {
 }
 
 // Load configuration from YAML config object.
-func Load(data []byte) (map[string]interface{}, error) {
+func Load(data []byte, monitor runtime.Monitor) (map[string]interface{}, error) {
 	// Parse config file
 	var config interface{}
 	err := yaml.Unmarshal(data, &config)
@@ -80,7 +77,7 @@ func Load(data []byte) (map[string]interface{}, error) {
 			if !ok {
 				return nil, fmt.Errorf("Unknown config transformation: %s", t)
 			}
-			if err := provider.Transform(result); err != nil {
+			if err := provider.Transform(result, monitor); err != nil {
 				return nil, fmt.Errorf("Config transformation: %s failed error: %s",
 					t, err)
 			}
@@ -109,14 +106,14 @@ func Load(data []byte) (map[string]interface{}, error) {
 // LoadFromFile will load configuration options from a YAML file and validate
 // against the config file schema, returning an error message explaining what
 // went wrong if unsuccessful.
-func LoadFromFile(filename string) (interface{}, error) {
+func LoadFromFile(filename string, monitor runtime.Monitor) (interface{}, error) {
 	// Read config file
 	configFile, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file '%s': %s", filename, err)
 	}
 
-	return Load(configFile)
+	return Load(configFile, monitor)
 }
 
 func convertSimpleJSONTypes(val interface{}) interface{} {

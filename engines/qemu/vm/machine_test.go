@@ -1,6 +1,30 @@
 package vm
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestMachineWithDefaults(t *testing.T) {
+	m := NewMachine(map[string]interface{}{
+		"version":  float64(1),
+		"graphics": "VGA",
+	})
+	assert.Equal(t, "VGA", m.options.Graphics)
+	assert.Equal(t, 0, m.options.Memory)
+	assert.Equal(t, "", m.options.USB)
+
+	m2 := m.WithDefaults(defaultMachine)
+
+	assert.Equal(t, "VGA", m.options.Graphics)
+	assert.Equal(t, 0, m.options.Memory)
+	assert.Equal(t, "", m.options.USB)
+
+	assert.Equal(t, "VGA", m2.options.Graphics)
+	assert.Equal(t, 0, m2.options.Memory)
+	assert.Equal(t, "nec-usb-xhci", m2.options.USB)
+}
 
 func TestValidateMACWithValidMACs(t *testing.T) {
 	validMACs := []string{
@@ -35,9 +59,11 @@ func TestValidateMACWithValidMACs(t *testing.T) {
 		"ba:b4:5f:88:d5:29",
 	}
 	for _, mac := range validMACs {
-		if err := validateMAC(mac); err != nil {
-			t.Error("Unexpected error when validating: ", mac, " error: ", err)
-		}
+		err := MachineSchema.Validate(map[string]interface{}{
+			"version": float64(1),
+			"mac":     mac,
+		})
+		assert.NoError(t, err, "failed to validate: %s", mac)
 	}
 }
 
@@ -65,7 +91,11 @@ func TestValidateMACWithGlobalMACs(t *testing.T) {
 		"00:00:0a:5b:81:59",
 	}
 	for _, mac := range invalidMACs {
-		if validateMAC(mac) == nil {
+		err := MachineSchema.Validate(map[string]interface{}{
+			"version": float64(1),
+			"mac":     mac,
+		})
+		if err == nil {
 			t.Error("Expected error when validating: ", mac)
 		}
 	}
@@ -98,7 +128,11 @@ func TestValidateMACWithMulticastMACs(t *testing.T) {
 		"a7:c4:a1:2f:0e:0e",
 	}
 	for _, mac := range invalidMACs {
-		if validateMAC(mac) == nil {
+		err := MachineSchema.Validate(map[string]interface{}{
+			"version": float64(1),
+			"mac":     mac,
+		})
+		if err == nil {
 			t.Error("Expected error when validating: ", mac)
 		}
 	}
@@ -136,7 +170,11 @@ func TestValidateMACWithInvalidMACs(t *testing.T) {
 		"--",
 	}
 	for _, mac := range invalidMACs {
-		if validateMAC(mac) == nil {
+		err := MachineSchema.Validate(map[string]interface{}{
+			"version": float64(1),
+			"mac":     mac,
+		})
+		if err == nil {
 			t.Error("Expected error when validating: ", mac)
 		}
 	}

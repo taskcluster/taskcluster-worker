@@ -2,10 +2,13 @@ package image
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"path/filepath"
 
+	"github.com/pkg/errors"
+	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
@@ -17,7 +20,7 @@ const (
 	formatRaw   = "raw"
 )
 
-const maxImageSize = int64(30 * 1024 * 1024 * 1024) // Use int64 for i386 builds
+const maxImageSize = int64(50 * 1024 * 1024 * 1024) // Use int64 for i386 builds
 
 // RandomMAC generates a new random MAC with the local bit set.
 func RandomMAC() string {
@@ -81,7 +84,7 @@ func extractImage(imageFile, imageFolder string) (*vm.Machine, error) {
 
 	// Load the machine configuration
 	machineFile := filepath.Join(imageFolder, "machine.json")
-	machine, err := vm.LoadMachine(machineFile)
+	machine, err := newMachineFromFile(machineFile)
 	if err != nil {
 		return nil, err
 	}
@@ -131,4 +134,51 @@ func extractImage(imageFile, imageFolder string) (*vm.Machine, error) {
 	}
 
 	return machine, nil
+}
+
+// load vm.Machine from file with migration of machine definition
+func newMachineFromFile(machineFile string) (*vm.Machine, error) {
+	// Read machine.json
+	machineData, err := ioext.BoundedReadFile(machineFile, 1024*1024)
+	if err == ioext.ErrFileTooBig {
+		return nil, runtime.NewMalformedPayloadError(
+			"The file 'machine.json' larger than 1MiB. JSON files must be small.")
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "faild to read 'machine.json'")
+	}
+
+	// Parse JSON
+	var data interface{}
+	if err = json.Unmarshal(machineData, &data); err != nil {
+		return nil, runtime.NewMalformedPayloadError(
+			"Invalid JSON in 'machine.json', error: ", err)
+	}
+
+	// Migrate if possible
+	if migrated := vm.MigrateMachineDefinition(data); migrated != nil {
+		// If this fails we want to show schema error against
+		// most recent schema.
+		data = migrated
+	}
+
+	// Validate against schema
+	verr := vm.MachineSchema.Validate(data)
+	if e, ok := verr.(*schematypes.ValidationError); ok {
+		issues := e.Issues("machine")
+		errs := make([]runtime.MalformedPayloadError, len(issues))
+		for i, issue := range issues {
+			errs[i] = runtime.NewMalformedPayloadError(issue.String())
+		}
+		return nil, runtime.MergeMalformedPayload(append([]runtime.MalformedPayloadError{
+			runtime.NewMalformedPayloadError("Invalid machine definition in 'machine.json'"),
+		}, errs...)...)
+	} else if verr != nil {
+		return nil, runtime.NewMalformedPayloadError("task.payload schema violation: ", verr)
+	}
+
+	// Create machine
+	m := vm.NewMachine(data)
+
+	return &m, nil
 }

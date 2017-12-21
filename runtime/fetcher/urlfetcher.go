@@ -1,7 +1,6 @@
 package fetcher
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,49 +23,47 @@ var backOff = got.BackOff{
 
 type urlFetcher struct{}
 
+type urlReference struct {
+	url string
+}
+
 // URL is Fetcher for downloading files from a URL.
 var URL Fetcher = urlFetcher{}
 
 var urlSchema schematypes.Schema = schematypes.URI{
-	MetaData: schematypes.MetaData{
-		Title:       "URL",
-		Description: "URL to fetch resource from, this must be `http://` or `https://`.",
-	},
+	Title:       "URL",
+	Description: "URL to fetch resource from, this must be `http://` or `https://`.",
 }
 
 func (urlFetcher) Schema() schematypes.Schema {
 	return urlSchema
 }
 
-func (urlFetcher) HashKey(ref interface{}) string {
+func (urlFetcher) NewReference(ctx Context, options interface{}) (Reference, error) {
 	var u string
-	if schematypes.MustMap(urlSchema, ref, &u) != nil {
-		panic(fmt.Sprintf("Reference: %#v doesn't satisfy Fetcher.Schema()", ref))
-	}
-	return u
+	schematypes.MustValidateAndMap(urlSchema, options, &u)
+	return &urlReference{url: u}, nil
 }
 
-func (urlFetcher) Scopes(ref interface{}) [][]string {
-	if urlSchema.Validate(ref) != nil {
-		panic(fmt.Sprintf("Reference: %#v doesn't satisfy Fetcher.Schema()", ref))
-	}
+func (u *urlReference) HashKey() string {
+	return u.url
+}
+
+func (u *urlReference) Scopes() [][]string {
 	return [][]string{{}} // Set containing the empty-scope-set
 }
 
-func (urlFetcher) Fetch(ctx Context, ref interface{}, target WriteSeekReseter) error {
-	var u string
-	if schematypes.MustMap(urlSchema, ref, &u) != nil {
-		panic(fmt.Sprintf("Reference: %#v doesn't satisfy Fetcher.Schema()", ref))
-	}
-
-	return fetchURLWithRetries(ctx, u, target)
+func (u *urlReference) Fetch(ctx Context, target WriteReseter) error {
+	return fetchURLWithRetries(ctx, u.url, u.url, target)
 }
 
-func fetchURLWithRetries(ctx context.Context, u string, target WriteSeekReseter) error {
+// fetchURLWithRetries will download URL u to target with retries, using subject
+// in error messages and progress updates
+func fetchURLWithRetries(ctx Context, subject, u string, target WriteReseter) error {
 	retry := 0
 	for {
 		// Fetch URL, if no error then we're done
-		err := fetchURL(ctx, u, target)
+		err := fetchURL(ctx, subject, u, target)
 		if err == nil {
 			return nil
 		}
@@ -77,8 +74,11 @@ func fetchURLWithRetries(ctx context.Context, u string, target WriteSeekReseter)
 		// If err is a persistentError or retry greater than maxRetries
 		// then we return an error
 		retry++
-		if _, ok := err.(persistentError); ok || retry > maxRetries {
-			return fmt.Errorf("GET %s - %s", u, err)
+		if IsBrokenReferenceError(err) {
+			return err
+		}
+		if retry > maxRetries {
+			return newBrokenReferenceError(subject, fmt.Sprintf("exhausted retries with last error: %s", err))
 		}
 
 		// Sleep before we retry
@@ -90,22 +90,11 @@ func fetchURLWithRetries(ctx context.Context, u string, target WriteSeekReseter)
 	}
 }
 
-// persistentError is used to wrap errors that shouldn't be retried
-type persistentError string
-
-func (e persistentError) Error() string {
-	return string(e)
-}
-
-func newPersistentError(format string, a ...interface{}) error {
-	return persistentError(fmt.Sprintf(format, a...))
-}
-
-func fetchURL(ctx context.Context, u string, target io.Writer) error {
+func fetchURL(ctx Context, subject, u string, target io.Writer) error {
 	// Create a new request
 	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
-		return newPersistentError("invalid URL: %s", err)
+		return newBrokenReferenceError(subject, "invalid URL")
 	}
 
 	// Do the request with context
@@ -125,15 +114,49 @@ func fetchURL(ctx context.Context, u string, target io.Writer) error {
 			body = string(p)
 		}
 		if 400 <= res.StatusCode && res.StatusCode < 500 {
-			return newPersistentError("status: %d, body: %s", res.StatusCode, body)
+			return newBrokenReferenceError(subject, fmt.Sprintf("statusCode: %d, body: %s", res.StatusCode, body))
 		}
-		return fmt.Errorf("status: %d, body: %s", res.StatusCode, body)
+		return fmt.Errorf("statusCode: %d, body: %s", res.StatusCode, body)
 	}
 
-	// Otherwise copy body to target
-	_, err = io.Copy(target, res.Body)
+	// Report download progress
+	r := ioext.TellReader{Reader: res.Body}
+	// We only progress, if some content length is provided
+	done := make(chan struct{})
+	finishedReporting := make(chan struct{})
+	if res.ContentLength != -1 {
+		ctx.Progress(subject, 0)
+		go func() {
+			defer close(finishedReporting)
+			for {
+				select {
+				case <-time.After(progressReportInterval):
+					ctx.Progress(subject, float64(r.Tell())/float64(res.ContentLength))
+				case <-ctx.Done():
+					return
+				case <-done:
+					return
+				}
+			}
+		}()
+	} else {
+		close(finishedReporting)
+	}
+
+	// Copy body to target
+	_, err = io.Copy(target, &r)
+
+	close(done)         // Stop progress reporting
+	<-finishedReporting // wait for reporting to be finished
+
+	// Return any error
 	if err != nil {
 		return fmt.Errorf("connection broken: %s", err)
+	}
+
+	// Report download completed
+	if res.ContentLength != -1 {
+		ctx.Progress(subject, 1)
 	}
 
 	return nil

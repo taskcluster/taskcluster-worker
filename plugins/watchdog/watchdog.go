@@ -12,9 +12,9 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 )
 
-// default timeout, setting to 30 minutes is safe, notice that downloading
+// default timeout, setting to 45 minutes is safe, notice that downloading
 // images could take 10-15 minutes in some extreme cases.
-const defaultTimeout = 30 // minutes
+const defaultTimeout = 45 // minutes
 
 type provider struct {
 	plugins.PluginProviderBase
@@ -50,6 +50,12 @@ func (provider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error)
 	var c config
 	schematypes.MustValidateAndMap(configSchema, options.Config, &c)
 
+	// Ensure that a default value is set
+	if c.Timeout == 0 {
+		debug("watchdog configured with default timeout")
+		c.Timeout = defaultTimeout * time.Minute
+	}
+
 	p := &plugin{
 		Timeout:     c.Timeout,
 		Environment: *options.Environment,
@@ -81,7 +87,7 @@ func (p *plugin) waitForTimeout() {
 }
 
 func (p *plugin) Touch() {
-	p.Monitor.Info("watchdog touched")
+	p.Monitor.Debug("watchdog touched")
 
 	p.m.Lock()
 	defer p.m.Unlock()

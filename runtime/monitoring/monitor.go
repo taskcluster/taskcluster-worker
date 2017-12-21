@@ -11,12 +11,13 @@ import (
 	raven "github.com/getsentry/raven-go"
 	"github.com/pborman/uuid"
 	"github.com/taskcluster/statsum"
+	"github.com/taskcluster/taskcluster-worker/commands/version"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 )
 
 // NewMonitor creates a new monitor
-func NewMonitor(project string, auth client.Auth, logLevel string, tags map[string]string) runtime.Monitor {
+func NewMonitor(project string, auth client.Auth, logLevel string, tags map[string]string, syslogName string) runtime.Monitor {
 	// Create statsumConfigurer
 	statsumConfigurer := func(project string) (statsum.Config, error) {
 		res, err := auth.StatsumToken(project)
@@ -69,6 +70,13 @@ func NewMonitor(project string, auth client.Auth, logLevel string, tags map[stri
 			auth:    auth,
 		},
 	}
+
+	if syslogName != "" {
+		if err := setupSyslog(logger, syslogName); err != nil {
+			m.ReportError(err, "Cannot set up syslog output")
+		}
+	}
+
 	return m
 }
 
@@ -166,6 +174,14 @@ func (m *monitor) submitError(err error, message string, level raven.Severity, i
 	}
 	tags["incidentId"] = incidentID.String()
 	tags["prefix"] = m.prefix
+	tags["version"] = "unknown"
+	tags["revision"] = "unknown"
+	if version.Version() != "" {
+		tags["version"] = version.Version()
+	}
+	if version.Revision() != "" {
+		tags["revision"] = version.Revision()
+	}
 
 	// Get client with fresh sentry DSN (if cached is old)
 	client, rerr := m.sentry.Client()

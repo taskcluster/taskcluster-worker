@@ -9,3 +9,5 @@ coverage.out
 /qemu-config.yml
 /vendor/*/
 /config.env
+/examples/ubuntu-image/cache/
+/examples/windows-image/cache/

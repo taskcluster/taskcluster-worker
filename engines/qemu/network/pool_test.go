@@ -10,16 +10,47 @@
 package network
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/mocks"
 )
 
 func TestNetworkCreateDestroy(t *testing.T) {
+	storage := runtime.NewTemporaryTestFolderOrPanic()
+	defer storage.Remove()
+
 	for i := 0; i < 2; i++ {
+		var c interface{}
+		// Example config for hostnames and srv records are purely illustrative,
+		// added to ensure that we test that schematypes.MustValidateAndMap won't
+		// panic...
+		err := json.Unmarshal([]byte(`{
+			"subnets": 3,
+			"hostRecords": [{
+				"names": ["taskcluster.local"],
+				"ipv4": "127.0.0.1"
+			}],
+			"srvRecords": [{
+				"service": "taskcluster-worker-metadata-service",
+				"protocol": "TCP",
+				"target": "taskcluster.local",
+				"port": 80,
+				"priority": 0,
+				"weight": 0
+			}]
+		}`), &c)
+		require.NoError(t, err, "Failed to parse JSON")
+
 		debug(" - Creating network pool")
-		p, err := NewPool(3)
+		p, err := NewPool(PoolOptions{
+			Config:           c,
+			Monitor:          mocks.NewMockMonitor(true),
+			TemporaryStorage: storage,
+		})
 		require.NoError(t, err, "Failed to create pool")
 
 		n1, err := p.Network()

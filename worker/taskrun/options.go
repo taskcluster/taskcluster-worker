@@ -42,7 +42,7 @@ func (o *Options) mustBeValid() {
 	if o.Monitor == nil {
 		panic("taskrun: Options.Monitor is nil")
 	}
-	if o.TaskInfo == (runtime.TaskInfo{}) {
+	if o.TaskInfo.TaskID == "" {
 		panic("taskrun: Options.TaskInfo is empty")
 	}
 	if o.Payload == nil {

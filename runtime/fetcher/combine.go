@@ -24,15 +24,15 @@ func Combine(fetchers ...Fetcher) Fetcher {
 	return &fetcherSet{schema, fetchers}
 }
 
-func (fs *fetcherSet) findFetcher(reference interface{}) (int, Fetcher) {
+func (fs *fetcherSet) findFetcher(options interface{}) (int, Fetcher) {
 	for i, f := range fs.fetchers {
-		if f.Schema().Validate(reference) == nil {
+		if f.Schema().Validate(options) == nil {
 			return i, f
 		}
 	}
-	// reference must validate against fs.Schema()!
+	// options must validate against fs.Schema()!
 	panic(fmt.Sprintf(
-		"Reference: %#v doesn't validate against Fetcher.Schema()", reference,
+		"Reference: %#v doesn't validate against Fetcher.Schema()", options,
 	))
 }
 
@@ -40,17 +40,20 @@ func (fs *fetcherSet) Schema() schematypes.Schema {
 	return fs.schema
 }
 
-func (fs *fetcherSet) HashKey(reference interface{}) string {
-	i, f := fs.findFetcher(reference)
-	return fmt.Sprintf("%d:%s", i, f.HashKey(reference))
+type wrappedReference struct {
+	Reference
+	index int // Used to prefix HashKey so that hash-keys won't collide across fetchers
 }
 
-func (fs *fetcherSet) Scopes(reference interface{}) [][]string {
-	_, f := fs.findFetcher(reference)
-	return f.Scopes(reference)
+func (w *wrappedReference) HashKey() string {
+	return fmt.Sprintf("%d:%s", w.index, w.Reference.HashKey())
 }
 
-func (fs *fetcherSet) Fetch(context Context, reference interface{}, target WriteSeekReseter) error {
-	_, f := fs.findFetcher(reference)
-	return f.Fetch(context, reference, target)
+func (fs *fetcherSet) NewReference(ctx Context, options interface{}) (Reference, error) {
+	i, f := fs.findFetcher(options)
+	ref, err := f.NewReference(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+	return &wrappedReference{Reference: ref, index: i}, nil
 }

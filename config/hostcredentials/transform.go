@@ -12,12 +12,12 @@ package hostcredentials
 
 import (
 	"encoding/json"
-	"log"
 	"time"
 
 	got "github.com/taskcluster/go-got"
 
 	"github.com/taskcluster/taskcluster-worker/config"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 type provider struct{}
@@ -26,7 +26,7 @@ func init() {
 	config.Register("hostcredentials", provider{})
 }
 
-func (provider) Transform(cfg map[string]interface{}) error {
+func (provider) Transform(cfg map[string]interface{}, monitor runtime.Monitor) error {
 	g := got.New()
 
 	return config.ReplaceObjects(cfg, "hostcredentials", func(val map[string]interface{}) (interface{}, error) {
@@ -36,38 +36,41 @@ func (provider) Transform(cfg map[string]interface{}) error {
 		}
 
 		var creds struct {
-			ClientID    string `json:"clientId"`
-			AccessToken string `json:"accessToken"`
-			Certificate string `json:"certificate"`
+			Credentials struct {
+				ClientID    string `json:"clientId"`
+				AccessToken string `json:"accessToken"`
+				Certificate string `json:"certificate"`
+			} `json:"credentials"`
 		}
 
 		for {
 			for _, url := range urls {
-				log.Printf("Trying host-secrets server %s...", url)
+				monitor.Info("Trying host-secrets server ", url)
 
 				resp, err := g.Get(url).Send()
 				if err != nil {
-					log.Printf("result: %s; continuing to next server", err)
+					monitor.ReportError(err, "error fetching secrets; continuing to next server")
 					continue
 				}
 
 				err = json.Unmarshal(resp.Body, &creds)
 				if err != nil {
-					log.Printf("decoding JSON from server: %s; continuing to next server", err)
+					monitor.ReportError(err, "error decoding JSON from server; continuing to next server")
 					continue
 				}
 
 				retval := map[string]interface{}{
-					"clientId":    creds.ClientID,
-					"accessToken": creds.AccessToken,
+					"clientId":    creds.Credentials.ClientID,
+					"accessToken": creds.Credentials.AccessToken,
 				}
-				if creds.Certificate != "" {
-					retval["certificate"] = creds.Certificate
+				if creds.Credentials.Certificate != "" {
+					retval["certificate"] = creds.Credentials.Certificate
 				}
+				monitor.Info("Success: host-secrets server gave clientId ", creds.Credentials.ClientID)
 				return retval, nil
 			}
 
-			log.Printf("list of servers exhausted; sleeping before starting again")
+			monitor.Info("list of servers exhausted; sleeping before starting again")
 			time.Sleep(60 * time.Second)
 		}
 	})

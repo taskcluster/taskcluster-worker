@@ -1,11 +1,12 @@
 package qemuengine
 
 import (
-	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice"
 	"github.com/taskcluster/taskcluster-worker/engines/qemu/vm"
@@ -33,15 +34,22 @@ func newSandbox(
 	command []string,
 	env map[string]string,
 	proxies map[string]http.Handler,
+	machine vm.Machine,
 	image vm.Image,
 	network vm.Network,
 	c *runtime.TaskContext,
 	e *engine,
 	monitor runtime.Monitor,
 ) (*sandbox, error) {
-	vm, err := vm.NewVirtualMachine(
-		e.engineConfig.MachineOptions,
-		image, network, e.engineConfig.SocketFolder, "", "",
+	instance, err := vm.NewVirtualMachine(
+		e.engineConfig.MachineLimits,
+		// Merge machine definitions in order of preference:
+		//  - task.payload.machine
+		//  - machine.json from iamge
+		//  - machine from engine config
+		//  - default machine (hardcoded into vm.NewVirtualMachine)
+		vm.OverwriteMachine(image, machine.WithDefaults(image.Machine()).WithDefaults(e.defaultMachine)),
+		network, e.socketFolder.Path(), "", "", vm.LinuxBootOptions{},
 		monitor.WithTag("component", "vm"),
 	)
 	if err != nil {
@@ -50,7 +58,7 @@ func newSandbox(
 
 	// Create sandbox
 	s := &sandbox{
-		vm:      vm,
+		vm:      instance,
 		context: c,
 		engine:  e,
 		proxies: proxies,
@@ -78,11 +86,20 @@ func newSandbox(
 
 func (s *sandbox) handleRequest(w http.ResponseWriter, r *http.Request) {
 	// Sanity checks and identifiation of name/hostname/virtualhost/folder
-	if r.URL.Path[0] != '/' {
+	var origPath string
+	isRawPath := r.URL.RawPath != ""
+	if isRawPath {
+		origPath = r.URL.RawPath
+	} else {
+		origPath = r.URL.Path
+	}
+	debug("handling request: %s", origPath)
+
+	if len(origPath) == 0 || origPath[0] != '/' {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	p := strings.SplitN(r.URL.Path[1:], "/", 2)
+	p := strings.SplitN(origPath[1:], "/", 2)
 	if len(p) != 2 {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -99,8 +116,16 @@ func (s *sandbox) handleRequest(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	r.URL.Path = path
-	r.URL.RawPath = "" // TODO: implement this if we ever need it
+
+	// Rewrite the path
+	if isRawPath {
+		r.URL.Path, _ = url.PathUnescape(path)
+		r.URL.RawPath = path
+	} else {
+		r.URL.Path = path
+		r.URL.RawPath = ""
+	}
+
 	h.ServeHTTP(w, r)
 }
 

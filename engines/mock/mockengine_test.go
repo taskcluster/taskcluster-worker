@@ -14,16 +14,16 @@ var provider = &enginetest.EngineProvider{
 
 var volumeTestCase = enginetest.VolumeTestCase{
 	EngineProvider: provider,
-	Mountpoint:     "/mock/volume",
+	Mountpoint:     "mock-volume",
 	WriteVolumePayload: `{
     "delay": 0,
-    "function": "set-volume",
-    "argument": "/mock/volume"
+    "function": "write-volume",
+    "argument": "mock-volume/my-folder/my-file.txt:hello world"
   }`,
 	CheckVolumePayload: `{
     "delay": 0,
-    "function": "get-volume",
-    "argument": "/mock/volume"
+    "function": "read-volume",
+    "argument": "mock-volume/my-folder/my-file.txt"
   }`,
 }
 
