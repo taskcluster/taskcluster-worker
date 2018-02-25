@@ -94,7 +94,9 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 }
 
 func (r *resultSet) Dispose() error {
-	_ = r.tempStorage.(runtime.TemporaryFolder).Remove()
+	if r.tempStorage != nil {
+		_ = r.tempStorage.(runtime.TemporaryFolder).Remove()
+	}
 	return r.client.RemoveContainer(docker.RemoveContainerOptions{
 		ID:    r.containerID,
 		Force: true,
@@ -102,6 +104,9 @@ func (r *resultSet) Dispose() error {
 }
 
 func (r *resultSet) extractFromContainer(path string) (runtime.TemporaryFile, error) {
+	if r.tempStorage == nil {
+		return nil, engines.ErrResourceNotFound
+	}
 	tempFile, err := r.tempStorage.NewFile()
 	if err != nil {
 		return nil, err
