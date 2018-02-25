@@ -1,10 +1,12 @@
 package dockerengine
 
 import (
+	"context"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"regexp"
+	"sync"
 	"time"
 )
 
@@ -19,6 +21,8 @@ type sandboxBuilder struct {
 	env        *docker.Env
 	taskCtx    *runtime.TaskContext
 	discarded  bool
+	cancelPull context.CancelFunc
+	mu         sync.Mutex
 }
 
 func newSandboxBuilder(payload *payloadType, e *engine, monitor runtime.Monitor,
@@ -32,7 +36,9 @@ func newSandboxBuilder(payload *payloadType, e *engine, monitor runtime.Monitor,
 		env:       &docker.Env{},
 		imageDone: make(chan struct{}, 1),
 	}
-	go sb.asyncFetchImage()
+	pullCtx, cancelPull := context.WithCancel(context.Background())
+	sb.cancelPull = cancelPull
+	go sb.asyncFetchImage(pullCtx)
 	return sb
 }
 
@@ -49,16 +55,21 @@ func (sb *sandboxBuilder) generateDockerConfig() *docker.Config {
 	return conf
 }
 
-func (sb *sandboxBuilder) asyncFetchImage() {
+func (sb *sandboxBuilder) asyncFetchImage(ctx context.Context) {
 	opts := docker.PullImageOptions{
 		Repository:        sb.image.Repository,
 		Tag:               sb.image.Tag,
 		InactivityTimeout: 30 * time.Second,
+		Context:           ctx,
 	}
 
 	err := sb.e.client.PullImage(opts, docker.AuthConfiguration{})
 	sb.imageError = err
-	close(sb.imageDone)
+	select {
+	case <-sb.imageDone:
+	default:
+		close(sb.imageDone)
+	}
 }
 
 var envVarPattern = regexp.MustCompile("^[a-zA-Z0-9_-]+$")
@@ -78,10 +89,6 @@ func (sb *sandboxBuilder) SetEnvironmentVariable(name string, value string) erro
 }
 
 func (sb *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
-	if sb.discarded {
-		return nil, engines.ErrSandboxBuilderDiscarded
-	}
-
 	<-sb.imageDone
 	if sb.imageError != nil {
 		return nil, runtime.NewMalformedPayloadError(
@@ -90,5 +97,20 @@ func (sb *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
 			"'.",
 		)
 	}
+	sb.mu.Lock()
+	defer sb.mu.Lock()
+	if sb.discarded {
+		return nil, engines.ErrSandboxBuilderDiscarded
+	}
 	return newSandbox(sb)
+}
+
+func (sb *sandboxBuilder) Discard() error {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
+
+	sb.discarded = true
+	sb.cancelPull()
+	// imageDone chan will be closed by asyncFetchImage
+	return nil
 }
