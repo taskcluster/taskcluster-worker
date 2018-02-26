@@ -2,12 +2,13 @@ package dockerengine
 
 import (
 	"context"
+	"time"
+
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
-	"time"
 )
 
 const dockerEngineKillTimeout = 5 * time.Second
@@ -19,10 +20,11 @@ type sandbox struct {
 	resultSet   engines.ResultSet
 	resultErr   error
 	abortErr    error
-	cancelLogs  context.CancelFunc
 	tempStorage runtime.TemporaryStorage
 	resolve     atomics.Once
 	client      *docker.Client
+	taskCtx     *runtime.TaskContext
+	closeWaiter docker.CloseWaiter
 }
 
 func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
@@ -36,7 +38,7 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 	container, err := sb.e.client.CreateContainer(opts)
 	if err != nil {
 		return nil, runtime.NewMalformedPayloadError(
-			"could not create container: %v", err)
+			"could not create container: " + err.Error())
 	}
 	// create a temporary storage for use by resultSet
 	debug("creating temporary storage")
@@ -50,32 +52,27 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 		containerID: container.ID,
 		tempStorage: ts,
 		client:      sb.e.client,
+		taskCtx:     sb.taskCtx,
 	}
+
+	// attach to the container before starting so that we get all the logs
+	_, err = sbox.client.AttachToContainerNonBlocking(docker.AttachToContainerOptions{
+		Container:    container.ID,
+		OutputStream: ioext.WriteNopCloser(sbox.taskCtx.LogDrain()),
+		Logs:         true,
+		Stdout:       true,
+		Stderr:       true,
+		Stream:       true,
+	})
+
 	// HostConfig is ignored by the remote API and is only kept for
 	// backward compatibility.
-	_ = sbox.client.StartContainer(container.ID, &docker.HostConfig{})
-	go func() {
-		// logs is blocking, therefore started in a separate goroutine
-		_ = sb.e.client.Logs(docker.LogsOptions{
-			Container:    container.ID,
-			OutputStream: ioext.WriteNopCloser(sb.taskCtx.LogDrain()),
-			ErrorStream:  ioext.WriteNopCloser(sb.taskCtx.LogDrain()),
-			Follow:       true,
-		})
-		sbox.resolve.Do(func() {
-			exitCode, err := sbox.client.WaitContainer(sbox.containerID)
-			success := exitCode == 0
-			// Inspecting the container failed and the default return value
-			// is 0, so assume that the task failed.
-			if err != nil {
-				sbox.monitor.ReportError(err)
-				success = false
-			}
-			sbox.resultSet = newResultSet(success, sbox.containerID,
-				sbox.client, sbox.tempStorage)
-			sbox.abortErr = engines.ErrSandboxTerminated
-		})
-	}()
+	err = sbox.client.StartContainer(sbox.containerID, &docker.HostConfig{})
+	if err != nil {
+		panic(err)
+	}
+
+	go sbox.wait()
 
 	return sbox, nil
 }
@@ -85,19 +82,16 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 	return s.resultSet, s.resultErr
 }
 
-// func (s *sandbox) waitForTermination() {
-// 	// if killed or aborted containerExited will be closed by the goroutine
-// 	// in start sandbox
-// 	<-s.containerExited
-// 	s.resolve.Do(func() {
-// 		exitCode, err := s.client.WaitContainer(s.containerID)
-// 		s.resultSet = newResultSet(exitCode == 0, s.containerID, s.client, s.tempStorage)
-// 		if err != nil {
-// 			s.resultSet = newResultSet(false, s.containerID, s.client, s.tempStorage)
-// 		}
-// 		s.abortErr = engines.ErrSandboxTerminated
-// 	})
-// }
+func (s *sandbox) wait() {
+	exitCode, err := s.client.WaitContainer(s.containerID)
+	s.resolve.Do(func() {
+		s.resultSet = newResultSet(exitCode == 0, s.containerID, s.client, s.tempStorage)
+		if err != nil {
+			s.resultSet = newResultSet(false, s.containerID, s.client, s.tempStorage)
+		}
+		s.abortErr = engines.ErrSandboxTerminated
+	})
+}
 
 func (s *sandbox) Kill() error {
 	s.resolve.Do(func() {
@@ -132,6 +126,7 @@ func (s *sandbox) Kill() error {
 func (s *sandbox) Abort() error {
 	s.resolve.Do(func() {
 		debug("Sandbox.Abort()")
+		// fmt.Println("Sandbox.Abort()")
 		killOpts := docker.KillContainerOptions{
 			ID:     s.containerID,
 			Signal: docker.SIGKILL,
