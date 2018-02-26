@@ -40,6 +40,7 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 		return nil, runtime.NewMalformedPayloadError(
 			"could not create container: " + err.Error())
 	}
+
 	// create a temporary storage for use by resultSet
 	debug("creating temporary storage")
 	ts, err := sb.e.Environment.TemporaryStorage.NewFolder()
