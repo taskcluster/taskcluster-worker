@@ -1,11 +1,12 @@
 package dockerengine
 
 import (
+	"sync"
+
 	docker "github.com/fsouza/go-dockerclient"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
-	"sync"
 )
 
 type engine struct {
@@ -21,6 +22,10 @@ type engine struct {
 
 type engineProvider struct {
 	engines.EngineProviderBase
+}
+
+func init() {
+	engines.Register("docker", engineProvider{})
 }
 
 type configType struct {
@@ -45,7 +50,7 @@ var configSchema = schematypes.Object{
 		},
 	},
 	Required: []string{
-		"socketPath",
+		"dockerEndpoint",
 	},
 }
 
@@ -105,7 +110,7 @@ func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sand
 		return nil, engines.ErrMaxConcurrencyExceeded
 	}
 	e.running += 1
-	return nil, nil
+	return newSandboxBuilder(&p, e, e.Environment.Monitor, options.TaskContext), nil
 }
 
 func (e *engine) Dispose() error {

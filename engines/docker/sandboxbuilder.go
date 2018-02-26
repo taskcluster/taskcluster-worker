@@ -2,12 +2,13 @@ package dockerengine
 
 import (
 	"context"
-	docker "github.com/fsouza/go-dockerclient"
-	"github.com/taskcluster/taskcluster-worker/engines"
-	"github.com/taskcluster/taskcluster-worker/runtime"
 	"regexp"
 	"sync"
 	"time"
+
+	docker "github.com/fsouza/go-dockerclient"
+	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
 type sandboxBuilder struct {
@@ -46,7 +47,7 @@ func (sb *sandboxBuilder) generateDockerConfig() *docker.Config {
 	debug("generating docker config for taskID: %s", sb.taskCtx.TaskID)
 	conf := &docker.Config{
 		Cmd:          sb.command,
-		Image:        sb.image.Tag,
+		Image:        sb.image.Repository + ":" + sb.image.Tag,
 		Env:          *sb.env,
 		AttachStdout: true,
 		AttachStderr: true,
@@ -98,10 +99,11 @@ func (sb *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
 		)
 	}
 	sb.mu.Lock()
-	defer sb.mu.Lock()
 	if sb.discarded {
+		sb.mu.Unlock()
 		return nil, engines.ErrSandboxBuilderDiscarded
 	}
+	sb.mu.Unlock()
 	return newSandbox(sb)
 }
 
