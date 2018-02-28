@@ -7,6 +7,8 @@ import (
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/caching"
+	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
 
 type engine struct {
@@ -18,14 +20,18 @@ type engine struct {
 	maxConcurrency int
 	engineConfig   configType
 	running        int
+	cache          *caching.Cache
 }
 
 type engineProvider struct {
 	engines.EngineProviderBase
+	cache *caching.Cache
 }
 
 func init() {
-	engines.Register("docker", engineProvider{})
+	engines.Register("docker", engineProvider{
+		cache: caching.New(imageConstructor, true, &gc.GarbageCollector{}),
+	})
 }
 
 type configType struct {
@@ -59,6 +65,7 @@ func (p engineProvider) ConfigSchema() schematypes.Schema {
 }
 
 func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine, error) {
+	debug("docker engineProvider.NewEngine()")
 	var c configType
 	schematypes.MustValidateAndMap(configSchema, options.Config, &c)
 
@@ -73,6 +80,7 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 		Environment:    options.Environment,
 		monitor:        options.Monitor,
 		maxConcurrency: c.MaxConcurrency,
+		cache:          p.cache,
 		running:        0,
 	}, nil
 }

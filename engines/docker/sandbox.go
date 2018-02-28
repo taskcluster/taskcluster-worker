@@ -8,6 +8,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
+	"github.com/taskcluster/taskcluster-worker/runtime/caching"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
@@ -24,7 +25,7 @@ type sandbox struct {
 	resolve     atomics.Once
 	client      *docker.Client
 	taskCtx     *runtime.TaskContext
-	closeWaiter docker.CloseWaiter
+	handle      *caching.Handle
 }
 
 func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
@@ -40,6 +41,7 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 		return nil, runtime.NewMalformedPayloadError(
 			"could not create container: " + err.Error())
 	}
+	debug("created container")
 
 	// create a temporary storage for use by resultSet
 	debug("creating temporary storage")
@@ -54,6 +56,7 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 		tempStorage: ts,
 		client:      sb.e.client,
 		taskCtx:     sb.taskCtx,
+		handle:      sb.handle,
 	}
 
 	// attach to the container before starting so that we get all the logs
@@ -65,13 +68,15 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 		Stderr:       true,
 		Stream:       true,
 	})
+	debug("attached to container (non blocking)")
 
 	// HostConfig is ignored by the remote API and is only kept for
 	// backward compatibility.
 	err = sbox.client.StartContainer(sbox.containerID, &docker.HostConfig{})
 	if err != nil {
-		panic(err)
+		return nil, runtime.ErrFatalInternalError
 	}
+	debug("started container")
 
 	go sbox.wait()
 
@@ -80,15 +85,16 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 
 func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 	s.resolve.Wait()
+	debug("result generated")
 	return s.resultSet, s.resultErr
 }
 
 func (s *sandbox) wait() {
 	exitCode, err := s.client.WaitContainer(s.containerID)
 	s.resolve.Do(func() {
-		s.resultSet = newResultSet(exitCode == 0, s.containerID, s.client, s.tempStorage)
+		s.resultSet = newResultSet(exitCode == 0, s.containerID, s.client, s.tempStorage, s.handle)
 		if err != nil {
-			s.resultSet = newResultSet(false, s.containerID, s.client, s.tempStorage)
+			s.resultSet = newResultSet(false, s.containerID, s.client, s.tempStorage, s.handle)
 		}
 		s.abortErr = engines.ErrSandboxTerminated
 	})
@@ -99,6 +105,7 @@ func (s *sandbox) Kill() error {
 		debug("Sandbox.Kill()")
 		// maybe will use to timeout kill and send SIGKILL
 		killCtx, cancelFunc := context.WithCancel(context.Background())
+		kchan := make(chan struct{}, 1)
 
 		go func() {
 			_ = s.client.KillContainer(docker.KillContainerOptions{
@@ -106,9 +113,14 @@ func (s *sandbox) Kill() error {
 				Signal:  docker.SIGTERM,
 				Context: killCtx,
 			})
+			select {
+			case <-kchan:
+			default:
+				close(kchan)
+			}
 		}()
 		select {
-		case <-killCtx.Done():
+		case <-kchan:
 		case <-time.After(dockerEngineKillTimeout):
 			cancelFunc()
 			debug("container process is taking to long to shutdown. sending SIGKILL")
@@ -117,8 +129,9 @@ func (s *sandbox) Kill() error {
 				Signal: docker.SIGKILL,
 			})
 		}
-		s.resultSet = newResultSet(false, s.containerID, s.client, s.tempStorage)
+		s.resultSet = newResultSet(false, s.containerID, s.client, s.tempStorage, s.handle)
 		s.abortErr = engines.ErrSandboxTerminated
+		debug("killed container")
 	})
 	s.resolve.Wait()
 	return s.resultErr
@@ -127,7 +140,7 @@ func (s *sandbox) Kill() error {
 func (s *sandbox) Abort() error {
 	s.resolve.Do(func() {
 		debug("Sandbox.Abort()")
-		// fmt.Println("Sandbox.Abort()")
+		// debug("Sandbox.Abort()")
 		killOpts := docker.KillContainerOptions{
 			ID:     s.containerID,
 			Signal: docker.SIGKILL,
@@ -138,7 +151,7 @@ func (s *sandbox) Abort() error {
 		}
 		_ = s.tempStorage.(runtime.TemporaryFolder).Remove()
 		s.abortErr = engines.ErrSandboxAborted
-		s.resultSet = newResultSet(false, s.containerID, nil, nil)
+		s.resultSet = newResultSet(false, s.containerID, nil, nil, s.handle)
 	})
 	s.resolve.Wait()
 	return s.abortErr
