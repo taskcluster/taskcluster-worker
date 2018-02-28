@@ -3,12 +3,13 @@ package dockerengine
 import (
 	"context"
 	"regexp"
+	"strings"
 	"sync"
-	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/caching"
 )
 
 type sandboxBuilder struct {
@@ -24,6 +25,7 @@ type sandboxBuilder struct {
 	discarded  bool
 	cancelPull context.CancelFunc
 	mu         sync.Mutex
+	handle     *caching.Handle
 }
 
 func newSandboxBuilder(payload *payloadType, e *engine, monitor runtime.Monitor,
@@ -37,17 +39,24 @@ func newSandboxBuilder(payload *payloadType, e *engine, monitor runtime.Monitor,
 		env:       &docker.Env{},
 		imageDone: make(chan struct{}, 1),
 	}
-	pullCtx, cancelPull := context.WithCancel(context.Background())
+	pctx, cancelPull := context.WithCancel(context.Background())
 	sb.cancelPull = cancelPull
-	go sb.asyncFetchImage(pullCtx)
+	go sb.asyncFetchImage(newCacheContext(pctx))
 	return sb
 }
 
 func (sb *sandboxBuilder) generateDockerConfig() *docker.Config {
 	debug("generating docker config for taskID: %s", sb.taskCtx.TaskID)
+	image := sb.image.Repository
+	if strings.HasPrefix(sb.image.Tag, "sha256:") {
+		image = image + "@"
+	} else {
+		image = image + ":"
+	}
+	image = image + sb.image.Tag
 	conf := &docker.Config{
 		Cmd:          sb.command,
-		Image:        sb.image.Repository + ":" + sb.image.Tag,
+		Image:        image,
 		Env:          *sb.env,
 		AttachStdout: true,
 		AttachStderr: true,
@@ -56,15 +65,12 @@ func (sb *sandboxBuilder) generateDockerConfig() *docker.Config {
 	return conf
 }
 
-func (sb *sandboxBuilder) asyncFetchImage(ctx context.Context) {
-	opts := docker.PullImageOptions{
-		Repository:        sb.image.Repository,
-		Tag:               sb.image.Tag,
-		InactivityTimeout: 30 * time.Second,
-		Context:           ctx,
+func (sb *sandboxBuilder) asyncFetchImage(ctx caching.Context) {
+	handle, err := sb.e.cache.Require(ctx, sb.image)
+	if handle != nil {
+		debug("setting handle")
+		sb.handle = handle
 	}
-
-	err := sb.e.client.PullImage(opts, docker.AuthConfiguration{})
 	sb.imageError = err
 	select {
 	case <-sb.imageDone:
@@ -114,5 +120,9 @@ func (sb *sandboxBuilder) Discard() error {
 	sb.discarded = true
 	sb.cancelPull()
 	// imageDone chan will be closed by asyncFetchImage
+	<-sb.imageDone
+	if sb.handle != nil {
+		sb.handle.Release()
+	}
 	return nil
 }

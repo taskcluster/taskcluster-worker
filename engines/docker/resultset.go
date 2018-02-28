@@ -10,6 +10,7 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/caching"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
@@ -19,14 +20,17 @@ type resultSet struct {
 	containerID string
 	client      *docker.Client
 	tempStorage runtime.TemporaryStorage
+	handle      *caching.Handle
 }
 
-func newResultSet(success bool, containerID string, client *docker.Client, ts runtime.TemporaryStorage) *resultSet {
+func newResultSet(success bool, containerID string, client *docker.Client,
+	ts runtime.TemporaryStorage, handle *caching.Handle) *resultSet {
 	return &resultSet{
 		success:     success,
 		containerID: containerID,
 		client:      client,
 		tempStorage: ts,
+		handle:      handle,
 	}
 }
 
@@ -38,10 +42,12 @@ func (r *resultSet) ExtractFile(path string) (ioext.ReadSeekCloser, error) {
 	path = filepath.Clean(path)
 	// Use DownloadFromContainer to get the tar archive of the required
 	// file/folder and unzip.
+	debug("ExtractFile()")
 	tarfile, err := r.extractFromContainer(path)
 	if err != nil {
 		return nil, engines.ErrResourceNotFound
 	}
+	debug("downloaded file from container")
 	defer func() {
 		_ = tarfile.Close()
 	}()
@@ -54,19 +60,22 @@ func (r *resultSet) ExtractFile(path string) (ioext.ReadSeekCloser, error) {
 	tempfile, err := r.tempStorage.NewFile()
 	_, err = io.Copy(tempfile, reader)
 	tempfile.Seek(0, 0)
+	debug("ExtractFile() returned")
 	return tempfile, nil
 }
 
 func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) error {
 	path = filepath.Clean(path)
+	debug("ExtractFolder()")
 	tarfile, err := r.extractFromContainer(path)
 	if err != nil {
 		return engines.ErrResourceNotFound
 	}
+	debug("downloaded folder tar from container")
 
-	// defer func() {
-	// 	_ = tarfile.Close()
-	// }()
+	defer func() {
+		_ = tarfile.Close()
+	}()
 
 	strip := filepath.Base(path) + "/"
 	tarfile.Seek(0, 0)
@@ -82,7 +91,6 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 		if hdr.Typeflag == tar.TypeDir {
 			continue
 		}
-		// fmt.Println(hdr)
 
 		tempfile, err := r.tempStorage.NewFile()
 		if err != nil {
@@ -102,13 +110,20 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 			return engines.ErrHandlerInterrupt
 		}
 	}
+	debug("ExtractFolder() returned")
 	return nil
 }
 
 func (r *resultSet) Dispose() error {
+	debug("Dispose()")
 	if r.tempStorage != nil {
 		_ = r.tempStorage.(runtime.TemporaryFolder).Remove()
 	}
+	if r.handle != nil {
+		debug("released image resource")
+		r.handle.Release()
+	}
+	defer debug("Dispose() returned")
 	return r.client.RemoveContainer(docker.RemoveContainerOptions{
 		ID:    r.containerID,
 		Force: true,
@@ -116,7 +131,6 @@ func (r *resultSet) Dispose() error {
 }
 
 func (r *resultSet) extractFromContainer(path string) (runtime.TemporaryFile, error) {
-	// fmt.Println("extracting ", path, " from container storage")
 	if r.tempStorage == nil {
 		return nil, engines.ErrResourceNotFound
 	}
@@ -136,6 +150,5 @@ func (r *resultSet) extractFromContainer(path string) (runtime.TemporaryFile, er
 		_ = tempfile.Close()
 		return nil, engines.ErrResourceNotFound
 	}
-	// fmt.Println("downloaded from container to ", tempfile.Path())
 	return tempfile, nil
 }
