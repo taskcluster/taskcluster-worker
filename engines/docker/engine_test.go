@@ -1,6 +1,7 @@
 package dockerengine
 
 import (
+	"os"
 	"testing"
 
 	"github.com/taskcluster/taskcluster-worker/engines/enginetest"
@@ -9,10 +10,17 @@ import (
 
 var provider = &enginetest.EngineProvider{
 	Engine: "docker",
-	Config: `{
-		"dockerEndpoint": "unix:///var/run/docker.sock",
-		"maxConcurrency": 1
-	}`,
+	Config: `{}`,
+}
+
+func TestMain(m *testing.M) {
+	provider.SetupEngine()
+	result := 1
+	func() {
+		defer provider.TearDownEngine()
+		result = m.Run()
+	}()
+	os.Exit(result)
 }
 
 func logTime(t *testing.T, name string, f func()) {
@@ -93,7 +101,7 @@ func TestEnvironmentVariables(t *testing.T) {
 	// c.TestVariableNameConflict()
 	logTime(t, "TestInvalidVariableNames", c.TestInvalidVariableNames)
 	// c.TestInvalidVariableNames()
-	c.Test()
+	// c.Test()
 }
 
 func TestArtifacts(t *testing.T) {

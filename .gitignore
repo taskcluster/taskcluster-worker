@@ -11,4 +11,3 @@ coverage.out
 /config.env
 /examples/ubuntu-image/cache/
 /examples/windows-image/cache/
-test_docker_script.go
