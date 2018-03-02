@@ -39,6 +39,9 @@ func newSandboxBuilder(payload *payloadType, e *engine, monitor runtime.Monitor,
 		env:       &docker.Env{},
 		imageDone: make(chan struct{}, 1),
 	}
+	// set image
+	sb.image.engine = sb.e
+
 	pctx, cancelPull := context.WithCancel(context.Background())
 	sb.cancelPull = cancelPull
 	go sb.asyncFetchImage(newCacheContext(pctx))
@@ -61,7 +64,6 @@ func (sb *sandboxBuilder) generateDockerConfig() *docker.Config {
 		AttachStdout: true,
 		AttachStderr: true,
 	}
-	debug("config for taskID: %s, %v", sb.taskCtx.TaskID, conf)
 	return conf
 }
 

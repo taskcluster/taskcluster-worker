@@ -8,7 +8,6 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/caching"
-	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
 
 type engine struct {
@@ -29,35 +28,7 @@ type engineProvider struct {
 }
 
 func init() {
-	engines.Register("docker", engineProvider{
-		cache: caching.New(imageConstructor, true, &gc.GarbageCollector{}),
-	})
-}
-
-type configType struct {
-	DockerEndpoint string `json:"dockerEndpoint"`
-	MaxConcurrency int    `json:"maxConcurrency"`
-}
-
-var configSchema = schematypes.Object{
-	Properties: schematypes.Properties{
-		"dockerEndpoint": schematypes.String{
-			Title: "Docker Endpoint",
-			Description: "dockerEndpoint is the endpoint to use for communicating\n" +
-				"with the Docker daemon.",
-			//TODO: Add pattern for docker socket
-		},
-		"maxConcurrency": schematypes.Integer{
-			Title: "Max Concurrency",
-			Description: "maxConcurrency defines the maximum number of tasks \n" +
-				"that may run concurrently on the worker.",
-			Minimum: 0,
-			Maximum: 10,
-		},
-	},
-	Required: []string{
-		"dockerEndpoint",
-	},
+	engines.Register("docker", engineProvider{})
 }
 
 func (p engineProvider) ConfigSchema() schematypes.Schema {
@@ -68,8 +39,14 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 	debug("docker engineProvider.NewEngine()")
 	var c configType
 	schematypes.MustValidateAndMap(configSchema, options.Config, &c)
+	if c.DockerSocket == "" {
+		c.DockerSocket = "unix:///var/run/docker.sock"
+	}
+	if c.MaxConcurrency == 0 {
+		c.MaxConcurrency = 1
+	}
 
-	client, err := docker.NewClient(c.DockerEndpoint)
+	client, err := docker.NewClient(c.DockerSocket)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +57,7 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 		Environment:    options.Environment,
 		monitor:        options.Monitor,
 		maxConcurrency: c.MaxConcurrency,
-		cache:          p.cache,
+		cache:          caching.New(imageConstructor, true, options.Environment.GarbageCollector),
 		running:        0,
 	}, nil
 }
@@ -114,10 +91,10 @@ func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sand
 	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &p)
 	e.m.Lock()
 	defer e.m.Unlock()
-	if e.maxConcurrency == e.running {
-		return nil, engines.ErrMaxConcurrencyExceeded
-	}
-	e.running += 1
+	// if e.maxConcurrency == e.running {
+	// 	return nil, engines.ErrMaxConcurrencyExceeded
+	// }
+	// e.running += 1
 	return newSandboxBuilder(&p, e, e.Environment.Monitor, options.TaskContext), nil
 }
 

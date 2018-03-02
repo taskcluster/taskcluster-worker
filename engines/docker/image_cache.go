@@ -6,6 +6,7 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/caching"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
@@ -17,6 +18,8 @@ type imageResource struct {
 	Repository string
 	Tag        string
 	Size       uint64
+	client     *docker.Client
+	monitor    runtime.Monitor
 	dispose    atomics.Once
 }
 
@@ -46,34 +49,33 @@ func (im *imageResource) DiskSize() (uint64, error) {
 }
 
 func (im *imageResource) Dispose() error {
+	var err error
 	im.dispose.Do(func() {
-		client, err := docker.NewClientFromEnv()
-		if err != nil {
-			debug("%v", err)
-			return
-		}
-		err = client.RemoveImage(buildImageName(im.Repository, im.Tag))
-		if err != nil {
-			debug("%v", err)
-		}
+		err = im.client.RemoveImage(buildImageName(im.Repository, im.Tag))
 	})
+	im.dispose.Wait()
+	if err != nil {
+		debug("error %v")
+		im.monitor.ReportError(err, "error removing image")
+		return runtime.ErrNonFatalInternalError
+	}
 	return nil
 }
 
 func imageConstructor(ctx caching.Context, opts interface{}) (caching.Resource, error) {
 	options := opts.(imageType)
-	client, err := docker.NewClientFromEnv()
-	if err != nil {
-		return nil, err
-	}
+	client := options.engine.client
+	monitor := options.engine.monitor.WithPrefix("image-cache").WithTag("image", buildImageName(options.Repository, options.Tag))
 
+	// TODO: Use outputstream to write progress
 	debug("pulling image %s %s", options.Repository, options.Tag)
-	err = client.PullImage(docker.PullImageOptions{
+	err := client.PullImage(docker.PullImageOptions{
 		Repository:        options.Repository,
 		Tag:               options.Tag,
 		InactivityTimeout: dockerPullImageInactivityTimeout,
 		Context:           ctx,
 	}, docker.AuthConfiguration{})
+
 	if err != nil {
 		debug("error pulling image %v", err)
 		return nil, err
@@ -81,6 +83,7 @@ func imageConstructor(ctx caching.Context, opts interface{}) (caching.Resource, 
 	// Inspect image to find size
 	image, err := client.InspectImage(buildImageName(options.Repository, options.Tag))
 	if err != nil {
+		monitor.ReportError(err, "error inspecting image")
 		debug("error inspecting image %v")
 	}
 	size := uint64(0)
@@ -92,6 +95,8 @@ func imageConstructor(ctx caching.Context, opts interface{}) (caching.Resource, 
 		Repository: options.Repository,
 		Tag:        options.Tag,
 		Size:       size,
+		client:     client,
+		monitor:    monitor,
 	}, nil
 }
 
