@@ -86,7 +86,7 @@ tasks:
       command:
         - 'set GOROOT=%CD%\go1.10\go'
         - 'set GOPATH=%CD%\gopath'
-        - 'set PATH=%GOPATH%\bin;%GOROOT%\bin;%PATH%'
+        - 'set PATH=%CD%\git\cmd;%GOPATH%\bin;%GOROOT%\bin;%PATH%'
         - 'mkdir public\build'
         - 'mklink public\build\taskcluster-worker-windows-amd64.exe "%GOPATH%\bin\taskcluster-worker.exe"'
         - 'go get -v github.com/kardianos/govendor'
