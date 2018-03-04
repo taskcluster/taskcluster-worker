@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 
-	"github.com/goware/prefixer"
 	"github.com/pkg/errors"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -39,13 +37,13 @@ func (b *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
 		panic(errors.Wrap(err, "Error serializing json payload"))
 	}
 
-	stderrReader, stderrWriter := io.Pipe()
-	go io.Copy(b.context.LogDrain(), prefixer.New(stderrReader, "[worker:error] "))
-
 	cmd.Dir = folder.Path()
 	cmd.Stdin = bytes.NewBuffer(data)
 	cmd.Stdout = b.context.LogDrain()
-	cmd.Stderr = stderrWriter
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		panic(errors.Wrap(err, "failed to created cmd.StderrPipe()")) // should never happen
+	}
 	cmd.Env = formatEnv(map[string]string{
 		"TASK_ID": b.context.TaskID,
 		"RUN_ID":  fmt.Sprintf("%d", b.context.RunID),
@@ -55,13 +53,13 @@ func (b *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
 		return nil, errors.Wrap(err, "Internal error invalid script")
 	}
 	s := &sandbox{
-		cmd:          cmd,
-		stderrCloser: stderrWriter,
-		folder:       folder,
-		monitor:      b.monitor,
-		context:      b.context,
-		engine:       b.engine,
-		done:         make(chan struct{}),
+		cmd:     cmd,
+		stderr:  stderr,
+		folder:  folder,
+		monitor: b.monitor,
+		context: b.context,
+		engine:  b.engine,
+		done:    make(chan struct{}),
 	}
 	go s.run()
 	return s, nil
