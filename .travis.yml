@@ -1,6 +1,6 @@
 language: go
 
-go: 1.8
+go: '1.10'
 
 env:
   - MY_GOOS=linux
