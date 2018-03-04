@@ -91,7 +91,7 @@ func buildImage(
 
 	// Create virtual machine
 	monitor.Info("Creating virtual machine")
-	vm, err := vm.NewVirtualMachine(
+	machine, err := vm.NewVirtualMachine(
 		img.Machine().DeriveLimits(), img, net, socketFolder,
 		boot, cdrom, linuxBootOptions,
 		monitor.WithTag("component", "vm"),
@@ -103,11 +103,11 @@ func buildImage(
 
 	// Start the virtual machine
 	monitor.Info("Starting virtual machine")
-	vm.Start()
+	machine.Start()
 
 	// Expose VNC socket
 	if vncPort != 0 {
-		go qemurun.ExposeVNC(vm.VNCSocket(), vncPort, vm.Done)
+		go qemurun.ExposeVNC(machine.VNCSocket(), vncPort, machine.Done)
 	}
 
 	// Wait for interrupt to gracefully kill everything
@@ -117,12 +117,12 @@ func buildImage(
 	// Wait for virtual machine to be done, or we get interrupted
 	select {
 	case <-interrupted:
-		vm.Kill()
+		machine.Kill()
 		err = errors.New("SIGINT received, aborting virtual machine")
-	case <-vm.Done:
-		err = vm.Error
+	case <-machine.Done:
+		err = machine.Error
 	}
-	<-vm.Done
+	<-machine.Done
 	signal.Stop(interrupted)
 	defer img.Dispose()
 
