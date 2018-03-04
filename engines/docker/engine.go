@@ -12,19 +12,17 @@ import (
 
 type engine struct {
 	engines.EngineBase
-	m              sync.Mutex
-	Environment    *runtime.Environment
-	client         *docker.Client
-	monitor        runtime.Monitor
-	maxConcurrency int
-	engineConfig   configType
-	running        int
-	cache          *caching.Cache
+	m           sync.Mutex
+	Environment *runtime.Environment
+	client      *docker.Client
+	monitor     runtime.Monitor
+	config      configType
+	running     int
+	cache       *caching.Cache
 }
 
 type engineProvider struct {
 	engines.EngineProviderBase
-	cache *caching.Cache
 }
 
 func init() {
@@ -42,9 +40,6 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 	if c.DockerSocket == "" {
 		c.DockerSocket = "unix:///var/run/docker.sock"
 	}
-	if c.MaxConcurrency == 0 {
-		c.MaxConcurrency = 1
-	}
 
 	client, err := docker.NewClient(c.DockerSocket)
 	if err != nil {
@@ -52,13 +47,12 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 	}
 
 	return &engine{
-		engineConfig:   c,
-		client:         client,
-		Environment:    options.Environment,
-		monitor:        options.Monitor,
-		maxConcurrency: c.MaxConcurrency,
-		cache:          caching.New(imageConstructor, true, options.Environment.GarbageCollector),
-		running:        0,
+		config:      c,
+		client:      client,
+		Environment: options.Environment,
+		monitor:     options.Monitor,
+		cache:       caching.New(imageConstructor, true, options.Environment.GarbageCollector),
+		running:     0,
 	}, nil
 }
 

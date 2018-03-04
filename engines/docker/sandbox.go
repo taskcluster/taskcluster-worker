@@ -34,17 +34,13 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 		Config: sb.generateDockerConfig(),
 	}
 
-	debug("creating container for task: %s", sb.taskCtx.TaskID)
-
 	container, err := sb.e.client.CreateContainer(opts)
 	if err != nil {
 		return nil, runtime.NewMalformedPayloadError(
 			"could not create container: " + err.Error())
 	}
-	debug("created container")
 
 	// create a temporary storage for use by resultSet
-	debug("creating temporary storage")
 	ts, err := sb.e.Environment.TemporaryStorage.NewFolder()
 	if err != nil {
 		// unsure if this is the correct error type to return
@@ -57,6 +53,7 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 		client:      sb.e.client,
 		taskCtx:     sb.taskCtx,
 		handle:      sb.handle,
+		monitor:     sb.monitor.WithPrefix("docker-sandbox").WithTag("taskID", sb.taskCtx.TaskID),
 	}
 
 	// attach to the container before starting so that we get all the logs
@@ -68,7 +65,6 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 		Stderr:       true,
 		Stream:       true,
 	})
-	debug("attached to container (non blocking)")
 
 	// HostConfig is ignored by the remote API and is only kept for
 	// backward compatibility.
@@ -76,7 +72,6 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 	if err != nil {
 		return nil, runtime.ErrFatalInternalError
 	}
-	debug("started container")
 
 	go sbox.wait()
 
@@ -85,16 +80,17 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 
 func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 	s.resolve.Wait()
-	debug("result generated")
 	return s.resultSet, s.resultErr
 }
 
 func (s *sandbox) wait() {
 	exitCode, err := s.client.WaitContainer(s.containerID)
 	s.resolve.Do(func() {
-		s.resultSet = newResultSet(exitCode == 0, s.containerID, s.client, s.tempStorage, s.handle)
+		s.resultSet = newResultSet(exitCode == 0, s.containerID, s.client,
+			s.tempStorage, s.handle, s.monitor.WithPrefix("result-set"))
 		if err != nil {
-			s.resultSet = newResultSet(false, s.containerID, s.client, s.tempStorage, s.handle)
+			s.resultSet = newResultSet(false, s.containerID, s.client, s.tempStorage,
+				s.handle, s.monitor.WithPrefix("result-set"))
 		}
 		s.abortErr = engines.ErrSandboxTerminated
 	})
@@ -129,7 +125,8 @@ func (s *sandbox) Kill() error {
 				Signal: docker.SIGKILL,
 			})
 		}
-		s.resultSet = newResultSet(false, s.containerID, s.client, s.tempStorage, s.handle)
+		s.resultSet = newResultSet(false, s.containerID, s.client,
+			s.tempStorage, s.handle, s.monitor.WithPrefix("result-set"))
 		s.abortErr = engines.ErrSandboxTerminated
 		debug("killed container")
 	})
@@ -151,7 +148,8 @@ func (s *sandbox) Abort() error {
 		}
 		_ = s.tempStorage.(runtime.TemporaryFolder).Remove()
 		s.abortErr = engines.ErrSandboxAborted
-		s.resultSet = newResultSet(false, s.containerID, nil, nil, s.handle)
+		s.resultSet = newResultSet(false, s.containerID, nil, nil,
+			s.handle, s.monitor.WithPrefix("result-set"))
 	})
 	s.resolve.Wait()
 	return s.abortErr

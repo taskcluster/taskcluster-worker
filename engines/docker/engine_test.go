@@ -36,22 +36,22 @@ func TestLogging(t *testing.T) {
 		TargetPayload: `{
 			"command": ["sh", "-c", "echo 'hello-world' && true"],
 			"image": {
-				"repository": "ubuntu",
-				"tag": "sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2"
+				"repository": "alpine",
+				"tag": "sha256:7b848083f93822dd21b0a2f14a110bd99f6efb4b838d499df6d04a49d0debf8b"
 			}
 		}`,
 		FailingPayload: `{
 			"command": ["sh", "-c", "echo 'hello-world' && false"],
 			"image": {
-				"repository": "ubuntu",
-				"tag": "sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2"
+				"repository": "alpine",
+				"tag": "sha256:7b848083f93822dd21b0a2f14a110bd99f6efb4b838d499df6d04a49d0debf8b"
 			}
 		}`,
 		SilentPayload: `{
 			"command": ["sh", "-c", "echo 'no hello' && true"],
 			"image": {
-				"repository": "ubuntu",
-				"tag": "sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2"
+				"repository": "alpine",
+				"tag": "sha256:7b848083f93822dd21b0a2f14a110bd99f6efb4b838d499df6d04a49d0debf8b"
 			}
 		}`,
 	}
@@ -69,8 +69,8 @@ func TestKill(t *testing.T) {
 		Payload: `{
 			"command": ["sh", "-c", "echo 'hello-world' && sleep 30 && true"],
 			"image": {
-				"repository": "ubuntu",
-				"tag": "sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2"
+				"repository": "alpine",
+				"tag": "sha256:7b848083f93822dd21b0a2f14a110bd99f6efb4b838d499df6d04a49d0debf8b"
 			}
 		}`,
 	}
@@ -89,8 +89,8 @@ func TestEnvironmentVariables(t *testing.T) {
 		Payload: `{
 			"command": ["sh", "-c", "echo $TEST_ENV_VAR && true"],
 			"image": {
-				"repository": "ubuntu",
-				"tag": "sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2"
+				"repository": "alpine",
+				"tag": "sha256:7b848083f93822dd21b0a2f14a110bd99f6efb4b838d499df6d04a49d0debf8b"
 			}
 		}`,
 	}
@@ -119,8 +119,8 @@ func TestArtifacts(t *testing.T) {
 		Payload: `{
 			"command": ["sh", "-ec", "mkdir -p folder/sub-folder; echo '[hello-world]' > folder/hello.txt; echo '[hello-world]' > folder/sub-folder/hello2.txt"],
 			"image": {
-				"repository": "ubuntu",
-				"tag": "sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2"
+				"repository": "alpine",
+				"tag": "sha256:7b848083f93822dd21b0a2f14a110bd99f6efb4b838d499df6d04a49d0debf8b"
 			}
 		}`,
 	}
