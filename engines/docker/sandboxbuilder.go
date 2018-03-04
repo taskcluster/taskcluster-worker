@@ -3,7 +3,6 @@ package dockerengine
 import (
 	"context"
 	"regexp"
-	"strings"
 	"sync"
 
 	docker "github.com/fsouza/go-dockerclient"
@@ -41,7 +40,6 @@ func newSandboxBuilder(payload *payloadType, e *engine, monitor runtime.Monitor,
 	}
 	// set image
 	sb.image.engine = sb.e
-
 	pctx, cancelPull := context.WithCancel(context.Background())
 	sb.cancelPull = cancelPull
 	go sb.asyncFetchImage(newCacheContext(pctx))
@@ -49,14 +47,7 @@ func newSandboxBuilder(payload *payloadType, e *engine, monitor runtime.Monitor,
 }
 
 func (sb *sandboxBuilder) generateDockerConfig() *docker.Config {
-	debug("generating docker config for taskID: %s", sb.taskCtx.TaskID)
-	image := sb.image.Repository
-	if strings.HasPrefix(sb.image.Tag, "sha256:") {
-		image = image + "@"
-	} else {
-		image = image + ":"
-	}
-	image = image + sb.image.Tag
+	image := buildImageName(sb.image.Repository, sb.image.Tag)
 	conf := &docker.Config{
 		Cmd:          sb.command,
 		Image:        image,
@@ -70,7 +61,6 @@ func (sb *sandboxBuilder) generateDockerConfig() *docker.Config {
 func (sb *sandboxBuilder) asyncFetchImage(ctx caching.Context) {
 	handle, err := sb.e.cache.Require(ctx, sb.image)
 	if handle != nil {
-		debug("setting handle")
 		sb.handle = handle
 	}
 	sb.imageError = err

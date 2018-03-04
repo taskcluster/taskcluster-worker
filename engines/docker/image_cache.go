@@ -41,11 +41,11 @@ func (ctx *cacheContext) Progress(description string, percent float64) {
 }
 
 func (im *imageResource) MemorySize() (uint64, error) {
-	return im.Size, nil
+	return 0, gc.ErrDisposableSizeNotSupported
 }
 
 func (im *imageResource) DiskSize() (uint64, error) {
-	return 0, gc.ErrDisposableSizeNotSupported
+	return im.Size, nil
 }
 
 func (im *imageResource) Dispose() error {
