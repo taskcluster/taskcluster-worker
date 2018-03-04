@@ -30,17 +30,19 @@ func verifyAssertions(t *testing.T, title, taskID string, task Task, q *queue.Qu
 		task.Status(t, q, result.Status)
 	}
 
-	// check task resolution
-	if task.Exception == runtime.ReasonNoException {
-		if task.Success {
-			assert.Equal(t, "completed", result.Status.State, "Expected task completed")
+	// check task resolution (if not set to ignore it)
+	if !task.IgnoreState {
+		if task.Exception == runtime.ReasonNoException {
+			if task.Success {
+				assert.Equal(t, "completed", result.Status.State, "Expected task completed")
+			} else {
+				assert.Equal(t, "failed", result.Status.State, "Expected task failed")
+			}
 		} else {
-			assert.Equal(t, "failed", result.Status.State, "Expected task failed")
+			assert.Equal(t, "exception", result.Status.State, "Expected task exception")
+			assert.Equal(t, task.Exception.String(), result.Status.Runs[runID].ReasonResolved,
+				"Expected an exception with reason: %s", task.Exception.String())
 		}
-	} else {
-		assert.Equal(t, "exception", result.Status.State, "Expected task exception")
-		assert.Equal(t, task.Exception.String(), result.Status.Runs[runID].ReasonResolved,
-			"Expected an exception with reason: %s", task.Exception.String())
 	}
 
 	// Create list of artifacts
