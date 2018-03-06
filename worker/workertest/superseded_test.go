@@ -15,7 +15,7 @@ import (
 
 func TestSuperseded(t *testing.T) {
 	// This test aims to check if the superseded functionality works. As we can't
-	// know which order the tasks will be claimed in... This a little complicated
+	// know which order the tasks will be claimed in. This is a little complicated
 	// to test. We do it by using the task index to recall which one of them set
 	// to be superseded. When the HTTP server gets called as supersederUrl and
 	// we haven't returned a superseded task yet, we take the next available taskId
@@ -31,7 +31,7 @@ func TestSuperseded(t *testing.T) {
 		// Get taskId from which this is being called
 		taskID := r.URL.Query().Get("taskId")
 
-		// Create array of superseding taskIds, always start with it's own taskId
+		// Create array of superseding taskIds, always start with its own taskId
 		supersedes := []string{taskID}
 
 		// If we haven't made a superseded task yet we do that now
@@ -40,6 +40,7 @@ func TestSuperseded(t *testing.T) {
 			for index, task := range c.Tasks {
 				if task.TaskID == taskID {
 					superseded = index
+					break
 				}
 			}
 			// Make first other taskId be superseding this taskId
@@ -71,7 +72,7 @@ func TestSuperseded(t *testing.T) {
 				runID := len(status.Runs) - 1
 				assert.Equal(t, status.Runs[runID].ReasonResolved, runtime.ReasonSuperseded.String(), "expected superseded")
 			} else {
-				// If this task was not superseded is should be successful
+				// If this task was not superseded it should be successful
 				assert.Equal(t, "completed", status.State, "expected successful task")
 			}
 		}
