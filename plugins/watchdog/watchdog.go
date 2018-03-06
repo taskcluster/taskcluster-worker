@@ -2,6 +2,8 @@ package watchdog
 
 import (
 	"errors"
+	goruntime "runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -67,13 +69,29 @@ func (provider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error)
 	return p, nil
 }
 
+// allStacks returns a dump of stacks for all goroutines
+func allStacks() string {
+	b := make([]byte, 4096)
+	N := goruntime.Stack(b, true)
+	for N >= len(b) {
+		b = make([]byte, 2*len(b))
+		N = goruntime.Stack(b, true)
+	}
+	return string(b[:N])
+}
+
 func (p *plugin) waitForTimeout() {
 	select {
 	case <-p.done.Done():
 	case <-p.timer.C:
 		var reported atomics.Once
 		go reported.Do(func() {
-			p.Monitor.ReportError(errors.New("watchdog: worker timeout exceeded"))
+			// Create a dump of all stacks, and prefix with watch-stackdump, so that
+			// it's obvious that this is an intentional stack dump and not the result
+			// of some panic that was caught and returned as an error.
+			prefix := "watchdog-stackdump: "
+			stacks := prefix + strings.Join(strings.Split(allStacks(), "\n"), "\n"+prefix)
+			p.Monitor.ReportError(errors.New("watchdog: worker timeout exceeded"), stacks)
 		})
 
 		// Call stopNow within 30s, even if the ReportError blocks and fails...
