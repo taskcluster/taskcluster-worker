@@ -28,7 +28,7 @@ See https://github.com/taskcluster/taskcluster-worker/releases
 Installing From Source
 ----------------------
 
-1. [Install go 1.8](https://golang.org/doc/install) or higher
+1. [Install go 1.10](https://golang.org/doc/install) or higher
 2. `go get -u -t -d github.com/taskclustertaskcluster-worker/...`
 3. `cd "${GOPATH}/src/github.com/taskcluster-worker"`
 4. `go get -u github.com/kardianos/govendor`

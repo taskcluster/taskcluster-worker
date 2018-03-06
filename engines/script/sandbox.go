@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/goware/prefixer"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
@@ -17,23 +18,24 @@ const artifactFolder = "artifacts"
 
 type sandbox struct {
 	engines.SandboxBase
-	context      *runtime.TaskContext
-	engine       *engine
-	cmd          *exec.Cmd
-	stderrCloser io.Closer
-	folder       runtime.TemporaryFolder
-	resolve      atomics.Once
-	resultSet    engines.ResultSet
-	resultError  error
-	resultAbort  error
-	monitor      runtime.Monitor
-	aborted      atomics.Bool
-	done         chan struct{}
+	context     *runtime.TaskContext
+	engine      *engine
+	cmd         *exec.Cmd
+	stderr      io.Reader
+	folder      runtime.TemporaryFolder
+	resolve     atomics.Once
+	resultSet   engines.ResultSet
+	resultError error
+	resultAbort error
+	monitor     runtime.Monitor
+	aborted     atomics.Bool
+	done        chan struct{}
 }
 
 func (s *sandbox) run() {
+	// Read stderr to task log before we wait for exit code
+	io.Copy(s.context.LogDrain(), prefixer.New(s.stderr, "[worker:error] "))
 	err := s.cmd.Wait()
-	s.stderrCloser.Close()
 
 	success := err == nil
 	var resultError error

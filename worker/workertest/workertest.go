@@ -42,6 +42,7 @@ type Task struct {
 	Title           string                  // Optional title (for debugging)
 	Scopes          []string                // Task scopes
 	Payload         string                  // Task payload as JSON
+	IgnoreState     bool                    // Ignore Success and Exception
 	Success         bool                    // True, if task should be successfully
 	Exception       runtime.ExceptionReason // Reason, if exception is expected
 	Artifacts       ArtifactAssertions      // Mapping from artifact name to assertion

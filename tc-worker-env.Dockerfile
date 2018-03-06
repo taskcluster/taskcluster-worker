@@ -8,8 +8,8 @@ RUN apt-get update -y \
     qemu-system-x86 qemu-utils dnsmasq-base iptables iproute2 netcat-openbsd \
     git curl screen nano genisoimage build-essential openvpn awscli jq p7zip-full
 
-# Install golang 1.8
-RUN curl -L https://storage.googleapis.com/golang/go1.8.linux-amd64.tar.gz > /tmp/go.tar.gz \
+# Install golang 1.10
+RUN curl -L https://storage.googleapis.com/golang/go1.10.linux-amd64.tar.gz > /tmp/go.tar.gz \
  && tar -xvf /tmp/go.tar.gz -C /usr/local \
  && rm /tmp/go.tar.gz
 

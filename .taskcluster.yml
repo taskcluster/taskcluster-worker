@@ -32,7 +32,7 @@ tasks:
       features:
         taskclusterProxy: true
       maxRunTime: 3600
-      image: golang
+      image: golang:1.10-stretch
       command:
         - /bin/bash
         - -vxec
@@ -84,9 +84,9 @@ tasks:
           type: file
           path: public/build/taskcluster-worker-windows-amd64.exe
       command:
-        - 'set GOROOT=%CD%\go1.8\go'
+        - 'set GOROOT=%CD%\go1.10\go'
         - 'set GOPATH=%CD%\gopath'
-        - 'set PATH=%GOPATH%\bin;%GOROOT%\bin;%PATH%'
+        - 'set PATH=%CD%\git\cmd;%GOPATH%\bin;%GOROOT%\bin;%PATH%'
         - 'mkdir public\build'
         - 'mklink public\build\taskcluster-worker-windows-amd64.exe "%GOPATH%\bin\taskcluster-worker.exe"'
         - 'go get -v github.com/kardianos/govendor'
@@ -106,11 +106,11 @@ tasks:
         - cacheName: taskcluster-worker-checkout-1
           directory: gopath/src
         - content:
-            url: https://storage.googleapis.com/golang/go1.8.windows-amd64.zip
-          directory: go1.8
+            url: https://storage.googleapis.com/golang/go1.10.windows-amd64.zip
+          directory: go1.10
           format: zip
         - content:
-            url: https://github.com/git-for-windows/git/releases/download/v2.14.1.windows.1/MinGit-2.14.1-64-bit.zip
+            url: https://github.com/git-for-windows/git/releases/download/v2.16.2.windows.1/MinGit-2.16.2-64-bit.zip
           directory: git
           format: zip
 
@@ -143,7 +143,7 @@ tasks:
         - - /bin/bash
           - -vxec
           - |
-            export GOROOT="$(pwd)/go1.8/go"
+            export GOROOT="$(pwd)/go1.10/go"
             export GOPATH="$(pwd)/gopath"
             export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
             source "${TASKCLUSTER_CREDS_BOOTSTRAP}"
@@ -165,8 +165,8 @@ tasks:
         - cacheName: taskcluster-worker-checkout-1
           directory: gopath/src
         - content:
-            url: https://storage.googleapis.com/golang/go1.8.darwin-amd64.tar.gz
-          directory: go1.8
+            url: https://storage.googleapis.com/golang/go1.10.darwin-amd64.tar.gz
+          directory: go1.10
           format: tar.gz
 
   ##########################################################
@@ -221,7 +221,7 @@ tasks:
       features:
         taskclusterProxy: true
       maxRunTime: 3600
-      image: golang
+      image: golang:1.10-stretch
       command:
         - /bin/bash
         - -vxec
