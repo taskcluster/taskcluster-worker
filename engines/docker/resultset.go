@@ -20,12 +20,12 @@ type resultSet struct {
 	containerID string
 	client      *docker.Client
 	monitor     runtime.Monitor
-	tempStorage runtime.TemporaryStorage
+	tempStorage runtime.TemporaryFolder
 	handle      *caching.Handle
 }
 
 func newResultSet(success bool, containerID string, client *docker.Client,
-	ts runtime.TemporaryStorage, handle *caching.Handle, monitor runtime.Monitor) *resultSet {
+	ts runtime.TemporaryFolder, handle *caching.Handle, monitor runtime.Monitor) *resultSet {
 	return &resultSet{
 		success:     success,
 		containerID: containerID,
@@ -156,7 +156,7 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 
 func (r *resultSet) Dispose() error {
 	if r.tempStorage != nil {
-		err := r.tempStorage.(runtime.TemporaryFolder).Remove()
+		err := r.tempStorage.Remove()
 		if err != nil {
 			r.monitor.ReportWarning(err, "could not remove temporary storage")
 		}

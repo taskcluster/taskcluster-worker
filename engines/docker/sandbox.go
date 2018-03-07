@@ -21,7 +21,7 @@ type sandbox struct {
 	resultSet   engines.ResultSet
 	resultErr   error
 	abortErr    error
-	tempStorage runtime.TemporaryStorage
+	tempStorage runtime.TemporaryFolder
 	resolve     atomics.Once
 	client      *docker.Client
 	taskCtx     *runtime.TaskContext
@@ -98,37 +98,17 @@ func (s *sandbox) wait() {
 
 func (s *sandbox) Kill() error {
 	s.resolve.Do(func() {
-		debug("Sandbox.Kill()")
-		// maybe will use to timeout kill and send SIGKILL
-		killCtx, cancelFunc := context.WithCancel(context.Background())
-		kchan := make(chan struct{}, 1)
+		debug("Sandbox.Kill() for containerId: %s", s.containerID)
+		s.resultErr = s.attemptGracefulTermination()
 
-		go func() {
-			_ = s.client.KillContainer(docker.KillContainerOptions{
-				ID:      s.containerID,
-				Signal:  docker.SIGTERM,
-				Context: killCtx,
-			})
-			select {
-			case <-kchan:
-			default:
-				close(kchan)
-			}
-		}()
-		select {
-		case <-kchan:
-		case <-time.After(dockerEngineKillTimeout):
-			cancelFunc()
-			debug("container process is taking to long to shutdown. sending SIGKILL")
-			_ = s.client.KillContainer(docker.KillContainerOptions{
-				ID:     s.containerID,
-				Signal: docker.SIGKILL,
-			})
+		// Create resultSet
+		if s.resultErr == nil {
+			s.resultSet = newResultSet(false, s.containerID, s.client,
+				s.tempStorage, s.handle, s.monitor.WithPrefix("result-set"))
+			s.abortErr = engines.ErrSandboxTerminated
+		} else {
+			s.dispose()
 		}
-		s.resultSet = newResultSet(false, s.containerID, s.client,
-			s.tempStorage, s.handle, s.monitor.WithPrefix("result-set"))
-		s.abortErr = engines.ErrSandboxTerminated
-		debug("killed container")
 	})
 	s.resolve.Wait()
 	return s.resultErr
@@ -136,21 +116,89 @@ func (s *sandbox) Kill() error {
 
 func (s *sandbox) Abort() error {
 	s.resolve.Do(func() {
-		debug("Sandbox.Abort()")
-		// debug("Sandbox.Abort()")
-		killOpts := docker.KillContainerOptions{
-			ID:     s.containerID,
-			Signal: docker.SIGKILL,
-		}
-		err := s.client.KillContainer(killOpts)
-		if err != nil {
-			s.monitor.ReportError(err)
-		}
-		_ = s.tempStorage.(runtime.TemporaryFolder).Remove()
-		s.abortErr = engines.ErrSandboxAborted
-		s.resultSet = newResultSet(false, s.containerID, nil, nil,
-			s.handle, s.monitor.WithPrefix("result-set"))
+		debug("Sandbox.Abort() for containerId: %s", s.containerID)
+		s.attemptGracefulTermination()
+		s.abortErr = s.dispose()
+		s.resultErr = engines.ErrSandboxAborted
 	})
 	s.resolve.Wait()
 	return s.abortErr
+}
+
+// attemptGracefulTermination will attempt a graceful termination of the
+// container and ignore ContainerNotRunning errors.
+func (s *sandbox) attemptGracefulTermination() error {
+	hasErr := false
+
+	// Send SIGTERM and give the container 30s to exit
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel() // always free the context
+	err := s.client.KillContainer(docker.KillContainerOptions{
+		ID:      s.containerID,
+		Signal:  docker.SIGTERM,
+		Context: ctx,
+	})
+	// Report errors if ContainerNotRunning or ctx was timed out
+	if _, ok := err.(*docker.ContainerNotRunning); err != nil && !ok && ctx.Err() == nil {
+		s.monitor.ReportError(err, "KillContainer with SIGTERM failed")
+		// signal up the stack that something went wrong, this is not a successful kill
+		hasErr = true
+	}
+
+	// Send SIGTERM and give docker 5 minutes to kill the container
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel() // always free the context
+	err = s.client.KillContainer(docker.KillContainerOptions{
+		ID:      s.containerID,
+		Signal:  docker.SIGKILL,
+		Context: ctx,
+	})
+	// Report errors other than ContainerNotRunning
+	if _, ok := err.(*docker.ContainerNotRunning); err != nil && !ok {
+		s.monitor.ReportError(err, "KillContainer with SIGTERM failed")
+		hasErr = true
+	}
+
+	// Wait for container to exit
+	_, err = s.client.WaitContainer(s.containerID)
+	// Report errors other than ContainerNotRunning
+	if _, ok := err.(*docker.ContainerNotRunning); err != nil && !ok {
+		s.monitor.ReportError(err, "WaitContainer failed")
+		hasErr = true
+	}
+
+	// If ErrNonFatalInternalError if there was an error of any kind, since all
+	// errors here are not really fatal.
+	if hasErr {
+		return runtime.ErrNonFatalInternalError
+	}
+	return nil
+}
+
+// free all resources held by this sandbox
+func (s *sandbox) dispose() error {
+	hasErr := false
+
+	// Remove the container
+	err := s.client.RemoveContainer(docker.RemoveContainerOptions{
+		ID:    s.containerID,
+		Force: true,
+	})
+	if err != nil {
+		s.monitor.ReportError(err, "failed to remove container in disposal of sandbox")
+	}
+
+	// Free image handle
+	s.handle.Release()
+
+	// Remove temporary storage
+	if err = s.tempStorage.Remove(); err != nil {
+		s.monitor.ReportError(err, "failed to remove temporary storage in disposal of sandbox")
+	}
+
+	// If ErrNonFatalInternalError if there was an error of any kind
+	if hasErr {
+		return runtime.ErrNonFatalInternalError
+	}
+	return nil
 }
