@@ -660,7 +660,7 @@
 			"revisionTime": "2017-07-06T18:25:07Z"
 		},
 		{
-			"checksumSHA1": "UC0wrKbxrBH8nj5F1Tkp0j3DuWM=",
+			"checksumSHA1": "ERi+hM4osTVhn6ZoevmKdYWCxYk=",
 			"path": "github.com/taskcluster/taskcluster-worker",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
@@ -684,13 +684,13 @@
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "JhZ9X5633T09O/AI1uBXckSboGw=",
+			"checksumSHA1": "Tn+emDrr8FOe4tDwrivNIN2bXak=",
 			"path": "github.com/taskcluster/taskcluster-worker/commands/qemu-build",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "nCzrL2oiIztxIVqiWun7ZMSKSNc=",
+			"checksumSHA1": "s87iQ1VFJYSFIQ+fxeK379E46Wc=",
 			"path": "github.com/taskcluster/taskcluster-worker/commands/qemu-guest-tools",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
@@ -738,7 +738,7 @@
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "PJxjFkSpsYPXDQXK2+FPiO5jS1s=",
+			"checksumSHA1": "2+YsBUC087YpNpV2LssJEsymeCg=",
 			"path": "github.com/taskcluster/taskcluster-worker/config/abs",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
@@ -750,25 +750,25 @@
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "FZEcRZ9RJSGw+qorKjHJ7lLUCIo=",
+			"checksumSHA1": "3p4ukEvF7NNvqUCG1BegMkaT49c=",
 			"path": "github.com/taskcluster/taskcluster-worker/config/env",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "5ijHt6WWyWKjHGNrY2M+crVSWuM=",
+			"checksumSHA1": "LS7LzRh+xN4ZRaf24qxtZZVUgz4=",
 			"path": "github.com/taskcluster/taskcluster-worker/config/hostcredentials",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "v27ZSPL64boJF0QEqUPtqon5egI=",
+			"checksumSHA1": "jeCv/EwG2Ep7AGVrGqftO5n3Rkc=",
 			"path": "github.com/taskcluster/taskcluster-worker/config/packet",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "fI7w+DWtNAr3HJfD6UJzfxI/LsA=",
+			"checksumSHA1": "wvSUUYyUJhLPnS9J1FiC78SWe04=",
 			"path": "github.com/taskcluster/taskcluster-worker/config/secrets",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
@@ -780,7 +780,7 @@
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "G9iRq6aS2OwJPuOnp6h7Ygcdr6g=",
+			"checksumSHA1": "imzV1bfuLJJ03dTgiRf0m184SQo=",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/docker",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
@@ -792,67 +792,67 @@
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "SpqwPZevui/bv/dIwGO7agV9Kok=",
+			"checksumSHA1": "28slbPMesPZRx8NyOXw/R2byxR4=",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/mock",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "8UHs0Vu64rocF4iUDND9LM1NyGk=",
+			"checksumSHA1": "zrwoO5iDWH2/fpMGyNGMGkbB+/o=",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/mock/mocknet",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "1KeS+Ury0Tpv9zcZ8yFZEQPUzz4=",
+			"checksumSHA1": "cBojLmOoAX1ubyECOtZ7MqOwUuk=",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/native",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "94LSZb88jiyisPalDf0MBQw4bqg=",
+			"checksumSHA1": "Jx1DBVlKQEjBG5eC+yKbqaoPRxA=",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/native/system",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "rspuVKW0z48+dZZItDdhGUUFCLw=",
+			"checksumSHA1": "FBtu/1jAEgTV2u1VbpW2y6OQwKQ=",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/qemu",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "Ga8ZbEjWLMLXxCXNqWFhNKEtGBg=",
+			"checksumSHA1": "dgr9S/QxO4zqrMtY0hcnRaQOjUE=",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/qemu/image",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "c7jsfrbHbzZqF8qaARfni1hCAwE=",
+			"checksumSHA1": "cwhpBrgFRGoyCqB9GJBcP/Vi0wo=",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/qemu/metaservice",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "QfXauE9GwIcNVoIeOLZgcVI8p4Q=",
+			"checksumSHA1": "ElK6be51Vzowh0yIuIql4MyH/cw=",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/qemu/network",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "UpFmvqaLh0CUUFNI9Xu9xD47+1w=",
+			"checksumSHA1": "OtWNbHBQtjbtAnWW+CRzQjuTN1Q=",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/qemu/network/openvpn",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "kdfX2smRdmPeXUJoKe82VWEs7sk=",
+			"checksumSHA1": "+fsxhONg7EOhIAGWq/xvLA2r4a0=",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/qemu/vm",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "Fgwokr/0t9DCWAJ8U0+oreHcWfc=",
+			"checksumSHA1": "Zqn+kkybyenpuWmr9c8BiQkfy4E=",
 			"path": "github.com/taskcluster/taskcluster-worker/engines/script",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
@@ -864,25 +864,25 @@
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "vOVTXJ0yVvyx0KelT9IftE3Gm/4=",
+			"checksumSHA1": "HdTVdc1VbuHF2ACw446xmfWk3uY=",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/artifacts",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "pohH26coFOKZ0W5zs7/XOOaEwQ8=",
+			"checksumSHA1": "6Gp4tJymbhVVC18lq7sO1UGZOAE=",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/cache",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "eI/qBC3EbOKrNVHvAnyvEN6HQEc=",
+			"checksumSHA1": "6Gof5sEi1jlr6pgvmHTVskX/yOs=",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/env",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "vQ3EoK/lTSE+Y3tNYWF2/GSO4fo=",
+			"checksumSHA1": "G7rpk1X9qUbLgHd4J5dLVvdVvqw=",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/interactive",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
@@ -900,7 +900,7 @@
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "LpvpU4YpZxpbhktN5vt4HduKgBc=",
+			"checksumSHA1": "Bq1QeF8GxIKu5Nc4LTFqGpToAJU=",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/interactive/pty",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
@@ -918,97 +918,97 @@
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "58ZboJPTuFrs2NekAudBhcl2lBY=",
+			"checksumSHA1": "hCa1W1q6l6jsQ33LtHTZd18PBko=",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/livelog",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "nP8HP5BJlYLwKCgoJYNYZOq9hgo=",
+			"checksumSHA1": "DvTAj2yotkkvUsF17grn1MpuLV0=",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/logprefix",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "QR64HfDVVxbVqdK970tWy8xebsQ=",
+			"checksumSHA1": "OZgt7hZ3KTT+gqnUv1Eam3cDP+A=",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/maxruntime",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "qrEYDjP0XOY533vGCxQ+I1mbto0=",
+			"checksumSHA1": "cRhGX/agk4wFA4mHbdH5/ei8THM=",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/plugintest",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "Z5+XMUgt4xyOnFX0JfjSb+dBhrw=",
+			"checksumSHA1": "XTRSJMQJQaA+H7f9yYMhWuZFbZk=",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/reboot",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "hmgNhv9SLI3KIrmNJB27Ba/aQi0=",
+			"checksumSHA1": "SERd5r/saSeCi3cZvFChbVXAAH8=",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/stoponerror",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "E5LoCofL6OHrPZjkGdXx6ykkkZs=",
+			"checksumSHA1": "1Mfv0XtkcIAc8U5UY5shYXKAouY=",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/success",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "OHKS3ZCuP2BQhJJG5bPtpYnbCuY=",
+			"checksumSHA1": "5srSdlmfWMh878qZA9CdHH3rhsc=",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/tcproxy",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "fj7wrKfpERQZhaJQ7xepL5mGbho=",
+			"checksumSHA1": "+a5lnYgb/6tTS1wGujaVaN1QiYI=",
 			"path": "github.com/taskcluster/taskcluster-worker/plugins/watchdog",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "rBWUN4sCShV6hVv0WwmE9BkdCgs=",
+			"checksumSHA1": "r7loOESE95KwcyKhrTWHJpcp0Nw=",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "AKxvbFUgn4HNHQMHLwvtvgN+ve0=",
+			"checksumSHA1": "lgMjQ8leq4AubFEIN2UHPp+78VI=",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime/atomics",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "WoCIsjMSvmfGuR+w45wFZ2B+wj8=",
+			"checksumSHA1": "0mUqF3a0PBVZKBuXb6E+txm8JaY=",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime/caching",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "VR4ZQ0xdsydPvU/8+4Gv2jagvHQ=",
+			"checksumSHA1": "nIiVzXnxs1nQf1q7hNhW9z8jD5M=",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime/client",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "JlDtDKDzqfkEAaCuo4a00BlgxV4=",
+			"checksumSHA1": "0USDyCywG1xgI9LuZq8CiV2gDDQ=",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime/fetcher",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "n8WyvdIvTU4itdl/080bHqMPJr0=",
+			"checksumSHA1": "0fNiVAQ5v0S/WxiMIZk3gVHTjms=",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime/gc",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "MzRSxY5ImMcybOBL5vwuV3O4fRA=",
+			"checksumSHA1": "43BEbmZLKs9pP8ElOLKgzWEW9mY=",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime/ioext",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
@@ -1020,55 +1020,55 @@
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "v4htwa0QUR8KfrC+PyPd/MpqTLQ=",
+			"checksumSHA1": "iwTkVIA8piH94M/iJpos7dgKtqI=",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime/monitoring",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "yF9KiJ3nCxRGD/d4w87PTjz40SA=",
+			"checksumSHA1": "wD1IkYuan8rUXN4fOtAFPjjB0qY=",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime/util",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "xntRScldRwjSYfHnP1svF4Pmhwg=",
+			"checksumSHA1": "taKh1CLMpO8J/DrpBrs54aKJyv4=",
 			"path": "github.com/taskcluster/taskcluster-worker/runtime/webhookserver",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "wKhDfktXl8Ns1LBwNEHTX+3nHdM=",
+			"checksumSHA1": "y0upOLym6LhYqSWvMclLGiHQ/Tg=",
 			"path": "github.com/taskcluster/taskcluster-worker/test",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "m0TWcfsNg8/8Q/i3qetN6YEivcg=",
+			"checksumSHA1": "2C2oLJnVhblMqH4GdkQJ5Yw5NEc=",
 			"path": "github.com/taskcluster/taskcluster-worker/test/nativetest",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "s0QGcg96cqSKhKUkrUrjQN6VYpI=",
+			"checksumSHA1": "CVU+Z+aeGc1Rzh66XXJwVmVkxAM=",
 			"path": "github.com/taskcluster/taskcluster-worker/worker",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "fLLQf/APd9a4ySh5bdpioMO7270=",
+			"checksumSHA1": "GvgNCIrEirOeIiC5GV72G06MM3U=",
 			"path": "github.com/taskcluster/taskcluster-worker/worker/taskrun",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "nNKtWtU8l40UrturbOxQOgpNM8A=",
+			"checksumSHA1": "Aax0ING7ti9bnjxFc8RD671pesY=",
 			"path": "github.com/taskcluster/taskcluster-worker/worker/workertest",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
 		},
 		{
-			"checksumSHA1": "tNshpERlAZUvLNQObYcDE5g2aeM=",
+			"checksumSHA1": "JhNwYIcoHzJVxUa3F+pqIxa3a0I=",
 			"path": "github.com/taskcluster/taskcluster-worker/worker/workertest/fakequeue",
 			"revision": "42711799c16219bca31d53e4f503c65d8c41ce0c",
 			"revisionTime": "2018-03-04T14:41:16Z"
