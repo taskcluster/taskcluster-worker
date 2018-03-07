@@ -11,8 +11,15 @@ GO_VERSION := $(shell go version 2>/dev/null | cut -f3 -d' ')
 GO_MAJ := $(shell echo "$(GO_VERSION)" | cut -f1 -d'.')
 GO_MIN := $(shell echo "$(GO_VERSION)" | cut -f2 -d'.')
 
+
+HOST_OS := $(shell uname -s)
+HOST_ARCH := $(shell uname -p)
+is_darwin := $(filter Darwin,$(HOST_OS))
+is_armv7l := $(filter armv7l,$(HOST_ARCH))
+CGO_ENABLE := $(if $(is_darwin),1,0)
+RACE_ENABLE := $(if $(is_armv7l),,-race)
+
 uname := $(shell uname)
-CGO_ENABLED := 1
 LDFLAGS := "-X github.com/taskcluster/taskcluster-worker/commands/version.version=`git tag -l 'v*.*.*' --points-at HEAD | head -n1` \
 						-X github.com/taskcluster/taskcluster-worker/commands/version.revision=`git rev-parse HEAD`"
 
@@ -45,7 +52,7 @@ check: test
 test:
 	# should run with -tags=system at some point..... i.e.:
 	# go test -tags=system -v -race $$(go list ./... | grep -v /vendor/)
-	CGO_ENABLED=$(CGO_ENABLED) go test -v -race $$(go list ./... | grep -v /vendor/)
+	CGO_ENABLED=$(CGO_ENABLED) go test -v $(RACE_ENABLE) $$(go list ./... | grep -v /vendor/)
 
 dev-test:
 	CGO_ENABLED=$(CGO_ENABLED) go test -race $$(go list ./... | grep -v /vendor/)

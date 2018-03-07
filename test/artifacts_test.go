@@ -3,11 +3,10 @@
 package test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -19,36 +18,223 @@ import (
 	_ "github.com/taskcluster/taskcluster-worker/plugins/livelog"
 )
 
-func TestUpload(t *testing.T) {
-	t.Skip(`Test case is broken because native engine runs with $HOME as cwd,
-		and extracts artifacts relative to cwd. In fact it doesn't even allow
-		export of artifacts outside of cwd == $HOME.`)
-	if runtime.GOOS == "windows" {
-		t.Skip("Currently not supported on Windows")
+func validateArtifacts(t *testing.T, testName string, payloadArtifacts []PayloadArtifact, expected []Artifact) {
+
+	expires := tcclient.Time(time.Now().Add(time.Minute * 30))
+	for i := range payloadArtifacts {
+		payloadArtifacts[i].Expires = expires
 	}
+	for i := range expected {
+		expected[i].Expires = expires
+	}
+
+	payload := TaskPayload{
+		Command:    copyArtifact("SampleArtifacts"),
+		MaxRunTime: 30,
+		Artifacts:  payloadArtifacts,
+	}
+
+	task, workerType := NewTestTask(testName)
+
+	taskID, q := SubmitTask(t, task, payload)
+	RunTestWorker(workerType, 1)
+	resp, err := q.ListArtifacts(taskID, "0", "", "")
+	if err != nil {
+		t.Fatal("Error retrieving artifact metadata from queue")
+	}
+
+	// compare expected vs actual artifacts by converting artifacts to strings...
+	a := make([]Artifact, len(resp.Artifacts))
+	for i := range resp.Artifacts {
+		a[i] = Artifact(resp.Artifacts[i])
+	}
+	if fmt.Sprintf("%#v", a) != fmt.Sprintf("%#v", expected) {
+		t.Fatalf("Expected different artifacts to be generated...\nExpected:\n%#v\nActual:\n%#v", expected, a)
+	}
+}
+
+// See the testdata/SampleArtifacts subdirectory of this project. This
+// simulates adding it as a directory artifact in a task payload, and checks
+// that all files underneath this directory are discovered and created as s3
+// artifacts.
+func TestDirectoryArtifacts(t *testing.T) {
+
+	validateArtifacts(t, "TestDirectoryArtifacts",
+
+		// what appears in task payload
+		[]PayloadArtifact{{
+			Name: "SampleArtifacts",
+			Path: "SampleArtifacts",
+			Type: "directory",
+		}},
+
+		// what we expect to discover on file system
+		[]Artifact{
+			{
+				StorageType: "s3",
+				Name:        "SampleArtifacts/%%%/v/X",
+				ContentType: "application/octet-stream",
+			},
+			{
+				StorageType: "s3",
+				Name:        "SampleArtifacts/_/X.txt",
+				ContentType: "text/plain; charset=utf-8",
+			},
+			{
+				StorageType: "s3",
+				Name:        "SampleArtifacts/b/c/d.jpg",
+				ContentType: "image/jpeg",
+			},
+		},
+	)
+}
+
+// Task payload specifies a file artifact which doesn't exist on worker
+func TestMissingFileArtifact(t *testing.T) {
+
+	validateArtifacts(t, "TestMissingFileArtifact",
+
+		// what appears in task payload
+		[]PayloadArtifact{{
+			Name: "TestMissingFileArtifact/no_such_file",
+			Path: "TestMissingFileArtifact/no_such_file",
+			Type: "file",
+		}},
+
+		// what we expect to discover on file system
+		[]Artifact{
+			{
+				StorageType: "error",
+				Name:        "TestMissingFileArtifact/no_such_file",
+				// Message:     "Could not read file '" + filepath.Join(taskContext.TaskDir, "TestMissingFileArtifact", "no_such_file") + "'",
+				// Reason:      "file-missing-on-worker",
+			},
+		},
+	)
+}
+
+// Task payload specifies a directory artifact which doesn't exist on worker
+func TestMissingDirectoryArtifact(t *testing.T) {
+
+	validateArtifacts(t, "TestMissingDirectoryArtifact",
+
+		// what appears in task payload
+		[]PayloadArtifact{{
+			Name: "TestMissingDirectoryArtifact/no_such_dir",
+			Path: "TestMissingDirectoryArtifact/no_such_dir",
+			Type: "directory",
+		}},
+
+		// what we expect to discover on file system
+		[]Artifact{
+			{
+				StorageType: "error",
+				Name:        "TestMissingDirectoryArtifact/no_such_dir",
+				// Message: "Could not read directory '" + filepath.Join(taskContext.TaskDir, "TestMissingDirectoryArtifact", "no_such_dir") + "'",
+				// Reason:  "file-missing-on-worker",
+			},
+		},
+	)
+}
+
+// Task payload specifies a file artifact which is actually a directory on worker
+func TestFileArtifactIsDirectory(t *testing.T) {
+
+	validateArtifacts(t, "TestFileArtifactIsDirectory",
+
+		// what appears in task payload
+		[]PayloadArtifact{{
+			Name: "SampleArtifacts/b/c",
+			Path: "SampleArtifacts/b/c",
+			Type: "file",
+		}},
+
+		// what we expect to discover on file system
+		[]Artifact{
+			{
+				StorageType: "error",
+				Name:        "SampleArtifacts/b/c",
+				// Message: "File artifact '" + filepath.Join(taskContext.TaskDir, "SampleArtifacts", "b", "c") + "' exists as a directory, not a file, on the worker",
+				// Reason:  "invalid-resource-on-worker",
+			},
+		},
+	)
+}
+
+// Task payload specifies a directory artifact which is a regular file on worker
+func TestDirectoryArtifactIsFile(t *testing.T) {
+
+	validateArtifacts(t, "TestDirectoryArtifactIsFile",
+
+		// what appears in task payload
+		[]PayloadArtifact{{
+			Name: "SampleArtifacts/b/c/d.jpg",
+			Path: "SampleArtifacts/b/c/d.jpg",
+			Type: "directory",
+		}},
+
+		// what we expect to discover on file system
+		[]Artifact{
+			{
+				StorageType: "error",
+				Name:        "SampleArtifacts/b/c/d.jpg",
+				// Message: "Directory artifact '" + filepath.Join(taskContext.TaskDir, "SampleArtifacts", "b", "c", "d.jpg") + "' exists as a file, not a directory, on the worker",
+				// Reason:  "invalid-resource-on-worker",
+			},
+		},
+	)
+}
+
+func TestMissingArtifactFailsTest(t *testing.T) {
+
+	expires := tcclient.Time(time.Now().Add(time.Minute * 30))
+
+	payload := TaskPayload{
+		Command:    helloGoodbye(),
+		MaxRunTime: 30,
+		Artifacts: []PayloadArtifact{
+			{
+				Expires: expires,
+				Name:    "public/pretend/artifact",
+				Path:    "Nonexistent/art i fact.txt",
+				Type:    "file",
+			},
+		},
+	}
+
+	task, workerType := NewTestTask("TestMissingArtifactFailsTest")
+
+	taskID, q := SubmitTask(t, task, payload)
+	RunTestWorker(workerType, 1)
+	status, err := q.Status(taskID)
+	if err != nil {
+		t.Fatal("Error retrieving status from queue")
+	}
+	if status.Status.State != "failed" {
+		t.Fatalf("Expected state 'failed' but got state '%v'", status.Status.State)
+	}
+}
+
+func TestUpload(t *testing.T) {
 
 	expires := tcclient.Time(time.Now().Add(time.Minute * 30))
 
 	task, workerType := NewTestTask("TestUpload")
 	payload := TaskPayload{
-		Command: helloGoodbye(),
-		Artifacts: []struct {
-			Expires tcclient.Time `json:"expires,omitempty"`
-			Name    string        `json:"name"`
-			Path    string        `json:"path"`
-			Type    string        `json:"type"`
-		}{
+		Command: copyArtifact("SampleArtifacts/_/X.txt"),
+		Artifacts: []PayloadArtifact{
 			{
 				Expires: expires,
 				Name:    "SampleArtifacts/_/X.txt",
-				Path:    filepath.Join(testdata, "SampleArtifacts/_/X.txt"),
+				Path:    "SampleArtifacts/_/X.txt",
 				Type:    "file",
 			},
 		},
+		MaxRunTime: 30,
 	}
 	taskID, q := SubmitTask(t, task, payload)
 	t.Logf("Task ID: %v", taskID)
-	RunTestWorker(workerType)
+	RunTestWorker(workerType, 1)
 
 	// now check results
 	// some required substrings - not all, just a selection
@@ -59,16 +245,14 @@ func TestUpload(t *testing.T) {
 	}{
 		"public/logs/live_backing.log": {
 			extracts: []string{
-				"hello world!",
-				"goodbye world!",
+				"copying file(s)",
 			},
 			contentEncoding: "gzip",
 			expires:         task.Expires,
 		},
 		"public/logs/live.log": {
 			extracts: []string{
-				"hello world!",
-				"goodbye world!",
+				"copying file",
 			},
 			contentEncoding: "gzip",
 			expires:         task.Expires,
