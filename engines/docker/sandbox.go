@@ -2,9 +2,12 @@ package dockerengine
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/pkg/errors"
+	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
@@ -18,48 +21,94 @@ type sandbox struct {
 	engines.SandboxBase
 	monitor     runtime.Monitor
 	containerID string
+	networkID   string
 	resultSet   engines.ResultSet
 	resultErr   error
 	abortErr    error
-	tempStorage runtime.TemporaryFolder
+	storage     runtime.TemporaryFolder
 	resolve     atomics.Once
 	client      *docker.Client
 	taskCtx     *runtime.TaskContext
-	handle      *caching.Handle
+	imageHandle *caching.Handle
 }
 
 func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
-	// create the container
-	opts := docker.CreateContainerOptions{
-		Config: sb.generateDockerConfig(),
-	}
+	monitor := sb.monitor.WithTag("struct", "sandbox")
 
-	container, err := sb.e.client.CreateContainer(opts)
+	// Create an isolated network
+	network, err := sb.e.client.CreateNetwork(docker.CreateNetworkOptions{
+		Name:     slugid.Nice(),
+		Driver:   "bridge",
+		Internal: false,
+		Labels: map[string]string{
+			"taskId": sb.taskCtx.TaskID,
+		},
+	})
+	if err != nil {
+		// Any error here is a fatal error
+		return nil, errors.Wrap(err, "docker.CreateNetwork failed")
+	}
+	networkID := network.ID
+
+	// Inspect network to get the IP assigned
+	network, err = sb.e.client.NetworkInfo(networkID)
+	if err != nil {
+		// Any error here is a fatal error
+		return nil, errors.Wrap(err, "docker.CreateNetwork failed")
+	}
+	// The gateway is the IP of the host machine, we to insert that has hostname "taskcluster"
+	// so that proxy calls gets forwarded
+	gateway := network.IPAM.Config[0].Gateway
+
+	// Create the container
+	container, err := sb.e.client.CreateContainer(docker.CreateContainerOptions{
+		Config: &docker.Config{
+			Cmd:          sb.command,
+			Image:        buildImageName(sb.image.Repository, sb.image.Tag),
+			Env:          *sb.env,
+			AttachStdout: true,
+			AttachStderr: true,
+			Labels: map[string]string{
+				"taskId": sb.taskCtx.TaskID,
+			},
+		},
+		HostConfig: &docker.HostConfig{
+			ExtraHosts: []string{fmt.Sprintf("taskcluster:%s", gateway)},
+		},
+		NetworkingConfig: &docker.NetworkingConfig{
+			EndpointsConfig: map[string]*docker.EndpointConfig{
+				networkID: &docker.EndpointConfig{},
+			},
+		},
+	})
 	if err != nil {
 		return nil, runtime.NewMalformedPayloadError(
 			"could not create container: " + err.Error())
 	}
 
 	// create a temporary storage for use by resultSet
-	ts, err := sb.e.Environment.TemporaryStorage.NewFolder()
+	storage, err := sb.e.Environment.TemporaryStorage.NewFolder()
 	if err != nil {
-		// unsure if this is the correct error type to return
-		return nil, runtime.NewMalformedPayloadError(
-			"could not create temporary storage")
+		monitor.ReportError(err, "failed to create temporary folder")
+		return nil, runtime.ErrFatalInternalError
 	}
-	sbox := &sandbox{
+	s := &sandbox{
 		containerID: container.ID,
-		tempStorage: ts,
+		networkID:   networkID,
+		storage:     storage,
 		client:      sb.e.client,
 		taskCtx:     sb.taskCtx,
-		handle:      sb.handle,
-		monitor:     sb.monitor.WithPrefix("docker-sandbox").WithTag("taskID", sb.taskCtx.TaskID),
+		imageHandle: sb.handle,
+		monitor: monitor.WithTags(map[string]string{
+			"containerId": container.ID,
+			"networkId":   networkID,
+		}),
 	}
 
 	// attach to the container before starting so that we get all the logs
-	_, err = sbox.client.AttachToContainerNonBlocking(docker.AttachToContainerOptions{
+	_, err = s.client.AttachToContainerNonBlocking(docker.AttachToContainerOptions{
 		Container:    container.ID,
-		OutputStream: ioext.WriteNopCloser(sbox.taskCtx.LogDrain()),
+		OutputStream: ioext.WriteNopCloser(s.taskCtx.LogDrain()), // TODO: wait for close() before resolving task in s.wait()
 		Logs:         true,
 		Stdout:       true,
 		Stderr:       true,
@@ -68,14 +117,14 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 
 	// HostConfig is ignored by the remote API and is only kept for
 	// backward compatibility.
-	err = sbox.client.StartContainer(sbox.containerID, &docker.HostConfig{})
+	err = s.client.StartContainer(s.containerID, &docker.HostConfig{})
 	if err != nil {
 		return nil, runtime.ErrFatalInternalError
 	}
 
-	go sbox.wait()
+	go s.wait()
 
-	return sbox, nil
+	return s, nil
 }
 
 func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
@@ -86,11 +135,21 @@ func (s *sandbox) WaitForResult() (engines.ResultSet, error) {
 func (s *sandbox) wait() {
 	exitCode, err := s.client.WaitContainer(s.containerID)
 	s.resolve.Do(func() {
-		s.resultSet = newResultSet(exitCode == 0, s.containerID, s.client,
-			s.tempStorage, s.handle, s.monitor.WithPrefix("result-set"))
 		if err != nil {
-			s.resultSet = newResultSet(false, s.containerID, s.client, s.tempStorage,
-				s.handle, s.monitor.WithPrefix("result-set"))
+			incidentID := s.monitor.ReportError(err, "docker.WaitContainer failed")
+			s.taskCtx.LogError("internal error waiting for container, incidentId:", incidentID)
+			s.resultErr = runtime.ErrNonFatalInternalError
+			s.abortErr = engines.ErrSandboxTerminated
+			return
+		}
+		s.resultSet = &resultSet{
+			success:     exitCode == 0,
+			containerID: s.containerID,
+			networkID:   s.networkID,
+			client:      s.client,
+			monitor:     s.monitor.WithTag("struct", "resultSet"),
+			storage:     s.storage,
+			imageHandle: s.imageHandle,
 		}
 		s.abortErr = engines.ErrSandboxTerminated
 	})
@@ -103,8 +162,15 @@ func (s *sandbox) Kill() error {
 
 		// Create resultSet
 		if s.resultErr == nil {
-			s.resultSet = newResultSet(false, s.containerID, s.client,
-				s.tempStorage, s.handle, s.monitor.WithPrefix("result-set"))
+			s.resultSet = &resultSet{
+				success:     false,
+				containerID: s.containerID,
+				networkID:   s.networkID,
+				client:      s.client,
+				monitor:     s.monitor.WithTag("struct", "resultSet"),
+				storage:     s.storage,
+				imageHandle: s.imageHandle,
+			}
 			s.abortErr = engines.ErrSandboxTerminated
 		} else {
 			s.dispose()
@@ -186,14 +252,22 @@ func (s *sandbox) dispose() error {
 	})
 	if err != nil {
 		s.monitor.ReportError(err, "failed to remove container in disposal of sandbox")
+		hasErr = true
 	}
 
 	// Free image handle
-	s.handle.Release()
+	s.imageHandle.Release()
 
 	// Remove temporary storage
-	if err = s.tempStorage.Remove(); err != nil {
+	if err = s.storage.Remove(); err != nil {
 		s.monitor.ReportError(err, "failed to remove temporary storage in disposal of sandbox")
+		hasErr = true
+	}
+
+	// Remove the network
+	if err = s.client.RemoveNetwork(s.networkID); err != nil {
+		s.monitor.ReportError(err, "failed to remove network")
+		hasErr = true
 	}
 
 	// If ErrNonFatalInternalError if there was an error of any kind
