@@ -46,18 +46,6 @@ func newSandboxBuilder(payload *payloadType, e *engine, monitor runtime.Monitor,
 	return sb
 }
 
-func (sb *sandboxBuilder) generateDockerConfig() *docker.Config {
-	image := buildImageName(sb.image.Repository, sb.image.Tag)
-	conf := &docker.Config{
-		Cmd:          sb.command,
-		Image:        image,
-		Env:          *sb.env,
-		AttachStdout: true,
-		AttachStderr: true,
-	}
-	return conf
-}
-
 func (sb *sandboxBuilder) asyncFetchImage(ctx caching.Context) {
 	handle, err := sb.e.cache.Require(ctx, sb.image)
 	if handle != nil {
