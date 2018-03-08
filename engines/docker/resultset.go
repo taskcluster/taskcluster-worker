@@ -18,22 +18,11 @@ type resultSet struct {
 	engines.ResultSetBase
 	success     bool
 	containerID string
+	networkID   string
 	client      *docker.Client
 	monitor     runtime.Monitor
-	tempStorage runtime.TemporaryFolder
-	handle      *caching.Handle
-}
-
-func newResultSet(success bool, containerID string, client *docker.Client,
-	ts runtime.TemporaryFolder, handle *caching.Handle, monitor runtime.Monitor) *resultSet {
-	return &resultSet{
-		success:     success,
-		containerID: containerID,
-		client:      client,
-		tempStorage: ts,
-		handle:      handle,
-		monitor:     monitor,
-	}
+	storage     runtime.TemporaryFolder
+	imageHandle *caching.Handle
 }
 
 func (r *resultSet) Success() bool {
@@ -69,7 +58,7 @@ func (r *resultSet) ExtractFile(path string) (ioext.ReadSeekCloser, error) {
 		return nil, runtime.ErrNonFatalInternalError
 	}
 
-	tempfile, err := r.tempStorage.NewFile()
+	tempfile, err := r.storage.NewFile()
 	if err != nil {
 		monitor.ReportError(err, "could not create temporary file")
 		return nil, runtime.ErrNonFatalInternalError
@@ -126,7 +115,7 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 		fname := strings.TrimPrefix(hdr.Name, strip)
 		m := monitor.WithTag("filename", fname)
 
-		tempfile, err := r.tempStorage.NewFile()
+		tempfile, err := r.storage.NewFile()
 		if err != nil {
 			m.ReportError(err, "could not create temporary file")
 			continue
@@ -155,37 +144,54 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 }
 
 func (r *resultSet) Dispose() error {
-	if r.tempStorage != nil {
-		err := r.tempStorage.Remove()
-		if err != nil {
-			r.monitor.ReportWarning(err, "could not remove temporary storage")
-		}
-	}
-	if r.handle != nil {
-		r.handle.Release()
-	}
-	return r.client.RemoveContainer(docker.RemoveContainerOptions{
+	hasErr := false
+
+	// Remove the container
+	err := r.client.RemoveContainer(docker.RemoveContainerOptions{
 		ID:    r.containerID,
 		Force: true,
 	})
+	if err != nil {
+		r.monitor.ReportError(err, "failed to remove container in disposal of resultSet")
+		hasErr = true
+	}
+
+	// Free image handle
+	r.imageHandle.Release()
+
+	// Remove temporary storage
+	if err = r.storage.Remove(); err != nil {
+		r.monitor.ReportError(err, "failed to remove temporary storage in disposal of resultSet")
+		hasErr = true
+	}
+
+	// Remove the network
+	if err = r.client.RemoveNetwork(r.networkID); err != nil {
+		r.monitor.ReportError(err, "failed to remove network")
+		hasErr = true
+	}
+
+	// If ErrNonFatalInternalError if there was an error of any kind
+	if hasErr {
+		return runtime.ErrNonFatalInternalError
+	}
+	return nil
 }
 
 func (r *resultSet) extractFromContainer(path string) (runtime.TemporaryFile, error) {
-	if r.tempStorage == nil {
+	if r.storage == nil {
 		return nil, engines.ErrResourceNotFound
 	}
-	tempfile, err := r.tempStorage.NewFile()
+	tempfile, err := r.storage.NewFile()
 	if err != nil {
 		return nil, runtime.ErrNonFatalInternalError
 	}
 
-	opts := docker.DownloadFromContainerOptions{
+	err = r.client.DownloadFromContainer(r.containerID, docker.DownloadFromContainerOptions{
 		OutputStream:      tempfile,
 		Path:              path,
 		InactivityTimeout: 5 * time.Second,
-	}
-
-	err = r.client.DownloadFromContainer(r.containerID, opts)
+	})
 	if err != nil {
 		_ = tempfile.Close()
 		return nil, engines.ErrResourceNotFound
