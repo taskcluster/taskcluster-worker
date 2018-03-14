@@ -144,7 +144,7 @@ var credentialsSchema schematypes.Schema = schematypes.Object{
 		"clientId": schematypes.String{
 			Title:       "ClientId",
 			Description: `ClientId for credentials`,
-			Pattern:     `^[A-Za-z0-9@/:._|-]+$`,
+			Pattern:     `^[A-Za-z0-9!@/:.+|_-]+$`,
 		},
 		"accessToken": schematypes.String{
 			Title:       "AccessToken",
