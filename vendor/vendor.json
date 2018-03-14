@@ -366,10 +366,10 @@
 			"revisionTime": "2017-02-22T01:37:00Z"
 		},
 		{
-			"checksumSHA1": "dK3vEsrwRHwQbmlEmIIGzlZm29I=",
+			"checksumSHA1": "lbsOyFAjyMWGUZ3ojfwDX9+vkU0=",
 			"path": "github.com/taskcluster/taskcluster-client-go",
-			"revision": "0adb988569ffd40f68ed3422835325cfb03581c5",
-			"revisionTime": "2017-07-06T18:25:07Z"
+			"revision": "f4b173df515b37b5ca3598b5ca5155322de703cf",
+			"revisionTime": "2018-03-12T21:23:01Z"
 		},
 		{
 			"checksumSHA1": "DA5jpMoJqpZr+pBnZpZtG+FYSzo=",
