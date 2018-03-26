@@ -22,7 +22,18 @@ var configSchema = schematypes.Object{
 			Title: "Command to Execute",
 			Description: util.Markdown(`
 				Script and arguments to execute. This script will be fed
-				a JSON string that matches the schema configured over stdin.
+				a JSON string that matches the schema configured over 'stdin'.
+
+				Output from the script over 'stdout' will be uploaded as task log.
+				Output from the script over 'stderr' will be prefixed "[worker:error]"
+				and merged with task log.
+				The script will be executed with a temporary folder as
+				_working directory_, this folder can be used for temporary storage and
+				will be cleared between tasks. Files and folder stored in './artifacts/'
+				relative to the _working directory_ will be uploaded as artifacts from
+				the script. Hence, to make a public tar-ball artifact you create
+				'./artifact/public/my-build.tar.gz' which will be uploaded as an
+				artifact named 'public/my-build.tar.gz'.
 			`),
 			Items: schematypes.String{},
 		},
