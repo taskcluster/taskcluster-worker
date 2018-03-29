@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	raven "github.com/getsentry/raven-go"
 	"github.com/pborman/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/taskcluster/statsum"
 	"github.com/taskcluster/taskcluster-worker/commands/version"
 	"github.com/taskcluster/taskcluster-worker/runtime"
