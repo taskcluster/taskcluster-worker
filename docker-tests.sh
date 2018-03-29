@@ -9,7 +9,7 @@ ARGS="$ARGS -v `pwd`/.bash_history:/root/.bash_history";
 ARGS="$ARGS -v `pwd`:/go/src/github.com/taskcluster/taskcluster-worker/";
 ARGS="$ARGS taskcluster/tc-worker-env";
 
-TAGS='qemu network system native';
+TAGS='qemu network system native docker';
 
 if [[ "$@" == go\ * ]]; then
   docker run $ARGS "$@";
