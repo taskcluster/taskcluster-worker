@@ -9,6 +9,7 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/engines/docker/network"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/caching"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
@@ -16,13 +17,13 @@ import (
 
 type resultSet struct {
 	engines.ResultSetBase
-	success     bool
-	containerID string
-	networkID   string
-	client      *docker.Client
-	monitor     runtime.Monitor
-	storage     runtime.TemporaryFolder
-	imageHandle *caching.Handle
+	success       bool
+	containerID   string
+	docker        *docker.Client
+	monitor       runtime.Monitor
+	storage       runtime.TemporaryFolder
+	imageHandle   *caching.Handle
+	networkHandle *network.Handle
 }
 
 func (r *resultSet) Success() bool {
@@ -147,7 +148,7 @@ func (r *resultSet) Dispose() error {
 	hasErr := false
 
 	// Remove the container
-	err := r.client.RemoveContainer(docker.RemoveContainerOptions{
+	err := r.docker.RemoveContainer(docker.RemoveContainerOptions{
 		ID:    r.containerID,
 		Force: true,
 	})
@@ -165,11 +166,8 @@ func (r *resultSet) Dispose() error {
 		hasErr = true
 	}
 
-	// Remove the network
-	if err = r.client.RemoveNetwork(r.networkID); err != nil {
-		r.monitor.ReportError(err, "failed to remove network")
-		hasErr = true
-	}
+	// Release the network
+	r.networkHandle.Release()
 
 	// If ErrNonFatalInternalError if there was an error of any kind
 	if hasErr {
@@ -187,8 +185,8 @@ func (r *resultSet) extractFromContainer(path string) (runtime.TemporaryFile, er
 		return nil, runtime.ErrNonFatalInternalError
 	}
 
-	err = r.client.DownloadFromContainer(r.containerID, docker.DownloadFromContainerOptions{
-		OutputStream:      tempfile,
+	err = r.docker.DownloadFromContainer(r.containerID, docker.DownloadFromContainerOptions{
+		OutputStream:      tempfile, //TODO: Use io.Pipe() and read as the input is streamed
 		Path:              path,
 		InactivityTimeout: 5 * time.Second,
 	})

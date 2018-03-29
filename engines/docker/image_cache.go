@@ -64,7 +64,7 @@ func (im *imageResource) Dispose() error {
 
 func imageConstructor(ctx caching.Context, opts interface{}) (caching.Resource, error) {
 	options := opts.(imageType)
-	client := options.engine.client
+	client := options.engine.docker
 	monitor := options.engine.monitor.WithPrefix("image-cache").WithTag("image", buildImageName(options.Repository, options.Tag))
 
 	// TODO: Use outputstream to write progress
@@ -84,7 +84,7 @@ func imageConstructor(ctx caching.Context, opts interface{}) (caching.Resource, 
 	image, err := client.InspectImage(buildImageName(options.Repository, options.Tag))
 	if err != nil {
 		monitor.ReportError(err, "error inspecting image")
-		debug("error inspecting image %v")
+		debug("error inspecting image")
 	}
 	size := uint64(0)
 	if image != nil {

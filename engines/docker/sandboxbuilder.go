@@ -2,6 +2,7 @@ package dockerengine
 
 import (
 	"context"
+	"net/http"
 	"regexp"
 	"sync"
 
@@ -13,18 +14,19 @@ import (
 
 type sandboxBuilder struct {
 	engines.SandboxBuilderBase
-	command    []string
-	image      imageType
-	imageDone  chan struct{}
-	imageError error
-	monitor    runtime.Monitor
-	e          *engine
-	env        *docker.Env
-	taskCtx    *runtime.TaskContext
-	discarded  bool
-	cancelPull context.CancelFunc
-	mu         sync.Mutex
-	handle     *caching.Handle
+	m           sync.Mutex
+	command     []string
+	image       imageType
+	imageDone   chan struct{}
+	imageError  error
+	monitor     runtime.Monitor
+	e           *engine
+	proxies     map[string]http.Handler
+	env         *docker.Env
+	taskCtx     *runtime.TaskContext
+	discarded   bool
+	cancelPull  context.CancelFunc
+	imageHandle *caching.Handle
 }
 
 func newSandboxBuilder(payload *payloadType, e *engine, monitor runtime.Monitor,
@@ -49,7 +51,7 @@ func newSandboxBuilder(payload *payloadType, e *engine, monitor runtime.Monitor,
 func (sb *sandboxBuilder) asyncFetchImage(ctx caching.Context) {
 	handle, err := sb.e.cache.Require(ctx, sb.image)
 	if handle != nil {
-		sb.handle = handle
+		sb.imageHandle = handle
 	}
 	sb.imageError = err
 	select {
@@ -68,10 +70,39 @@ func (sb *sandboxBuilder) SetEnvironmentVariable(name string, value string) erro
 			envVarPattern.String(),
 		)
 	}
+
+	// Acquire the lock
+	sb.m.Lock()
+	defer sb.m.Unlock()
+
 	if sb.env.Exists(name) {
 		return engines.ErrNamingConflict
 	}
 	sb.env.Set(name, value)
+	return nil
+}
+
+var proxyNamePattern = regexp.MustCompile("^[a-zA-Z0-9_-]+$")
+
+func (sb *sandboxBuilder) AttachProxy(hostname string, handler http.Handler) error {
+	// Validate hostname against allowed patterns
+	if !proxyNamePattern.MatchString(hostname) {
+		return runtime.NewMalformedPayloadError("Proxy hostname: '", hostname, "'",
+			" is not allowed for docker engine. The hostname must match: ",
+			proxyNamePattern.String())
+	}
+
+	// Acquire the lock
+	sb.m.Lock()
+	defer sb.m.Unlock()
+
+	// Check that the hostname isn't already in use
+	if _, ok := sb.proxies[hostname]; ok {
+		return engines.ErrNamingConflict
+	}
+
+	// Otherwise set the handler
+	sb.proxies[hostname] = handler
 	return nil
 }
 
@@ -84,25 +115,25 @@ func (sb *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
 			"'.",
 		)
 	}
-	sb.mu.Lock()
+	sb.m.Lock()
 	if sb.discarded {
-		sb.mu.Unlock()
+		sb.m.Unlock()
 		return nil, engines.ErrSandboxBuilderDiscarded
 	}
-	sb.mu.Unlock()
+	sb.m.Unlock()
 	return newSandbox(sb)
 }
 
 func (sb *sandboxBuilder) Discard() error {
-	sb.mu.Lock()
-	defer sb.mu.Unlock()
+	sb.m.Lock()
+	defer sb.m.Unlock()
 
 	sb.discarded = true
 	sb.cancelPull()
 	// imageDone chan will be closed by asyncFetchImage
 	<-sb.imageDone
-	if sb.handle != nil {
-		sb.handle.Release()
+	if sb.imageHandle != nil {
+		sb.imageHandle.Release()
 	}
 	return nil
 }

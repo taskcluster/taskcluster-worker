@@ -16,7 +16,7 @@ type proxyErrorPayload struct {
 	Message string `json:"message"`
 }
 
-func (p proxyErrorPayload) MarshalJSON() []byte {
+func (p proxyErrorPayload) MustMarshalJSON() []byte {
 	data, err := json.MarshalIndent(p, "", "  ")
 	if err != nil {
 		panic(errors.Wrap(err, "json.MarshalIndent on proxyErrorPayload"))
@@ -54,7 +54,7 @@ func (p *proxyMux) writeInvalidServiceRequest(w http.ResponseWriter, originalPat
 		Message: "Requests to `http://taskcluster` must be on the form `http://taskcluster/<name>/<path>` " +
 			"where `<name>` is a service you want to hit. This container has the following services: " +
 			string(servicesJSON),
-	}.MarshalJSON())
+	}.MustMarshalJSON())
 }
 
 func (p *proxyMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {

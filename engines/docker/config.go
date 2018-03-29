@@ -13,9 +13,10 @@ var configSchema = schematypes.Object{
 	Properties: schematypes.Properties{
 		"dockerSocket": schematypes.String{
 			Title: "Docker Socket",
-			Description: util.Markdown(`Path to the docker socket hosting the remote docker API.
-			
-			If not given the default value 'unix:///var/run/docker.sock' will be used.
+			Description: util.Markdown(`
+				Path to the docker socket hosting the remote docker API.
+
+				If not given the default value 'unix:///var/run/docker.sock' will be used.
 			`),
 		},
 	},

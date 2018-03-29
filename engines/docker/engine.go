@@ -1,24 +1,23 @@
 package dockerengine
 
 import (
-	"sync"
-
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/pkg/errors"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/engines/docker/network"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/caching"
 )
 
 type engine struct {
 	engines.EngineBase
-	m           sync.Mutex
 	Environment *runtime.Environment
-	client      *docker.Client
+	docker      *docker.Client
 	monitor     runtime.Monitor
 	config      configType
-	running     int
 	cache       *caching.Cache
+	networks    *network.Pool
 }
 
 type engineProvider struct {
@@ -37,22 +36,24 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 	debug("docker engineProvider.NewEngine()")
 	var c configType
 	schematypes.MustValidateAndMap(configSchema, options.Config, &c)
+
 	if c.DockerSocket == "" {
-		c.DockerSocket = "unix:///var/run/docker.sock"
+		c.DockerSocket = "unix:///var/run/docker.sock" // default docker socket
 	}
 
+	// Create docker client
 	client, err := docker.NewClient(c.DockerSocket)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to connect to docker socket at: %s", c.DockerSocket)
 	}
 
 	return &engine{
 		config:      c,
-		client:      client,
+		docker:      client,
 		Environment: options.Environment,
 		monitor:     options.Monitor,
 		cache:       caching.New(imageConstructor, true, options.Environment.GarbageCollector),
-		running:     0,
+		networks:    network.NewPool(client, options.Monitor.WithPrefix("network-pool")),
 	}, nil
 }
 
@@ -83,15 +84,16 @@ func (e *engine) PayloadSchema() schematypes.Object {
 func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {
 	var p payloadType
 	schematypes.MustValidateAndMap(payloadSchema, options.Payload, &p)
-	e.m.Lock()
-	defer e.m.Unlock()
-	// if e.maxConcurrency == e.running {
-	// 	return nil, engines.ErrMaxConcurrencyExceeded
-	// }
-	// e.running += 1
+
 	return newSandboxBuilder(&p, e, e.Environment.Monitor, options.TaskContext), nil
 }
 
 func (e *engine) Dispose() error {
+	// Dispose network.Pool
+	err := e.networks.Dispose()
+	if err != nil {
+		return errors.Wrap(err, "failed to dispose network.Pool")
+	}
+
 	return nil
 }

@@ -4,8 +4,6 @@ import (
 	"os"
 	"testing"
 
-	"time"
-
 	"github.com/taskcluster/taskcluster-worker/engines/enginetest"
 )
 
@@ -28,12 +26,6 @@ func TestMain(m *testing.M) {
 		result = m.Run()
 	}()
 	os.Exit(result)
-}
-
-func logTime(t *testing.T, name string, f func()) {
-	start := time.Now()
-	f()
-	t.Log(name, ": ", time.Since(start))
 }
 
 func TestLogging(t *testing.T) {
@@ -63,10 +55,7 @@ func TestLogging(t *testing.T) {
 		}`,
 	}
 
-	// c.Test()
-	logTime(t, "TestLogTarget", c.TestLogTarget)
-	logTime(t, "TestLogTargetWhenFailing", c.TestLogTargetWhenFailing)
-	logTime(t, "TestSilentTask", c.TestSilentTask)
+	c.Test()
 }
 
 func TestKill(t *testing.T) {
@@ -82,8 +71,7 @@ func TestKill(t *testing.T) {
 		}`,
 	}
 
-	logTime(t, "TestKill", c.Test)
-	// c.Test()
+	c.Test()
 }
 
 func TestEnvironmentVariables(t *testing.T) {
@@ -102,13 +90,7 @@ func TestEnvironmentVariables(t *testing.T) {
 		}`,
 	}
 
-	logTime(t, "TestPrintVariable", c.TestPrintVariable)
-	// c.TestPrintVariable()
-	logTime(t, "TestVariableNameConflict", c.TestVariableNameConflict)
-	// c.TestVariableNameConflict()
-	logTime(t, "TestInvalidVariableNames", c.TestInvalidVariableNames)
-	// c.TestInvalidVariableNames()
-	// c.Test()
+	c.Test()
 }
 
 func TestArtifacts(t *testing.T) {
@@ -132,15 +114,5 @@ func TestArtifacts(t *testing.T) {
 		}`,
 	}
 
-	logTime(t, "TestExtractTextFile", c.TestExtractTextFile)
-	// c.TestExtractTextFile()
-	logTime(t, "TestExtractFileNotFound", c.TestExtractFileNotFound)
-	// c.TestExtractFileNotFound()
-	logTime(t, "TestExtractFolderNotFound", c.TestExtractFolderNotFound)
-	// c.TestExtractFolderNotFound()
-	logTime(t, "TestExtractNestedFolderPath", c.TestExtractNestedFolderPath)
-	// c.TestExtractNestedFolderPath()
-	logTime(t, "TestExtractFolderHandlerInterrupt", c.TestExtractFolderHandlerInterrupt)
-	// c.TestExtractFolderHandlerInterrupt()
-	// c.Test()
+	c.Test()
 }
