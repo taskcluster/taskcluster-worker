@@ -21,7 +21,7 @@ encourages tracking of resources which helps prevent leaks.
 
 The general flow of how the `Engine` abstractions are called when a task is
 processed is outlined in the diagram below:
-![engine-flow](engine-flow.svg)
+![engine-flow](./engine-flow.svg)
 
 
 Building a Sandbox

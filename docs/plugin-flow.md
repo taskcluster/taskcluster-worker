@@ -19,7 +19,7 @@ life-cycle.
 
 The general flow of how the `Plugin` abstractions are called when a task is
 processed is outlined in the diagram below:
-![plugin-flow](plugin-flow.svg)
+![plugin-flow](./plugin-flow.svg)
 
 
 Implementing Task features
