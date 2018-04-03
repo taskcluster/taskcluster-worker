@@ -20,12 +20,14 @@ type Constructor func(ctx Context, options interface{}) (Resource, error)
 // the option of being an exclusive or shared-cache, meaning if resources may be
 // re-used before they are released.
 type Cache struct {
-	m           sync.Mutex
-	shared      bool
-	entries     []*cacheEntry
-	constructor Constructor
-	tracker     gc.ResourceTracker
-	cachehit    runtime.Monitor
+	m               sync.Mutex
+	shared          bool
+	entries         []*cacheEntry
+	constructor     Constructor
+	tracker         gc.ResourceTracker
+	cachehit        runtime.Monitor
+	constructortime runtime.Monitor
+	countCachehits  float64
 }
 
 // New returns a Cache wrapping constructor such that resources
@@ -33,10 +35,12 @@ type Cache struct {
 // options, if shared is set to true. Otherwise, resources are exclusive.
 func New(constructor Constructor, shared bool, tracker gc.ResourceTracker, monitor runtime.Monitor) *Cache {
 	return &Cache{
-		constructor: constructor,
-		tracker:     tracker,
-		shared:      shared,
-		cachehit:    monitor.WithPrefix("cache-hit"),
+		constructor:     constructor,
+		tracker:         tracker,
+		shared:          shared,
+		cachehit:        monitor.WithPrefix("cache-hit"),
+		constructortime: monitor.WithPrefix("creation-time"),
+		countCachehits:  0,
 	}
 }
 
@@ -93,7 +97,8 @@ func (c *Cache) Require(ctx Context, options interface{}) (*Handle, error) {
 
 		// Take the entry
 		debug("cache entry '%s' found in cache, refCount: %d", optionsHash, e.refCount+1)
-		c.monitor.prefix["cache-hit"].Count("counter-1", 1)
+		c.countCachehits++
+		c.cachehit.Count("count cache-hit", c.countCachehits)
 		entry = e
 		e.refCount++
 		e.m.Unlock()
@@ -115,9 +120,14 @@ func (c *Cache) Require(ctx Context, options interface{}) (*Handle, error) {
 		c.entries = append(c.entries, entry)
 
 		go entry.created.Do(func() {
-			defer entry.ctx.dispose() // ensure resources are cleanup when constructor is done
+			defer entry.ctx.dispose()
+			// ensure resources are cleanup when constructor is done
 
-			entry.resource, entry.err = c.constructor(entry.ctx, options)
+			c.constructortime.Time("constructor-creation-time", func() {
+				entry.resource, entry.err = c.constructor(entry.ctx, options)
+			})
+			//metric to give creation time of constructor
+
 			if entry.err != nil {
 				// Set the entry to be purged, so others will ignore it
 				entry.m.Lock()
