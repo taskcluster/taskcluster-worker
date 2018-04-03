@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
 
@@ -24,16 +25,18 @@ type Cache struct {
 	entries     []*cacheEntry
 	constructor Constructor
 	tracker     gc.ResourceTracker
+	cachehit    runtime.Monitor
 }
 
 // New returns a Cache wrapping constructor such that resources
 // returned from Require are shared between all calls to Require with the same
 // options, if shared is set to true. Otherwise, resources are exclusive.
-func New(constructor Constructor, shared bool, tracker gc.ResourceTracker) *Cache {
+func New(constructor Constructor, shared bool, tracker gc.ResourceTracker, monitor runtime.Monitor) *Cache {
 	return &Cache{
 		constructor: constructor,
 		tracker:     tracker,
 		shared:      shared,
+		cachehit:    monitor.WithPrefix("cache-hit"),
 	}
 }
 
@@ -90,6 +93,7 @@ func (c *Cache) Require(ctx Context, options interface{}) (*Handle, error) {
 
 		// Take the entry
 		debug("cache entry '%s' found in cache, refCount: %d", optionsHash, e.refCount+1)
+		c.monitor.prefix["cache-hit"].Count("counter-1", 1)
 		entry = e
 		e.refCount++
 		e.m.Unlock()
