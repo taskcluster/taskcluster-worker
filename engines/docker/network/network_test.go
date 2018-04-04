@@ -29,25 +29,29 @@ func TestNetwork(t *testing.T) {
 
 	var n *Network
 	// Test creation of network
-	debug("New()")
-	n, err = New(client, mocks.NewMockMonitor(false))
-	require.NoError(t, err, "failed to create *Network")
+	t.Run("New()", func(t *testing.T) {
+		n, err = New(client, mocks.NewMockMonitor(false))
+		require.NoError(t, err, "failed to create *Network")
+		require.NotNil(t, n)
 
-	// Set network handler
-	n.SetHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
+		// Set network handler
+		n.SetHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+	})
 
 	// Test lack of access from wrong IP
-	debug("http.Get from gateway (error expected in debug log)")
-	r, rerr := http.Get(fmt.Sprintf("http://%s", n.Gateway()))
-	require.NoError(t, rerr, "failed to request gateway")
-	defer r.Body.Close()
-	assert.Equal(t, http.StatusInternalServerError, r.StatusCode,
-		"expected 500 because we're not requesting from a docker container")
+	t.Run("http.Get from gateway (error expected in debug log)", func(t *testing.T) {
+		r, rerr := http.Get(fmt.Sprintf("http://%s", n.Gateway()))
+		require.NoError(t, rerr, "failed to request gateway")
+		defer r.Body.Close()
+		assert.Equal(t, http.StatusInternalServerError, r.StatusCode,
+			"expected 500 because we're not requesting from a docker container")
+	})
 
 	// Test that we can cleanup
-	debug("Dispose()")
-	err = n.Dispose()
-	assert.NoError(t, err, "failed to dispose network")
+	t.Run("Dispose()", func(t *testing.T) {
+		err = n.Dispose()
+		assert.NoError(t, err, "failed to dispose network")
+	})
 }
