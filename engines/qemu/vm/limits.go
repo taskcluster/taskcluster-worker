@@ -40,7 +40,7 @@ var MachineLimitsSchema = schematypes.Object{
 				This is the product of 'threads', 'cores' and 'sockets' as specified
 				in the machine definition 'machine.json'. If the virtual machine image
 				does not specify CPU requires it will be given
-        'maxCPUs / defaultThreads' number of cores in a single socket.
+				'maxCPUs / defaultThreads' number of cores in a single socket.
 			`),
 			Minimum: 1,
 			Maximum: 255, // Maximum allowed by QEMU
