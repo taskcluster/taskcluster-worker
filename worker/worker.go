@@ -212,8 +212,11 @@ func (w *Worker) Start() error {
 			WorkerID:    w.options.WorkerID,
 			Tasks:       int64(N),
 		})
-		if err == context.Canceled {
-			break // if canceled we stop gracefully
+		if err != nil && w.lifeCycleTracker.StoppingGracefully.IsDone() {
+			// NOTE: err == context.Canceled || err == context.DeadlineExceeded
+			//       Should also work once taskcluster-client-go returns the context.Err()
+			//       See PR: https://github.com/taskcluster/taskcluster-client-go/pull/31
+			break // if canceled we stop gracefully (we don't care to report such an error)
 		}
 		if err != nil {
 			w.monitor.ReportError(err, "failed to ClaimWork")
