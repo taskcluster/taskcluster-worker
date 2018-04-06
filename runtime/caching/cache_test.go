@@ -7,11 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/taskcluster/taskcluster-worker/runtime"
-
 	"github.com/stretchr/testify/require"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
+	"github.com/taskcluster/taskcluster-worker/runtime/monitoring"
 )
 
 type opts struct {
@@ -104,8 +103,8 @@ func (c *mockctx) Progress(description string, percent float64) {
 
 func TestSharedCache(t *testing.T) {
 	var tr tracker
-	var monitor runtime.Monitor
-	c := New(constructor, true, &tr, monitor)
+	m := monitoring.NewLoggingMonitor("info", map[string]string{}, "taskcluster-worker")
+	c := New(constructor, true, &tr, m)
 	require.Equal(t, 0, len(tr.resources), "expected zero resources")
 
 	t.Run("single resource", func(t *testing.T) {
@@ -301,8 +300,8 @@ func TestSharedCache(t *testing.T) {
 
 func TestExclusiveCache(t *testing.T) {
 	var tr tracker
-	var monitor runtime.Monitor
-	c := New(constructor, false, &tr, monitor)
+	m := monitoring.NewLoggingMonitor("info", map[string]string{}, "taskcluster-worker")
+	c := New(constructor, false, &tr, m)
 	require.Equal(t, 0, len(tr.resources), "expected zero resources")
 
 	t.Run("single resource", func(t *testing.T) {
