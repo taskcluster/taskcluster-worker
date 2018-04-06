@@ -27,13 +27,24 @@ var configSchema = schematypes.Object{
 				Output from the script over 'stdout' will be uploaded as task log.
 				Output from the script over 'stderr' will be prefixed "[worker:error]"
 				and merged with task log.
+
 				The script will be executed with a temporary folder as
 				_working directory_, this folder can be used for temporary storage and
-				will be cleared between tasks. Files and folder stored in './artifacts/'
-				relative to the _working directory_ will be uploaded as artifacts from
+				will be cleared between tasks.
+
+				Files and folder stored in './artifacts/' relative to the
+				_working directory_ will be uploaded as artifacts from
 				the script. Hence, to make a public tar-ball artifact you create
 				'./artifact/public/my-build.tar.gz' which will be uploaded as an
 				artifact named 'public/my-build.tar.gz'.
+
+				Exit codes from the script will be intepreted as follows:
+				 * '0', task was executed successfully,
+				 * '1', task was executed but failed,
+				 * '2', task payload was not permitted, errors should be printed to stderr,
+				 * '3', script had a non-fatal error, task is resolved exception
+				 * '4', script had a fatal error, task is resolved exception, and
+				   the worker crashes.
 			`),
 			Items: schematypes.String{},
 		},
