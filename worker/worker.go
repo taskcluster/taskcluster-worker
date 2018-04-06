@@ -402,7 +402,8 @@ func (w *Worker) processClaim(claim taskClaim) {
 			debug("queue.reclaimTask(%s, %d)", claim.Status.TaskID, claim.RunID)
 			result, err := q.ReclaimTask(claim.Status.TaskID, runID)
 			if err != nil {
-				if e, ok := err.(httpbackoff.BadHttpResponseCode); ok && e.HttpResponseCode == 409 {
+				if e, ok := err.(*tcclient.APICallException); ok && e.CallSummary.HTTPResponse.StatusCode == 409 {
+					debug("queue.reclaimTask(%s, %d) -> 409, task was canceled")
 					run.Abort(taskrun.TaskCanceled)
 					return
 				}
@@ -647,12 +648,14 @@ func asClientCredentials(c struct {
 // StopNow aborts current tasks resolving worker-shutdown, and causes Work()
 // to return an error.
 func (w *Worker) StopNow() {
+	debug("Worker.StopNow() called")
 	w.lifeCycleTracker.StopNow()
 }
 
 // StopGracefully stops claiming new tasks and returns nil from Work() when
 // all currently running tasks are done.
 func (w *Worker) StopGracefully() {
+	debug("Worker.StopGracefully() called")
 	w.lifeCycleTracker.StopGracefully()
 }
 
