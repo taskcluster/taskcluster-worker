@@ -64,7 +64,7 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 		},
 		NetworkingConfig: &docker.NetworkingConfig{
 			EndpointsConfig: map[string]*docker.EndpointConfig{
-				networkHandle.NetworkID(): &docker.EndpointConfig{},
+				networkHandle.NetworkID(): {},
 			},
 		},
 	})
@@ -101,12 +101,15 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 		Stderr:       true,
 		Stream:       true,
 	})
+	if err != nil {
+		return nil, errors.Wrap(err, "docker.AttachToContainerNonBlocking() failed")
+	}
 
 	// HostConfig is ignored by the remote API and is only kept for
 	// backward compatibility.
 	err = s.docker.StartContainer(s.containerID, &docker.HostConfig{})
 	if err != nil {
-		return nil, runtime.ErrFatalInternalError
+		return nil, errors.Wrap(err, "docker.StartContainer failed")
 	}
 
 	go s.wait()

@@ -5,9 +5,9 @@ import (
 )
 
 type imageType struct {
-	Repository string  `json:"repository"`
-	Tag        string  `json:"tag"`
-	engine     *engine `json:"-"`
+	Repository string `json:"repository"`
+	Tag        string `json:"tag"`
+	engine     *engine
 }
 
 var imageSchema = schematypes.Object{
