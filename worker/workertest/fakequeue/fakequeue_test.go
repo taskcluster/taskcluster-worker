@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/taskcluster/slugid-go/slugid"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
-	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 )
 
 const (
@@ -21,12 +21,12 @@ func TestFakeQueueWithClaimWork(t *testing.T) {
 	s := httptest.NewServer(New())
 	defer s.Close()
 
-	q := queue.New(&tcclient.Credentials{})
+	q := tcqueue.New(&tcclient.Credentials{})
 	q.BaseURL = s.URL
 
 	debug("### Creating task")
 	taskID := slugid.Nice()
-	task := queue.TaskDefinitionRequest{
+	task := tcqueue.TaskDefinitionRequest{
 		ProvisionerID: testProvisionerID,
 		WorkerType:    testWorkerType,
 		Created:       tcclient.Time(time.Now()),
@@ -41,7 +41,7 @@ func TestFakeQueueWithClaimWork(t *testing.T) {
 	assert.NoError(t, err, "failed to create task")
 
 	debug("### Claim work")
-	claims, err := q.ClaimWork(testProvisionerID, testWorkerType, &queue.ClaimWorkRequest{
+	claims, err := q.ClaimWork(testProvisionerID, testWorkerType, &tcqueue.ClaimWorkRequest{
 		Tasks:       5,
 		WorkerGroup: "test-worker-group",
 		WorkerID:    "test-worker-42",
@@ -77,12 +77,12 @@ func TestFakeQueueWithClaimTask(t *testing.T) {
 	s := httptest.NewServer(New())
 	defer s.Close()
 
-	q := queue.New(&tcclient.Credentials{})
+	q := tcqueue.New(&tcclient.Credentials{})
 	q.BaseURL = s.URL
 
 	debug("### Creating task")
 	taskID := slugid.Nice()
-	task := queue.TaskDefinitionRequest{
+	task := tcqueue.TaskDefinitionRequest{
 		ProvisionerID: testProvisionerID,
 		WorkerType:    testWorkerType,
 		Created:       tcclient.Time(time.Now()),
@@ -97,7 +97,7 @@ func TestFakeQueueWithClaimTask(t *testing.T) {
 	assert.NoError(t, err, "failed to create task")
 
 	debug("### Claim work")
-	claim, err := q.ClaimTask(taskID, "0", &queue.TaskClaimRequest{
+	claim, err := q.ClaimTask(taskID, "0", &tcqueue.TaskClaimRequest{
 		WorkerGroup: "test-worker-group",
 		WorkerID:    "test-worker-42",
 	})

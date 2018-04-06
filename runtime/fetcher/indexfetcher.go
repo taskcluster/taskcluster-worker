@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/httpbackoff"
-	tcindex "github.com/taskcluster/taskcluster-client-go/index"
+	"github.com/taskcluster/taskcluster-client-go/tcindex"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 

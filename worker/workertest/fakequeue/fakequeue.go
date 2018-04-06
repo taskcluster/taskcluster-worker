@@ -11,7 +11,7 @@ import (
 	"time"
 
 	tcclient "github.com/taskcluster/taskcluster-client-go"
-	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 )
 
@@ -46,16 +46,16 @@ func New() *FakeQueue {
 }
 
 type task struct {
-	status    queue.TaskStatusStructure
-	task      queue.TaskDefinitionResponse
+	status    tcqueue.TaskStatusStructure
+	task      tcqueue.TaskDefinitionResponse
 	artifacts []map[string]artifact
 }
 
-type run struct { // as defined in queue.TaskStatusStructure.Runs
+type run struct { // as defined in tcqueue.TaskStatusStructure.Runs
 	ReasonCreated  string        `json:"reasonCreated"`
 	ReasonResolved string        `json:"reasonResolved,omitempty"`
 	Resolved       tcclient.Time `json:"resolved,omitempty"`
-	RunID          int           `json:"runId"`
+	RunID          int64         `json:"runId"`
 	Scheduled      tcclient.Time `json:"scheduled"`
 	Started        tcclient.Time `json:"started,omitempty"`
 	State          string        `json:"state"`
@@ -120,12 +120,12 @@ func (q *FakeQueue) task(taskID string) interface{} {
 
 func (q *FakeQueue) status(taskID string) interface{} {
 	if t, ok := q.tasks[taskID]; ok {
-		return queue.TaskStatusResponse{Status: t.status}
+		return tcqueue.TaskStatusResponse{Status: t.status}
 	}
 	return resourceNotFoundError
 }
 
-func (q *FakeQueue) createTask(taskID string, payload *queue.TaskDefinitionRequest) interface{} {
+func (q *FakeQueue) createTask(taskID string, payload *tcqueue.TaskDefinitionRequest) interface{} {
 	def := setTaskDefaults(taskID, payload)
 
 	// check that dependencies have been created
@@ -142,7 +142,7 @@ func (q *FakeQueue) createTask(taskID string, payload *queue.TaskDefinitionReque
 	// Handle case where the task exists
 	if t, ok := q.tasks[taskID]; ok {
 		if isJSONEqual(t.task, def) {
-			return queue.TaskStatusResponse{Status: t.status}
+			return tcqueue.TaskStatusResponse{Status: t.status}
 		}
 		return restError{
 			StatusCode: http.StatusConflict,
@@ -154,7 +154,7 @@ func (q *FakeQueue) createTask(taskID string, payload *queue.TaskDefinitionReque
 	// Insert task in database
 	q.tasks[taskID] = &task{
 		task: def,
-		status: queue.TaskStatusStructure{
+		status: tcqueue.TaskStatusStructure{
 			Deadline:      def.Deadline,
 			Expires:       def.Expires,
 			ProvisionerID: def.ProvisionerID,
@@ -169,7 +169,7 @@ func (q *FakeQueue) createTask(taskID string, payload *queue.TaskDefinitionReque
 	// Schedule all tasks ready to be scheduled
 	reconcileTasks(q.tasks)
 
-	return queue.TaskStatusResponse{Status: q.tasks[taskID].status}
+	return tcqueue.TaskStatusResponse{Status: q.tasks[taskID].status}
 }
 
 func (q *FakeQueue) cancelTask(taskID string) interface{} {
@@ -209,12 +209,12 @@ func (q *FakeQueue) cancelTask(taskID string) interface{} {
 		}
 	}
 
-	return queue.TaskStatusResponse{Status: t.status}
+	return tcqueue.TaskStatusResponse{Status: t.status}
 }
 
-func (q *FakeQueue) claimWork(provisionerID, workerType string, payload *queue.ClaimWorkRequest, w http.ResponseWriter) interface{} {
+func (q *FakeQueue) claimWork(provisionerID, workerType string, payload *tcqueue.ClaimWorkRequest, w http.ResponseWriter) interface{} {
 	var finished atomics.Once
-	var result queue.ClaimWorkResponse
+	var result tcqueue.ClaimWorkResponse
 	go func() {
 		q.m.Lock()
 		defer q.m.Unlock()
@@ -245,15 +245,15 @@ func (q *FakeQueue) claimWork(provisionerID, workerType string, payload *queue.C
 						Certificate string `json:"certificate"`
 						ClientID    string `json:"clientId"`
 					} `json:"credentials"`
-					RunID       int                          `json:"runId"`
-					Status      queue.TaskStatusStructure    `json:"status"`
-					TakenUntil  tcclient.Time                `json:"takenUntil"`
-					Task        queue.TaskDefinitionResponse `json:"task"`
-					WorkerGroup string                       `json:"workerGroup"`
-					WorkerID    string                       `json:"workerId"`
+					RunID       int64                          `json:"runId"`
+					Status      tcqueue.TaskStatusStructure    `json:"status"`
+					TakenUntil  tcclient.Time                  `json:"takenUntil"`
+					Task        tcqueue.TaskDefinitionResponse `json:"task"`
+					WorkerGroup string                         `json:"workerGroup"`
+					WorkerID    string                         `json:"workerId"`
 				}{
 					Credentials: fakeCredentials,
-					RunID:       runID,
+					RunID:       int64(runID),
 					Status:      t.status,
 					TakenUntil:  t.status.Runs[runID].TakenUntil,
 					Task:        t.task,
@@ -262,7 +262,7 @@ func (q *FakeQueue) claimWork(provisionerID, workerType string, payload *queue.C
 				})
 
 				// Stop looping through tasks if we have enough
-				if len(result.Tasks) >= payload.Tasks {
+				if len(result.Tasks) >= int(payload.Tasks) {
 					break
 				}
 			}
@@ -298,7 +298,7 @@ func (q *FakeQueue) claimWork(provisionerID, workerType string, payload *queue.C
 	return result
 }
 
-func (q *FakeQueue) claimTask(taskID string, runID int, payload *queue.TaskClaimRequest) interface{} {
+func (q *FakeQueue) claimTask(taskID string, runID int, payload *tcqueue.TaskClaimRequest) interface{} {
 	t, ok := q.tasks[taskID]
 	if !ok || len(t.status.Runs) <= runID {
 		return resourceNotFoundError
@@ -328,9 +328,9 @@ func (q *FakeQueue) claimTask(taskID string, runID int, payload *queue.TaskClaim
 	t.status.Runs[runID].State = statusRunning
 	t.status.State = statusRunning
 
-	return queue.TaskClaimResponse{
+	return tcqueue.TaskClaimResponse{
 		Credentials: fakeCredentials,
-		RunID:       runID,
+		RunID:       int64(runID),
 		Status:      t.status,
 		TakenUntil:  t.status.Runs[runID].TakenUntil,
 		Task:        t.task,
@@ -357,9 +357,9 @@ func (q *FakeQueue) reclaimTask(taskID string, runID int) interface{} {
 	// Update takenUntil
 	t.status.Runs[runID].TakenUntil = tcclient.Time(time.Now().Add(5 * time.Minute))
 
-	return queue.TaskReclaimResponse{
+	return tcqueue.TaskReclaimResponse{
 		Credentials: fakeCredentials,
-		RunID:       runID,
+		RunID:       int64(runID),
 		Status:      t.status,
 		TakenUntil:  t.status.Runs[runID].TakenUntil,
 		WorkerGroup: t.status.Runs[runID].WorkerGroup,
@@ -375,7 +375,7 @@ func (q *FakeQueue) reportCompleted(taskID string, runID int) interface{} {
 
 	// If completed we do nothing, idempontent requests allowed
 	if t.status.Runs[runID].State == statusCompleted {
-		return queue.TaskStatusResponse{Status: t.status}
+		return tcqueue.TaskStatusResponse{Status: t.status}
 	}
 
 	// if not running we have a conflict
@@ -393,7 +393,7 @@ func (q *FakeQueue) reportCompleted(taskID string, runID int) interface{} {
 	t.status.Runs[runID].Resolved = tcclient.Time(time.Now())
 	t.status.State = statusCompleted
 
-	return queue.TaskStatusResponse{Status: t.status}
+	return tcqueue.TaskStatusResponse{Status: t.status}
 }
 
 func (q *FakeQueue) reportFailed(taskID string, runID int) interface{} {
@@ -404,7 +404,7 @@ func (q *FakeQueue) reportFailed(taskID string, runID int) interface{} {
 
 	// If failed we do nothing, idempontent requests allowed
 	if t.status.Runs[runID].State == statusFailed {
-		return queue.TaskStatusResponse{Status: t.status}
+		return tcqueue.TaskStatusResponse{Status: t.status}
 	}
 
 	// if not running we have a conflict
@@ -422,10 +422,10 @@ func (q *FakeQueue) reportFailed(taskID string, runID int) interface{} {
 	t.status.Runs[runID].Resolved = tcclient.Time(time.Now())
 	t.status.State = statusFailed
 
-	return queue.TaskStatusResponse{Status: t.status}
+	return tcqueue.TaskStatusResponse{Status: t.status}
 }
 
-func (q *FakeQueue) reportException(taskID string, runID int, payload *queue.TaskExceptionRequest) interface{} {
+func (q *FakeQueue) reportException(taskID string, runID int, payload *tcqueue.TaskExceptionRequest) interface{} {
 	t, ok := q.tasks[taskID]
 	if !ok || len(t.status.Runs) <= runID {
 		return resourceNotFoundError
@@ -434,7 +434,7 @@ func (q *FakeQueue) reportException(taskID string, runID int, payload *queue.Tas
 	// If completed we do nothing, idempontent requests allowed
 	if t.status.Runs[runID].State == statusException &&
 		t.status.Runs[runID].ReasonResolved == payload.Reason {
-		return queue.TaskStatusResponse{Status: t.status}
+		return tcqueue.TaskStatusResponse{Status: t.status}
 	}
 
 	// if not running we have a conflict
@@ -461,7 +461,7 @@ func (q *FakeQueue) reportException(taskID string, runID int, payload *queue.Tas
 		}
 		t.status.Runs = append(t.status.Runs, run{
 			ReasonCreated: reason,
-			RunID:         len(t.status.Runs),
+			RunID:         int64(len(t.status.Runs)),
 			Scheduled:     tcclient.Time(time.Now()),
 			State:         statusPending,
 		})
@@ -469,7 +469,7 @@ func (q *FakeQueue) reportException(taskID string, runID int, payload *queue.Tas
 		t.status.State = statusPending
 	}
 
-	return queue.TaskStatusResponse{Status: t.status}
+	return tcqueue.TaskStatusResponse{Status: t.status}
 }
 
 func (q *FakeQueue) createArtifact(taskID string, runID int, name string, payload []byte, r *http.Request) interface{} {
@@ -601,7 +601,7 @@ func (q *FakeQueue) listArtifacts(taskID string, runID int) interface{} {
 		return resourceNotFoundError
 	}
 
-	var result queue.ListArtifactsResponse
+	var result tcqueue.ListArtifactsResponse
 	for name, a := range t.artifacts[runID] {
 		result.Artifacts = append(result.Artifacts, struct {
 			ContentType string        `json:"contentType"`
@@ -636,8 +636,8 @@ func (q *FakeQueue) pendingTasks(provisionerID, workerType string) interface{} {
 		}
 	}
 
-	return queue.CountPendingTasksResponse{
-		PendingTasks:  count,
+	return tcqueue.CountPendingTasksResponse{
+		PendingTasks:  int64(count),
 		ProvisionerID: provisionerID,
 		WorkerType:    workerType,
 	}
@@ -693,7 +693,7 @@ func (q *FakeQueue) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// PUT  /task/<taskId>
 	if m := patternCreateTask.FindStringSubmatch(p); len(m) > 0 && r.Method == http.MethodPut {
 		debug(" -> queue.createTask(%s, ...)", m[1])
-		var payload queue.TaskDefinitionRequest
+		var payload tcqueue.TaskDefinitionRequest
 		if err := json.Unmarshal(data, &payload); err != nil {
 			reply(w, r, invalidJSONPayloadError)
 			return
@@ -720,7 +720,7 @@ func (q *FakeQueue) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if m := patternClaimTask.FindStringSubmatch(p); len(m) > 0 && r.Method == http.MethodPost {
 		runID, _ := strconv.Atoi(m[2])
 		debug(" -> queue.claimTask(%s, %d)", m[1], runID)
-		var payload queue.TaskClaimRequest
+		var payload tcqueue.TaskClaimRequest
 		if err := json.Unmarshal(data, &payload); err != nil {
 			reply(w, r, invalidJSONPayloadError)
 			return
@@ -756,7 +756,7 @@ func (q *FakeQueue) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// POST /task/<taskId>/runs/<runId>/exception
 	if m := patternReportException.FindStringSubmatch(p); len(m) > 0 && r.Method == http.MethodPost {
 		runID, _ := strconv.Atoi(m[2])
-		var payload queue.TaskExceptionRequest
+		var payload tcqueue.TaskExceptionRequest
 		if err := json.Unmarshal(data, &payload); err != nil {
 			reply(w, r, invalidJSONPayloadError)
 			return
@@ -815,7 +815,7 @@ func (q *FakeQueue) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// POST /claim-work/<provisionerId>/<workerType>
 	if m := patternClaimWork.FindStringSubmatch(p); len(m) > 0 && r.Method == http.MethodPost {
 		debug(" -> queue.claimWork(%s, %s, ...)", m[1], m[2])
-		var payload queue.ClaimWorkRequest
+		var payload tcqueue.ClaimWorkRequest
 		if err := json.Unmarshal(data, &payload); err != nil {
 			reply(w, r, invalidJSONPayloadError)
 			return

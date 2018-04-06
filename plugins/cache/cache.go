@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	schematypes "github.com/taskcluster/go-schematypes"
-	"github.com/taskcluster/taskcluster-client-go/purgecache"
+	"github.com/taskcluster/taskcluster-client-go/tcpurgecache"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -189,7 +189,7 @@ func (p *plugin) PurgeCacheAsNeeded(ctx *runtime.TaskContext) {
 	requestTime := time.Now()
 
 	// Fetch purge-cache requests since last time purged
-	purgeCache := purgecache.New(nil)
+	purgeCache := tcpurgecache.New(nil)
 	if p.config.PurgeCacheBaseURL != "" {
 		purgeCache.BaseURL = p.config.PurgeCacheBaseURL
 	}

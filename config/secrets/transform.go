@@ -13,7 +13,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/taskcluster/taskcluster-client-go"
-	"github.com/taskcluster/taskcluster-client-go/secrets"
+	"github.com/taskcluster/taskcluster-client-go/tcsecrets"
 	"github.com/taskcluster/taskcluster-worker/config"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
@@ -38,11 +38,11 @@ func (provider) Transform(cfg map[string]interface{}, monitor runtime.Monitor) e
 	}
 
 	// Create a secrets client
-	s := secrets.New(creds)
+	secrets := tcsecrets.New(creds)
 
 	// Overwrite the baseUrl for secrets if one is given
 	if baseURL, _ := cfg["secretsBaseUrl"].(string); baseURL != "" {
-		s.BaseURL = baseURL
+		secrets.BaseURL = baseURL
 	}
 
 	// Create a cache to avoid loading the same secret twice, we use the same
@@ -59,7 +59,7 @@ func (provider) Transform(cfg map[string]interface{}, monitor runtime.Monitor) e
 		// If secret isn't in the cache we try to load it
 		if _, ok := cache[name]; !ok {
 			monitor.Infof("Fetching secret '%s'", name)
-			secret, err := s.Get(name)
+			secret, err := secrets.Get(name)
 			if err != nil {
 				return nil, err
 			}

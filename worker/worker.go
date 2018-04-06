@@ -13,8 +13,8 @@ import (
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/httpbackoff"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
-	"github.com/taskcluster/taskcluster-client-go/auth"
-	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/taskcluster-client-go/tcauth"
+	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/plugins"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -52,7 +52,7 @@ func New(config interface{}) (w *Worker, err error) {
 	schematypes.MustValidateAndMap(ConfigSchema(), config, &c)
 
 	// Create monitor
-	a := auth.New(&c.Credentials)
+	a := tcauth.New(&c.Credentials)
 	if c.AuthBaseURL != "" {
 		a.BaseURL = c.AuthBaseURL
 	}
@@ -207,10 +207,10 @@ func (w *Worker) Start() error {
 		// Claim tasks
 		N := w.options.Concurrency - w.activeTasks.Value()
 		debug("queue.claimWork(%s, %s) with capacity: %d", w.options.ProvisionerID, w.options.WorkerType, N)
-		claims, err := w.queue.ClaimWork(w.options.ProvisionerID, w.options.WorkerType, &queue.ClaimWorkRequest{
+		claims, err := w.queue.ClaimWork(w.options.ProvisionerID, w.options.WorkerType, &tcqueue.ClaimWorkRequest{
 			WorkerGroup: w.options.WorkerGroup,
 			WorkerID:    w.options.WorkerID,
-			Tasks:       N,
+			Tasks:       int64(N),
 		})
 		if err == context.Canceled {
 			break // if canceled we stop gracefully
@@ -275,24 +275,24 @@ func (w *Worker) Start() error {
 	return nil
 }
 
-// anonymous struct from queue.ClaimWorkResponse.Tasks
+// anonymous struct from tcqueue.ClaimWorkResponse.Tasks
 type taskClaim struct {
 	Credentials struct {
 		AccessToken string `json:"accessToken"`
 		Certificate string `json:"certificate"`
 		ClientID    string `json:"clientId"`
 	} `json:"credentials"`
-	RunID       int                          `json:"runId"`
-	Status      queue.TaskStatusStructure    `json:"status"`
-	TakenUntil  tcclient.Time                `json:"takenUntil"`
-	Task        queue.TaskDefinitionResponse `json:"task"`
-	WorkerGroup string                       `json:"workerGroup"`
-	WorkerID    string                       `json:"workerId"`
+	RunID       int64                          `json:"runId"`
+	Status      tcqueue.TaskStatusStructure    `json:"status"`
+	TakenUntil  tcclient.Time                  `json:"takenUntil"`
+	Task        tcqueue.TaskDefinitionResponse `json:"task"`
+	WorkerGroup string                         `json:"workerGroup"`
+	WorkerID    string                         `json:"workerId"`
 }
 
 // Utility function to create a queue client object
 func (w *Worker) newQueueClient(ctx context.Context, creds *tcclient.Credentials) client.Queue {
-	q := queue.New(creds)
+	q := tcqueue.New(creds)
 	if w.queueBaseURL != "" {
 		q.BaseURL = w.queueBaseURL
 	}
@@ -330,7 +330,7 @@ func (w *Worker) processClaim(claim taskClaim) {
 	// Create monitor for this task
 	monitor := w.monitor.WithTags(map[string]string{
 		"taskId": claim.Status.TaskID,
-		"runId":  strconv.Itoa(claim.RunID),
+		"runId":  strconv.Itoa(int(claim.RunID)),
 	})
 	monitor.Info("starting to process task")
 	defer monitor.Info("done processing task")
@@ -361,7 +361,7 @@ func (w *Worker) processClaim(claim taskClaim) {
 		Payload:       payload,
 		TaskInfo: runtime.TaskInfo{
 			TaskID:   claim.Status.TaskID,
-			RunID:    claim.RunID,
+			RunID:    int(claim.RunID),
 			Created:  time.Time(claim.Task.Created),
 			Deadline: time.Time(claim.Task.Deadline),
 			Expires:  time.Time(claim.Task.Expires),
@@ -376,7 +376,7 @@ func (w *Worker) processClaim(claim taskClaim) {
 	)
 
 	// runId as string for use in requests
-	runID := strconv.Itoa(claim.RunID)
+	runID := strconv.Itoa(int(claim.RunID))
 
 	// Start reclaiming
 	stopReclaiming := make(chan struct{})
@@ -433,7 +433,7 @@ func (w *Worker) processClaim(claim taskClaim) {
 	var err error
 	if exception {
 		if reason != runtime.ReasonCanceled {
-			_, err = q.ReportException(claim.Status.TaskID, runID, &queue.TaskExceptionRequest{
+			_, err = q.ReportException(claim.Status.TaskID, runID, &tcqueue.TaskExceptionRequest{
 				Reason: reason.String(),
 			})
 		}
@@ -530,7 +530,7 @@ func (w *Worker) superseding(claim taskClaim) (taskClaim, func()) {
 		if runID < 0 || s.Status.Runs[runID].State != "pending" {
 			return
 		}
-		c, qerr := w.queue.ClaimTask(taskID, strconv.Itoa(runID), &queue.TaskClaimRequest{
+		c, qerr := w.queue.ClaimTask(taskID, strconv.Itoa(runID), &tcqueue.TaskClaimRequest{
 			WorkerID:    w.options.WorkerID,
 			WorkerGroup: w.options.WorkerGroup,
 		})
@@ -564,7 +564,7 @@ func (w *Worker) superseding(claim taskClaim) (taskClaim, func()) {
 	go util.Spawn(len(claims), func(i int) {
 		defer tasksResolved.Done()
 		taskID := claims[i].Status.TaskID
-		runID := strconv.Itoa(claims[i].RunID)
+		runID := strconv.Itoa(int(claims[i].RunID))
 		for {
 			select {
 			case <-time.After(10 * time.Minute):
@@ -584,7 +584,7 @@ func (w *Worker) superseding(claim taskClaim) (taskClaim, func()) {
 				// resolve claims[i] as superseded
 				q := w.newQueueClient(ctx, asClientCredentials(claims[i].Credentials))
 				// TODO: Upload artifacts
-				_, qerr := q.ReportException(taskID, runID, &queue.TaskExceptionRequest{
+				_, qerr := q.ReportException(taskID, runID, &tcqueue.TaskExceptionRequest{
 					Reason: "superseded",
 				})
 				if qerr != nil {

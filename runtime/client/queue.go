@@ -15,23 +15,23 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/taskcluster/httpbackoff"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
-	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 )
 
 // Queue is an interface to the Queue client provided by the
 // taskcluster-client-go package.  Passing around an interface allows the
 // queue client to be mocked
 type Queue interface {
-	Status(string) (*queue.TaskStatusResponse, error)
-	ReportCompleted(string, string) (*queue.TaskStatusResponse, error)
-	ReportException(string, string, *queue.TaskExceptionRequest) (*queue.TaskStatusResponse, error)
-	ReportFailed(string, string) (*queue.TaskStatusResponse, error)
-	ClaimTask(string, string, *queue.TaskClaimRequest) (*queue.TaskClaimResponse, error)
-	ClaimWork(provisionerID, workerType string, payload *queue.ClaimWorkRequest) (*queue.ClaimWorkResponse, error)
-	ReclaimTask(string, string) (*queue.TaskReclaimResponse, error)
-	PollTaskUrls(string, string) (*queue.PollTaskUrlsResponse, error)
-	CancelTask(string) (*queue.TaskStatusResponse, error)
-	CreateArtifact(string, string, string, *queue.PostArtifactRequest) (*queue.PostArtifactResponse, error)
+	Status(string) (*tcqueue.TaskStatusResponse, error)
+	ReportCompleted(string, string) (*tcqueue.TaskStatusResponse, error)
+	ReportException(string, string, *tcqueue.TaskExceptionRequest) (*tcqueue.TaskStatusResponse, error)
+	ReportFailed(string, string) (*tcqueue.TaskStatusResponse, error)
+	ClaimTask(string, string, *tcqueue.TaskClaimRequest) (*tcqueue.TaskClaimResponse, error)
+	ClaimWork(provisionerID, workerType string, payload *tcqueue.ClaimWorkRequest) (*tcqueue.ClaimWorkResponse, error)
+	ReclaimTask(string, string) (*tcqueue.TaskReclaimResponse, error)
+	PollTaskUrls(string, string) (*tcqueue.PollTaskUrlsResponse, error)
+	CancelTask(string) (*tcqueue.TaskStatusResponse, error)
+	CreateArtifact(string, string, string, *tcqueue.PostArtifactRequest) (*tcqueue.PostArtifactResponse, error)
 	GetArtifact_SignedURL(string, string, string, time.Duration) (*url.URL, error) // nolint
 }
 
@@ -45,86 +45,86 @@ type MockQueue struct {
 	mock.Mock
 }
 
-// Status is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.Status
-func (m *MockQueue) Status(taskID string) (*queue.TaskStatusResponse, error) {
+// Status is a mock implementation of github.com/taskcluster/taskcluster-client-go/tcqueue.Status
+func (m *MockQueue) Status(taskID string) (*tcqueue.TaskStatusResponse, error) {
 	args := m.Called(taskID)
-	return args.Get(0).(*queue.TaskStatusResponse), args.Error(1)
+	return args.Get(0).(*tcqueue.TaskStatusResponse), args.Error(1)
 }
 
-// ReportCompleted is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.ReportCompleted
-func (m *MockQueue) ReportCompleted(taskID, runID string) (*queue.TaskStatusResponse, error) {
+// ReportCompleted is a mock implementation of github.com/taskcluster/taskcluster-client-go/tcqueue.ReportCompleted
+func (m *MockQueue) ReportCompleted(taskID, runID string) (*tcqueue.TaskStatusResponse, error) {
 	args := m.Called(taskID, runID)
-	return args.Get(0).(*queue.TaskStatusResponse), args.Error(1)
+	return args.Get(0).(*tcqueue.TaskStatusResponse), args.Error(1)
 }
 
-// ReclaimTask is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.ReclaimTask
-func (m *MockQueue) ReclaimTask(taskID, runID string) (*queue.TaskReclaimResponse, error) {
+// ReclaimTask is a mock implementation of github.com/taskcluster/taskcluster-client-go/tcqueue.ReclaimTask
+func (m *MockQueue) ReclaimTask(taskID, runID string) (*tcqueue.TaskReclaimResponse, error) {
 	args := m.Called(taskID, runID)
-	return args.Get(0).(*queue.TaskReclaimResponse), args.Error(1)
+	return args.Get(0).(*tcqueue.TaskReclaimResponse), args.Error(1)
 }
 
-// PollTaskUrls is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.PollTaskUrls
-func (m *MockQueue) PollTaskUrls(provisionerID, workerType string) (*queue.PollTaskUrlsResponse, error) {
+// PollTaskUrls is a mock implementation of github.com/taskcluster/taskcluster-client-go/tcqueue.PollTaskUrls
+func (m *MockQueue) PollTaskUrls(provisionerID, workerType string) (*tcqueue.PollTaskUrlsResponse, error) {
 	args := m.Called(provisionerID, workerType)
-	return args.Get(0).(*queue.PollTaskUrlsResponse), args.Error(1)
+	return args.Get(0).(*tcqueue.PollTaskUrlsResponse), args.Error(1)
 }
 
-// CancelTask is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.CancelTask
-func (m *MockQueue) CancelTask(taskID string) (*queue.TaskStatusResponse, error) {
+// CancelTask is a mock implementation of github.com/taskcluster/taskcluster-client-go/tcqueue.CancelTask
+func (m *MockQueue) CancelTask(taskID string) (*tcqueue.TaskStatusResponse, error) {
 	args := m.Called(taskID)
-	return args.Get(0).(*queue.TaskStatusResponse), args.Error(1)
+	return args.Get(0).(*tcqueue.TaskStatusResponse), args.Error(1)
 }
 
-// ClaimTask is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.ClaimTask
-func (m *MockQueue) ClaimTask(taskID, runID string, payload *queue.TaskClaimRequest) (*queue.TaskClaimResponse, error) {
+// ClaimTask is a mock implementation of github.com/taskcluster/taskcluster-client-go/tcqueue.ClaimTask
+func (m *MockQueue) ClaimTask(taskID, runID string, payload *tcqueue.TaskClaimRequest) (*tcqueue.TaskClaimResponse, error) {
 	args := m.Called(taskID, runID, payload)
-	return args.Get(0).(*queue.TaskClaimResponse), args.Error(1)
+	return args.Get(0).(*tcqueue.TaskClaimResponse), args.Error(1)
 }
 
 // ClaimWork is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue#Queue.ClaimWork
-func (m *MockQueue) ClaimWork(provisionerID, workerType string, payload *queue.ClaimWorkRequest) (*queue.ClaimWorkResponse, error) {
+func (m *MockQueue) ClaimWork(provisionerID, workerType string, payload *tcqueue.ClaimWorkRequest) (*tcqueue.ClaimWorkResponse, error) {
 	args := m.Called(provisionerID, workerType, payload)
-	return args.Get(0).(*queue.ClaimWorkResponse), args.Error(1)
+	return args.Get(0).(*tcqueue.ClaimWorkResponse), args.Error(1)
 }
 
-// ReportFailed is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.ReportFailed
-func (m *MockQueue) ReportFailed(taskID, runID string) (*queue.TaskStatusResponse, error) {
+// ReportFailed is a mock implementation of github.com/taskcluster/taskcluster-client-go/tcqueue.ReportFailed
+func (m *MockQueue) ReportFailed(taskID, runID string) (*tcqueue.TaskStatusResponse, error) {
 	args := m.Called(taskID, runID)
-	return args.Get(0).(*queue.TaskStatusResponse), args.Error(1)
+	return args.Get(0).(*tcqueue.TaskStatusResponse), args.Error(1)
 }
 
-// ReportException is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.ReportException
-func (m *MockQueue) ReportException(taskID, runID string, payload *queue.TaskExceptionRequest) (*queue.TaskStatusResponse, error) {
+// ReportException is a mock implementation of github.com/taskcluster/taskcluster-client-go/tcqueue.ReportException
+func (m *MockQueue) ReportException(taskID, runID string, payload *tcqueue.TaskExceptionRequest) (*tcqueue.TaskStatusResponse, error) {
 	args := m.Called(taskID, runID, payload)
-	return args.Get(0).(*queue.TaskStatusResponse), args.Error(1)
+	return args.Get(0).(*tcqueue.TaskStatusResponse), args.Error(1)
 }
 
-// CreateArtifact is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.CreateArtifact
-func (m *MockQueue) CreateArtifact(taskID, runID, name string, payload *queue.PostArtifactRequest) (*queue.PostArtifactResponse, error) {
+// CreateArtifact is a mock implementation of github.com/taskcluster/taskcluster-client-go/tcqueue.CreateArtifact
+func (m *MockQueue) CreateArtifact(taskID, runID, name string, payload *tcqueue.PostArtifactRequest) (*tcqueue.PostArtifactResponse, error) {
 	args := m.Called(taskID, runID, name, payload)
-	return args.Get(0).(*queue.PostArtifactResponse), args.Error(1)
+	return args.Get(0).(*tcqueue.PostArtifactResponse), args.Error(1)
 }
 
-// GetArtifact_SignedURL is a mock implementation of github.com/taskcluster/taskcluster-client-go/queue.GetArtifact_SignedURL
+// GetArtifact_SignedURL is a mock implementation of github.com/taskcluster/taskcluster-client-go/tcqueue.GetArtifact_SignedURL
 func (m *MockQueue) GetArtifact_SignedURL(taskID, runID, name string, duration time.Duration) (*url.URL, error) { // nolint
 	args := m.Called(taskID, runID, name, duration)
 	return args.Get(0).(*url.URL), args.Error(1)
 }
 
-// PostAnyArtifactRequest matches if queue.PostArtifactRequest is called
+// PostAnyArtifactRequest matches if tcqueue.PostArtifactRequest is called
 var PostAnyArtifactRequest = mock.MatchedBy(func(i interface{}) bool {
-	_, ok := i.(*queue.PostArtifactRequest)
+	_, ok := i.(*tcqueue.PostArtifactRequest)
 	return ok
 })
 
-// PostS3ArtifactRequest matches if queue.PostS3ArtifactRequest is called with
+// PostS3ArtifactRequest matches if tcqueue.PostS3ArtifactRequest is called with
 // an s3 artifact
 var PostS3ArtifactRequest = mock.MatchedBy(func(i interface{}) bool {
-	r, ok := i.(*queue.PostArtifactRequest)
+	r, ok := i.(*tcqueue.PostArtifactRequest)
 	if !ok {
 		return false
 	}
-	var s3req queue.S3ArtifactRequest
+	var s3req tcqueue.S3ArtifactRequest
 	if json.Unmarshal(*r, &s3req) != nil {
 		return false
 	}
@@ -167,13 +167,13 @@ func (m *MockQueue) ExpectS3Artifact(taskID string, runID int, name string) <-ch
 			s.Close() // Close when all requests are done (don't block the request)
 		}()
 	}))
-	data, _ := json.Marshal(queue.S3ArtifactResponse{
+	data, _ := json.Marshal(tcqueue.S3ArtifactResponse{
 		StorageType: "s3",
 		PutURL:      s.URL,
 		ContentType: "application/octet",
 		Expires:     tcclient.Time(time.Now().Add(30 * time.Minute)),
 	})
-	result := queue.PostArtifactResponse(data)
+	result := tcqueue.PostArtifactResponse(data)
 	m.On(
 		"CreateArtifact",
 		taskID, fmt.Sprintf("%d", runID),
@@ -188,17 +188,17 @@ func (m *MockQueue) ExpectS3Artifact(taskID string, runID int, name string) <-ch
 func (m *MockQueue) ExpectRedirectArtifact(taskID string, runID int, name string) <-chan string {
 	// make channel size 100 so we don't have to handle synchronously
 	c := make(chan string, 100)
-	data, _ := json.Marshal(queue.RedirectArtifactResponse{
+	data, _ := json.Marshal(tcqueue.RedirectArtifactResponse{
 		StorageType: "reference",
 	})
-	result := queue.PostArtifactResponse(data)
+	result := tcqueue.PostArtifactResponse(data)
 	m.On(
 		"CreateArtifact",
 		taskID, fmt.Sprintf("%d", runID),
 		name, PostAnyArtifactRequest,
 	).Run(func(args mock.Arguments) {
-		d := args.Get(3).(*queue.PostArtifactRequest)
-		var r queue.RedirectArtifactRequest
+		d := args.Get(3).(*tcqueue.PostArtifactRequest)
+		var r tcqueue.RedirectArtifactRequest
 		if json.Unmarshal(*d, &r) != nil {
 			close(c)
 			return
@@ -226,7 +226,7 @@ func (m *MockQueue) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var result interface{}
 	var err error
 	if match := claimWorkURLPattern.FindStringSubmatch(r.URL.Path); match != nil {
-		var payload queue.ClaimWorkRequest
+		var payload tcqueue.ClaimWorkRequest
 		if err = json.Unmarshal(data, &payload); err == nil {
 			result, err = m.ClaimWork(match[1], match[2], &payload)
 		}
@@ -241,12 +241,12 @@ func (m *MockQueue) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "failed":
 			result, err = m.ReportFailed(match[1], match[2])
 		case "exception":
-			var payload queue.TaskExceptionRequest
+			var payload tcqueue.TaskExceptionRequest
 			if err = json.Unmarshal(data, &payload); err == nil {
 				result, err = m.ReportException(match[1], match[2], &payload)
 			}
 		case "artifacts":
-			var payload queue.PostArtifactRequest
+			var payload tcqueue.PostArtifactRequest
 			if err = json.Unmarshal(data, &payload); err == nil {
 				result, err = m.CreateArtifact(match[1], match[2], match[4], &payload)
 			}

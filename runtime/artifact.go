@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 	got "github.com/taskcluster/go-got"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
-	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
@@ -45,7 +45,7 @@ type RedirectArtifact struct {
 // UploadS3Artifact is responsible for creating new artifacts
 // in the queue and then performing the upload to s3.
 func (context *TaskContext) UploadS3Artifact(artifact S3Artifact) error {
-	req, err := json.Marshal(queue.S3ArtifactRequest{
+	req, err := json.Marshal(tcqueue.S3ArtifactRequest{
 		ContentType: artifact.Mimetype,
 		Expires:     tcclient.Time(artifact.Expires),
 		StorageType: "s3",
@@ -58,7 +58,7 @@ func (context *TaskContext) UploadS3Artifact(artifact S3Artifact) error {
 	if err != nil {
 		return err
 	}
-	var resp queue.S3ArtifactResponse
+	var resp tcqueue.S3ArtifactResponse
 	if err = json.Unmarshal(parsed, &resp); err != nil {
 		panic(errors.Wrap(err, "failed to parse JSON that have been parsed before"))
 	}
@@ -69,7 +69,7 @@ func (context *TaskContext) UploadS3Artifact(artifact S3Artifact) error {
 // CreateErrorArtifact is responsible for inserting error
 // artifacts into the queue.
 func (context *TaskContext) CreateErrorArtifact(artifact ErrorArtifact) error {
-	req, err := json.Marshal(queue.ErrorArtifactRequest{
+	req, err := json.Marshal(tcqueue.ErrorArtifactRequest{
 		Message:     artifact.Message,
 		Reason:      artifact.Reason,
 		Expires:     tcclient.Time(artifact.Expires),
@@ -84,14 +84,14 @@ func (context *TaskContext) CreateErrorArtifact(artifact ErrorArtifact) error {
 		return err
 	}
 
-	var resp queue.ErrorArtifactResponse
+	var resp tcqueue.ErrorArtifactResponse
 	return json.Unmarshal(parsed, &resp)
 }
 
 // CreateRedirectArtifact is responsible for inserting redirect
 // artifacts into the queue.
 func (context *TaskContext) CreateRedirectArtifact(artifact RedirectArtifact) error {
-	req, err := json.Marshal(queue.RedirectArtifactRequest{
+	req, err := json.Marshal(tcqueue.RedirectArtifactRequest{
 		ContentType: artifact.Mimetype,
 		URL:         artifact.URL,
 		Expires:     tcclient.Time(artifact.Expires),
@@ -106,12 +106,12 @@ func (context *TaskContext) CreateRedirectArtifact(artifact RedirectArtifact) er
 		return err
 	}
 
-	var resp queue.RedirectArtifactResponse
+	var resp tcqueue.RedirectArtifactResponse
 	return json.Unmarshal(parsed, &resp)
 }
 
 func (context *TaskContext) createArtifact(name string, req []byte) ([]byte, error) {
-	par := queue.PostArtifactRequest(req)
+	par := tcqueue.PostArtifactRequest(req)
 	parsp, err := context.Queue().CreateArtifact(
 		context.TaskID,
 		strconv.Itoa(context.RunID),

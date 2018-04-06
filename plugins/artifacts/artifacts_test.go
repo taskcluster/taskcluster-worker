@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/taskcluster/slugid-go/slugid"
-	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 	"github.com/taskcluster/taskcluster-worker/plugins/plugintest"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 )
@@ -25,10 +25,10 @@ func (a artifactTestCase) Test() {
 	}))
 	defer ts.Close()
 
-	s3resp, _ := json.Marshal(queue.S3ArtifactResponse{
+	s3resp, _ := json.Marshal(tcqueue.S3ArtifactResponse{
 		PutURL: ts.URL,
 	})
-	resp := queue.PostArtifactResponse(s3resp)
+	resp := tcqueue.PostArtifactResponse(s3resp)
 	mockedQueue := &client.MockQueue{}
 	for _, path := range a.Artifacts {
 		mockedQueue.On(
