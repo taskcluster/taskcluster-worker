@@ -2,14 +2,14 @@ package client
 
 import (
 	"github.com/stretchr/testify/mock"
-	"github.com/taskcluster/taskcluster-client-go/auth"
+	"github.com/taskcluster/taskcluster-client-go/tcauth"
 )
 
-// Auth interface covers parts of the auth.Auth client that we use. This allows
+// Auth interface covers parts of the tcauth.Auth client that we use. This allows
 // us to mock the implementation during tests.
 type Auth interface {
-	SentryDSN(project string) (*auth.SentryDSNResponse, error)
-	StatsumToken(project string) (*auth.StatsumTokenResponse, error)
+	SentryDSN(project string) (*tcauth.SentryDSNResponse, error)
+	StatsumToken(project string) (*tcauth.StatsumTokenResponse, error)
 }
 
 // MockAuth is a mock implementation of Auth for testing.
@@ -18,13 +18,13 @@ type MockAuth struct {
 }
 
 // SentryDSN is a mock implementation of SentryDSN that calls into m.Mock
-func (m *MockAuth) SentryDSN(project string) (*auth.SentryDSNResponse, error) {
+func (m *MockAuth) SentryDSN(project string) (*tcauth.SentryDSNResponse, error) {
 	args := m.Called(project)
-	return args.Get(0).(*auth.SentryDSNResponse), args.Error(1)
+	return args.Get(0).(*tcauth.SentryDSNResponse), args.Error(1)
 }
 
 // StatsumToken is a mock implementation of StatsumToken that calls into Mock
-func (m *MockAuth) StatsumToken(project string) (*auth.StatsumTokenResponse, error) {
+func (m *MockAuth) StatsumToken(project string) (*tcauth.StatsumTokenResponse, error) {
 	args := m.Called(project)
-	return args.Get(0).(*auth.StatsumTokenResponse), args.Error(1)
+	return args.Get(0).(*tcauth.StatsumTokenResponse), args.Error(1)
 }

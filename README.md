@@ -65,7 +65,8 @@ why these tests are disabled by default.
    (run tests with `./docker-tests.sh`).
  * `monitor`, tests sentry reporting, statsum submission and logging, requires
    credentials to run successfully.
-
+ * `docker`, tests docker-engine, disabled because tests requires docker
+   installed and must run as root (run tests with `./docker-tests.sh`).
 
 Releasing
 ---------

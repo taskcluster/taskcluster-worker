@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/taskcluster/slugid-go/slugid"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
-	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
@@ -51,7 +51,7 @@ type Task struct {
 }
 
 // A StatusAssertion is a function that can make an assertion on a task status
-type StatusAssertion func(t *testing.T, q *queue.Queue, status queue.TaskStatusStructure)
+type StatusAssertion func(t *testing.T, q *tcqueue.Queue, status tcqueue.TaskStatusStructure)
 
 // An ArtifactAssertions is a mapping from artifact name to assertion for the
 // artifact. If mapping to nil value, any artifact will be permitted.
@@ -86,7 +86,7 @@ func (c Case) TestWithFakeQueue(t *testing.T) {
 	l := fakequeue.NewFakeQueueListener(fq)
 
 	// Create queue client
-	q := queue.New(&tcclient.Credentials{
+	q := tcqueue.New(&tcclient.Credentials{
 		// Long enough to pass schema validation
 		ClientID:    "dummy-test-client-id",
 		AccessToken: "non-secret-dummy-test-access-token",
@@ -113,7 +113,7 @@ func (c Case) TestWithRealQueue(t *testing.T) {
 	require.NoError(t, err, "Failed to create PulseListener")
 
 	// Create queue client
-	q := queue.New(&tcclient.Credentials{
+	q := tcqueue.New(&tcclient.Credentials{
 		ClientID:    os.Getenv("TASKCLUSTER_CLIENT_ID"),
 		AccessToken: os.Getenv("TASKCLUSTER_ACCESS_TOKEN"),
 		Certificate: os.Getenv("TASKCLUSTER_CERTIFICATE"),
@@ -149,7 +149,7 @@ func mustUnmarshalJSON(data string) interface{} {
 	return v
 }
 
-func (c Case) testWithQueue(t *testing.T, q *queue.Queue, l fakequeue.Listener) {
+func (c Case) testWithQueue(t *testing.T, q *tcqueue.Queue, l fakequeue.Listener) {
 	// Create config
 	tempFolder := path.Join(os.TempDir(), slugid.Nice())
 	defer os.RemoveAll(tempFolder)
@@ -231,7 +231,7 @@ func (c Case) testWithQueue(t *testing.T, q *queue.Queue, l fakequeue.Listener) 
 
 	// Create tasks
 	for i, task := range c.Tasks {
-		tdef := queue.TaskDefinitionRequest{
+		tdef := tcqueue.TaskDefinitionRequest{
 			ProvisionerID: dummyProvisionerID,
 			WorkerType:    workerType,
 			Created:       tcclient.Time(time.Now()),

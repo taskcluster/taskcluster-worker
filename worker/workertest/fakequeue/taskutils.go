@@ -6,7 +6,7 @@ import (
 	"time"
 
 	tcclient "github.com/taskcluster/taskcluster-client-go"
-	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 )
 
 const (
@@ -20,7 +20,7 @@ const (
 
 // setTaskDefaults creates a TaskDefinitionResponse from a TaskDefinitionRequest
 // with defaults applies as taskcluster-queue would
-func setTaskDefaults(taskID string, task *queue.TaskDefinitionRequest) queue.TaskDefinitionResponse {
+func setTaskDefaults(taskID string, task *tcqueue.TaskDefinitionRequest) tcqueue.TaskDefinitionResponse {
 	expires := task.Expires
 	if expires == (tcclient.Time{}) {
 		expires = tcclient.Time(time.Time(task.Created).Add(365 * 24 * 60 * 60 * time.Second))
@@ -39,21 +39,24 @@ func setTaskDefaults(taskID string, task *queue.TaskDefinitionRequest) queue.Tas
 	}
 	retries := 5
 	if task.Retries != 0 {
-		retries = task.Retries
+		retries = int(task.Retries)
 	}
 	schedulerID := "-"
 	if task.SchedulerID != "" {
 		schedulerID = task.SchedulerID
 	}
-	tags := json.RawMessage(`{}`)
+	var tags map[string]string
 	if task.Tags != nil {
-		tags = task.Tags
+		tags = make(map[string]string)
+		for k, v := range task.Tags {
+			tags[k] = v
+		}
 	}
 	taskGroupID := taskID
 	if task.TaskGroupID != "" {
 		taskGroupID = task.TaskGroupID
 	}
-	return queue.TaskDefinitionResponse{
+	return tcqueue.TaskDefinitionResponse{
 		Created:       task.Created,
 		Deadline:      task.Deadline,
 		Dependencies:  task.Dependencies,
@@ -64,7 +67,7 @@ func setTaskDefaults(taskID string, task *queue.TaskDefinitionRequest) queue.Tas
 		Priority:      priority,
 		ProvisionerID: task.ProvisionerID,
 		Requires:      requires,
-		Retries:       retries,
+		Retries:       int64(retries),
 		Routes:        task.Routes,
 		SchedulerID:   schedulerID,
 		Scopes:        task.Scopes,
@@ -83,7 +86,7 @@ func isJSONEqual(val1, val2 interface{}) bool {
 	return reflect.DeepEqual(v1, v2)
 }
 
-// fakeCredentials as defined in queue.ClaimWorkResponse.Tasks[i].Credentials
+// fakeCredentials as defined in tcqueue.ClaimWorkResponse.Tasks[i].Credentials
 var fakeCredentials = struct {
 	AccessToken string `json:"accessToken"`
 	Certificate string `json:"certificate"`
@@ -179,7 +182,7 @@ func reconcileTasks(tasks map[string]*task) {
 			debug("scheduling a retry of taskId: %s", taskID)
 			t.status.Runs = append(t.status.Runs, run{
 				ReasonCreated: "retry",
-				RunID:         len(t.status.Runs),
+				RunID:         int64(len(t.status.Runs)),
 				Scheduled:     tcclient.Time(time.Now()),
 				State:         statusPending,
 			})
@@ -209,7 +212,7 @@ func reconcileTasks(tasks map[string]*task) {
 			t.status.State = statusPending
 			t.status.Runs = append(t.status.Runs, run{
 				ReasonCreated: "scheduled",
-				RunID:         len(t.status.Runs),
+				RunID:         int64(len(t.status.Runs)),
 				Scheduled:     tcclient.Time(time.Now()),
 				State:         statusPending,
 			})

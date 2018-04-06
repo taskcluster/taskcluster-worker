@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/taskcluster/slugid-go/slugid"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
-	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 	"github.com/taskcluster/taskcluster-worker/commands"
 	// needed so that these components register themselves
 	_ "github.com/taskcluster/taskcluster-worker/commands/work"
@@ -118,7 +118,7 @@ func RunTestWorker(workerType string) {
 // for being able to run multiple tasks in parallel, and being confident that
 // the worker instance that was started to run this task, is the one that
 // receives it.
-func NewTestTask(name string) (task *queue.TaskDefinitionRequest, workerType string) {
+func NewTestTask(name string) (task *tcqueue.TaskDefinitionRequest, workerType string) {
 	created := time.Now().UTC()
 	// reset nanoseconds
 	created = created.Add(time.Nanosecond * time.Duration(created.Nanosecond()*-1))
@@ -127,7 +127,7 @@ func NewTestTask(name string) (task *queue.TaskDefinitionRequest, workerType str
 	// expiry in one day, in case we need test results
 	expires := created.AddDate(0, 0, 1)
 	workerType = "dummy-worker-" + slugid.V4()[1:6]
-	task = &queue.TaskDefinitionRequest{
+	task = &tcqueue.TaskDefinitionRequest{
 		Created:      tcclient.Time(created),
 		Deadline:     tcclient.Time(deadline),
 		Expires:      tcclient.Time(expires),
@@ -151,7 +151,7 @@ func NewTestTask(name string) (task *queue.TaskDefinitionRequest, workerType str
 		Routes:        []string{},
 		SchedulerID:   "test-scheduler",
 		Scopes:        []string{},
-		Tags:          json.RawMessage(`{}`),
+		Tags:          map[string]string{},
 		Priority:      "normal",
 		TaskGroupID:   taskGroupID,
 		WorkerType:    workerType,
@@ -167,9 +167,9 @@ func NewTestTask(name string) (task *queue.TaskDefinitionRequest, workerType str
 // if required.
 func SubmitTask(
 	t *testing.T,
-	td *queue.TaskDefinitionRequest,
+	td *tcqueue.TaskDefinitionRequest,
 	payload TaskPayload,
-) (taskID string, q *queue.Queue) {
+) (taskID string, q *tcqueue.Queue) {
 	taskID = slugid.Nice()
 	// check we have all the env vars we need to run this test
 	if os.Getenv("TASKCLUSTER_CLIENT_ID") == "" || os.Getenv("TASKCLUSTER_ACCESS_TOKEN") == "" {
@@ -180,7 +180,7 @@ func SubmitTask(
 		AccessToken: os.Getenv("TASKCLUSTER_ACCESS_TOKEN"),
 		Certificate: os.Getenv("TASKCLUSTER_CERTIFICATE"),
 	}
-	q = queue.New(creds)
+	q = tcqueue.New(creds)
 
 	b, err := json.Marshal(&payload)
 	require.NoError(t, err)

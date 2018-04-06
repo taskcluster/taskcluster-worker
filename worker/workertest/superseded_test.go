@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/taskcluster/slugid-go/slugid"
-	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 
@@ -64,7 +64,7 @@ func TestSuperseded(t *testing.T) {
 	// Create a StatusAssertion for task with index i, this looks as superseded
 	// and check the task status structure.
 	verifyTask := func(i int) StatusAssertion {
-		return func(t *testing.T, q *queue.Queue, status queue.TaskStatusStructure) {
+		return func(t *testing.T, q *tcqueue.Queue, status tcqueue.TaskStatusStructure) {
 			// Sanity check for status structure
 			assert.Equal(t, c.Tasks[i].TaskID, status.TaskID, "Expected taskId to match")
 			if i == superseded {

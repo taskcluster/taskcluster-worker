@@ -14,7 +14,7 @@ import (
 	"github.com/taskcluster/httpbackoff"
 	"github.com/taskcluster/slugid-go/slugid"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
-	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 	_ "github.com/taskcluster/taskcluster-worker/engines/mock"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/success"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
@@ -69,14 +69,14 @@ func TestWorkerClaimWork(t *testing.T) {
 	defer w.Start()
 
 	// Model the queue
-	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Twice().Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks),
+	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Twice().Return(&tcqueue.ClaimWorkResponse{
+		Tasks: append(tcqueue.ClaimWorkResponse{}.Tasks),
 	}, nil)
 
 	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Once().Run(func(args mock.Arguments) {
 		w.StopGracefully()
-	}).Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks),
+	}).Return(&tcqueue.ClaimWorkResponse{
+		Tasks: append(tcqueue.ClaimWorkResponse{}.Tasks),
 	}, nil)
 }
 
@@ -92,17 +92,17 @@ func TestWorkerProcessTasks(t *testing.T) {
 	// Model the queue
 
 	// return no task, once
-	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Once().Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks),
+	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Once().Return(&tcqueue.ClaimWorkResponse{
+		Tasks: append(tcqueue.ClaimWorkResponse{}.Tasks),
 	}, nil)
 
 	// return a task, once
-	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Once().Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks, taskClaim{
-			Status:     queue.TaskStatusStructure{TaskID: "my-task-id-1"},
+	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Once().Return(&tcqueue.ClaimWorkResponse{
+		Tasks: append(tcqueue.ClaimWorkResponse{}.Tasks, taskClaim{
+			Status:     tcqueue.TaskStatusStructure{TaskID: "my-task-id-1"},
 			RunID:      0,
 			TakenUntil: tcclient.Time(time.Now().Add(10 * time.Minute)),
-			Task: queue.TaskDefinitionResponse{
+			Task: tcqueue.TaskDefinitionResponse{
 				Payload: json.RawMessage(`{
 					"delay": 200,
 					"function": "true",
@@ -111,15 +111,15 @@ func TestWorkerProcessTasks(t *testing.T) {
 			},
 		}),
 	}, nil)
-	q.On("ReportCompleted", "my-task-id-1", "0").Once().Return(&queue.TaskStatusResponse{}, nil)
+	q.On("ReportCompleted", "my-task-id-1", "0").Once().Return(&tcqueue.TaskStatusResponse{}, nil)
 
 	// return a task, once
-	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Once().Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks, taskClaim{
-			Status:     queue.TaskStatusStructure{TaskID: "my-task-id-2"},
+	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Once().Return(&tcqueue.ClaimWorkResponse{
+		Tasks: append(tcqueue.ClaimWorkResponse{}.Tasks, taskClaim{
+			Status:     tcqueue.TaskStatusStructure{TaskID: "my-task-id-2"},
 			RunID:      0,
 			TakenUntil: tcclient.Time(time.Now().Add(10 * time.Minute)),
-			Task: queue.TaskDefinitionResponse{
+			Task: tcqueue.TaskDefinitionResponse{
 				Payload: json.RawMessage(`{
 					"delay": 200,
 					"function": "false",
@@ -128,15 +128,15 @@ func TestWorkerProcessTasks(t *testing.T) {
 			},
 		}),
 	}, nil)
-	q.On("ReportFailed", "my-task-id-2", "0").Once().Return(&queue.TaskStatusResponse{}, nil)
+	q.On("ReportFailed", "my-task-id-2", "0").Once().Return(&tcqueue.TaskStatusResponse{}, nil)
 
 	// return a task, once
-	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Once().Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks, taskClaim{
-			Status:     queue.TaskStatusStructure{TaskID: "my-task-id-3"},
+	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Once().Return(&tcqueue.ClaimWorkResponse{
+		Tasks: append(tcqueue.ClaimWorkResponse{}.Tasks, taskClaim{
+			Status:     tcqueue.TaskStatusStructure{TaskID: "my-task-id-3"},
 			RunID:      2,
 			TakenUntil: tcclient.Time(time.Now().Add(10 * time.Minute)),
-			Task: queue.TaskDefinitionResponse{
+			Task: tcqueue.TaskDefinitionResponse{
 				Payload: json.RawMessage(`{
 					"delay": 200,
 					"function": "malformed-payload-after-start",
@@ -145,15 +145,15 @@ func TestWorkerProcessTasks(t *testing.T) {
 			},
 		}),
 	}, nil)
-	q.On("ReportException", "my-task-id-3", "2", &queue.TaskExceptionRequest{
+	q.On("ReportException", "my-task-id-3", "2", &tcqueue.TaskExceptionRequest{
 		Reason: "malformed-payload",
-	}).Once().Return(&queue.TaskStatusResponse{}, nil)
+	}).Once().Return(&tcqueue.TaskStatusResponse{}, nil)
 
 	// return no tasks forever, and stop gracefully
 	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Run(func(mock.Arguments) {
 		w.StopGracefully()
-	}).Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks),
+	}).Return(&tcqueue.ClaimWorkResponse{
+		Tasks: append(tcqueue.ClaimWorkResponse{}.Tasks),
 	}, nil)
 }
 
@@ -169,21 +169,21 @@ func TestWorkerProcessTasksConcurrently(t *testing.T) {
 	// Model the queue
 
 	// return no task, once
-	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Once().Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks),
+	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Once().Return(&tcqueue.ClaimWorkResponse{
+		Tasks: append(tcqueue.ClaimWorkResponse{}.Tasks),
 	}, nil)
 
 	// return 3 task, at once
-	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", &queue.ClaimWorkRequest{
+	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", &tcqueue.ClaimWorkRequest{
 		Tasks:       3,
 		WorkerGroup: "test-worker-group",
 		WorkerID:    "test-worker-id",
-	}).Once().Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks, taskClaim{
-			Status:     queue.TaskStatusStructure{TaskID: "my-task-id-1"},
+	}).Once().Return(&tcqueue.ClaimWorkResponse{
+		Tasks: append(tcqueue.ClaimWorkResponse{}.Tasks, taskClaim{
+			Status:     tcqueue.TaskStatusStructure{TaskID: "my-task-id-1"},
 			RunID:      0,
 			TakenUntil: tcclient.Time(time.Now().Add(10 * time.Minute)),
-			Task: queue.TaskDefinitionResponse{
+			Task: tcqueue.TaskDefinitionResponse{
 				Payload: json.RawMessage(`{
 					"delay": 200,
 					"function": "true",
@@ -191,10 +191,10 @@ func TestWorkerProcessTasksConcurrently(t *testing.T) {
 				}`),
 			},
 		}, taskClaim{
-			Status:     queue.TaskStatusStructure{TaskID: "my-task-id-2"},
+			Status:     tcqueue.TaskStatusStructure{TaskID: "my-task-id-2"},
 			RunID:      0,
 			TakenUntil: tcclient.Time(time.Now().Add(10 * time.Minute)),
-			Task: queue.TaskDefinitionResponse{
+			Task: tcqueue.TaskDefinitionResponse{
 				Payload: json.RawMessage(`{
 					"delay": 500,
 					"function": "false",
@@ -202,10 +202,10 @@ func TestWorkerProcessTasksConcurrently(t *testing.T) {
 				}`),
 			},
 		}, taskClaim{
-			Status:     queue.TaskStatusStructure{TaskID: "my-task-id-3"},
+			Status:     tcqueue.TaskStatusStructure{TaskID: "my-task-id-3"},
 			RunID:      2,
 			TakenUntil: tcclient.Time(time.Now().Add(10 * time.Minute)),
-			Task: queue.TaskDefinitionResponse{
+			Task: tcqueue.TaskDefinitionResponse{
 				Payload: json.RawMessage(`{
 					"delay": 200,
 					"function": "malformed-payload-after-start",
@@ -214,17 +214,17 @@ func TestWorkerProcessTasksConcurrently(t *testing.T) {
 			},
 		}),
 	}, nil)
-	q.On("ReportCompleted", "my-task-id-1", "0").Once().Return(&queue.TaskStatusResponse{}, nil)
-	q.On("ReportFailed", "my-task-id-2", "0").Once().Return(&queue.TaskStatusResponse{}, nil)
-	q.On("ReportException", "my-task-id-3", "2", &queue.TaskExceptionRequest{
+	q.On("ReportCompleted", "my-task-id-1", "0").Once().Return(&tcqueue.TaskStatusResponse{}, nil)
+	q.On("ReportFailed", "my-task-id-2", "0").Once().Return(&tcqueue.TaskStatusResponse{}, nil)
+	q.On("ReportException", "my-task-id-3", "2", &tcqueue.TaskExceptionRequest{
 		Reason: "malformed-payload",
-	}).Once().Return(&queue.TaskStatusResponse{}, nil)
+	}).Once().Return(&tcqueue.TaskStatusResponse{}, nil)
 
 	// return no tasks forever, and stop gracefully
 	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Run(func(mock.Arguments) {
 		w.StopGracefully()
-	}).Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks),
+	}).Return(&tcqueue.ClaimWorkResponse{
+		Tasks: append(tcqueue.ClaimWorkResponse{}.Tasks),
 	}, nil)
 }
 
@@ -240,21 +240,21 @@ func TestWorkerReclaimTask(t *testing.T) {
 	// Model the queue
 
 	// return no task, once
-	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Once().Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks),
+	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Once().Return(&tcqueue.ClaimWorkResponse{
+		Tasks: append(tcqueue.ClaimWorkResponse{}.Tasks),
 	}, nil)
 
 	// return 1 task, once
-	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", &queue.ClaimWorkRequest{
+	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", &tcqueue.ClaimWorkRequest{
 		Tasks:       1,
 		WorkerGroup: "test-worker-group",
 		WorkerID:    "test-worker-id",
-	}).Once().Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks, taskClaim{
-			Status:     queue.TaskStatusStructure{TaskID: "my-task-id-1"},
+	}).Once().Return(&tcqueue.ClaimWorkResponse{
+		Tasks: append(tcqueue.ClaimWorkResponse{}.Tasks, taskClaim{
+			Status:     tcqueue.TaskStatusStructure{TaskID: "my-task-id-1"},
 			RunID:      0,
 			TakenUntil: tcclient.Time(time.Now().Add(100 * time.Millisecond)),
-			Task: queue.TaskDefinitionResponse{
+			Task: tcqueue.TaskDefinitionResponse{
 				Payload: json.RawMessage(`{
 					"delay": 3000,
 					"function": "true",
@@ -263,19 +263,19 @@ func TestWorkerReclaimTask(t *testing.T) {
 			},
 		}),
 	}, nil)
-	q.On("ReclaimTask", "my-task-id-1", "0").Once().Return(&queue.TaskReclaimResponse{
+	q.On("ReclaimTask", "my-task-id-1", "0").Once().Return(&tcqueue.TaskReclaimResponse{
 		TakenUntil: tcclient.Time(time.Now().Add(100 * time.Millisecond)),
 	}, nil)
-	q.On("ReclaimTask", "my-task-id-1", "0").Once().Return(&queue.TaskReclaimResponse{
+	q.On("ReclaimTask", "my-task-id-1", "0").Once().Return(&tcqueue.TaskReclaimResponse{
 		TakenUntil: tcclient.Time(time.Now().Add(10 * time.Minute)),
 	}, nil)
-	q.On("ReportCompleted", "my-task-id-1", "0").Once().Return(&queue.TaskStatusResponse{}, nil)
+	q.On("ReportCompleted", "my-task-id-1", "0").Once().Return(&tcqueue.TaskStatusResponse{}, nil)
 
 	// return no tasks forever, and stop gracefully
 	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Run(func(mock.Arguments) {
 		w.StopGracefully()
-	}).Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks),
+	}).Return(&tcqueue.ClaimWorkResponse{
+		Tasks: append(tcqueue.ClaimWorkResponse{}.Tasks),
 	}, nil)
 }
 
@@ -291,21 +291,21 @@ func TestWorkerTaskCanceled(t *testing.T) {
 	// Model the queue
 
 	// return no task, once
-	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Once().Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks),
+	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Once().Return(&tcqueue.ClaimWorkResponse{
+		Tasks: append(tcqueue.ClaimWorkResponse{}.Tasks),
 	}, nil)
 
 	// return 1 task, once
-	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", &queue.ClaimWorkRequest{
+	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", &tcqueue.ClaimWorkRequest{
 		Tasks:       1,
 		WorkerGroup: "test-worker-group",
 		WorkerID:    "test-worker-id",
-	}).Once().Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks, taskClaim{
-			Status:     queue.TaskStatusStructure{TaskID: "my-task-id-1"},
+	}).Once().Return(&tcqueue.ClaimWorkResponse{
+		Tasks: append(tcqueue.ClaimWorkResponse{}.Tasks, taskClaim{
+			Status:     tcqueue.TaskStatusStructure{TaskID: "my-task-id-1"},
 			RunID:      0,
 			TakenUntil: tcclient.Time(time.Now().Add(100 * time.Millisecond)),
-			Task: queue.TaskDefinitionResponse{
+			Task: tcqueue.TaskDefinitionResponse{
 				Payload: json.RawMessage(`{
 					"delay": 1500,
 					"function": "true",
@@ -314,7 +314,7 @@ func TestWorkerTaskCanceled(t *testing.T) {
 			},
 		}),
 	}, nil)
-	q.On("ReclaimTask", "my-task-id-1", "0").Once().Return((*queue.TaskReclaimResponse)(nil), httpbackoff.BadHttpResponseCode{
+	q.On("ReclaimTask", "my-task-id-1", "0").Once().Return((*tcqueue.TaskReclaimResponse)(nil), httpbackoff.BadHttpResponseCode{
 		HttpResponseCode: 409,
 		Message:          "task canceled",
 	})
@@ -322,8 +322,8 @@ func TestWorkerTaskCanceled(t *testing.T) {
 	// return no tasks forever, and stop gracefully
 	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Run(func(mock.Arguments) {
 		w.StopGracefully()
-	}).Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks),
+	}).Return(&tcqueue.ClaimWorkResponse{
+		Tasks: append(tcqueue.ClaimWorkResponse{}.Tasks),
 	}, nil)
 }
 
@@ -339,21 +339,21 @@ func TestWorkerStopNow(t *testing.T) {
 	// Model the queue
 
 	// return no task, once
-	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Once().Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks),
+	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", mock.Anything).Once().Return(&tcqueue.ClaimWorkResponse{
+		Tasks: append(tcqueue.ClaimWorkResponse{}.Tasks),
 	}, nil)
 
 	// return 1 task, once
-	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", &queue.ClaimWorkRequest{
+	q.On("ClaimWork", "test-provisioner-id", "test-worker-type", &tcqueue.ClaimWorkRequest{
 		Tasks:       1,
 		WorkerGroup: "test-worker-group",
 		WorkerID:    "test-worker-id",
-	}).Once().Return(&queue.ClaimWorkResponse{
-		Tasks: append(queue.ClaimWorkResponse{}.Tasks, taskClaim{
-			Status:     queue.TaskStatusStructure{TaskID: "my-task-id-1"},
+	}).Once().Return(&tcqueue.ClaimWorkResponse{
+		Tasks: append(tcqueue.ClaimWorkResponse{}.Tasks, taskClaim{
+			Status:     tcqueue.TaskStatusStructure{TaskID: "my-task-id-1"},
 			RunID:      0,
 			TakenUntil: tcclient.Time(time.Now().Add(10 * time.Minute)),
-			Task: queue.TaskDefinitionResponse{
+			Task: tcqueue.TaskDefinitionResponse{
 				Payload: json.RawMessage(`{
 					"delay": 50,
 					"function": "stopNow-sleep",
@@ -362,7 +362,7 @@ func TestWorkerStopNow(t *testing.T) {
 			},
 		}),
 	}, nil)
-	q.On("ReportException", "my-task-id-1", "0", &queue.TaskExceptionRequest{
+	q.On("ReportException", "my-task-id-1", "0", &tcqueue.TaskExceptionRequest{
 		Reason: "worker-shutdown",
-	}).Once().Return(&queue.TaskStatusResponse{}, nil)
+	}).Once().Return(&tcqueue.TaskStatusResponse{}, nil)
 }

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/pborman/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 )
 

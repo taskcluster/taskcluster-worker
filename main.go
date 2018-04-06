@@ -41,6 +41,7 @@ import (
 	_ "github.com/taskcluster/taskcluster-worker/config/hostcredentials"
 	_ "github.com/taskcluster/taskcluster-worker/config/packet"
 	_ "github.com/taskcluster/taskcluster-worker/config/secrets"
+	_ "github.com/taskcluster/taskcluster-worker/engines/docker"
 	_ "github.com/taskcluster/taskcluster-worker/engines/enginetest"
 	_ "github.com/taskcluster/taskcluster-worker/engines/mock"
 	_ "github.com/taskcluster/taskcluster-worker/engines/native"

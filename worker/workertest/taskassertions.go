@@ -10,12 +10,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	got "github.com/taskcluster/go-got"
-	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
-func verifyAssertions(t *testing.T, title, taskID string, task Task, q *queue.Queue) {
+func verifyAssertions(t *testing.T, title, taskID string, task Task, q *tcqueue.Queue) {
 	result, err := q.Status(taskID)
 	assert.NoError(t, err, "Failed to fetch task status for '%s'", title)
 	if err != nil {

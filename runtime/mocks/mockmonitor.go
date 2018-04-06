@@ -95,7 +95,7 @@ func (m *MockMonitor) CapturePanic(fn func()) (incidentID string) {
 			text := fmt.Sprint("Recovered from panic: ", crash, "\nAt:\n", string(trace))
 			m.WithTag("incidentId", incidentID).(*MockMonitor).output("PANIC", text)
 			if m.panicOnError {
-				panic(fmt.Sprintf("Panic: %s", text))
+				panic(fmt.Errorf("Panic: %s", text))
 			}
 		}
 	}()
@@ -106,10 +106,10 @@ func (m *MockMonitor) CapturePanic(fn func()) (incidentID string) {
 // ReportError records an error, and panics if panicOnError was set
 func (m *MockMonitor) ReportError(err error, message ...interface{}) string {
 	incidentID := uuid.NewRandom().String()
-	text := fmt.Sprint(append([]interface{}{"error: ", err}, message))
+	text := fmt.Sprint(append([]interface{}{"error: ", err, ", "}, message...)...)
 	m.WithTag("incidentId", incidentID).(*MockMonitor).output("ERROR-REPORT", text)
 	if m.panicOnError {
-		panic(fmt.Sprintf("ReportError: %s", text))
+		panic(fmt.Errorf("ReportError: %s", text))
 	}
 	return incidentID
 }
@@ -117,7 +117,7 @@ func (m *MockMonitor) ReportError(err error, message ...interface{}) string {
 // ReportWarning logs a warning
 func (m *MockMonitor) ReportWarning(err error, message ...interface{}) string {
 	incidentID := uuid.NewRandom().String()
-	text := fmt.Sprint(append([]interface{}{"error: ", err}, message))
+	text := fmt.Sprint(append([]interface{}{"error: ", err, ", "}, message...)...)
 	m.WithTag("incidentId", incidentID).(*MockMonitor).output("WARNING-REPORT", text)
 	return incidentID
 }

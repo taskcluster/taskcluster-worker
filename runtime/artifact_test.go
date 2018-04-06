@@ -9,13 +9,13 @@ import (
 	"testing"
 
 	"github.com/taskcluster/slugid-go/slugid"
-	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
-func setupArtifactTest(name string, artifactResp queue.PostArtifactRequest) (*TaskContext, *client.MockQueue) {
-	resp := queue.PostArtifactResponse(artifactResp)
+func setupArtifactTest(name string, artifactResp tcqueue.PostArtifactRequest) (*TaskContext, *client.MockQueue) {
+	resp := tcqueue.PostArtifactResponse(artifactResp)
 	taskID := slugid.Nice()
 	context := &TaskContext{
 		TaskInfo: TaskInfo{
@@ -43,7 +43,7 @@ func TestS3Artifact(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	s3resp, _ := json.Marshal(queue.S3ArtifactResponse{
+	s3resp, _ := json.Marshal(tcqueue.S3ArtifactResponse{
 		PutURL: ts.URL,
 	})
 
@@ -60,7 +60,7 @@ func TestS3Artifact(t *testing.T) {
 }
 
 func TestErrorArtifact(t *testing.T) {
-	errorResp, _ := json.Marshal(queue.ErrorArtifactResponse{
+	errorResp, _ := json.Marshal(tcqueue.ErrorArtifactResponse{
 		StorageType: "error",
 	})
 
@@ -77,7 +77,7 @@ func TestErrorArtifact(t *testing.T) {
 }
 
 func TestRedirectArtifact(t *testing.T) {
-	redirResp, _ := json.Marshal(queue.ErrorArtifactResponse{
+	redirResp, _ := json.Marshal(tcqueue.ErrorArtifactResponse{
 		StorageType: "reference",
 	})
 

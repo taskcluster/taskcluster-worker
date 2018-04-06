@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-client-go"
-	"github.com/taskcluster/taskcluster-client-go/auth"
+	"github.com/taskcluster/taskcluster-client-go/tcauth"
 	"github.com/taskcluster/webhooktunnel/whclient"
 )
 
@@ -22,8 +22,8 @@ type WebhookTunnel struct {
 // NewWebhookTunnel returns a pointer to a new WebhookTunnel instance
 func NewWebhookTunnel(credentials *tcclient.Credentials) (*WebhookTunnel, error) {
 	configurer := func() (whclient.Config, error) {
-		authClient := auth.New(credentials)
-		whresp, err := authClient.WebhooktunnelToken()
+		auth := tcauth.New(credentials)
+		whresp, err := auth.WebhooktunnelToken()
 		if err != nil {
 			return whclient.Config{}, errors.Wrap(err, "could not get token from tc-auth")
 		}

@@ -14,7 +14,7 @@ import (
 
 	"github.com/taskcluster/httpbackoff"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
-	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/artifacts"
 	_ "github.com/taskcluster/taskcluster-worker/plugins/livelog"
 )
@@ -153,7 +153,7 @@ func TestUpload(t *testing.T) {
 		}
 	}
 
-	var status *queue.TaskStatusResponse
+	var status *tcqueue.TaskStatusResponse
 	status, err = q.Status(taskID)
 	if err != nil {
 		t.Fatal("Error retrieving status from queue")
