@@ -165,10 +165,10 @@ var ConfigSchema schematypes.Schema = schematypes.Object{
 				Pattern: `^\d+(\.\d+){3}$`,
 				Title:   "Route",
 				Description: util.Markdown(`
-  				Route to be exposed, this must be an IPv4 address.
+					Route to be exposed, this must be an IPv4 address.
 
-  				This is the '--route' argument for openvpn.
-  			`),
+					This is the '--route' argument for openvpn.
+				`),
 			},
 			Unique: true,
 		},
