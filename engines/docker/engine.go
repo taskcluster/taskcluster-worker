@@ -52,7 +52,7 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 		docker:      client,
 		Environment: options.Environment,
 		monitor:     options.Monitor,
-		cache:       caching.New(imageConstructor, true, options.Environment.GarbageCollector),
+		cache:       caching.New(imageConstructor, true, options.Environment.GarbageCollector, options.Monitor),
 		networks:    network.NewPool(client, options.Monitor.WithPrefix("network-pool")),
 	}, nil
 }
