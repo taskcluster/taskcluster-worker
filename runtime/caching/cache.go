@@ -116,13 +116,12 @@ func (c *Cache) Require(ctx Context, options interface{}) (*Handle, error) {
 		c.entries = append(c.entries, entry)
 
 		go entry.created.Do(func() {
-			defer entry.ctx.dispose()
-			// ensure resources are cleanup when constructor is done
+			defer entry.ctx.dispose() // ensure resources are cleaned up when constructor is done
 
+			// measures duration of the constructor
 			c.monitor.Time("constructor-duration", func() {
 				entry.resource, entry.err = c.constructor(entry.ctx, options)
 			})
-			//metric to give creation time of constructor
 
 			if entry.err != nil {
 				// Set the entry to be purged, so others will ignore it
