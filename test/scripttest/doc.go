@@ -21,6 +21,7 @@ var engineConfig = `{
 			"delay": {"type": "integer", "minimum": 0},
 			"message": {"type": "string"},
 			"result": {"enum": ["pass", "fail", "malformed-payload", "non-fatal-error"]},
+			"url": {"type": "string", "format": "uri"},
 			"artifacts": {
 				"type": "object",
 				"additionalProperties": {"type": "string"}

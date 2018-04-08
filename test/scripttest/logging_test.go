@@ -1,8 +1,12 @@
 package scripttest
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/taskcluster/taskcluster-worker/worker/workertest"
 )
 
@@ -47,6 +51,36 @@ func TestLogging(t *testing.T) {
 			Artifacts: workertest.ArtifactAssertions{
 				"public/logs/live.log":         workertest.ReferenceArtifact(),
 				"public/logs/live_backing.log": workertest.GrepArtifact("hello-world"),
+			},
+		}},
+	}.Test(t)
+}
+
+func TestGetUrl(t *testing.T) {
+	// Create test server with magic-words, we'll grep for later
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`magic-words`))
+	}))
+	defer s.Close()
+
+	// Get url to testserver
+	u, err := json.Marshal(s.URL)
+	require.NoError(t, err)
+
+	workertest.Case{
+		Engine:       "script",
+		Concurrency:  1,
+		EngineConfig: engineConfig,
+		PluginConfig: pluginConfig,
+		Tasks: []workertest.Task{{
+			Title:           "read from url",
+			Success:         true,
+			Payload:         `{"result": "pass", "message": "hello-world", "url": ` + string(u) + `}`,
+			AllowAdditional: false,
+			Artifacts: workertest.ArtifactAssertions{
+				"public/logs/live.log":         workertest.ReferenceArtifact(),
+				"public/logs/live_backing.log": workertest.GrepArtifact("magic-words"),
 			},
 		}},
 	}.Test(t)
