@@ -77,7 +77,7 @@ type Case struct {
 
 	// ClientID to be passed to TaskContext
 	ClientID string
-	// AccessToken to be assed to TaskContext
+	// AccessToken to be passed to TaskContext
 	AccessToken string
 	// Certificate to be passed to TaskContext
 	Certificate string
@@ -324,8 +324,8 @@ func newTestEnvironment() runtime.Environment {
 }
 
 func parsePluginConfig(provider plugins.PluginProvider, data string) interface{} {
-	if data == "" {
-		return nil
+	if provider.ConfigSchema() == nil {
+		return nil // don't attempt to create pluginPlugin if none is required
 	}
 	var j interface{}
 	err := json.Unmarshal([]byte(data), &j)
