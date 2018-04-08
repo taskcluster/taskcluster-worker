@@ -36,7 +36,9 @@ const pluginConfig = `{
 		"perTaskLimit": "forbid",
 		"maxRunTime": "1 m"
 	},
-	"success": {}
+	"livelog": {},
+	"success": {},
+	"watchdog": {}
 }`
 
 // scriptPathJSON returns the path to ./testdata/script.go as JSON

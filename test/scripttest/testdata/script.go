@@ -42,7 +42,7 @@ func main() {
 
 	// Create artifacts
 	for name, value := range payload.Artifacts {
-		err = os.MkdirAll(path.Join(".", "artifacts", path.Dir(name)), 0600)
+		err = os.MkdirAll(path.Join(".", "artifacts", path.Dir(name)), 0700)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed to create folders for artifact: '%s', err: %s\n", name, err)
 			os.Exit(4)
