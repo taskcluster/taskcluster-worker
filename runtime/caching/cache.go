@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 )
 
@@ -24,16 +25,18 @@ type Cache struct {
 	entries     []*cacheEntry
 	constructor Constructor
 	tracker     gc.ResourceTracker
+	monitor     runtime.Monitor
 }
 
 // New returns a Cache wrapping constructor such that resources
 // returned from Require are shared between all calls to Require with the same
 // options, if shared is set to true. Otherwise, resources are exclusive.
-func New(constructor Constructor, shared bool, tracker gc.ResourceTracker) *Cache {
+func New(constructor Constructor, shared bool, tracker gc.ResourceTracker, monitor runtime.Monitor) *Cache {
 	return &Cache{
 		constructor: constructor,
 		tracker:     tracker,
 		shared:      shared,
+		monitor:     monitor,
 	}
 }
 
@@ -90,6 +93,7 @@ func (c *Cache) Require(ctx Context, options interface{}) (*Handle, error) {
 
 		// Take the entry
 		debug("cache entry '%s' found in cache, refCount: %d", optionsHash, e.refCount+1)
+		c.monitor.Count("cache-hit", 1)
 		entry = e
 		e.refCount++
 		e.m.Unlock()
@@ -98,6 +102,7 @@ func (c *Cache) Require(ctx Context, options interface{}) (*Handle, error) {
 
 	// Create new resource
 	if entry == nil {
+		c.monitor.Count("cache-miss", 1)
 		debug("cache entry '%s' is being created", optionsHash)
 		entry = &cacheEntry{
 			optionsHash: optionsHash,
@@ -111,9 +116,13 @@ func (c *Cache) Require(ctx Context, options interface{}) (*Handle, error) {
 		c.entries = append(c.entries, entry)
 
 		go entry.created.Do(func() {
-			defer entry.ctx.dispose() // ensure resources are cleanup when constructor is done
+			defer entry.ctx.dispose() // ensure resources are cleaned up when constructor is done
 
-			entry.resource, entry.err = c.constructor(entry.ctx, options)
+			// measures duration of the constructor
+			c.monitor.Time("constructor-duration", func() {
+				entry.resource, entry.err = c.constructor(entry.ctx, options)
+			})
+
 			if entry.err != nil {
 				// Set the entry to be purged, so others will ignore it
 				entry.m.Lock()

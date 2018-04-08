@@ -79,8 +79,8 @@ func (p *provider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, err
 		engine:         options.Engine,
 		environment:    options.Environment,
 		monitor:        options.Monitor,
-		sharedCache:    caching.New(constructor, false, options.Environment.GarbageCollector),
-		exclusiveCache: caching.New(constructor, false, options.Environment.GarbageCollector),
+		sharedCache:    caching.New(constructor, false, options.Environment.GarbageCollector, options.Monitor),
+		exclusiveCache: caching.New(constructor, false, options.Environment.GarbageCollector, options.Monitor),
 		lastPurged:     time.Now(),
 		config:         c,
 	}, nil
