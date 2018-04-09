@@ -32,7 +32,7 @@ var configSchema = schematypes.Object{
 				_working directory_, this folder can be used for temporary storage and
 				will be cleared between tasks.
 
-				Files and folder stored in './artifacts/' relative to the
+				Files and folders stored in './artifacts/' relative to the
 				_working directory_ will be uploaded as artifacts from
 				the script. Hence, to make a public tar-ball artifact you create
 				'./artifact/public/my-build.tar.gz' which will be uploaded as an
