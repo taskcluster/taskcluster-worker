@@ -22,10 +22,7 @@ config:
 ```
 
 Once configuration transforms have been applied to the `config` section the
-final object must have a form that satisfies the following schema:
-
-<div data-render-schema='config-schema.json'></div>
-
+final object must have a form that satisfies the schema in `config-schema.json'
 
 ## Transform `abs`
 
