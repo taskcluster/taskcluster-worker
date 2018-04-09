@@ -27,7 +27,7 @@ func main() {
 		Message   string            `json:"message"`
 		Result    string            `json:"result"`
 		Artifacts map[string]string `json:"artifacts"`
-		Url       string            `json:"url"`
+		URL       string            `json:"url"`
 	}
 	// parse stdin as JSON
 	err = json.Unmarshal(data, &payload)
@@ -44,19 +44,20 @@ func main() {
 	fmt.Println(payload.Message)
 
 	// Get URL if one was given
-	if payload.Url != "" {
-		res, err := http.Get(payload.Url)
+	if payload.URL != "" {
+		var res *http.Response
+		res, err = http.Get(payload.URL)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to fetch url: %s, err: %s\n", payload.Url, err)
+			fmt.Fprintf(os.Stderr, "failed to fetch url: %s, err: %s\n", payload.URL, err)
 			os.Exit(1) // fail the task
 		}
 		defer res.Body.Close()
 		if res.StatusCode != http.StatusOK {
-			fmt.Fprintf(os.Stderr, "Got status %d from url: %s\n", res.StatusCode, payload.Url)
+			fmt.Fprintf(os.Stderr, "Got status %d from url: %s\n", res.StatusCode, payload.URL)
 		}
 		_, err = io.Copy(os.Stdout, res.Body)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to read response from url: %s, err: %s\n", payload.Url, err)
+			fmt.Fprintf(os.Stderr, "failed to read response from url: %s, err: %s\n", payload.URL, err)
 			os.Exit(1) // fail the task
 		}
 	}
