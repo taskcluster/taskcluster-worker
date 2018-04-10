@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/taskcluster/taskcluster-worker/worker/workertest"
@@ -63,6 +64,7 @@ func TestGetUrl(t *testing.T) {
 		w.Write([]byte(`magic-words`))
 	}))
 	defer s.Close()
+	time.Sleep(1 * time.Second)
 
 	// Get url to testserver
 	u, err := json.Marshal(s.URL)
