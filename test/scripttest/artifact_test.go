@@ -22,6 +22,16 @@ func TestArtifacts(t *testing.T) {
 				"public/logs/live_backing.log": workertest.AnyArtifact(),
 				"public/build/test-output.txt": workertest.GrepArtifact("hello-world"),
 			},
+		}, {
+			Title:           "empty artifact",
+			Success:         true,
+			Payload:         `{"result": "pass", "artifacts": {"public/build/test-output.txt": ""}}`,
+			AllowAdditional: false,
+			Artifacts: workertest.ArtifactAssertions{
+				"public/logs/live.log":         workertest.AnyArtifact(),
+				"public/logs/live_backing.log": workertest.AnyArtifact(),
+				"public/build/test-output.txt": workertest.MatchArtifact("", "text/plain; charset=utf-8"),
+			},
 		}},
 	}.Test(t)
 }
