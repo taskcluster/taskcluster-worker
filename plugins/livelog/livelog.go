@@ -1,5 +1,3 @@
-// Package livelog implements a webhook handler for serving up livelogs of a task
-// sandbox.
 package livelog
 
 import (
