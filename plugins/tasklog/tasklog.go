@@ -94,7 +94,7 @@ func (tp *taskPlugin) uploadLog() error {
 
 	// Upload gzipped task.log
 	debug("uploading 'public/logs/task.log'")
-	tp.context.UploadS3Artifact(runtime.S3Artifact{
+	err = tp.context.UploadS3Artifact(runtime.S3Artifact{
 		Name:     "public/logs/task.log",
 		Mimetype: "text/plain; charset=utf-8",
 		Expires:  tp.context.TaskInfo.Expires,
