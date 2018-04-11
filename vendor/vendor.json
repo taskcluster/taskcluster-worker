@@ -600,40 +600,40 @@
 			"revisionTime": "2017-02-22T01:37:00Z"
 		},
 		{
-			"checksumSHA1": "kJf/EPzCpyXTjeQwsVKWYwomU8U=",
+			"checksumSHA1": "3Yh2KaAQeHQb7Ck88C84UoIcihE=",
 			"path": "github.com/taskcluster/taskcluster-client-go",
-			"revision": "9fa47d2ac9f98e9568ea51afa3825304867c1746",
-			"revisionTime": "2018-03-28T13:30:47Z"
+			"revision": "6419d2952068aa24da4d8bb613e0f7af8ca6873a",
+			"revisionTime": "2018-04-06T18:03:59Z"
 		},
 		{
-			"checksumSHA1": "kvopmLadzl+T0H3osE5cuxwbsEY=",
+			"checksumSHA1": "28ZpzJnvQAlvLtex+JrTHN1NcoU=",
 			"path": "github.com/taskcluster/taskcluster-client-go/tcauth",
-			"revision": "9fa47d2ac9f98e9568ea51afa3825304867c1746",
-			"revisionTime": "2018-03-28T13:30:47Z"
+			"revision": "6419d2952068aa24da4d8bb613e0f7af8ca6873a",
+			"revisionTime": "2018-04-06T18:03:59Z"
 		},
 		{
-			"checksumSHA1": "mpSgH9Cf1ilK+ERMzmU3xz3oaW4=",
+			"checksumSHA1": "7OyZ5inqxgRWrklRo2qO9iNRSn4=",
 			"path": "github.com/taskcluster/taskcluster-client-go/tcindex",
-			"revision": "9fa47d2ac9f98e9568ea51afa3825304867c1746",
-			"revisionTime": "2018-03-28T13:30:47Z"
+			"revision": "6419d2952068aa24da4d8bb613e0f7af8ca6873a",
+			"revisionTime": "2018-04-06T18:03:59Z"
 		},
 		{
-			"checksumSHA1": "VWwUeYSOmoYw854wVbpkuHLFNW0=",
+			"checksumSHA1": "XsRRczqICWSKgXqiQU6EE8O0Tio=",
 			"path": "github.com/taskcluster/taskcluster-client-go/tcpurgecache",
-			"revision": "9fa47d2ac9f98e9568ea51afa3825304867c1746",
-			"revisionTime": "2018-03-28T13:30:47Z"
+			"revision": "6419d2952068aa24da4d8bb613e0f7af8ca6873a",
+			"revisionTime": "2018-04-06T18:03:59Z"
 		},
 		{
-			"checksumSHA1": "vKji5xZP4VvN9D5hmk7EgmcsMGQ=",
+			"checksumSHA1": "X4D1Zu41kw4XKAvbBd7fFzNCA2A=",
 			"path": "github.com/taskcluster/taskcluster-client-go/tcqueue",
-			"revision": "9fa47d2ac9f98e9568ea51afa3825304867c1746",
-			"revisionTime": "2018-03-28T13:30:47Z"
+			"revision": "6419d2952068aa24da4d8bb613e0f7af8ca6873a",
+			"revisionTime": "2018-04-06T18:03:59Z"
 		},
 		{
-			"checksumSHA1": "ZBPNx/q+GLdK+ycOBVrm6D6fUQU=",
+			"checksumSHA1": "pcgglxSJ8vbwZ03q/tXx+T/j1fI=",
 			"path": "github.com/taskcluster/taskcluster-client-go/tcsecrets",
-			"revision": "9fa47d2ac9f98e9568ea51afa3825304867c1746",
-			"revisionTime": "2018-03-28T13:30:47Z"
+			"revision": "6419d2952068aa24da4d8bb613e0f7af8ca6873a",
+			"revisionTime": "2018-04-06T18:03:59Z"
 		},
 		{
 			"checksumSHA1": "SeU/g0O6sCj2Ce+hdBHMDWlL3oc=",

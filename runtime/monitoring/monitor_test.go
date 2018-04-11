@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
-	"github.com/taskcluster/taskcluster-client-go/auth"
+	"github.com/taskcluster/taskcluster-client-go/tcauth"
 )
 
 func TestLoggingMonitor(t *testing.T) {
@@ -39,7 +39,7 @@ func TestMonitor(t *testing.T) {
 	if clientID == "" || accessToken == "" {
 		t.Skip("TASKCLUSTER_CLIENT_ID and TASKCLUSTER_ACCESS_TOKEN not defined")
 	}
-	a := auth.New(&tcclient.Credentials{
+	a := tcauth.New(&tcclient.Credentials{
 		ClientID:    clientID,
 		AccessToken: accessToken,
 	})
