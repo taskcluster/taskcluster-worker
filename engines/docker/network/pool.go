@@ -118,6 +118,9 @@ func (p *Pool) GetNetwork(handler http.Handler) (*Handle, error) {
 	}
 	p.idleNetworks = p.idleNetworks[:len(p.idleNetworks)-1]
 
+	// Set handler for the network
+	h.network.SetHandler(handler)
+
 	return h, nil
 }
 

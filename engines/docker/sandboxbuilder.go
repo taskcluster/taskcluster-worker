@@ -38,6 +38,7 @@ func newSandboxBuilder(payload *payloadType, e *engine, monitor runtime.Monitor,
 		e:         e,
 		taskCtx:   ctx,
 		env:       &docker.Env{},
+		proxies:   make(map[string]http.Handler),
 		imageDone: make(chan struct{}, 1),
 	}
 	// set image

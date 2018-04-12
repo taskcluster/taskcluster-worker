@@ -47,6 +47,7 @@ func (c *ProxyTestCase) TestPingProxyPayload() {
 
 	result := r.buildRunSandbox()
 	log := r.ReadLog()
+	debug("task-log: '%s'", log)
 
 	assert(result, "PingProxyPayload exited unsuccessfully, log: ", log)
 	assert(pinged, "PingProxyPayload didn't call the attachedProxy, log: ", log)
@@ -79,6 +80,7 @@ func (c *ProxyTestCase) TestPing404IsUnsuccessful() {
 
 	result := r.buildRunSandbox()
 	log := r.ReadLog()
+	debug("task-log: '%s'", log)
 
 	assert(!result, "PingProxyPayload exited successfully, when we returned 404")
 	assert(pinged, "PingProxyPayload didn't call the attachedProxy")
@@ -129,6 +131,7 @@ func (c *ProxyTestCase) TestLiveLogging() {
 
 	result := r.buildRunSandbox()
 	log := r.ReadLog()
+	debug("task-log: '%s'", log)
 
 	assert(result, "PingProxyPayload exited unsuccessfully")
 	assert(pinged, "PingProxyPayload didn't call the attachedProxy")

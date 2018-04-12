@@ -118,3 +118,25 @@ func TestArtifacts(t *testing.T) {
 
 	c.Test()
 }
+
+func TestProxies(t *testing.T) {
+	c := enginetest.ProxyTestCase{
+		EngineProvider: provider,
+		ProxyName:      "my-proxy",
+		PingProxyPayload: `{
+			"command": ["sh", "-ec", "` +
+			`apk add --no-cache curl > /dev/null; ` +
+			`echo 'Pinging'; ` +
+			`STATUS=$(curl -s -o /tmp/output -w '%{http_code}' http://taskcluster/my-proxy/v1/ping); ` +
+			`cat /tmp/output; ` +
+			`test $STATUS -eq 200;` +
+			`"],
+			"image": {
+				"repository": "` + dockerImageRepository + `",
+				"tag": "` + dockerImageTag + `"
+			}
+		}`,
+	}
+
+	c.Test()
+}
