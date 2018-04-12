@@ -64,6 +64,13 @@ func TestGetUrl(t *testing.T) {
 	}))
 	defer s.Close()
 
+	// HACK: this that the server actually works...
+	debug("URL: '%s'", s.URL)
+	res, err := http.Get(s.URL)
+	require.NoError(t, err, "GET to URL failed")
+	defer res.Body.Close()
+	require.Equal(t, http.StatusOK, res.StatusCode, "expected 200 OK")
+
 	// Get url to testserver
 	u, err := json.Marshal(s.URL)
 	require.NoError(t, err)
