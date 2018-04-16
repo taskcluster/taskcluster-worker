@@ -138,6 +138,7 @@ func (s *sandbox) wait() {
 			docker:        s.docker,
 			monitor:       s.monitor.WithTag("struct", "resultSet"),
 			storage:       s.storage,
+			context:       s.taskCtx,
 			imageHandle:   s.imageHandle,
 			networkHandle: s.networkHandle,
 		}
@@ -158,6 +159,7 @@ func (s *sandbox) Kill() error {
 				docker:        s.docker,
 				monitor:       s.monitor.WithTag("struct", "resultSet"),
 				storage:       s.storage,
+				context:       s.taskCtx,
 				imageHandle:   s.imageHandle,
 				networkHandle: s.networkHandle,
 			}
