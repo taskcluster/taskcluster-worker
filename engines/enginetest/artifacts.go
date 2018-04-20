@@ -42,11 +42,12 @@ func (c *ArtifactTestCase) TestExtractTextFile() {
 
 	reader, err := r.resultSet.ExtractFile(c.TextFilePath)
 	nilOrPanic(err, "Failed to ExtractFile: ", c.TextFilePath)
+	defer reader.Close()
 	data, err := ioutil.ReadAll(reader)
 	nilOrPanic(err, "Failed to read file: ", c.TextFilePath)
 	assert(strings.Contains(string(data), c.Text),
-		"Expected ", c.TextFilePath, " to contain '", c.Text, "', got ",
-		string(data))
+		"Expected ", c.TextFilePath, " to contain '", c.Text, "', got '",
+		string(data), "'")
 }
 
 // TestExtractFileNotFound checks that FileNotFoundPath returns
@@ -75,6 +76,7 @@ func (c *ArtifactTestCase) TestExtractFolderNotFound() {
 	err := r.resultSet.ExtractFolder(c.FolderNotFoundPath, func(
 		path string, reader ioext.ReadSeekCloser,
 	) error {
+		defer reader.Close()
 		return errors.New("file was found, didn't expect that")
 	})
 	assert(err == engines.ErrResourceNotFound, "Expected ErrResourceNotFound ",
@@ -101,6 +103,8 @@ func (c *ArtifactTestCase) TestExtractNestedFolderPath() {
 	err := r.resultSet.ExtractFolder(c.NestedFolderPath, func(
 		path string, reader ioext.ReadSeekCloser,
 	) error {
+		debug("found file: '%s'", path)
+		defer reader.Close()
 		m.Lock()
 		files = append(files, path)
 		m.Unlock()
@@ -116,6 +120,7 @@ func (c *ArtifactTestCase) TestExtractNestedFolderPath() {
 	nilOrPanic(err, "Error handling files from folder")
 
 	// Check that NestedFolderFiles was found
+	m.Lock()
 	for _, f := range c.NestedFolderFiles {
 		found := false
 		for _, f2 := range files {
@@ -150,6 +155,7 @@ func (c *ArtifactTestCase) TestExtractFolderHandlerInterrupt() {
 	err := r.resultSet.ExtractFolder(c.NestedFolderPath, func(
 		path string, reader ioext.ReadSeekCloser,
 	) error {
+		defer reader.Close()
 		return errors.New("Error that should interrupt ExtractFolder")
 	})
 	assert(err == engines.ErrHandlerInterrupt,

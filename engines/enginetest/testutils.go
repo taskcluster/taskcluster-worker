@@ -22,7 +22,7 @@ var debug = util.Debug("enginetest")
 
 func nilOrPanic(err error, a ...interface{}) {
 	if err != nil {
-		log.Panic(append(a, err)...)
+		log.Panic(append(a, " error: ", err)...)
 	}
 }
 
