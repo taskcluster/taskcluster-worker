@@ -26,15 +26,13 @@ func (wg *WaitGroup) testAndBroadcast() {
 	// Lock must be held when this is called
 
 	// Test if there is anything to do
-	if wg.count <= 0 {
-		if wg.count < 0 {
-			panic("Internal counter in atomics.WaitGroup may not go negative")
-		}
+	if wg.count < 0 {
+		panic("Internal counter in atomics.WaitGroup may not go negative")
+	}
 
-		// Skip Broadcast if nobody is waiting
-		if wg.c.L != nil {
-			wg.c.Broadcast()
-		}
+	// Skip Broadcast if nobody is waiting
+	if wg.c.L != nil {
+		wg.c.Broadcast()
 	}
 }
 
@@ -81,6 +79,26 @@ func (wg *WaitGroup) Wait() {
 
 	// Wait for count to reach zero
 	for wg.count != 0 {
+		wg.c.Wait()
+	}
+}
+
+// WaitForLessThan blocks until internal counter reaches less than count.
+func (wg *WaitGroup) WaitForLessThan(count int) {
+	if count <= 0 {
+		panic(fmt.Errorf("atomics.WaitGroup.WaitForLessThan(%d) cannot be called less than 1", count))
+	}
+
+	wg.m.Lock()
+	defer wg.m.Unlock()
+
+	// Set the lock on cond, if not set yet
+	if wg.c.L == nil {
+		wg.c.L = &wg.m
+	}
+
+	// Wait for count to reach zero
+	for wg.count >= count {
 		wg.c.Wait()
 	}
 }
