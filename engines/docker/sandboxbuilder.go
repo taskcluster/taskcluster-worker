@@ -16,7 +16,6 @@ type sandboxBuilder struct {
 	engines.SandboxBuilderBase
 	m           sync.Mutex
 	payload     *payloadType
-	command     []string
 	image       imageType
 	imageDone   chan struct{}
 	imageError  error
@@ -34,7 +33,6 @@ func newSandboxBuilder(payload *payloadType, e *engine, monitor runtime.Monitor,
 	ctx *runtime.TaskContext) *sandboxBuilder {
 	sb := &sandboxBuilder{
 		payload:   payload,
-		command:   payload.Command,
 		image:     payload.Image,
 		monitor:   monitor,
 		e:         e,
