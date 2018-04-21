@@ -142,3 +142,37 @@ func TestProxies(t *testing.T) {
 
 	c.Test()
 }
+
+func TestPrivileged(t *testing.T) {
+	c := enginetest.LoggingTestCase{
+		EngineProvider: provider,
+		Scopes:         []string{"worker:privileged:*"},
+		Target:         "ffffffff", // CapInh won't have many f's if it's not privileged
+		TargetPayload: `{
+			"command": ["sh", "-c", "cat /proc/1/status | grep CapInh"],
+			"privileged": true,
+			"image": {
+				"repository": "` + dockerImageRepository + `",
+				"tag": "` + dockerImageTag + `"
+			}
+		}`,
+		FailingPayload: `{
+			"command": ["sh", "-c", "cat /proc/1/status | grep CapInh && false"],
+			"privileged": true,
+			"image": {
+				"repository": "` + dockerImageRepository + `",
+				"tag": "` + dockerImageTag + `"
+			}
+		}`,
+		SilentPayload: `{
+			"command": ["sh", "-c", "cat /proc/1/status | grep CapInh"],
+			"privileged": false,
+			"image": {
+				"repository": "` + dockerImageRepository + `",
+				"tag": "` + dockerImageTag + `"
+			}
+		}`,
+	}
+
+	c.Test()
+}
