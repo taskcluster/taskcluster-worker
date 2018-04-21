@@ -11,7 +11,7 @@ import (
 )
 
 func TestUrlFetcher(t *testing.T) {
-	ctx := &mockContext{
+	ctx := &fakeContext{
 		Context: context.Background(),
 	}
 
@@ -77,24 +77,26 @@ func TestUrlFetcher(t *testing.T) {
 
 	t.Run("status-ok", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URL.NewReference(ctx, s.URL+"/ok")
 		require.NoError(t, err)
 		err = ref.Fetch(ctx, w)
 		require.NoError(t, err)
 		require.Equal(t, "status-ok", w.String())
 		require.Equal(t, 1, count)
+
 	})
 
 	t.Run("streaming-ok", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URL.NewReference(ctx, s.URL+"/streaming")
 		require.NoError(t, err)
 		err = ref.Fetch(ctx, w)
 		require.NoError(t, err)
 		require.Contains(t, w.String(), "hello")
 		require.Equal(t, 1, count)
+
 	})
 
 	t.Run("slow progress reports", func(t *testing.T) {
@@ -105,9 +107,9 @@ func TestUrlFetcher(t *testing.T) {
 			progressReportInterval = origProgressReportInterval
 		}()
 
-		ctx2 := &mockContext{Context: context.Background()}
+		ctx2 := &fakeContext{Context: context.Background()}
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URL.NewReference(ctx2, s.URL+"/slow")
 		require.NoError(t, err)
 		err = ref.Fetch(ctx2, w)
@@ -123,7 +125,7 @@ func TestUrlFetcher(t *testing.T) {
 
 	t.Run("client-error", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URL.NewReference(ctx, s.URL+"/client-error")
 		require.NoError(t, err)
 		err = ref.Fetch(ctx, w)
@@ -135,7 +137,7 @@ func TestUrlFetcher(t *testing.T) {
 
 	t.Run("unauthorized", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URL.NewReference(ctx, s.URL+"/unauthorized")
 		require.NoError(t, err)
 		err = ref.Fetch(ctx, w)
@@ -147,7 +149,7 @@ func TestUrlFetcher(t *testing.T) {
 
 	t.Run("forbidden", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URL.NewReference(ctx, s.URL+"/forbidden")
 		require.NoError(t, err)
 		err = ref.Fetch(ctx, w)
@@ -159,7 +161,7 @@ func TestUrlFetcher(t *testing.T) {
 
 	t.Run("not-found", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URL.NewReference(ctx, s.URL+"/not-found")
 		require.NoError(t, err)
 		err = ref.Fetch(ctx, w)
@@ -171,7 +173,7 @@ func TestUrlFetcher(t *testing.T) {
 
 	t.Run("server-error", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URL.NewReference(ctx, s.URL+"/server-error")
 		require.NoError(t, err)
 		err = ref.Fetch(ctx, w)

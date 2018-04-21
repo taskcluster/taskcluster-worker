@@ -16,7 +16,7 @@ import (
 )
 
 func TestUrlHashFetcher(t *testing.T) {
-	ctx := &mockContext{
+	ctx := &fakeContext{
 		Context: context.Background(),
 	}
 
@@ -95,7 +95,7 @@ func TestUrlHashFetcher(t *testing.T) {
 
 	t.Run("status-ok", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URLHash.NewReference(ctx, map[string]interface{}{
 			"url": s.URL + "/ok",
 		})
@@ -108,7 +108,7 @@ func TestUrlHashFetcher(t *testing.T) {
 
 	t.Run("status-ok with md5", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URLHash.NewReference(ctx, map[string]interface{}{
 			"url": s.URL + "/ok",
 			"md5": md5ok,
@@ -122,7 +122,7 @@ func TestUrlHashFetcher(t *testing.T) {
 
 	t.Run("status-ok with sha1", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URLHash.NewReference(ctx, map[string]interface{}{
 			"url":  s.URL + "/ok",
 			"sha1": sha1ok,
@@ -136,7 +136,7 @@ func TestUrlHashFetcher(t *testing.T) {
 
 	t.Run("status-ok with sha256", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URLHash.NewReference(ctx, map[string]interface{}{
 			"url":    s.URL + "/ok",
 			"sha256": sha256ok,
@@ -150,7 +150,7 @@ func TestUrlHashFetcher(t *testing.T) {
 
 	t.Run("status-ok with wrong sha256", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URLHash.NewReference(ctx, map[string]interface{}{
 			"url":    s.URL + "/ok",
 			"sha256": sha256ok[:60] + "ffff",
@@ -165,7 +165,7 @@ func TestUrlHashFetcher(t *testing.T) {
 
 	t.Run("status-ok with sha512", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URLHash.NewReference(ctx, map[string]interface{}{
 			"url":    s.URL + "/ok",
 			"sha512": sha512ok,
@@ -179,7 +179,7 @@ func TestUrlHashFetcher(t *testing.T) {
 
 	t.Run("status-ok with hashes", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URLHash.NewReference(ctx, map[string]interface{}{
 			"url":    s.URL + "/ok",
 			"md5":    md5ok,
@@ -196,7 +196,7 @@ func TestUrlHashFetcher(t *testing.T) {
 
 	t.Run("streaming-ok", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URLHash.NewReference(ctx, map[string]interface{}{
 			"url": s.URL + "/streaming",
 		})
@@ -215,9 +215,9 @@ func TestUrlHashFetcher(t *testing.T) {
 			progressReportInterval = origProgressReportInterval
 		}()
 
-		ctx2 := &mockContext{Context: context.Background()}
+		ctx2 := &fakeContext{Context: context.Background()}
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URLHash.NewReference(ctx2, map[string]interface{}{
 			"url": s.URL + "/slow",
 		})
@@ -235,7 +235,7 @@ func TestUrlHashFetcher(t *testing.T) {
 
 	t.Run("client-error", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URLHash.NewReference(ctx, map[string]interface{}{
 			"url": s.URL + "/client-error",
 		})
@@ -249,7 +249,7 @@ func TestUrlHashFetcher(t *testing.T) {
 
 	t.Run("unauthorized", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URLHash.NewReference(ctx, map[string]interface{}{
 			"url": s.URL + "/unauthorized",
 		})
@@ -263,7 +263,7 @@ func TestUrlHashFetcher(t *testing.T) {
 
 	t.Run("forbidden", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URLHash.NewReference(ctx, map[string]interface{}{
 			"url": s.URL + "/forbidden",
 		})
@@ -277,7 +277,7 @@ func TestUrlHashFetcher(t *testing.T) {
 
 	t.Run("not-found", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URLHash.NewReference(ctx, map[string]interface{}{
 			"url": s.URL + "/not-found",
 		})
@@ -291,7 +291,7 @@ func TestUrlHashFetcher(t *testing.T) {
 
 	t.Run("server-error", func(t *testing.T) {
 		count = 0
-		w := &mockWriteReseter{}
+		w := &fakeWriteReseter{}
 		ref, err := URLHash.NewReference(ctx, map[string]interface{}{
 			"url": s.URL + "/server-error",
 		})
