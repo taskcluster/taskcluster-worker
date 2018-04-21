@@ -10,6 +10,8 @@ import (
 // can write things to the log.
 type LoggingTestCase struct {
 	*EngineProvider
+	// Scopes to assign the TaskContext
+	Scopes []string
 	// String that we will look for in the log
 	Target string
 	// A task.payload as accepted by the engine, which will Target to the log and
@@ -23,7 +25,7 @@ type LoggingTestCase struct {
 
 func (c *LoggingTestCase) grepLogFromPayload(payload string, needle string, success, match bool) bool {
 	debug(" - New run")
-	r := c.newRun()
+	r := c.newRunWithScopes(c.Scopes)
 	defer r.Dispose()
 	debug(" - New sandbox builder")
 	r.NewSandboxBuilder(payload)

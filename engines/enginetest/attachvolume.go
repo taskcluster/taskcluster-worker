@@ -25,7 +25,7 @@ type VolumeTestCase struct {
 
 // Construct SandboxBuilder, Attach volume to sandbox and run it
 func (c *VolumeTestCase) writeVolume(volume engines.Volume, readOnly bool) bool {
-	ctx, control := c.newTestTaskContext()
+	ctx, control := c.newTestTaskContext([]string{})
 	defer evalNilOrPanic(control.Dispose, "Failed to dispose TaskContext")
 	defer evalNilOrPanic(control.CloseLog, "Failed to close log")
 
