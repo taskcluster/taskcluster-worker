@@ -17,7 +17,9 @@ const (
 
 var provider = &enginetest.EngineProvider{
 	Engine: "docker",
-	Config: `{}`,
+	Config: `{
+		"privileged": "allow"
+	}`,
 }
 
 func TestMain(m *testing.M) {
