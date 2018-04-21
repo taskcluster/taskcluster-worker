@@ -116,8 +116,10 @@ func (p *EngineProvider) releaseEngine() {
 	}
 }
 
-func (p *EngineProvider) newTestTaskContext() (*runtime.TaskContext, *runtime.TaskContextController) {
-	ctx, control, err := runtime.NewTaskContext(p.environment.TemporaryStorage.NewFilePath(), runtime.TaskInfo{})
+func (p *EngineProvider) newTestTaskContext(scopes []string) (*runtime.TaskContext, *runtime.TaskContextController) {
+	ctx, control, err := runtime.NewTaskContext(p.environment.TemporaryStorage.NewFilePath(), runtime.TaskInfo{
+		Scopes: scopes,
+	})
 	nilOrPanic(err, "Failed to create new TaskContext")
 	return ctx, control
 }
@@ -187,6 +189,10 @@ type run struct {
 }
 
 func (p *EngineProvider) newRun() *run {
+	return p.newRunWithScopes([]string{})
+}
+
+func (p *EngineProvider) newRunWithScopes(scopes []string) *run {
 	var cleanup func()
 	if p.Setup != nil {
 		cleanup = p.Setup()
@@ -195,7 +201,7 @@ func (p *EngineProvider) newRun() *run {
 	r := run{}
 	r.cleanup = cleanup
 	r.provider = p
-	r.context, r.control = p.newTestTaskContext()
+	r.context, r.control = p.newTestTaskContext(scopes)
 	return &r
 }
 
