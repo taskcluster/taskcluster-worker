@@ -48,7 +48,7 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 	// Create the container
 	container, err := sb.e.docker.CreateContainer(docker.CreateContainerOptions{
 		Config: &docker.Config{
-			Cmd:          sb.command,
+			Cmd:          sb.payload.Command,
 			Image:        buildImageName(sb.image.Repository, sb.image.Tag),
 			Env:          *sb.env,
 			AttachStdout: true,
