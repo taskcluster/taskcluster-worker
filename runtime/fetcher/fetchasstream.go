@@ -28,7 +28,7 @@ func FetchAsStream(context Context, reference Reference, target StreamHandler) e
 
 	// fetch and close after fetching
 	ferr := reference.Fetch(context, s)
-	cerr := s.Close()
+	cerr := s.CloseWithError(ferr)
 
 	if ferr != nil {
 		return ferr
@@ -88,12 +88,12 @@ func (s *streamReseter) Reset() error {
 	return nil
 }
 
-func (s *streamReseter) Close() error {
+func (s *streamReseter) CloseWithError(err error) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 
 	// Ensure that the writer pipe is closed
-	s.writer.Close() // ignore error, we don't care if it's closed twice
+	s.writer.CloseWithError(err) // ignore error, we don't care if it's closed twice
 
 	// Wait for the most recent handler call to be finished
 	s.m.Unlock()

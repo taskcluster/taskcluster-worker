@@ -187,7 +187,7 @@ func TestFakeReference(t *testing.T) {
 		w := &fakeWriteReseter{}
 		err := r.Fetch(ctx, w)
 		require.NoError(t, err)
-		require.True(t, bytes.Compare(blob, w.buffer) == 0, "expected blob == w.buffer")
+		require.True(t, bytes.Equal(blob, w.buffer), "expected blob == w.buffer")
 	})
 
 	t.Run("Empty String with Reset", func(t *testing.T) {
@@ -223,6 +223,6 @@ func TestFakeReference(t *testing.T) {
 		w := &fakeWriteReseter{}
 		err := r.Fetch(ctx, w)
 		require.NoError(t, err)
-		require.True(t, bytes.Compare(blob, w.buffer) == 0, "expected blob == w.buffer")
+		require.True(t, bytes.Equal(blob, w.buffer), "expected blob == w.buffer")
 	})
 }

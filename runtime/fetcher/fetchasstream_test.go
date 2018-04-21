@@ -66,7 +66,7 @@ func TestFetchAsStream(t *testing.T) {
 			return cerr
 		})
 		require.NoError(t, err)
-		require.True(t, bytes.Compare(blob, result) == 0, "expected blob == result")
+		require.True(t, bytes.Equal(blob, result), "expected blob == result")
 	})
 
 	t.Run("blob with Reset", func(t *testing.T) {
@@ -85,11 +85,10 @@ func TestFetchAsStream(t *testing.T) {
 			return nil
 		})
 		require.NoError(t, err)
-		require.True(t, bytes.Compare(blob, result) == 0, "expected blob == result")
+		require.True(t, bytes.Equal(blob, result), "expected blob == result")
 	})
 
 	t.Run("Reference with Err", func(t *testing.T) {
-		var result string
 		berr := errors.New("my bad error")
 		err := FetchAsStream(ctx, &fakeReference{
 			Data:  []byte("hello-world"),
@@ -101,8 +100,7 @@ func TestFetchAsStream(t *testing.T) {
 			if cerr != nil {
 				return cerr
 			}
-			result = b.String()
-			return nil
+			panic("this should not be reachable, as fetching failed, so should reading from io.Reader")
 		})
 		require.Equal(t, berr, err)
 	})
