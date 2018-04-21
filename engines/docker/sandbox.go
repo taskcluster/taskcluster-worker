@@ -58,6 +58,7 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 			},
 		},
 		HostConfig: &docker.HostConfig{
+			Privileged: sb.payload.Privileged,
 			// gateway IP is also the host machine that we're listening for requests
 			// to the proxies added to proxyMux above..
 			ExtraHosts: []string{fmt.Sprintf("taskcluster:%s", networkHandle.Gateway())},
