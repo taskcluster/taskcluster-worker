@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"crypto/subtle"
 	"encoding/hex"
 	"fmt"
 	"hash"
@@ -68,23 +69,28 @@ func (urlHashFetcher) Schema() schematypes.Schema {
 func (urlHashFetcher) NewReference(ctx Context, options interface{}) (Reference, error) {
 	var r urlHashReference
 	schematypes.MustValidateAndMap(urlHashSchema, options, &r)
+	// Normalize to lower case for sanity
+	r.MD5 = strings.ToLower(r.MD5)
+	r.SHA1 = strings.ToLower(r.SHA1)
+	r.SHA256 = strings.ToLower(r.SHA256)
+	r.SHA512 = strings.ToLower(r.SHA512)
 	return &r, nil
 }
 
 func (u *urlHashReference) HashKey() string {
 	if u.SHA512 != "" {
-		return fmt.Sprintf("sha512=%s", strings.ToLower(u.SHA512))
+		return fmt.Sprintf("sha512=%s", u.SHA512)
 	}
 	if u.SHA256 != "" {
-		return fmt.Sprintf("sha256=%s", strings.ToLower(u.SHA256))
+		return fmt.Sprintf("sha256=%s", u.SHA256)
 	}
 	// If we don't have sha256 or sha512 we cache based on the URL + hashes
 	var k []string
 	if u.SHA1 != "" {
-		k = append(k, fmt.Sprintf("sha1=%s", strings.ToLower(u.SHA1)))
+		k = append(k, fmt.Sprintf("sha1=%s", u.SHA1))
 	}
 	if u.MD5 != "" {
-		k = append(k, fmt.Sprintf("md5=%s", strings.ToLower(u.MD5)))
+		k = append(k, fmt.Sprintf("md5=%s", u.MD5))
 	}
 	k = append(k, fmt.Sprintf("url=%s", u.URL))
 	return strings.Join(k, " ")
@@ -95,67 +101,44 @@ func (u *urlHashReference) Scopes() [][]string {
 }
 
 func (u *urlHashReference) Fetch(ctx Context, target WriteReseter) error {
-	w := hashWriteReseter{
-		Target: target,
-	}
+	// Create  a list of hash sums we want to compute
+	var hashers []hash.Hash // hash implementation for computation of hash
+	var hashalg []string    // hash algorithm for error messages
+	var hashsum []string    // hash sum expected for validation
 	if u.MD5 != "" {
-		w.hashes = append(w.hashes, md5.New())
+		hashers = append(hashers, md5.New())
+		hashalg = append(hashalg, "MD5")
+		hashsum = append(hashsum, u.MD5)
 	}
 	if u.SHA1 != "" {
-		w.hashes = append(w.hashes, sha1.New())
+		hashers = append(hashers, sha1.New())
+		hashalg = append(hashalg, "SHA1")
+		hashsum = append(hashsum, u.SHA1)
 	}
 	if u.SHA256 != "" {
-		w.hashes = append(w.hashes, sha256.New())
+		hashers = append(hashers, sha256.New())
+		hashalg = append(hashalg, "SHA256")
+		hashsum = append(hashsum, u.SHA256)
 	}
 	if u.SHA512 != "" {
-		w.hashes = append(w.hashes, sha512.New())
+		hashers = append(hashers, sha512.New())
+		hashalg = append(hashalg, "SHA512")
+		hashsum = append(hashsum, u.SHA512)
 	}
-	err := fetchURLWithRetries(ctx, u.URL, u.URL, &w)
-	if err != nil {
+
+	// Fetch from URL while computing hashes
+	if err := fetchURLWithRetries(ctx, u.URL, u.URL, &hashWriteReseter{target, hashers}); err != nil {
 		return err
 	}
-	var h hash.Hash
-	if u.MD5 != "" {
-		h, w.hashes = w.hashes[0], w.hashes[1:]
-		hashsum := hex.EncodeToString(h.Sum(nil))
-		if u.MD5 != hashsum {
+
+	// For each hasher we compute hash sum and compare to the target
+	for i, h := range hashers {
+		sum := strings.ToLower(hex.EncodeToString(h.Sum(nil)))
+		if subtle.ConstantTimeCompare([]byte(hashsum[i]), []byte(sum)) != 1 {
 			target.Reset()
 			return newBrokenReferenceError(u.URL, fmt.Sprintf(
-				"did not match declared MD5, expected '%s', computed: '%s'",
-				u.MD5, hashsum,
-			))
-		}
-	}
-	if u.SHA1 != "" {
-		h, w.hashes = w.hashes[0], w.hashes[1:]
-		hashsum := hex.EncodeToString(h.Sum(nil))
-		if u.SHA1 != hashsum {
-			target.Reset()
-			return newBrokenReferenceError(u.URL, fmt.Sprintf(
-				"did not match declared SHA1, expected '%s', computed: '%s'",
-				u.SHA1, hashsum,
-			))
-		}
-	}
-	if u.SHA256 != "" {
-		h, w.hashes = w.hashes[0], w.hashes[1:]
-		hashsum := hex.EncodeToString(h.Sum(nil))
-		if u.SHA256 != hashsum {
-			target.Reset()
-			return newBrokenReferenceError(u.URL, fmt.Sprintf(
-				"did not match declared SHA256, expected '%s', computed: '%s'",
-				u.SHA256, hashsum,
-			))
-		}
-	}
-	if u.SHA512 != "" {
-		h, w.hashes = w.hashes[0], w.hashes[1:]
-		hashsum := hex.EncodeToString(h.Sum(nil))
-		if u.SHA512 != hashsum {
-			target.Reset()
-			return newBrokenReferenceError(u.URL, fmt.Sprintf(
-				"did not match declared SHA512, expected '%s', computed: '%s'",
-				u.SHA512, hashsum,
+				"did not match declared %s, expected '%s', computed: '%s'",
+				hashalg[i], hashsum[i], sum,
 			))
 		}
 	}
@@ -163,19 +146,19 @@ func (u *urlHashReference) Fetch(ctx Context, target WriteReseter) error {
 }
 
 type hashWriteReseter struct {
-	Target WriteReseter
-	hashes []hash.Hash
+	Target  WriteReseter
+	hashers []hash.Hash
 }
 
 func (w *hashWriteReseter) Write(p []byte) (n int, err error) {
-	for _, h := range w.hashes {
+	for _, h := range w.hashers {
 		h.Write(p)
 	}
 	return w.Target.Write(p)
 }
 
 func (w *hashWriteReseter) Reset() error {
-	for _, h := range w.hashes {
+	for _, h := range w.hashers {
 		h.Reset()
 	}
 	return w.Target.Reset()
