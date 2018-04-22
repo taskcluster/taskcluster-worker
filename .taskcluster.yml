@@ -173,8 +173,9 @@ tasks:
   #################### linux QEMU tests ####################
   ##########################################################
 
-  - provisionerId:  test-dummy-provisioner
-    workerType:     dummy-worker-packet
+
+  - provisionerId:  terraform-packet
+    workerType:     tc-worker-qemu-v1
     metadata:
       name: "Test taskcluster-worker QEMU engine on QEMU engine"
       description: "Builds and tests tc-worker with QEMU engine..."
