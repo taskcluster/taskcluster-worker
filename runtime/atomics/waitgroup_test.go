@@ -48,3 +48,24 @@ func TestWaitGroupDraining(t *testing.T) {
 	require.Equal(t, ErrWaitGroupDraining, wg.Add(1))
 	<-done
 }
+
+func TestWaitGroupWaitForLess(t *testing.T) {
+	wg := WaitGroup{}
+	require.NoError(t, wg.Add(1))
+	require.NoError(t, wg.Add(1))
+	require.NoError(t, wg.Add(1))
+	wg.WaitForLessThan(5)
+
+	var done Once
+	go func() {
+		wg.WaitForLessThan(3)
+		done.Do(nil)
+	}()
+
+	time.Sleep(10 * time.Millisecond)
+	require.False(t, done.IsDone(), "done too soon")
+
+	wg.Done()
+	done.Wait()
+	wg.WaitForLessThan(3)
+}

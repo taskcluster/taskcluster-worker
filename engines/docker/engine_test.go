@@ -99,16 +99,16 @@ func TestArtifacts(t *testing.T) {
 	c := enginetest.ArtifactTestCase{
 		EngineProvider:     provider,
 		Text:               "[hello-world]",
-		TextFilePath:       "folder/hello.txt",
-		FileNotFoundPath:   "no-such-file.txt",
-		FolderNotFoundPath: "no-such-folder/",
+		TextFilePath:       "/folder/hello.txt",
+		FileNotFoundPath:   "/no-such-file.txt",
+		FolderNotFoundPath: "/no-such-folder/",
 		NestedFolderFiles: []string{
 			"hello.txt",
 			"sub-folder/hello2.txt",
 		},
-		NestedFolderPath: "folder/",
+		NestedFolderPath: "/folder/",
 		Payload: `{
-			"command": ["sh", "-ec", "mkdir -p folder/sub-folder; echo '[hello-world]' > folder/hello.txt; echo '[hello-world]' > folder/sub-folder/hello2.txt"],
+			"command": ["sh", "-ec", "mkdir -p /folder/sub-folder; echo '[hello-world]' > /folder/hello.txt; echo '[hello-world]' > /folder/sub-folder/hello2.txt"],
 			"image": {
 				"repository": "` + dockerImageRepository + `",
 				"tag": "` + dockerImageTag + `"
