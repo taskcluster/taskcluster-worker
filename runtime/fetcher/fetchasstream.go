@@ -27,7 +27,7 @@ func FetchAsStream(context Context, reference Reference, target StreamHandler) e
 	s.Reset() // initialize
 
 	// fetch and close after fetching
-	ferr := reference.Fetch(context, s)
+	ferr := reference.Fetch(context, s) // Notice that Fetch() may invoke s.Reset()
 	cerr := s.CloseWithError(ferr)
 
 	if ferr != nil {
