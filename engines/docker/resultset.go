@@ -55,9 +55,10 @@ func (r *resultSet) ExtractFile(path string) (ioext.ReadSeekCloser, error) {
 		m.Lock()
 		defer m.Unlock()
 		if result != nil {
-			// this only happens if 'path' points at a folder, which shouldn't be
-			// possible because we enforce that it must not end with slash, just as
-			// well, we handle it for good measure.
+			stream.Close() // this only happens if 'path' points at a folder, which shouldn't be
+			result.Close() // possible because we enforce that it must not end with slash.
+			result = nil   // If it happens we discard results, and return an error
+			// Ensure that extractResource returns ErrHandlerInterrupt
 			return errors.New("abort extracting artifacts")
 		}
 		result = stream
