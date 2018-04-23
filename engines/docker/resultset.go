@@ -115,11 +115,12 @@ func (r *resultSet) extractResource(path string, handler engines.FileHandler) er
 	var derr, rerr error
 	var interrupted atomics.Once
 	util.Parallel(func() {
+		var wg atomics.WaitGroup
+		defer wg.Wait() // Wait for all handlers to be done
 		defer cancel()
 		defer stream.Close() // always close the reader, so writers abort instead of hanging
 		// Create tar reader
 		reader := tar.NewReader(stream)
-		var wg atomics.WaitGroup
 		for !interrupted.IsDone() {
 			// Get first entry from reader
 			var hdr *tar.Header
@@ -149,7 +150,7 @@ func (r *resultSet) extractResource(path string, handler engines.FileHandler) er
 				))
 				return
 			}
-			debug("ExtractFolder(%s) found file: '%s' of size: %d bytes", path, hdr.Name, hdr.Size)
+			debug("extractResource(%s) found file: '%s' of size: %d bytes", path, hdr.Name, hdr.Size)
 
 			// Create temporary file that we extract this to
 			var tmpfile runtime.TemporaryFile
@@ -183,9 +184,8 @@ func (r *resultSet) extractResource(path string, handler engines.FileHandler) er
 				}
 			}(tmpfile)
 		}
-		wg.Wait() // Wait for all handlers to be done
 	}, func() {
-		debug("ExtractFolder(%s) extracting a folder", path)
+		debug("extractResource(%s) extracting a folder", path)
 		derr = r.docker.DownloadFromContainer(r.containerID, docker.DownloadFromContainerOptions{
 			Context:           ctx,
 			OutputStream:      streamWriter,
