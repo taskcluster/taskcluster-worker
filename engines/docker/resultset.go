@@ -24,6 +24,14 @@ import (
 // of docker with ExtractFile/ExtraFolder, this is limited for sanity.
 const maxExtractedFileSizeAllowed = 256 // GiB
 
+// maxConcurrentFileHandlerCalls is the maximum number of concurrent calls to
+// FileHandler in ExtractFolder, this is just a sanity limit.
+//
+// This limit ensures that we don't create too many temporary files at the
+// same time. Thus, alllowing an artifact plugin to abort the ExtractFolder
+// call if too many artifacts are extracted.
+const maxConcurrentFileHandlerCalls = 5
+
 type resultSet struct {
 	engines.ResultSetBase
 	success       bool
@@ -178,7 +186,7 @@ func (r *resultSet) extractResource(path string, handler engines.FileHandler) er
 			}
 
 			// Invoke handler concurrently
-			wg.WaitForLessThan(5) // No more than 5 concurrent calls to handler
+			wg.WaitForLessThan(maxConcurrentFileHandlerCalls) // Limit concurrency as a sanity measure
 			wg.Add(1)
 			go func(t runtime.TemporaryFile) {
 				defer wg.Done()
