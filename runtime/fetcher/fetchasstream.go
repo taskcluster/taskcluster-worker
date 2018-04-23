@@ -5,8 +5,6 @@ import (
 	"errors"
 	"io"
 	"sync"
-
-	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 )
 
 // ErrStreamReset returned from io.Reader when the fetch process is reset
@@ -43,7 +41,7 @@ type streamReseter struct {
 	writer  *io.PipeWriter
 	ctx     context.Context
 	cancel  func()
-	done    atomics.Once // covers err
+	wg      sync.WaitGroup
 	err     error
 }
 
@@ -64,24 +62,31 @@ func (s *streamReseter) Reset() error {
 		s.writer.CloseWithError(ErrStreamReset)
 	}
 
+	// Wait for handler call to be done, so we don't call it concurrently
+	// Even if calling concurrently wouldn't be a problem here, doing it is a
+	// tiny optimization that only affects cases where we a broken connection
+	// and Fetch() needs to reset the download process. And doing it would make
+	// a lot harder to write a property StreamHandler as it would likely need to
+	// deal with this concurrency.
+	s.wg.Wait()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	reader, writer := io.Pipe()
 	s.reader = reader
 	s.writer = writer
 	s.ctx = ctx
 	s.cancel = cancel
+	s.err = nil
 
+	s.wg.Add(1)
 	go func() {
+		defer s.wg.Done()
 		defer cancel()
 
 		err := s.handler(ctx, reader)
 		reader.CloseWithError(err)
-
-		s.m.Lock()
-		defer s.m.Unlock()
 		if ctx.Err() == nil {
 			s.err = err
-			s.done.Do(nil)
 		}
 	}()
 
@@ -95,10 +100,8 @@ func (s *streamReseter) CloseWithError(err error) error {
 	// Ensure that the writer pipe is closed
 	s.writer.CloseWithError(err) // ignore error, we don't care if it's closed twice
 
-	// Wait for the most recent handler call to be finished
-	s.m.Unlock()
-	s.done.Wait()
-	s.m.Lock()
+	// Wait for the handler call to be finished
+	s.wg.Wait()
 
 	return s.err
 }
