@@ -8,7 +8,7 @@ import (
 )
 
 func TestArtifactFetcherScopesPublic(t *testing.T) {
-	ctx := &mockContext{Context: context.Background()}
+	ctx := &fakeContext{Context: context.Background()}
 	ref, err := Artifact.NewReference(ctx, map[string]interface{}{
 		"taskId":   "H6SAIKUFT2mewKH-qHzXjQ",
 		"runId":    0,
@@ -19,7 +19,7 @@ func TestArtifactFetcherScopesPublic(t *testing.T) {
 }
 
 func TestArtifactFetcherScopesPrivate(t *testing.T) {
-	ctx := &mockContext{Context: context.Background()}
+	ctx := &fakeContext{Context: context.Background()}
 	ref, err := Artifact.NewReference(ctx, map[string]interface{}{
 		"taskId":   "H6SAIKUFT2mewKH-qHzXjQ",
 		"runId":    0,
