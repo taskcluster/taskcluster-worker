@@ -38,22 +38,15 @@ func (c *fakeContext) ProgressReports() []float64 {
 }
 
 type fakeWriteReseter struct {
-	offset int64
 	buffer []byte
 }
 
 func (w *fakeWriteReseter) Write(p []byte) (int, error) {
-	offset := w.offset + int64(len(p))
-	if int64(len(w.buffer)) < offset {
-		w.buffer = append(w.buffer, make([]byte, offset-int64(len(w.buffer)))...)
-	}
-	copy(w.buffer[w.offset:], p)
-	w.offset = offset
+	w.buffer = append(w.buffer, p...)
 	return len(p), nil
 }
 
 func (w *fakeWriteReseter) Reset() error {
-	w.offset = 0
 	w.buffer = nil
 	return nil
 }
