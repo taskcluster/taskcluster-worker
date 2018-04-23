@@ -8,7 +8,7 @@ import (
 //
 // ResultSet.ExtractFolder(path, handler) takes a FileHandler as the handler
 // parameter. This function may be called sequentially or concurrently, but if
-// it returns an error the ResultSet should stop calling it and return
+// it returns an error, the ResultSet should stop calling it and return
 // ErrHandlerInterrupt from ResultSet.ExtractFolder.
 //
 // The path argument is a relative path to the file, as in relative to the

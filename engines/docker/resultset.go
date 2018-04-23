@@ -55,18 +55,20 @@ func (r *resultSet) ExtractFile(path string) (ioext.ReadSeekCloser, error) {
 		m.Lock()
 		defer m.Unlock()
 		if result != nil {
+			// this only happens if 'path' points at a folder, which shouldn't be
+			// possible because we enforce that it must not end with slash, just as
+			// well, we handle it for good measure.
 			return errors.New("abort extracting artifacts")
 		}
 		result = stream
 		return nil
 	})
-	m.Lock() // shouldn't be a problem has all handlers have returned, but it makes the race detector happy
 
 	if err == engines.ErrHandlerInterrupt {
 		// docker assumes we're looking for a file when path doesn't end with '/'
 		return nil, fmt.Errorf("docker returned multiple files for path: '%s', this is a violation of docker API", path)
 	}
-	// If we can an error, we just return it
+	// If we had an error, we just return it
 	if err != nil {
 		if result != nil {
 			result.Close()
@@ -116,8 +118,8 @@ func (r *resultSet) extractResource(path string, handler engines.FileHandler) er
 	var interrupted atomics.Once
 	util.Parallel(func() {
 		var wg atomics.WaitGroup
-		defer wg.Wait() // Wait for all handlers to be done
-		defer cancel()
+		defer wg.Wait()      // Wait for all handlers to be done
+		defer cancel()       // abort DownloadFromContainer when we stop reading the tar-stream
 		defer stream.Close() // always close the reader, so writers abort instead of hanging
 		// Create tar reader
 		reader := tar.NewReader(stream)
@@ -194,7 +196,7 @@ func (r *resultSet) extractResource(path string, handler engines.FileHandler) er
 		})
 		if derr != nil && derr == ctx.Err() {
 			derr = nil // Ignore any error
-			streamWriter.CloseWithError(errors.Wrap(ctx.Err(), "download form docker aborted"))
+			streamWriter.CloseWithError(errors.Wrap(ctx.Err(), "download from docker aborted"))
 		} else if derr != nil {
 			debug("DownloadFromContainer(%s, {Path: %s, ...) => %s", r.containerID, path, derr)
 			streamWriter.CloseWithError(derr)
