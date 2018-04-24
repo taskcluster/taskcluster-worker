@@ -20,7 +20,7 @@ func TestWorkerTest(t *testing.T) {
 			"disabled": [],
 			"success": {}
 		}`,
-		Tasks: []Task{
+		Tasks: Tasks([]Task{
 			{
 				Title:   "Task Success",
 				Success: true,
@@ -38,7 +38,7 @@ func TestWorkerTest(t *testing.T) {
 					"argument": ""
 				}`,
 			},
-		},
+		}),
 	}.Test(t)
 }
 
@@ -57,7 +57,7 @@ func TestWorkerWithEnv(t *testing.T) {
 			"livelog": {},
 			"success": {}
 		}`,
-		Tasks: []Task{
+		Tasks: Tasks([]Task{
 			{
 				Title:   "Print Task Env Var",
 				Success: true,
@@ -86,7 +86,7 @@ func TestWorkerWithEnv(t *testing.T) {
 					"public/logs/live.log":         AnyArtifact(),
 				},
 			},
-		},
+		}),
 	}.Test(t)
 }
 
@@ -105,7 +105,7 @@ func TestWorkerMalformedPayload(t *testing.T) {
 			"success": {},
 			"livelog": {}
 		}`,
-		Tasks: []Task{
+		Tasks: Tasks([]Task{
 			{
 				Title:     "Task Malformed Payload",
 				Exception: runtime.ReasonMalformedPayload,
@@ -116,6 +116,6 @@ func TestWorkerMalformedPayload(t *testing.T) {
 				},
 				AllowAdditional: true,
 			},
-		},
+		}),
 	}.Test(t)
 }
