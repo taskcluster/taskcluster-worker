@@ -176,3 +176,26 @@ func TestPrivileged(t *testing.T) {
 
 	c.Test()
 }
+
+func TestVolumes(t *testing.T) {
+	c := enginetest.VolumeTestCase{
+		EngineProvider: provider,
+		Mountpoint:     "/mnt/my-volume/",
+		WriteVolumePayload: `{
+			"image": {
+				"repository": "` + dockerImageRepository + `",
+				"tag": "` + dockerImageTag + `"
+			},
+			"command": ["sh", "-c", "echo 'hello-cache-volume' > /mnt/my-volume/cache-file.txt"]
+		}`,
+		CheckVolumePayload: `{
+			"image": {
+				"repository": "` + dockerImageRepository + `",
+				"tag": "` + dockerImageTag + `"
+			},
+			"command": ["sh", "-c", "cat /mnt/my-volume/cache-file.txt | grep 'hello-cache-volume'"]
+		}`,
+	}
+
+	c.Test()
+}
