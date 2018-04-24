@@ -244,8 +244,9 @@ func (r *resultSet) Dispose() error {
 
 	// Remove the container
 	err := r.docker.RemoveContainer(docker.RemoveContainerOptions{
-		ID:    r.containerID,
-		Force: true,
+		ID:            r.containerID,
+		Force:         true, // Kill anything still running in the container
+		RemoveVolumes: true, // Remove any volumes automatically created with the container (VOLUME in docker image)
 	})
 	if err != nil {
 		r.monitor.ReportError(err, "failed to remove container in disposal of resultSet")

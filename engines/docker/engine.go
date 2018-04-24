@@ -127,6 +127,25 @@ func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.Sand
 	return newSandboxBuilder(&p, e, e.Environment.Monitor, options.TaskContext), nil
 }
 
+func (e *engine) VolumeSchema() schematypes.Schema {
+	return volumeSchema
+}
+
+func (e *engine) NewVolumeBuilder(options interface{}) (engines.VolumeBuilder, error) {
+	var opts volumeOptions
+	schematypes.MustValidateAndMap(e.VolumeSchema(), options, &opts)
+
+	return newVolumeBuilder(e, &opts)
+}
+
+func (e *engine) NewVolume(options interface{}) (engines.Volume, error) {
+	vb, err := e.NewVolumeBuilder(options)
+	if err != nil {
+		return nil, err
+	}
+	return vb.BuildVolume()
+}
+
 func (e *engine) Dispose() error {
 	// Dispose network.Pool
 	err := e.networks.Dispose()

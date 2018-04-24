@@ -62,6 +62,7 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 			// gateway IP is also the host machine that we're listening for requests
 			// to the proxies added to proxyMux above..
 			ExtraHosts: []string{fmt.Sprintf("taskcluster:%s", networkHandle.Gateway())},
+			Mounts:     sb.mounts,
 		},
 		NetworkingConfig: &docker.NetworkingConfig{
 			EndpointsConfig: map[string]*docker.EndpointConfig{
@@ -240,8 +241,9 @@ func (s *sandbox) dispose() error {
 
 	// Remove the container
 	err := s.docker.RemoveContainer(docker.RemoveContainerOptions{
-		ID:    s.containerID,
-		Force: true,
+		ID:            s.containerID,
+		Force:         true, // Kill anything still running in the container
+		RemoveVolumes: true, // Remove any volumes automatically created with the container (VOLUME in docker image)
 	})
 	if err != nil {
 		s.monitor.ReportError(err, "failed to remove container in disposal of sandbox")
