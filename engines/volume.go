@@ -16,7 +16,7 @@ type VolumeBuilder interface {
 	// intermediate folders have been created.
 	WriteFolder(name string) error
 
-	// Write a file to the volime being built.
+	// Write a file to the volume being built.
 	//
 	// Name must be a slash separated path, there is no requirement that
 	// intermediate folders have been created.
