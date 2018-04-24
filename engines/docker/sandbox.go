@@ -240,8 +240,9 @@ func (s *sandbox) dispose() error {
 
 	// Remove the container
 	err := s.docker.RemoveContainer(docker.RemoveContainerOptions{
-		ID:    s.containerID,
-		Force: true,
+		ID:            s.containerID,
+		Force:         true, // Kill anything still running in the container
+		RemoveVolumes: true, // Remove any volumes automatically created with the container (VOLUME in docker image)
 	})
 	if err != nil {
 		s.monitor.ReportError(err, "failed to remove container in disposal of sandbox")
