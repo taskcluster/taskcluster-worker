@@ -17,7 +17,7 @@ func TestLogging(t *testing.T) {
 		Concurrency:  1,
 		EngineConfig: engineConfig,
 		PluginConfig: pluginConfig,
-		Tasks: []workertest.Task{{
+		Tasks: workertest.Tasks([]workertest.Task{{
 			Title:           "hello-world pass",
 			Success:         true,
 			Payload:         `{"result": "pass", "message": "hello-world"}`,
@@ -53,7 +53,7 @@ func TestLogging(t *testing.T) {
 				"public/logs/live.log":         workertest.ReferenceArtifact(),
 				"public/logs/live_backing.log": workertest.GrepArtifact("hello-world"),
 			},
-		}},
+		}}),
 	}.Test(t)
 }
 
@@ -65,31 +65,39 @@ func TestGetUrl(t *testing.T) {
 		t.Skip("TODO: Fix the GetUrl on windows, probably firewall interference")
 	}
 
-	// Create test server with magic-words, we'll grep for later
-	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`magic-words`))
-	}))
-	defer s.Close()
-
-	// Get url to testserver
-	u, err := json.Marshal(s.URL)
-	require.NoError(t, err)
-
+	var u string
 	workertest.Case{
 		Engine:       "script",
 		Concurrency:  1,
 		EngineConfig: engineConfig,
 		PluginConfig: pluginConfig,
-		Tasks: []workertest.Task{{
-			Title:           "read from url",
-			Success:         true,
-			Payload:         `{"result": "pass", "message": "hello-world", "url": ` + string(u) + `}`,
-			AllowAdditional: false,
-			Artifacts: workertest.ArtifactAssertions{
-				"public/logs/live.log":         workertest.ReferenceArtifact(),
-				"public/logs/live_backing.log": workertest.GrepArtifact("magic-words"),
-			},
-		}},
+		Setup: func(t *testing.T, env workertest.Environment) func() {
+			// Create test server with magic-words, we'll grep for later
+			s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`magic-words`))
+			}))
+
+			// Get url to testserver
+			data, err := json.Marshal(s.URL)
+			require.NoError(t, err)
+			u = string(data)
+
+			return func() {
+				s.Close()
+			}
+		},
+		Tasks: func(t *testing.T, env workertest.Environment) []workertest.Task {
+			return []workertest.Task{{
+				Title:           "read from url",
+				Success:         true,
+				Payload:         `{"result": "pass", "message": "hello-world", "url": ` + u + `}`,
+				AllowAdditional: false,
+				Artifacts: workertest.ArtifactAssertions{
+					"public/logs/live.log":         workertest.ReferenceArtifact(),
+					"public/logs/live_backing.log": workertest.GrepArtifact("magic-words"),
+				},
+			}}
+		},
 	}.Test(t)
 }

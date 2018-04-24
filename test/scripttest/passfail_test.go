@@ -13,7 +13,7 @@ func TestPassFail(t *testing.T) {
 		Concurrency:  1,
 		EngineConfig: engineConfig,
 		PluginConfig: pluginConfig,
-		Tasks: []workertest.Task{{
+		Tasks: workertest.Tasks([]workertest.Task{{
 			Title:           "successful task",
 			Success:         true,
 			Payload:         `{"result": "pass"}`,
@@ -23,7 +23,7 @@ func TestPassFail(t *testing.T) {
 			Success:         false,
 			Payload:         `{"result": "fail"}`,
 			AllowAdditional: true,
-		}},
+		}}),
 	}.Test(t)
 }
 
@@ -33,7 +33,7 @@ func TestManyPassTasks(t *testing.T) {
 		Concurrency:  1,
 		EngineConfig: engineConfig,
 		PluginConfig: pluginConfig,
-		Tasks: (func() []workertest.Task {
+		Tasks: func(t *testing.T, env workertest.Environment) []workertest.Task {
 			var tasks []workertest.Task
 			for i := 0; i < 10; i++ {
 				tasks = append(tasks, workertest.Task{
@@ -44,7 +44,7 @@ func TestManyPassTasks(t *testing.T) {
 				})
 			}
 			return tasks
-		})(),
+		},
 	}.Test(t)
 }
 
@@ -54,7 +54,7 @@ func TestManyFailTasks(t *testing.T) {
 		Concurrency:  1,
 		EngineConfig: engineConfig,
 		PluginConfig: pluginConfig,
-		Tasks: (func() []workertest.Task {
+		Tasks: func(t *testing.T, env workertest.Environment) []workertest.Task {
 			var tasks []workertest.Task
 			for i := 0; i < 10; i++ {
 				tasks = append(tasks, workertest.Task{
@@ -65,6 +65,6 @@ func TestManyFailTasks(t *testing.T) {
 				})
 			}
 			return tasks
-		})(),
+		},
 	}.Test(t)
 }
