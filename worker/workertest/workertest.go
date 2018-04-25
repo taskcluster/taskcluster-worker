@@ -21,7 +21,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/worker/workertest/fakequeue"
 )
 
-const defaultTestCaseTimeout = 10 * time.Minute
+const defaultTestCaseTimeout = 8 * time.Minute // as go test limits to 10 min by default
 
 // Case is a worker test case
 type Case struct {
@@ -33,7 +33,7 @@ type Case struct {
 	Concurrency       int           // Worker concurrency, if zero defaulted to 1 and tasks will sequantially dependent
 	StoppedGracefully bool          // True, if worker is expected to stop gracefully
 	StoppedNow        bool          // True, if worker is expected to stop now
-	Timeout           time.Duration // Test timeout, defaults to 10 Minute
+	Timeout           time.Duration // Test timeout, defaults to 8 Minutes
 	EnableSuperseding bool          // Enable superseding in the worker
 }
 
@@ -276,9 +276,10 @@ func (c Case) testWithQueue(t *testing.T, q *tcqueue.Queue, l fakequeue.Listener
 		})
 	})
 
-	// Create tasks
+	// Create task definitions
+	tdefs := make([]*tcqueue.TaskDefinitionRequest, len(taskIDs))
 	for i, task := range tasks {
-		tdef := tcqueue.TaskDefinitionRequest{
+		tdefs[i] = &tcqueue.TaskDefinitionRequest{
 			ProvisionerID: dummyProvisionerID,
 			WorkerType:    workerType,
 			Created:       tcclient.Time(time.Now()),
@@ -288,21 +289,34 @@ func (c Case) testWithQueue(t *testing.T, q *tcqueue.Queue, l fakequeue.Listener
 		}
 		// If tasks are to run sequantially, we'll make them dependent
 		if c.Concurrency == 0 && i > 0 {
-			tdef.Dependencies = []string{taskIDs[i-1]}
-			tdef.Requires = "all-resolved"
+			tdefs[i].Dependencies = []string{taskIDs[i-1]}
+			tdefs[i].Requires = "all-resolved"
 		}
 		title := task.Title
 		if title == "" {
 			title = fmt.Sprintf("Task %d", i)
 		}
-		tdef.Scopes = task.Scopes
-		tdef.Metadata.Name = title
-		tdef.Metadata.Description = "Task from taskcluster-worker integration tests"
-		tdef.Metadata.Source = "https://github.com/taskcluster/taskcluster-worker/tree/master/worker/workertest/workertest.go"
-		tdef.Metadata.Owner = "jonasfj@mozilla.com"
-		debug("creating task '%s' as taskId: %s", title, taskIDs[i])
-		_, err := q.CreateTask(taskIDs[i], &tdef)
-		require.NoError(t, err, "Failed to create task: %s", title)
+		tdefs[i].Scopes = task.Scopes
+		tdefs[i].Metadata.Name = title
+		tdefs[i].Metadata.Description = "Task from taskcluster-worker integration tests"
+		tdefs[i].Metadata.Source = "https://github.com/taskcluster/taskcluster-worker/tree/master/worker/workertest/workertest.go"
+		tdefs[i].Metadata.Owner = "jonasfj@mozilla.com"
+	}
+
+	// Create tasks asynchronously with a limit of 10 concurrent calls to make
+	// that it goes fairly faster, when there is a lot of tasks.
+	limit := 10
+	if c.Concurrency == 0 {
+		limit = 1
+	}
+	errs := make([]error, len(taskIDs))
+	util.SpawnWithLimit(len(taskIDs), limit, func(i int) {
+		debug("creating task '%s' as taskId: %s", tdefs[i].Metadata.Name, taskIDs[i])
+		_, errs[i] = q.CreateTask(taskIDs[i], tdefs[i])
+	})
+	// Check error status for all tasks
+	for i, tdef := range tdefs {
+		require.NoError(t, errs[i], "Failed to create task: %s", tdef.Metadata.Name)
 	}
 
 	// Start worker
