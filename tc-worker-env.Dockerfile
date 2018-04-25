@@ -55,7 +55,9 @@ RUN echo '#!/bin/bash\n\
 dockerd -s vfs >/var/log/docker.log 2>&1 &\n\
 while [ ! -S /var/run/docker.sock ]; do sleep 0.1; done\n\
 "$@"\n\
-kill %1' > /usr/local/bin/with-dockerd.sh \
+RETVAL=$?\n\
+kill %1\n\
+exit "$RETVAL"' > /usr/local/bin/with-dockerd.sh \
   && chmod +x /usr/local/bin/with-dockerd.sh
 
 #trap "kill $!; wait $!" EXIT\n\

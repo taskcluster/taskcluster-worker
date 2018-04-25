@@ -11,6 +11,11 @@ ARGS="$ARGS taskcluster/tc-worker-env";
 
 TAGS='qemu network system native docker';
 
+# ascii color escape sequences
+BOLD='\033[1m'
+RED='\033[0;31m'
+CLEAR='\033[0m'
+
 if [[ "$@" == go\ * ]]; then
   docker run $ARGS "$@";
 elif [[ "$1" == -- ]]; then
@@ -26,8 +31,8 @@ else
 fi;
 
 if [[ "$?" != "0" ]]; then
-  echo "### TEST FAILED";
+  echo -e "$RED$BOLD### TEST FAILED$CLEAR";
   exit 1;
 else
-  echo "### TEST PASSED";
+  echo -e "$BOLD### TEST PASSED$CLEAR";
 fi
