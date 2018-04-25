@@ -93,13 +93,13 @@ func (r *resultSet) ExtractFile(path string) (ioext.ReadSeekCloser, error) {
 
 func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) error {
 	// We'll treat paths ending with a slash as paths to folders
-	if !strings.HasSuffix(path, "/") {
-		debug("ExtractFolder(%s) doesn't end with '/' which can't be a folder", path)
+	if strings.HasSuffix(path, "/") {
+		debug("ExtractFolder(%s) ends with '/'", path)
 		return runtime.NewMalformedPayloadError(fmt.Sprintf(
 			"docker folder path: '%s' doesn't end with slash, paths to folders must end with a slash", path,
 		))
 	}
-	return r.extractResource(path, func(name string, stream ioext.ReadSeekCloser) error {
+	return r.extractResource(path+"/", func(name string, stream ioext.ReadSeekCloser) error {
 		// Make the name relative to path
 		if !strings.HasPrefix(name, "/") {
 			name = "/" + name // Ensure we always have an absolute path

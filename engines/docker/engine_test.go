@@ -103,7 +103,7 @@ func TestArtifacts(t *testing.T) {
 		Text:               "[hello-world]",
 		TextFilePath:       "/folder/hello.txt",
 		FileNotFoundPath:   "/no-such-file.txt",
-		FolderNotFoundPath: "/no-such-folder/",
+		FolderNotFoundPath: "/no-such-folder",
 		NestedFolderFiles: []string{
 			"hello.txt",
 			"sub-folder/hello2.txt",
