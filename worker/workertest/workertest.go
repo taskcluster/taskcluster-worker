@@ -120,7 +120,12 @@ func (c Case) TestWithFakeQueue(t *testing.T) {
 	})
 	q.BaseURL = s.URL
 
-	c.testWithQueue(t, q, l)
+	// Use localhost for webhookserver
+	webHookServerConfig := `{
+		"provider": "localhost"
+	}`
+
+	c.testWithQueue(t, q, l, webHookServerConfig)
 }
 
 // TestWithRealQueue runs integration tests against production queue
@@ -149,7 +154,12 @@ func (c Case) TestWithRealQueue(t *testing.T) {
 		q.BaseURL = os.Getenv("QUEUE_BASE_URL")
 	}
 
-	c.testWithQueue(t, q, l)
+	// Use webhooktunnel for webhookserver
+	webHookServerConfig := `{
+		"provider": "webhooktunnel"
+	}`
+
+	c.testWithQueue(t, q, l, webHookServerConfig)
 }
 
 // Test runs the test case
@@ -176,7 +186,7 @@ func mustUnmarshalJSON(data string) interface{} {
 	return v
 }
 
-func (c Case) testWithQueue(t *testing.T, q *tcqueue.Queue, l fakequeue.Listener) {
+func (c Case) testWithQueue(t *testing.T, q *tcqueue.Queue, l fakequeue.Listener, webHookServerConfig string) {
 	// Run initial config
 	if c.Setup != nil {
 		cleanup := c.Setup(t, Environment{
@@ -217,7 +227,7 @@ func (c Case) testWithQueue(t *testing.T, q *tcqueue.Queue, l fakequeue.Listener
 		"plugins":          mustUnmarshalJSON(c.PluginConfig),
 		"queueBaseUrl":     q.BaseURL,
 		"temporaryFolder":  tempFolder,
-		"webHookServer":    mustUnmarshalJSON(`{"provider": "localhost"}`),
+		"webHookServer":    mustUnmarshalJSON(webHookServerConfig),
 		"worker": map[string]interface{}{
 			"concurrency":         concurrency,
 			"minimumReclaimDelay": 30,
