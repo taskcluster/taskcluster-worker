@@ -35,7 +35,7 @@ func TestReadWriteEmptyCache(t *testing.T) {
 		Engine:       "mock",
 		EngineConfig: `{}`,
 		PluginConfig: testPluginConfig,
-		Tasks: []workertest.Task{
+		Tasks: workertest.Tasks([]workertest.Task{
 			{
 				Title:  "Write hello-world to empty cache volume",
 				Scopes: []string{"worker:cache:dummy-garbage-my-cache-name"},
@@ -56,8 +56,7 @@ func TestReadWriteEmptyCache(t *testing.T) {
 				},
 				AllowAdditional: true,
 				Success:         true,
-			},
-			{
+			}, {
 				Title:  "Read from cache volume",
 				Scopes: []string{"worker:cache:dummy-garbage-my-cache-name"},
 				Payload: `{
@@ -78,7 +77,7 @@ func TestReadWriteEmptyCache(t *testing.T) {
 				AllowAdditional: true,
 				Success:         true,
 			},
-		},
+		}),
 	}.TestWithFakeQueue(t) // TODO: Resolve scope issues and test against real queue
 }
 
@@ -123,7 +122,7 @@ func TestReadPreloadCache(t *testing.T) {
 		Engine:       "mock",
 		EngineConfig: `{}`,
 		PluginConfig: testPluginConfig,
-		Tasks: []workertest.Task{
+		Tasks: workertest.Tasks([]workertest.Task{
 			{
 				Title:  "Read from cache volume",
 				Scopes: []string{"worker:cache:dummy-garbage-my-cache-name"},
@@ -145,8 +144,7 @@ func TestReadPreloadCache(t *testing.T) {
 				},
 				AllowAdditional: true,
 				Success:         true,
-			},
-			{
+			}, {
 				Title:  "Read from cache volume again",
 				Scopes: []string{"worker:cache:dummy-garbage-my-cache-name"},
 				Payload: `{
@@ -167,8 +165,7 @@ func TestReadPreloadCache(t *testing.T) {
 				},
 				AllowAdditional: true,
 				Success:         true,
-			},
-			{
+			}, {
 				Title:  "Write to preloaded cache volume",
 				Scopes: []string{"worker:cache:dummy-garbage-my-cache-name"},
 				Payload: `{
@@ -186,8 +183,7 @@ func TestReadPreloadCache(t *testing.T) {
 				}`,
 				AllowAdditional: true,
 				Success:         true,
-			},
-			{
+			}, {
 				Title:  "Read from cache volume after write",
 				Scopes: []string{"worker:cache:dummy-garbage-my-cache-name"},
 				Payload: `{
@@ -208,8 +204,7 @@ func TestReadPreloadCache(t *testing.T) {
 				},
 				AllowAdditional: true,
 				Success:         true,
-			},
-			{
+			}, {
 				Title: "Read from read-only cache volume",
 				Payload: `{
 					"delay": 5,
@@ -228,8 +223,7 @@ func TestReadPreloadCache(t *testing.T) {
 				},
 				AllowAdditional: true,
 				Success:         true,
-			},
-			{
+			}, {
 				Title: "Read from read-only cache volume again",
 				Payload: `{
 					"delay": 5,
@@ -266,7 +260,7 @@ func TestReadPreloadCache(t *testing.T) {
 				AllowAdditional: true,
 				Success:         false,
 			},
-		},
+		}),
 	}.TestWithFakeQueue(t) // TODO: Resolve scope issues and test against real queue
 }
 
@@ -276,7 +270,7 @@ func TestCacheScopeRequired(t *testing.T) {
 		Engine:       "mock",
 		EngineConfig: `{}`,
 		PluginConfig: testPluginConfig,
-		Tasks: []workertest.Task{
+		Tasks: workertest.Tasks([]workertest.Task{
 			{
 				Title:  "Write hello-world to empty cache volume",
 				Scopes: []string{"worker:cache:dummy-garbage-wrong-cache-name"},
@@ -298,8 +292,7 @@ func TestCacheScopeRequired(t *testing.T) {
 				AllowAdditional: true,
 				Exception:       runtime.ReasonMalformedPayload,
 				Success:         false,
-			},
-			{
+			}, {
 				Title:  "Access with star-scope",
 				Scopes: []string{"worker:cache:dummy-garbage-my-cache-*"},
 				Payload: `{
@@ -317,7 +310,7 @@ func TestCacheScopeRequired(t *testing.T) {
 				AllowAdditional: true,
 				Success:         true,
 			},
-		},
+		}),
 	}.TestWithFakeQueue(t) // TODO: Resolve scope issues and test against real queue
 }
 
@@ -379,7 +372,7 @@ func TestPurgeCache(t *testing.T) {
 				"purgeCacheBaseUrl": "` + s.URL + `"
 			}
 		}`,
-		Tasks: []workertest.Task{
+		Tasks: workertest.Tasks([]workertest.Task{
 			{
 				Title:  "Write hello-world to empty cache volume",
 				Scopes: []string{"worker:cache:dummy-garbage-my-cache-name"},
@@ -400,8 +393,7 @@ func TestPurgeCache(t *testing.T) {
 				},
 				AllowAdditional: true,
 				Success:         true,
-			},
-			{
+			}, {
 				Title:  "Read from cache volume",
 				Scopes: []string{"worker:cache:dummy-garbage-my-cache-name"},
 				Payload: `{
@@ -421,8 +413,7 @@ func TestPurgeCache(t *testing.T) {
 				},
 				AllowAdditional: true,
 				Success:         true,
-			},
-			{
+			}, {
 				Title: "Ping purge-cache service to start purging",
 				Payload: `{
 					"delay": 5,
@@ -431,8 +422,7 @@ func TestPurgeCache(t *testing.T) {
 				}`,
 				AllowAdditional: true,
 				Success:         true,
-			},
-			{
+			}, {
 				Title:  "Read from cache volume after purge",
 				Scopes: []string{"worker:cache:dummy-garbage-my-cache-name"},
 				Payload: `{
@@ -453,6 +443,6 @@ func TestPurgeCache(t *testing.T) {
 				AllowAdditional: true,
 				Success:         false,
 			},
-		},
+		}),
 	}.TestWithFakeQueue(t) // TODO: Resolve scope issues and test against real queue
 }
