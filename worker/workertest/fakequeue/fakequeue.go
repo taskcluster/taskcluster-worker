@@ -529,6 +529,16 @@ func (q *FakeQueue) internalPutArtifact(taskID string, runID int, name string, p
 	// Real S3/azure is slow, let's add a bit of jitter to get some intermittent bugs
 	time.Sleep(time.Duration(rand.Intn(15)) * time.Millisecond) // sleep 0 - 15ms
 
+	// S3 always requires a content-length, if it's not present we have bug
+	if r.Header.Get("Content-Length") == "" {
+		debug("    s3/azure expects Content-Length")
+		return restError{
+			StatusCode: http.StatusBadRequest,
+			Code:       "ContentLengthMissing",
+			Message:    "S3/azure always expects a content-length even if it's zero",
+		}
+	}
+
 	// Find task
 	t, ok := q.tasks[taskID]
 	if !ok || len(t.status.Runs) <= runID {
