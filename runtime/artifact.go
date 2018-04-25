@@ -160,7 +160,7 @@ func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser, additionalArt
 			ProtoMinor:    1,
 			Header:        header,
 			ContentLength: contentLength,
-			Body:          stream,
+			Body:          ioutil.NopCloser(stream),
 			GetBody: func() (io.ReadCloser, error) {
 				// In case we have to follow any redirects, which shouldn't happen
 				if _, serr := stream.Seek(0, io.SeekStart); serr != nil {
@@ -172,6 +172,7 @@ func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser, additionalArt
 		resp, err := client.Do(req)
 		if err != nil {
 			if attempts < 10 {
+				debug("attempting artifact upload again, due to error: %s", err)
 				time.Sleep(backoff.Delay(attempts))
 				continue
 			}
@@ -188,6 +189,7 @@ func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser, additionalArt
 		if resp.StatusCode/100 == 5 {
 			// TODO: Make this configurable
 			if attempts < 10 {
+				debug("attempting artifact upload again, due to HTTP 5xx: %d", resp.StatusCode)
 				time.Sleep(backoff.Delay(attempts))
 				continue
 			} else {
