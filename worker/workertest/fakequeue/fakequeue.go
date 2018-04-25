@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -80,6 +81,7 @@ type artifact struct {
 	Message         string    `json:"message,omitempty"`
 	Data            []byte    `json:"-"`
 	ContentEncoding string    `json:"-"`
+	UploadAttempt   int       `json:"-"` // Number of attempts made to upload
 }
 
 func (q *FakeQueue) initAndLock() {
@@ -524,6 +526,9 @@ func (q *FakeQueue) createArtifact(taskID string, runID int, name string, payloa
 }
 
 func (q *FakeQueue) internalPutArtifact(taskID string, runID int, name string, payload []byte, r *http.Request) interface{} {
+	// Real S3/azure is slow, let's add a bit of jitter to get some intermittent bugs
+	time.Sleep(time.Duration(rand.Intn(15)) * time.Millisecond) // sleep 0 - 15ms
+
 	// Find task
 	t, ok := q.tasks[taskID]
 	if !ok || len(t.status.Runs) <= runID {
@@ -539,8 +544,34 @@ func (q *FakeQueue) internalPutArtifact(taskID string, runID int, name string, p
 		}
 	}
 
-	// Store payload
+	// Get the artifact
 	a := t.artifacts[runID][name]
+	a.UploadAttempt++
+	t.artifacts[runID][name] = a
+
+	// If upload attempt is less than 3, then we roll a dice to introduce some retries
+	if a.UploadAttempt < 3 {
+		switch rand.Intn(6) {
+		case 0:
+			debug("    s3/azure simulates an intermittent 500 error")
+			return restError{
+				StatusCode: http.StatusServiceUnavailable,
+				Code:       "SimulatingIntermittentOverload",
+				Message:    "Simulating a temporary overload of blob storage service, client should retry",
+			}
+		case 1:
+			debug("    s3/azure simulates an intermittent 503 error")
+			return restError{
+				StatusCode: http.StatusServiceUnavailable,
+				Code:       "SimulatingIntermittentOverload",
+				Message:    "Simulating a temporary overload of blob storage service, client should retry",
+			}
+		default:
+			debug("    s3/azure accepts upload attempt without more retries")
+		}
+	}
+
+	// Store payload
 	a.Data = payload
 	a.ContentEncoding = r.Header.Get("Content-Encoding")
 	t.artifacts[runID][name] = a
@@ -651,6 +682,8 @@ func (q *FakeQueue) ping() interface{} {
 
 func (q *FakeQueue) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	debug("%s %s", r.Method, r.URL.Path)
+
+	// TODO: Introduce intermittent connection breaks and 500s
 
 	// Read body before we lock
 	var data []byte
