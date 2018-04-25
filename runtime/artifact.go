@@ -125,6 +125,7 @@ func (context *TaskContext) createArtifact(name string, req []byte) ([]byte, err
 }
 
 func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser, additionalArtifacts map[string]string) error {
+	defer stream.Close()
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		panic(errors.Wrap(err, "failed to parse URL"))
