@@ -108,7 +108,7 @@ func TestArtifacts(t *testing.T) {
 			"hello.txt",
 			"sub-folder/hello2.txt",
 		},
-		NestedFolderPath: "/folder/",
+		NestedFolderPath: "/folder",
 		Payload: `{
 			"command": ["sh", "-ec", "mkdir -p /folder/sub-folder; echo '[hello-world]' > /folder/hello.txt; echo '[hello-world]' > /folder/sub-folder/hello2.txt"],
 			"image": {
