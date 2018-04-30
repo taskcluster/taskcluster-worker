@@ -10,39 +10,37 @@ import (
 )
 
 func TestWorker(t *testing.T) {
-	workerCase.Test(t)
-}
-
-var workerCase = workertest.Case{
-	Engine:       "native",
-	Concurrency:  1,
-	EngineConfig: engineConfig,
-	PluginConfig: pluginConfig,
-	Tasks: []workertest.Task{{
-		Title:     "Invalid Command",
-		Exception: runtime.ReasonMalformedPayload,
-		Payload: `{
-			"command": ["-definitely-an-invalid-command-"],
-			"env": {},
-			"maxRunTime": 30
-		}`,
-		AllowAdditional: true,
-		Artifacts: workertest.ArtifactAssertions{
-			// Expect error message that contains the command
-			"public/logs/live_backing.log": workertest.GrepArtifact("-definitely-an-invalid-command-"),
-		},
-	}, {
-		Title:     "JSON Schema Violation",
-		Exception: runtime.ReasonMalformedPayload,
-		Payload: `{
-			"command": "should be an array",
-			"env": {},
-			"maxRunTime": 30
-		}`,
-		AllowAdditional: true,
-		Artifacts: workertest.ArtifactAssertions{
-			// Expect error message that contains the JSON path to violation
-			"public/logs/live_backing.log": workertest.GrepArtifact("task.payload.command"),
-		},
-	}},
+	workertest.Case{
+		Engine:       "native",
+		Concurrency:  1,
+		EngineConfig: engineConfig,
+		PluginConfig: pluginConfig,
+		Tasks: workertest.Tasks([]workertest.Task{{
+			Title:     "Invalid Command",
+			Exception: runtime.ReasonMalformedPayload,
+			Payload: `{
+				"command": ["-definitely-an-invalid-command-"],
+				"env": {},
+				"maxRunTime": 30
+			}`,
+			AllowAdditional: true,
+			Artifacts: workertest.ArtifactAssertions{
+				// Expect error message that contains the command
+				"public/logs/live_backing.log": workertest.GrepArtifact("-definitely-an-invalid-command-"),
+			},
+		}, {
+			Title:     "JSON Schema Violation",
+			Exception: runtime.ReasonMalformedPayload,
+			Payload: `{
+				"command": "should be an array",
+				"env": {},
+				"maxRunTime": 30
+			}`,
+			AllowAdditional: true,
+			Artifacts: workertest.ArtifactAssertions{
+				// Expect error message that contains the JSON path to violation
+				"public/logs/live_backing.log": workertest.GrepArtifact("task.payload.command"),
+			},
+		}}),
+	}.Test(t)
 }

@@ -12,7 +12,7 @@ func TestArtifacts(t *testing.T) {
 		Concurrency:  1,
 		EngineConfig: engineConfig,
 		PluginConfig: pluginConfig,
-		Tasks: []workertest.Task{{
+		Tasks: workertest.Tasks([]workertest.Task{{
 			Title:           "hello-world artifact",
 			Success:         true,
 			Payload:         `{"result": "pass", "artifacts": {"public/build/test-output.txt": "hello-world"}}`,
@@ -32,6 +32,6 @@ func TestArtifacts(t *testing.T) {
 				"public/logs/live_backing.log": workertest.AnyArtifact(),
 				"public/build/test-output.txt": workertest.MatchArtifact("", "text/plain; charset=utf-8"),
 			},
-		}},
+		}}),
 	}.Test(t)
 }

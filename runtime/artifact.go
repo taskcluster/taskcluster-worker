@@ -125,6 +125,7 @@ func (context *TaskContext) createArtifact(name string, req []byte) ([]byte, err
 }
 
 func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser, additionalArtifacts map[string]string) error {
+	defer stream.Close()
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		panic(errors.Wrap(err, "failed to parse URL"))
@@ -152,6 +153,13 @@ func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser, additionalArt
 		if err != nil {
 			return errors.Wrap(err, "Failed to seek start before uploading stream")
 		}
+		body := ioutil.NopCloser(stream)
+		if contentLength == 0 {
+			// Zero is the default value for ContentLength, so if we want to avoid
+			// using transfer-encoding: chunked, not supported by S3, we have to
+			// specify http.NoBody when content-length is zero
+			body = http.NoBody
+		}
 		req := &http.Request{
 			Method:        "PUT",
 			URL:           u,
@@ -160,18 +168,19 @@ func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser, additionalArt
 			ProtoMinor:    1,
 			Header:        header,
 			ContentLength: contentLength,
-			Body:          stream,
+			Body:          body,
 			GetBody: func() (io.ReadCloser, error) {
 				// In case we have to follow any redirects, which shouldn't happen
 				if _, serr := stream.Seek(0, io.SeekStart); serr != nil {
 					return nil, errors.Wrap(serr, "failed to seek to start of stream")
 				}
-				return ioutil.NopCloser(stream), nil
+				return body, nil
 			},
 		}
 		resp, err := client.Do(req)
 		if err != nil {
 			if attempts < 10 {
+				debug("attempting artifact upload again, due to error: %s", err)
 				time.Sleep(backoff.Delay(attempts))
 				continue
 			}
@@ -188,6 +197,7 @@ func putArtifact(urlStr, mime string, stream ioext.ReadSeekCloser, additionalArt
 		if resp.StatusCode/100 == 5 {
 			// TODO: Make this configurable
 			if attempts < 10 {
+				debug("attempting artifact upload again, due to HTTP 5xx: %d", resp.StatusCode)
 				time.Sleep(backoff.Delay(attempts))
 				continue
 			} else {

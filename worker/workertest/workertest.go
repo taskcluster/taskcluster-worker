@@ -21,19 +21,46 @@ import (
 	"github.com/taskcluster/taskcluster-worker/worker/workertest/fakequeue"
 )
 
-const defaultTestCaseTimeout = 10 * time.Minute
+const defaultTestCaseTimeout = 8 * time.Minute // as go test limits to 10 min by default
 
 // Case is a worker test case
 type Case struct {
 	Engine            string        // Engine to be used
 	EngineConfig      string        // Engine configuration as JSON
 	PluginConfig      string        // Configuration of plugins, see plugins.PluginManagerConfigSchema()
-	Tasks             []Task        // Tasks to create and associated assertions
+	Setup             SetupFunc     // Function to setup local environment, return a cleanup function
+	Tasks             TasksFunc     // Function that returns a list of tasks to create and associated assertions
 	Concurrency       int           // Worker concurrency, if zero defaulted to 1 and tasks will sequantially dependent
 	StoppedGracefully bool          // True, if worker is expected to stop gracefully
 	StoppedNow        bool          // True, if worker is expected to stop now
-	Timeout           time.Duration // Test timeout, defaults to 10 Minute
+	Timeout           time.Duration // Test timeout, defaults to 8 Minutes
 	EnableSuperseding bool          // Enable superseding in the worker
+}
+
+// Environment holds values that can be accessed in callbacks
+type Environment struct {
+	Worker   runtime.Stoppable
+	Queue    *tcqueue.Queue
+	Listener fakequeue.Listener
+}
+
+// A SetupFunc callback can setup the local environment, this includes starting
+// servers running on localhost. The SetupFunc callback returns a cleanup function
+// that will be invoked when tests are done.
+type SetupFunc func(t *testing.T, env Environment) func()
+
+// A TasksFunc callback returns the tasks to be created and associated assertions.
+//
+// For test cases that uses a static list of tasks, Tasks([]task{...}) function
+// can be used to wrap a static []Task list.
+type TasksFunc func(t *testing.T, env Environment) []Task
+
+// Tasks is a quick wrapper for constructing a TasksFunc that always returns
+// a static list of tasks.
+func Tasks(tasks []Task) TasksFunc {
+	return func(*testing.T, Environment) []Task {
+		return tasks
+	}
 }
 
 // A Task to be included in a worker test case
@@ -93,7 +120,12 @@ func (c Case) TestWithFakeQueue(t *testing.T) {
 	})
 	q.BaseURL = s.URL
 
-	c.testWithQueue(t, q, l)
+	// Use localhost for webhookserver
+	webHookServerConfig := `{
+		"provider": "localhost"
+	}`
+
+	c.testWithQueue(t, q, l, webHookServerConfig)
 }
 
 // TestWithRealQueue runs integration tests against production queue
@@ -122,7 +154,12 @@ func (c Case) TestWithRealQueue(t *testing.T) {
 		q.BaseURL = os.Getenv("QUEUE_BASE_URL")
 	}
 
-	c.testWithQueue(t, q, l)
+	// Use webhooktunnel for webhookserver
+	webHookServerConfig := `{
+		"provider": "webhooktunnel"
+	}`
+
+	c.testWithQueue(t, q, l, webHookServerConfig)
 }
 
 // Test runs the test case
@@ -149,7 +186,19 @@ func mustUnmarshalJSON(data string) interface{} {
 	return v
 }
 
-func (c Case) testWithQueue(t *testing.T, q *tcqueue.Queue, l fakequeue.Listener) {
+func (c Case) testWithQueue(t *testing.T, q *tcqueue.Queue, l fakequeue.Listener, webHookServerConfig string) {
+	// Run initial config
+	if c.Setup != nil {
+		cleanup := c.Setup(t, Environment{
+			Listener: l,
+			Queue:    q,
+			Worker:   nil, // not available in the setup stage
+		})
+		if cleanup != nil {
+			defer cleanup()
+		}
+	}
+
 	// Create config
 	tempFolder := path.Join(os.TempDir(), slugid.Nice())
 	defer os.RemoveAll(tempFolder)
@@ -178,7 +227,7 @@ func (c Case) testWithQueue(t *testing.T, q *tcqueue.Queue, l fakequeue.Listener
 		"plugins":          mustUnmarshalJSON(c.PluginConfig),
 		"queueBaseUrl":     q.BaseURL,
 		"temporaryFolder":  tempFolder,
-		"webHookServer":    mustUnmarshalJSON(`{"provider": "localhost"}`),
+		"webHookServer":    mustUnmarshalJSON(webHookServerConfig),
 		"worker": map[string]interface{}{
 			"concurrency":         concurrency,
 			"minimumReclaimDelay": 30,
@@ -198,19 +247,27 @@ func (c Case) testWithQueue(t *testing.T, q *tcqueue.Queue, l fakequeue.Listener
 	w, err := worker.New(config)
 	require.NoError(t, err, "Failed to create worker")
 
+	// Generate the tasks
+	require.NotNil(t, c.Tasks, "Case.Tasks must be defined")
+	tasks := c.Tasks(t, Environment{
+		Listener: l,
+		Queue:    q,
+		Worker:   w,
+	})
+
 	// Create taskIDs
-	taskIDs := make([]string, len(c.Tasks))
+	taskIDs := make([]string, len(tasks))
 	for i := range taskIDs {
-		if c.Tasks[i].TaskID != "" {
-			taskIDs[i] = c.Tasks[i].TaskID
+		if tasks[i].TaskID != "" {
+			taskIDs[i] = tasks[i].TaskID
 		} else {
 			taskIDs[i] = slugid.Nice()
 		}
 	}
 
 	// Setup event listeners
-	events := make([]<-chan error, len(c.Tasks))
-	util.Spawn(len(c.Tasks), func(i int) {
+	events := make([]<-chan error, len(tasks))
+	util.Spawn(len(tasks), func(i int) {
 		events[i] = l.WaitForTask(taskIDs[i])
 	})
 
@@ -219,7 +276,7 @@ func (c Case) testWithQueue(t *testing.T, q *tcqueue.Queue, l fakequeue.Listener
 	go tasksResolved.Do(func() {
 		// Wait for events
 		debug("Waiting for tasks to be resolved")
-		util.Spawn(len(c.Tasks), func(i int) {
+		util.Spawn(len(tasks), func(i int) {
 			err := <-events[i]
 			assert.NoError(t, err, "Failed to listen for task %d", i)
 			debug("Finished waiting for %s", taskIDs[i])
@@ -229,9 +286,10 @@ func (c Case) testWithQueue(t *testing.T, q *tcqueue.Queue, l fakequeue.Listener
 		})
 	})
 
-	// Create tasks
-	for i, task := range c.Tasks {
-		tdef := tcqueue.TaskDefinitionRequest{
+	// Create task definitions
+	tdefs := make([]*tcqueue.TaskDefinitionRequest, len(taskIDs))
+	for i, task := range tasks {
+		tdefs[i] = &tcqueue.TaskDefinitionRequest{
 			ProvisionerID: dummyProvisionerID,
 			WorkerType:    workerType,
 			Created:       tcclient.Time(time.Now()),
@@ -241,21 +299,34 @@ func (c Case) testWithQueue(t *testing.T, q *tcqueue.Queue, l fakequeue.Listener
 		}
 		// If tasks are to run sequantially, we'll make them dependent
 		if c.Concurrency == 0 && i > 0 {
-			tdef.Dependencies = []string{taskIDs[i-1]}
-			tdef.Requires = "all-resolved"
+			tdefs[i].Dependencies = []string{taskIDs[i-1]}
+			tdefs[i].Requires = "all-resolved"
 		}
 		title := task.Title
 		if title == "" {
 			title = fmt.Sprintf("Task %d", i)
 		}
-		tdef.Scopes = task.Scopes
-		tdef.Metadata.Name = title
-		tdef.Metadata.Description = "Task from taskcluster-worker integration tests"
-		tdef.Metadata.Source = "https://github.com/taskcluster/taskcluster-worker/tree/master/worker/workertest/workertest.go"
-		tdef.Metadata.Owner = "jonasfj@mozilla.com"
-		debug("creating task '%s' as taskId: %s", title, taskIDs[i])
-		_, err := q.CreateTask(taskIDs[i], &tdef)
-		require.NoError(t, err, "Failed to create task: %s", title)
+		tdefs[i].Scopes = task.Scopes
+		tdefs[i].Metadata.Name = title
+		tdefs[i].Metadata.Description = "Task from taskcluster-worker integration tests"
+		tdefs[i].Metadata.Source = "https://github.com/taskcluster/taskcluster-worker/tree/master/worker/workertest/workertest.go"
+		tdefs[i].Metadata.Owner = "jonasfj@mozilla.com"
+	}
+
+	// Create tasks asynchronously with a limit of 10 concurrent calls to make
+	// that it goes fairly faster, when there is a lot of tasks.
+	limit := 10
+	if c.Concurrency == 0 {
+		limit = 1
+	}
+	errs := make([]error, len(taskIDs))
+	util.SpawnWithLimit(len(taskIDs), limit, func(i int) {
+		debug("creating task '%s' as taskId: %s", tdefs[i].Metadata.Name, taskIDs[i])
+		_, errs[i] = q.CreateTask(taskIDs[i], tdefs[i])
+	})
+	// Check error status for all tasks
+	for i, tdef := range tdefs {
+		require.NoError(t, errs[i], "Failed to create task: %s", tdef.Metadata.Name)
 	}
 
 	// Start worker
@@ -306,7 +377,7 @@ func (c Case) testWithQueue(t *testing.T, q *tcqueue.Queue, l fakequeue.Listener
 	// with exception can have artifacts added after resolution.
 	debug("Verifying task assertions")
 	// We could run these in parallel, but debugging is easier if we don't...
-	for i, task := range c.Tasks {
+	for i, task := range tasks {
 		title := task.Title
 		if title == "" {
 			title = fmt.Sprintf("Task %d", i)

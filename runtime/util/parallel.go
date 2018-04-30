@@ -1,6 +1,9 @@
 package util
 
-import "sync"
+import (
+	"errors"
+	"sync"
+)
 
 // Parallel takes a list of functions and calls them all in concurrently,
 // returning when all the functions are done.
@@ -43,22 +46,29 @@ func Spawn(N int, fn func(i int)) {
 //
 // This utility is smart when instantiating elements in an array concurrently.
 func SpawnWithLimit(N, limit int, fn func(i int)) {
+	if limit <= 0 {
+		panic(errors.New("SpawnWithLimit called with limit <= 0"))
+	}
 	wg := sync.WaitGroup{}
 	wg.Add(N)
 	m := sync.Mutex{}
 	c := sync.NewCond(&m)
 	for index := 0; index < N; index++ {
+		// Wait for limit to be non-zero
+		m.Lock()
+		for limit == 0 {
+			c.Wait() // wait for signal
+		}
+		limit--
+		m.Unlock()
+
+		// Spawn fn(i) for index
 		go func(i int) {
 			defer wg.Done()
-
-			m.Lock()
-			defer m.Unlock()
-
-			for limit == 0 {
-				c.Wait()
-			}
-			limit--
 			defer func() {
+				// Increment limit now that we're done and signal
+				m.Lock()
+				defer m.Unlock()
 				limit++
 				c.Signal()
 			}()
