@@ -12,14 +12,14 @@ matrix:
       env:
         - MY_GOOS=darwin
         - MY_GOARCH=amd64
-    - os: linux
-      env:
-        - MY_GOOS=windows
-        - MY_GOARCH=amd64
-    - os: linux
-      env:
-        - MY_GOOS=windows
-        - MY_GOARCH=386
+#    - os: linux
+#      env:
+#        - MY_GOOS=windows
+#        - MY_GOARCH=amd64
+#    - os: linux
+#      env:
+#        - MY_GOOS=windows
+#        - MY_GOARCH=386
     - os: linux
       env:
         - MY_GOOS=linux
