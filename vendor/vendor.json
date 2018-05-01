@@ -15,6 +15,12 @@
 			"revisionTime": "2017-09-29T23:40:23Z"
 		},
 		{
+			"checksumSHA1": "q+QbBQgswEQAFMyYb+qXyp4OGDo=",
+			"path": "github.com/DataDog/zstd",
+			"revision": "aebefd9fcb99f22cd691ef778a12ed68f0e6a1ab",
+			"revisionTime": "2018-03-30T22:31:10Z"
+		},
+		{
 			"checksumSHA1": "oEpUpU8ASfBWIRGesd9fBG1ar40=",
 			"path": "github.com/Microsoft/go-winio",
 			"revision": "7da180ee92d8bd8bb8c37fc560e673e6557c392f",
@@ -600,10 +606,10 @@
 			"revisionTime": "2017-02-22T01:37:00Z"
 		},
 		{
-			"checksumSHA1": "3Yh2KaAQeHQb7Ck88C84UoIcihE=",
+			"checksumSHA1": "pBPFnwEYnkWyBUJcXkJyaDPQyb8=",
 			"path": "github.com/taskcluster/taskcluster-client-go",
-			"revision": "6419d2952068aa24da4d8bb613e0f7af8ca6873a",
-			"revisionTime": "2018-04-06T18:03:59Z"
+			"revision": "66fdae7ffa917aa3cdd857c38b0642e4a333f54d",
+			"revisionTime": "2018-04-19T14:22:42Z"
 		},
 		{
 			"checksumSHA1": "28ZpzJnvQAlvLtex+JrTHN1NcoU=",

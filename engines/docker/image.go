@@ -1,28 +1,24 @@
 package dockerengine
 
 import (
+	docker "github.com/fsouza/go-dockerclient"
 	schematypes "github.com/taskcluster/go-schematypes"
+	"github.com/taskcluster/taskcluster-worker/runtime/fetcher"
 )
 
-type imageType struct {
-	Repository string `json:"repository"`
-	Tag        string `json:"tag"`
-	engine     *engine
+var imageSchema = schematypes.OneOf{
+	fetcher.Artifact.Schema(),
+	schematypes.String{
+		Title:       "Docker image",
+		Description: "The docker image to pull",
+	},
 }
 
-var imageSchema = schematypes.Object{
-	Title:       "Image",
-	Description: "Image to use for task.",
-	Properties: schematypes.Properties{
-		"repository": schematypes.String{
-			Title: "Repository",
-			Description: "Repository from which image must be \b" +
-				"pulled.",
-		},
-		"tag": schematypes.String{
-			Title:       "Tag",
-			Description: "Image tag to pull from repository.",
-		},
-	},
-	Required: []string{"tag"},
+func pullImage(client *dockerClient, imagePayload interface{}) (*docker.Image, error) {
+	switch i := imagePayload.(type) {
+	case string:
+		return client.PullImageFromRepository(i)
+	default:
+		return client.PullImageFromArtifact(imagePayload)
+	}
 }

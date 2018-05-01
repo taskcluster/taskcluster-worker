@@ -9,7 +9,6 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/docker/network"
 	"github.com/taskcluster/taskcluster-worker/runtime"
-	"github.com/taskcluster/taskcluster-worker/runtime/caching"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
@@ -19,7 +18,6 @@ type engine struct {
 	docker      *docker.Client
 	monitor     runtime.Monitor
 	config      configType
-	cache       *caching.Cache
 	networks    *network.Pool
 }
 
@@ -55,15 +53,14 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 		docker:      client,
 		Environment: options.Environment,
 		monitor:     options.Monitor,
-		cache:       caching.New(imageConstructor, true, options.Environment.GarbageCollector, options.Monitor),
 		networks:    network.NewPool(client, options.Monitor.WithPrefix("network-pool")),
 	}, nil
 }
 
 type payloadType struct {
-	Image      imageType `json:"image"`
-	Command    []string  `json:"command"`
-	Privileged bool      `json:"privileged"`
+	Image      interface{} `json:"image"`
+	Command    []string    `json:"command"`
+	Privileged bool        `json:"privileged"`
 }
 
 func (e *engine) PayloadSchema() schematypes.Object {

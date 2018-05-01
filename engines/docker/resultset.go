@@ -15,7 +15,6 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines/docker/network"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
-	"github.com/taskcluster/taskcluster-worker/runtime/caching"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
@@ -40,7 +39,6 @@ type resultSet struct {
 	monitor       runtime.Monitor
 	storage       runtime.TemporaryFolder
 	context       *runtime.TaskContext
-	imageHandle   *caching.Handle
 	networkHandle *network.Handle
 }
 
@@ -96,10 +94,11 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 	if strings.HasSuffix(path, "/") {
 		debug("ExtractFolder(%s) ends with '/'", path)
 		return runtime.NewMalformedPayloadError(fmt.Sprintf(
-			"docker folder path: '%s' doesn't end with slash, paths to folders must end with a slash", path,
+			"docker folder path: '%s' ends with slash, paths to folders must not end with a slash", path,
 		))
 	}
-	return r.extractResource(path+"/", func(name string, stream ioext.ReadSeekCloser) error {
+	path += "/"
+	return r.extractResource(path, func(name string, stream ioext.ReadSeekCloser) error {
 		// Make the name relative to path
 		if !strings.HasPrefix(name, "/") {
 			name = "/" + name // Ensure we always have an absolute path
@@ -252,9 +251,6 @@ func (r *resultSet) Dispose() error {
 		r.monitor.ReportError(err, "failed to remove container in disposal of resultSet")
 		hasErr = true
 	}
-
-	// Free image handle
-	r.imageHandle.Release()
 
 	// Remove temporary storage
 	if err = r.storage.Remove(); err != nil {

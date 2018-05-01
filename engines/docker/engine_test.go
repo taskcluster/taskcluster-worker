@@ -11,8 +11,7 @@ import (
 
 // Image and tag used in test cases below
 const (
-	dockerImageRepository = "alpine"
-	dockerImageTag        = "3.6"
+	dockerImageName = "alpine:3.6"
 )
 
 var provider = &enginetest.EngineProvider{
@@ -38,23 +37,16 @@ func TestLogging(t *testing.T) {
 		Target:         "hello-world",
 		TargetPayload: `{
 			"command": ["sh", "-c", "echo 'hello-world' && true"],
-			"image": {
-				"repository": "` + dockerImageRepository + `",
-				"tag": "` + dockerImageTag + `"
-			}
+			"image": "` + dockerImageName + `"
 		}`,
 		FailingPayload: `{
 			"command": ["sh", "-c", "echo 'hello-world' && false"],
-			"image": {
-				"repository": "` + dockerImageRepository + `",
-				"tag": "` + dockerImageTag + `"
+			"image": "` + dockerImageName + `"
 			}
 		}`,
 		SilentPayload: `{
 			"command": ["sh", "-c", "echo 'no hello' && true"],
-			"image": {
-				"repository": "` + dockerImageRepository + `",
-				"tag": "` + dockerImageTag + `"
+			"image": "` + dockerImageName + `"
 			}
 		}`,
 	}
@@ -68,9 +60,7 @@ func TestKill(t *testing.T) {
 		Target:         `hello-world`,
 		Payload: `{
 			"command": ["sh", "-c", "echo 'hello-world' && sleep 30 && true"],
-			"image": {
-				"repository": "` + dockerImageRepository + `",
-				"tag": "` + dockerImageTag + `"
+			"image": "` + dockerImageName + `"
 			}
 		}`,
 	}
@@ -87,9 +77,7 @@ func TestEnvironmentVariables(t *testing.T) {
 		},
 		Payload: `{
 			"command": ["sh", "-c", "echo $TEST_ENV_VAR && true"],
-			"image": {
-				"repository": "` + dockerImageRepository + `",
-				"tag": "` + dockerImageTag + `"
+			"image": "` + dockerImageName + `"
 			}
 		}`,
 	}
@@ -111,9 +99,7 @@ func TestArtifacts(t *testing.T) {
 		NestedFolderPath: "/folder",
 		Payload: `{
 			"command": ["sh", "-ec", "mkdir -p /folder/sub-folder; echo '[hello-world]' > /folder/hello.txt; echo '[hello-world]' > /folder/sub-folder/hello2.txt"],
-			"image": {
-				"repository": "` + dockerImageRepository + `",
-				"tag": "` + dockerImageTag + `"
+			"image": "` + dockerImageName + `"
 			}
 		}`,
 	}
@@ -133,9 +119,7 @@ func TestProxies(t *testing.T) {
 			`cat /tmp/output; ` +
 			`test $STATUS -eq 200;` +
 			`"],
-			"image": {
-				"repository": "` + dockerImageRepository + `",
-				"tag": "` + dockerImageTag + `"
+			"image": "` + dockerImageName + `"
 			}
 		}`,
 	}

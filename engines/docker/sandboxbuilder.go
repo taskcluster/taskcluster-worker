@@ -1,7 +1,6 @@
 package dockerengine
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -11,58 +10,41 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/runtime"
-	"github.com/taskcluster/taskcluster-worker/runtime/caching"
 )
 
 type sandboxBuilder struct {
 	engines.SandboxBuilderBase
-	m           sync.Mutex
-	payload     *payloadType
-	image       imageType
-	imageDone   chan struct{}
-	imageError  error
-	monitor     runtime.Monitor
-	e           *engine
-	proxies     map[string]http.Handler
-	env         *docker.Env
-	taskCtx     *runtime.TaskContext
-	discarded   bool
-	cancelPull  context.CancelFunc
-	imageHandle *caching.Handle
-	mounts      []docker.HostMount
+	m         sync.Mutex
+	payload   *payloadType
+	image     interface{}
+	monitor   runtime.Monitor
+	e         *engine
+	client    *dockerClient
+	proxies   map[string]http.Handler
+	env       *docker.Env
+	taskCtx   *runtime.TaskContext
+	discarded bool
+	mounts    []docker.HostMount
 }
 
 func newSandboxBuilder(payload *payloadType, e *engine, monitor runtime.Monitor,
 	ctx *runtime.TaskContext) *sandboxBuilder {
 	sb := &sandboxBuilder{
-		payload:   payload,
-		image:     payload.Image,
-		monitor:   monitor,
-		e:         e,
-		taskCtx:   ctx,
-		env:       &docker.Env{},
-		proxies:   make(map[string]http.Handler),
-		imageDone: make(chan struct{}, 1),
+		payload: payload,
+		image:   payload.Image,
+		monitor: monitor,
+		e:       e,
+		client: &dockerClient{
+			Client: e.docker,
+			context: imageFetchContext{
+				TaskContext: ctx,
+			},
+		},
+		taskCtx: ctx,
+		env:     &docker.Env{},
+		proxies: make(map[string]http.Handler),
 	}
-	// set image
-	sb.image.engine = sb.e
-	pctx, cancelPull := context.WithCancel(context.Background())
-	sb.cancelPull = cancelPull
-	go sb.asyncFetchImage(newCacheContext(pctx))
 	return sb
-}
-
-func (sb *sandboxBuilder) asyncFetchImage(ctx caching.Context) {
-	handle, err := sb.e.cache.Require(ctx, sb.image)
-	if handle != nil {
-		sb.imageHandle = handle
-	}
-	sb.imageError = err
-	select {
-	case <-sb.imageDone:
-	default:
-		close(sb.imageDone)
-	}
 }
 
 var envVarPattern = regexp.MustCompile("^[a-zA-Z0-9_-]+$")
@@ -204,21 +186,12 @@ func (sb *sandboxBuilder) AttachVolume(mountPoint string, vol engines.Volume, re
 }
 
 func (sb *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
-	<-sb.imageDone
-	if sb.imageError != nil {
-		return nil, runtime.NewMalformedPayloadError(
-			"Could not fetch image: '", sb.image.Tag,
-			"' from repository: '", sb.image.Repository,
-			"'.",
-		)
+	image, err := pullImage(sb.client, sb.image)
+	if err != nil {
+		sb.taskCtx.Log(fmt.Sprintf("Error pulling image: %v", err))
+		return nil, engines.ErrResourceNotFound
 	}
-	sb.m.Lock()
-	if sb.discarded {
-		sb.m.Unlock()
-		return nil, engines.ErrSandboxBuilderDiscarded
-	}
-	sb.m.Unlock()
-	return newSandbox(sb)
+	return newSandbox(sb, image)
 }
 
 func (sb *sandboxBuilder) Discard() error {
@@ -226,11 +199,5 @@ func (sb *sandboxBuilder) Discard() error {
 	defer sb.m.Unlock()
 
 	sb.discarded = true
-	sb.cancelPull()
-	// imageDone chan will be closed by asyncFetchImage
-	<-sb.imageDone
-	if sb.imageHandle != nil {
-		sb.imageHandle.Release()
-	}
 	return nil
 }

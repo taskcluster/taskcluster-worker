@@ -11,7 +11,6 @@ import (
 	"github.com/taskcluster/taskcluster-worker/engines/docker/network"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
-	"github.com/taskcluster/taskcluster-worker/runtime/caching"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
 )
 
@@ -28,11 +27,10 @@ type sandbox struct {
 	resolve       atomics.Once
 	docker        *docker.Client
 	taskCtx       *runtime.TaskContext
-	imageHandle   *caching.Handle
 	networkHandle *network.Handle
 }
 
-func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
+func newSandbox(sb *sandboxBuilder, image *docker.Image) (*sandbox, error) {
 	monitor := sb.monitor.WithTag("struct", "sandbox")
 
 	// Get an isolated network, forwarding requests to gateway to proxyMux
@@ -49,7 +47,7 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 	container, err := sb.e.docker.CreateContainer(docker.CreateContainerOptions{
 		Config: &docker.Config{
 			Cmd:          sb.payload.Command,
-			Image:        buildImageName(sb.image.Repository, sb.image.Tag),
+			Image:        image.ID,
 			Env:          *sb.env,
 			AttachStdout: true,
 			AttachStderr: true,
@@ -86,7 +84,6 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 		storage:       storage,
 		docker:        sb.e.docker,
 		taskCtx:       sb.taskCtx,
-		imageHandle:   sb.imageHandle,
 		networkHandle: networkHandle,
 		monitor: monitor.WithTags(map[string]string{
 			"containerId": container.ID,
@@ -141,7 +138,6 @@ func (s *sandbox) wait() {
 			monitor:       s.monitor.WithTag("struct", "resultSet"),
 			storage:       s.storage,
 			context:       s.taskCtx,
-			imageHandle:   s.imageHandle,
 			networkHandle: s.networkHandle,
 		}
 		s.abortErr = engines.ErrSandboxTerminated
@@ -162,7 +158,6 @@ func (s *sandbox) Kill() error {
 				monitor:       s.monitor.WithTag("struct", "resultSet"),
 				storage:       s.storage,
 				context:       s.taskCtx,
-				imageHandle:   s.imageHandle,
 				networkHandle: s.networkHandle,
 			}
 			s.abortErr = engines.ErrSandboxTerminated
@@ -249,9 +244,6 @@ func (s *sandbox) dispose() error {
 		s.monitor.ReportError(err, "failed to remove container in disposal of sandbox")
 		hasErr = true
 	}
-
-	// Free image handle
-	s.imageHandle.Release()
 
 	// Remove temporary storage
 	if err = s.storage.Remove(); err != nil {
