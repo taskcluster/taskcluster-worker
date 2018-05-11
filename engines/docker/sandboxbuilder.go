@@ -19,7 +19,6 @@ type sandboxBuilder struct {
 	image     interface{}
 	monitor   runtime.Monitor
 	e         *engine
-	client    *dockerClient
 	proxies   map[string]http.Handler
 	env       *docker.Env
 	taskCtx   *runtime.TaskContext
@@ -34,9 +33,6 @@ func newSandboxBuilder(payload *payloadType, e *engine, monitor runtime.Monitor,
 		image:   payload.Image,
 		monitor: monitor,
 		e:       e,
-		client: &dockerClient{
-			Client: e.docker,
-		},
 		taskCtx: ctx,
 		env:     &docker.Env{},
 		proxies: make(map[string]http.Handler),
@@ -183,7 +179,7 @@ func (sb *sandboxBuilder) AttachVolume(mountPoint string, vol engines.Volume, re
 }
 
 func (sb *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
-	image, err := pullImage(sb.taskCtx, sb.client, sb.image)
+	image, err := pullImage(sb.taskCtx, sb.e.docker, sb.image)
 	if err != nil {
 		sb.taskCtx.Log(fmt.Sprintf("Error pulling image: %v", err))
 		return nil, engines.ErrResourceNotFound

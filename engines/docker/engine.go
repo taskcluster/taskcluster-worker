@@ -15,7 +15,7 @@ import (
 type engine struct {
 	engines.EngineBase
 	Environment *runtime.Environment
-	docker      *docker.Client
+	docker      *dockerClient
 	monitor     runtime.Monitor
 	config      configType
 	networks    *network.Pool
@@ -49,8 +49,10 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 	}
 
 	return &engine{
-		config:      c,
-		docker:      client,
+		config: c,
+		docker: &dockerClient{
+			Client: client,
+		},
 		Environment: options.Environment,
 		monitor:     options.Monitor,
 		networks:    network.NewPool(client, options.Monitor.WithPrefix("network-pool")),
