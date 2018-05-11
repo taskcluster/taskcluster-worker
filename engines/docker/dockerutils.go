@@ -27,13 +27,12 @@ func (ctx imageFetchContext) Progress(description string, percent float64) {
 
 type dockerClient struct {
 	*docker.Client
-	context imageFetchContext
 }
 
-func (d *dockerClient) PullImageFromRepository(name string) (*docker.Image, error) {
+func (d *dockerClient) PullImageFromRepository(context *runtime.TaskContext, name string) (*docker.Image, error) {
 	const dockerPullImageInactivityTimeout = 60 * time.Second
 
-	d.context.Log(fmt.Sprintf("Downloading image %s", name))
+	context.Log(fmt.Sprintf("Downloading image %s", name))
 
 	repo, tag := docker.ParseRepositoryTag(name)
 	index := strings.Index(name, "@")
@@ -44,9 +43,9 @@ func (d *dockerClient) PullImageFromRepository(name string) (*docker.Image, erro
 	err := d.PullImage(docker.PullImageOptions{
 		Repository:        repo,
 		Tag:               tag,
-		OutputStream:      d.context.LogDrain(),
+		OutputStream:      context.LogDrain(),
 		InactivityTimeout: dockerPullImageInactivityTimeout,
-		Context:           d.context,
+		Context:           context,
 	}, docker.AuthConfiguration{})
 
 	if err != nil {
@@ -60,8 +59,8 @@ func (d *dockerClient) PullImageFromRepository(name string) (*docker.Image, erro
 // and loads it into the docker images. To acomplish it, we redirect the downloaded artifact
 // output stream to docker.LoadImage and then, to extract the image name, we redirect the the output
 // of the LoadImage method to a json decoder.
-func (d *dockerClient) PullImageFromArtifact(options interface{}) (*docker.Image, error) {
-	tempDir := filepath.Join(os.TempDir(), d.context.TaskID)
+func (d *dockerClient) PullImageFromArtifact(context *runtime.TaskContext, options interface{}) (*docker.Image, error) {
+	tempDir := filepath.Join(os.TempDir(), context.TaskID)
 	if err := os.MkdirAll(tempDir, 0700); err != nil {
 		return nil, errors.Wrap(err, "Error creating temporary directory")
 	}
@@ -74,12 +73,16 @@ func (d *dockerClient) PullImageFromArtifact(options interface{}) (*docker.Image
 	defer tempfile.Close()
 	defer os.Remove(tempfile.Name())
 
-	ref, err := fetcher.Artifact.NewReference(d.context, options)
+	ctx := imageFetchContext{
+		TaskContext: context,
+	}
+
+	ref, err := fetcher.Artifact.NewReference(ctx, options)
 	if err != nil {
 		return nil, err
 	}
 
-	err = ref.Fetch(d.context, &fetcher.FileReseter{
+	err = ref.Fetch(ctx, &fetcher.FileReseter{
 		File: tempfile,
 	})
 	if err != nil {
@@ -115,8 +118,8 @@ func (d *dockerClient) PullImageFromArtifact(options interface{}) (*docker.Image
 
 	err = d.LoadImage(docker.LoadImageOptions{
 		InputStream:  editedTarFile,
-		OutputStream: d.context.LogDrain(),
-		Context:      d.context,
+		OutputStream: context.LogDrain(),
+		Context:      context,
 	})
 
 	if err != nil {

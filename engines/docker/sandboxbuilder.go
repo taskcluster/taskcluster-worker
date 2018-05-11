@@ -36,9 +36,6 @@ func newSandboxBuilder(payload *payloadType, e *engine, monitor runtime.Monitor,
 		e:       e,
 		client: &dockerClient{
 			Client: e.docker,
-			context: imageFetchContext{
-				TaskContext: ctx,
-			},
 		},
 		taskCtx: ctx,
 		env:     &docker.Env{},
@@ -186,7 +183,7 @@ func (sb *sandboxBuilder) AttachVolume(mountPoint string, vol engines.Volume, re
 }
 
 func (sb *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
-	image, err := pullImage(sb.client, sb.image)
+	image, err := pullImage(sb.taskCtx, sb.client, sb.image)
 	if err != nil {
 		sb.taskCtx.Log(fmt.Sprintf("Error pulling image: %v", err))
 		return nil, engines.ErrResourceNotFound

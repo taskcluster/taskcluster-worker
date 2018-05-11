@@ -13,30 +13,28 @@ import (
 const dockerSocket = "unix:///var/run/docker.sock"
 
 func newDockerClient(t *testing.T) *dockerClient {
-	c, e := docker.NewClient(dockerSocket)
-	require.NoError(t, e)
+	c, err := docker.NewClient(dockerSocket)
+	require.NoError(t, err)
+
+	return &dockerClient{
+		Client: c,
+	}
+}
+
+func testDownloadByTag(t *testing.T, imageName string) {
 	taskContext, _, err := runtime.NewTaskContext("/tmp/log.txt", runtime.TaskInfo{
 		TaskID: "mytaskid",
 	})
 	require.NoError(t, err)
 
-	return &dockerClient{
-		Client: c,
-		context: imageFetchContext{
-			TaskContext: taskContext,
-		},
-	}
-}
-
-func testDownloadByTag(t *testing.T, imageName string) {
 	client := newDockerClient(t)
 
-	image, err := client.PullImageFromRepository(imageName)
+	image, err := client.PullImageFromRepository(taskContext, imageName)
 	require.NoError(t, err)
 
 	defer client.RemoveImageExtended(image.ID, docker.RemoveImageOptions{
 		Force:   true,
-		Context: client.context,
+		Context: taskContext,
 	})
 }
 
@@ -49,8 +47,14 @@ func TestDownloadByHash(t *testing.T) {
 }
 
 func TestDownloadByArtifact(t *testing.T) {
+	taskContext, _, err := runtime.NewTaskContext("/tmp/log.txt", runtime.TaskInfo{
+		TaskID: "mytaskid",
+	})
+	require.NoError(t, err)
+
 	client := newDockerClient(t)
-	image, err := client.PullImageFromArtifact(map[string]interface{}{
+
+	image, err := client.PullImageFromArtifact(taskContext, map[string]interface{}{
 		"taskId":   "Q4I6ROTUS-OvNrDDMaq_vw",
 		"runId":    0,
 		"artifact": "public/image.tar.zst",
@@ -59,6 +63,6 @@ func TestDownloadByArtifact(t *testing.T) {
 
 	require.NoError(t, client.RemoveImageExtended(image.ID, docker.RemoveImageOptions{
 		Force:   true,
-		Context: client.context,
+		Context: taskContext,
 	}))
 }
