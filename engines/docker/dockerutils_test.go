@@ -18,6 +18,7 @@ func newDockerClient(t *testing.T) *dockerClient {
 
 	return &dockerClient{
 		Client: c,
+		cache:  make(map[string]*docker.Image),
 	}
 }
 
@@ -54,12 +55,18 @@ func TestDownloadByArtifact(t *testing.T) {
 
 	client := newDockerClient(t)
 
-	image, err := client.PullImageFromArtifact(taskContext, map[string]interface{}{
+	artifact := map[string]interface{}{
 		"taskId":   "Q4I6ROTUS-OvNrDDMaq_vw",
 		"runId":    0,
 		"artifact": "public/image.tar.zst",
-	})
+	}
+
+	image, err := client.PullImageFromArtifact(taskContext, artifact)
 	require.NoError(t, err)
+
+	image2, err := client.PullImageFromArtifact(taskContext, artifact)
+	require.NoError(t, err)
+	require.Equal(t, image, image2)
 
 	require.NoError(t, client.RemoveImageExtended(image.ID, docker.RemoveImageOptions{
 		Force:   true,
