@@ -121,10 +121,11 @@ func (c *ArtifactTestCase) TestExtractNestedFolderPath() {
 
 	// Check that NestedFolderFiles was found
 	m.Lock()
+	defer m.Unlock()
 	for _, f := range c.NestedFolderFiles {
 		found := false
 		for _, f2 := range files {
-			if f == f2 {
+			if strings.HasSuffix(f2, f) {
 				found = true
 			}
 		}
@@ -135,7 +136,7 @@ func (c *ArtifactTestCase) TestExtractNestedFolderPath() {
 	for _, f := range files {
 		found := false
 		for _, f2 := range c.NestedFolderFiles {
-			if f == f2 {
+			if strings.HasSuffix(f, f2) {
 				found = true
 			}
 		}
