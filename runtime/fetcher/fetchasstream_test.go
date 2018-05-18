@@ -6,7 +6,10 @@ import (
 	"crypto/rand"
 	"errors"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -103,5 +106,49 @@ func TestFetchAsStream(t *testing.T) {
 			panic("this should not be reachable, as fetching failed, so should reading from io.Reader")
 		})
 		require.Equal(t, berr, err)
+	})
+
+	t.Run("Target with Err", func(t *testing.T) {
+		targetErr := errors.New("something bad happened when writing to the target")
+		err := FetchAsStream(ctx, &fakeReference{
+			Data:  blob,
+			Reset: false,
+			Err:   nil,
+		}, func(_ context.Context, r io.Reader) error {
+			p := make([]byte, 5)
+			_, rerr := r.Read(p)
+			require.NoError(t, rerr)
+			return targetErr
+		})
+		require.Error(t, err)
+		require.Equal(t, targetErr, err)
+	})
+
+	t.Run("Target with Err and HTTP reference", func(t *testing.T) {
+		// Create test server
+		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			debug("test server responding")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("hello"))
+			time.Sleep(50 * time.Millisecond)
+			w.Write([]byte("-"))
+			time.Sleep(50 * time.Millisecond)
+			w.Write([]byte("world"))
+		}))
+		defer s.Close()
+
+		// Create reference
+		ref, err := URL.NewReference(ctx, s.URL)
+		require.NoError(t, err)
+
+		targetErr := errors.New("something bad happened when writing to the target")
+		err = FetchAsStream(ctx, ref, func(_ context.Context, r io.Reader) error {
+			p := make([]byte, 5)
+			_, rerr := r.Read(p)
+			require.NoError(t, rerr)
+			return targetErr
+		})
+		require.Error(t, err)
+		require.Equal(t, targetErr, err)
 	})
 }
