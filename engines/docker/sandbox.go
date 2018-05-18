@@ -25,7 +25,7 @@ type sandbox struct {
 	abortErr      error
 	storage       runtime.TemporaryFolder
 	resolve       atomics.Once
-	docker        *docker.Client
+	docker        *dockerClient
 	taskCtx       *runtime.TaskContext
 	networkHandle *network.Handle
 }

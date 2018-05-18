@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/DataDog/zstd"
@@ -27,13 +28,22 @@ func (ctx imageFetchContext) Progress(description string, percent float64) {
 
 type dockerClient struct {
 	*docker.Client
-	context imageFetchContext
+
+	m     sync.Mutex
+	cache map[string]*docker.Image
 }
 
-func (d *dockerClient) PullImageFromRepository(name string) (*docker.Image, error) {
+func (d *dockerClient) PullImageFromRepository(context *runtime.TaskContext, name string) (*docker.Image, error) {
+	d.m.Lock()
+	defer d.m.Unlock()
+
+	if image, ok := d.cache[name]; ok {
+		return image, nil
+	}
+
 	const dockerPullImageInactivityTimeout = 60 * time.Second
 
-	d.context.Log(fmt.Sprintf("Downloading image %s", name))
+	context.Log(fmt.Sprintf("Downloading image %s", name))
 
 	repo, tag := docker.ParseRepositoryTag(name)
 	index := strings.Index(name, "@")
@@ -44,25 +54,46 @@ func (d *dockerClient) PullImageFromRepository(name string) (*docker.Image, erro
 	err := d.PullImage(docker.PullImageOptions{
 		Repository:        repo,
 		Tag:               tag,
-		OutputStream:      d.context.LogDrain(),
+		OutputStream:      context.LogDrain(),
 		InactivityTimeout: dockerPullImageInactivityTimeout,
-		Context:           d.context,
+		Context:           context,
 	}, docker.AuthConfiguration{})
 
 	if err != nil {
 		return nil, errors.Wrap(err, "PullImage failed")
 	}
 
-	return d.InspectImage(name)
+	image, err := d.InspectImage(name)
+	if err == nil {
+		d.cache[name] = image
+	}
+
+	return image, err
 }
 
 // PullImageFromArtifact downloads a saved docker image as a Taskcluster artifact
 // and loads it into the docker images. To acomplish it, we redirect the downloaded artifact
 // output stream to docker.LoadImage and then, to extract the image name, we redirect the the output
 // of the LoadImage method to a json decoder.
-func (d *dockerClient) PullImageFromArtifact(options interface{}) (*docker.Image, error) {
-	tempDir := filepath.Join(os.TempDir(), d.context.TaskID)
-	if err := os.MkdirAll(tempDir, 0700); err != nil {
+func (d *dockerClient) PullImageFromArtifact(context *runtime.TaskContext, options interface{}) (*docker.Image, error) {
+	ctx := imageFetchContext{
+		TaskContext: context,
+	}
+
+	ref, err := fetcher.Artifact.NewReference(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+
+	d.m.Lock()
+	defer d.m.Unlock()
+
+	if image, ok := d.cache[ref.HashKey()]; ok {
+		return image, nil
+	}
+
+	tempDir := filepath.Join(os.TempDir(), context.TaskID)
+	if err = os.MkdirAll(tempDir, 0700); err != nil {
 		return nil, errors.Wrap(err, "Error creating temporary directory")
 	}
 	defer os.RemoveAll(tempDir)
@@ -74,12 +105,7 @@ func (d *dockerClient) PullImageFromArtifact(options interface{}) (*docker.Image
 	defer tempfile.Close()
 	defer os.Remove(tempfile.Name())
 
-	ref, err := fetcher.Artifact.NewReference(d.context, options)
-	if err != nil {
-		return nil, err
-	}
-
-	err = ref.Fetch(d.context, &fetcher.FileReseter{
+	err = ref.Fetch(ctx, &fetcher.FileReseter{
 		File: tempfile,
 	})
 	if err != nil {
@@ -101,11 +127,14 @@ func (d *dockerClient) PullImageFromArtifact(options interface{}) (*docker.Image
 	if err != nil {
 		return nil, errors.Wrap(err, "Error decompressing zst file")
 	}
+
 	imageName := strings.ToLower(ref.HashKey())
 	editedTar, err := d.renameImageInTarball(imageName, tarFile.Name())
+
 	if err != nil {
 		return nil, err
 	}
+
 	defer os.Remove(editedTar)
 	editedTarFile, err := os.Open(editedTar)
 	if err != nil {
@@ -115,15 +144,20 @@ func (d *dockerClient) PullImageFromArtifact(options interface{}) (*docker.Image
 
 	err = d.LoadImage(docker.LoadImageOptions{
 		InputStream:  editedTarFile,
-		OutputStream: d.context.LogDrain(),
-		Context:      d.context,
+		OutputStream: context.LogDrain(),
+		Context:      context,
 	})
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Error loading docker image")
 	}
 
-	return d.InspectImage(imageName)
+	image, err := d.InspectImage(imageName)
+	if err == nil {
+		d.cache[ref.HashKey()] = image
+	}
+
+	return image, err
 }
 
 // This mimics docker-worker counterpart function

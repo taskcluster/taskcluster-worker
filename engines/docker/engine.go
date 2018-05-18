@@ -15,7 +15,7 @@ import (
 type engine struct {
 	engines.EngineBase
 	Environment *runtime.Environment
-	docker      *docker.Client
+	docker      *dockerClient
 	monitor     runtime.Monitor
 	config      configType
 	networks    *network.Pool
@@ -48,9 +48,26 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 		return nil, errors.Wrapf(err, "failed to connect to docker socket at: %s", c.DockerSocket)
 	}
 
+	images, err := client.ListImages(docker.ListImagesOptions{
+		All: true,
+	})
+
+	if err == nil {
+		for _, image := range images {
+			client.RemoveImageExtended(image.ID, docker.RemoveImageOptions{
+				Force: true,
+			})
+		}
+	} else {
+		debug(fmt.Sprintf("Error listing images: %v", err))
+	}
+
 	return &engine{
-		config:      c,
-		docker:      client,
+		config: c,
+		docker: &dockerClient{
+			Client: client,
+			cache:  make(map[string]*docker.Image),
+		},
 		Environment: options.Environment,
 		monitor:     options.Monitor,
 		networks:    network.NewPool(client, options.Monitor.WithPrefix("network-pool")),

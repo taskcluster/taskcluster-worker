@@ -3,6 +3,7 @@ package dockerengine
 import (
 	docker "github.com/fsouza/go-dockerclient"
 	schematypes "github.com/taskcluster/go-schematypes"
+	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/fetcher"
 )
 
@@ -14,11 +15,11 @@ var imageSchema = schematypes.OneOf{
 	},
 }
 
-func pullImage(client *dockerClient, imagePayload interface{}) (*docker.Image, error) {
+func pullImage(context *runtime.TaskContext, client *dockerClient, imagePayload interface{}) (*docker.Image, error) {
 	switch i := imagePayload.(type) {
 	case string:
-		return client.PullImageFromRepository(i)
+		return client.PullImageFromRepository(context, i)
 	default:
-		return client.PullImageFromArtifact(imagePayload)
+		return client.PullImageFromArtifact(context, imagePayload)
 	}
 }

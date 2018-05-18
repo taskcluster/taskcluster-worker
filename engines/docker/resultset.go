@@ -35,7 +35,7 @@ type resultSet struct {
 	engines.ResultSetBase
 	success       bool
 	containerID   string
-	docker        *docker.Client
+	docker        *dockerClient
 	monitor       runtime.Monitor
 	storage       runtime.TemporaryFolder
 	context       *runtime.TaskContext
