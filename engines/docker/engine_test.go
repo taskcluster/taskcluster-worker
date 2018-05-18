@@ -42,12 +42,10 @@ func TestLogging(t *testing.T) {
 		FailingPayload: `{
 			"command": ["sh", "-c", "echo 'hello-world' && false"],
 			"image": "` + dockerImageName + `"
-			}
 		}`,
 		SilentPayload: `{
 			"command": ["sh", "-c", "echo 'no hello' && true"],
 			"image": "` + dockerImageName + `"
-			}
 		}`,
 	}
 
@@ -61,7 +59,6 @@ func TestKill(t *testing.T) {
 		Payload: `{
 			"command": ["sh", "-c", "echo 'hello-world' && sleep 30 && true"],
 			"image": "` + dockerImageName + `"
-			}
 		}`,
 	}
 
@@ -78,7 +75,6 @@ func TestEnvironmentVariables(t *testing.T) {
 		Payload: `{
 			"command": ["sh", "-c", "echo $TEST_ENV_VAR && true"],
 			"image": "` + dockerImageName + `"
-			}
 		}`,
 	}
 
@@ -100,7 +96,6 @@ func TestArtifacts(t *testing.T) {
 		Payload: `{
 			"command": ["sh", "-ec", "mkdir -p /folder/sub-folder; echo '[hello-world]' > /folder/hello.txt; echo '[hello-world]' > /folder/sub-folder/hello2.txt"],
 			"image": "` + dockerImageName + `"
-			}
 		}`,
 	}
 
@@ -120,7 +115,6 @@ func TestProxies(t *testing.T) {
 			`test $STATUS -eq 200;` +
 			`"],
 			"image": "` + dockerImageName + `"
-			}
 		}`,
 	}
 
@@ -135,26 +129,17 @@ func TestPrivileged(t *testing.T) {
 		TargetPayload: `{
 			"command": ["sh", "-c", "cat /proc/1/status | grep CapInh"],
 			"privileged": true,
-			"image": {
-				"repository": "` + dockerImageRepository + `",
-				"tag": "` + dockerImageTag + `"
-			}
+			"image": "` + dockerImageName + `"
 		}`,
 		FailingPayload: `{
 			"command": ["sh", "-c", "cat /proc/1/status | grep CapInh && false"],
 			"privileged": true,
-			"image": {
-				"repository": "` + dockerImageRepository + `",
-				"tag": "` + dockerImageTag + `"
-			}
+			"image": "` + dockerImageName + `"
 		}`,
 		SilentPayload: `{
 			"command": ["sh", "-c", "cat /proc/1/status | grep CapInh"],
 			"privileged": false,
-			"image": {
-				"repository": "` + dockerImageRepository + `",
-				"tag": "` + dockerImageTag + `"
-			}
+			"image": "` + dockerImageName + `"
 		}`,
 	}
 
@@ -166,17 +151,11 @@ func TestVolumes(t *testing.T) {
 		EngineProvider: provider,
 		Mountpoint:     "/mnt/my-volume/",
 		WriteVolumePayload: `{
-			"image": {
-				"repository": "` + dockerImageRepository + `",
-				"tag": "` + dockerImageTag + `"
-			},
+			"image": "` + dockerImageName + `",
 			"command": ["sh", "-c", "echo 'hello-cache-volume' > /mnt/my-volume/cache-file.txt"]
 		}`,
 		CheckVolumePayload: `{
-			"image": {
-				"repository": "` + dockerImageRepository + `",
-				"tag": "` + dockerImageTag + `"
-			},
+			"image": "` + dockerImageName + `",
 			"command": ["sh", "-c", "cat /mnt/my-volume/cache-file.txt | grep 'hello-cache-volume'"]
 		}`,
 	}
