@@ -8,6 +8,7 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/pkg/errors"
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/engines/docker/imagecache"
 	"github.com/taskcluster/taskcluster-worker/engines/docker/network"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
@@ -28,10 +29,15 @@ type sandbox struct {
 	docker        *docker.Client
 	taskCtx       *runtime.TaskContext
 	networkHandle *network.Handle
+	imageHandle   *imagecache.ImageHandle
 }
 
-func newSandbox(sb *sandboxBuilder, image *docker.Image) (*sandbox, error) {
+func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 	monitor := sb.monitor.WithTag("struct", "sandbox")
+
+	// Take the imageHandle, remember to release it, if we return an error
+	imageHandle := sb.imageHandle
+	sb.imageHandle = nil
 
 	// Get an isolated network, forwarding requests to gateway to proxyMux
 	networkHandle, err := sb.e.networks.GetNetwork(&proxyMux{
@@ -39,6 +45,7 @@ func newSandbox(sb *sandboxBuilder, image *docker.Image) (*sandbox, error) {
 		TaskContext: sb.taskCtx,
 	})
 	if err != nil {
+		imageHandle.Release()
 		// Any error here is a fatal error
 		return nil, errors.Wrap(err, "docker.CreateNetwork failed")
 	}
@@ -47,7 +54,7 @@ func newSandbox(sb *sandboxBuilder, image *docker.Image) (*sandbox, error) {
 	container, err := sb.e.docker.CreateContainer(docker.CreateContainerOptions{
 		Config: &docker.Config{
 			Cmd:          sb.payload.Command,
-			Image:        image.ID,
+			Image:        imageHandle.ImageName,
 			Env:          *sb.env,
 			AttachStdout: true,
 			AttachStderr: true,
@@ -69,6 +76,7 @@ func newSandbox(sb *sandboxBuilder, image *docker.Image) (*sandbox, error) {
 		},
 	})
 	if err != nil {
+		imageHandle.Release()
 		return nil, runtime.NewMalformedPayloadError(
 			"could not create container: " + err.Error())
 	}
@@ -76,6 +84,7 @@ func newSandbox(sb *sandboxBuilder, image *docker.Image) (*sandbox, error) {
 	// create a temporary storage for use by resultSet
 	storage, err := sb.e.Environment.TemporaryStorage.NewFolder()
 	if err != nil {
+		imageHandle.Release()
 		monitor.ReportError(err, "failed to create temporary folder")
 		return nil, runtime.ErrFatalInternalError
 	}
@@ -85,6 +94,7 @@ func newSandbox(sb *sandboxBuilder, image *docker.Image) (*sandbox, error) {
 		docker:        sb.e.docker,
 		taskCtx:       sb.taskCtx,
 		networkHandle: networkHandle,
+		imageHandle:   imageHandle,
 		monitor: monitor.WithTags(map[string]string{
 			"containerId": container.ID,
 			"networkId":   networkHandle.NetworkID(),
@@ -101,6 +111,7 @@ func newSandbox(sb *sandboxBuilder, image *docker.Image) (*sandbox, error) {
 		Stream:       true,
 	})
 	if err != nil {
+		imageHandle.Release()
 		return nil, errors.Wrap(err, "docker.AttachToContainerNonBlocking() failed")
 	}
 
@@ -108,6 +119,7 @@ func newSandbox(sb *sandboxBuilder, image *docker.Image) (*sandbox, error) {
 	// backward compatibility.
 	err = s.docker.StartContainer(s.containerID, &docker.HostConfig{})
 	if err != nil {
+		imageHandle.Release()
 		return nil, errors.Wrap(err, "docker.StartContainer failed")
 	}
 
@@ -139,6 +151,7 @@ func (s *sandbox) wait() {
 			storage:       s.storage,
 			context:       s.taskCtx,
 			networkHandle: s.networkHandle,
+			imageHandle:   s.imageHandle,
 		}
 		s.abortErr = engines.ErrSandboxTerminated
 	})
@@ -159,6 +172,7 @@ func (s *sandbox) Kill() error {
 				storage:       s.storage,
 				context:       s.taskCtx,
 				networkHandle: s.networkHandle,
+				imageHandle:   s.imageHandle,
 			}
 			s.abortErr = engines.ErrSandboxTerminated
 		} else {
@@ -253,6 +267,9 @@ func (s *sandbox) dispose() error {
 
 	// Release the network
 	s.networkHandle.Release()
+
+	// Release image handle
+	s.imageHandle.Release()
 
 	// If ErrNonFatalInternalError if there was an error of any kind
 	if hasErr {
