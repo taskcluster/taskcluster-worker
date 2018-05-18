@@ -1,4 +1,4 @@
-package runtime
+package unpack
 
 import (
 	"archive/tar"
@@ -85,10 +85,6 @@ func Untar(filename string) error {
 	// Open a tar archive for reading.
 	t := tar.NewReader(file)
 
-	basepath := filepath.Base(filename)
-	basepath = strings.Replace(basepath, filepath.Ext(filename), "", 1)
-	basepath = filepath.Join(filepath.Dir(filename), basepath)
-
 	// Iterate through the files in the archive
 	for {
 		hdr, err := t.Next()
@@ -98,7 +94,7 @@ func Untar(filename string) error {
 			}
 			return err
 		}
-		fileName := filepath.Join(basepath, hdr.Name)
+		fileName := filepath.Join(filepath.Dir(filename), hdr.Name)
 		switch hdr.Typeflag {
 		case tar.TypeDir:
 			err = os.MkdirAll(fileName, hdr.FileInfo().Mode())
