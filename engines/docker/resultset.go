@@ -105,7 +105,7 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 		if !strings.HasPrefix(name, "/") {
 			name = "/" + name // Ensure we always have an absolute path
 		}
-		name = name[len(path+"/"):]
+		name = name[len(path):]
 		return handler(name, stream)
 	})
 }
