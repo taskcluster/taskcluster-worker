@@ -1,4 +1,4 @@
-// +build docker
+// +build linux,docker
 
 package imagecache
 
