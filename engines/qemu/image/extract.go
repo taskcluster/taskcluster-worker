@@ -166,11 +166,11 @@ func newMachineFromFile(machineFile string) (*vm.Machine, error) {
 	verr := vm.MachineSchema.Validate(data)
 	if e, ok := verr.(*schematypes.ValidationError); ok {
 		issues := e.Issues("machine")
-		errs := make([]runtime.MalformedPayloadError, len(issues))
+		errs := make([]*runtime.MalformedPayloadError, len(issues))
 		for i, issue := range issues {
 			errs[i] = runtime.NewMalformedPayloadError(issue.String())
 		}
-		return nil, runtime.MergeMalformedPayload(append([]runtime.MalformedPayloadError{
+		return nil, runtime.MergeMalformedPayload(append([]*runtime.MalformedPayloadError{
 			runtime.NewMalformedPayloadError("Invalid machine definition in 'machine.json'"),
 		}, errs...)...)
 	} else if verr != nil {

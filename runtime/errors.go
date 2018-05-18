@@ -42,12 +42,12 @@ type MalformedPayloadError struct {
 }
 
 // Messages returns a list of messages explaining why the error.
-func (e MalformedPayloadError) Messages() []string {
+func (e *MalformedPayloadError) Messages() []string {
 	return append([]string{}, e.messages...)
 }
 
 // Error returns the error message and adheres to the Error interface
-func (e MalformedPayloadError) Error() string {
+func (e *MalformedPayloadError) Error() string {
 	return fmt.Sprintf("malformed-payload error: %s", strings.Join(e.messages, "\n"))
 }
 
@@ -57,24 +57,24 @@ func (e MalformedPayloadError) Error() string {
 //
 // These will be printed in the logs and end-users will rely on them to debug
 // their tasks.
-func NewMalformedPayloadError(a ...interface{}) MalformedPayloadError {
-	return MalformedPayloadError{messages: []string{fmt.Sprint(a...)}}
+func NewMalformedPayloadError(a ...interface{}) *MalformedPayloadError {
+	return &MalformedPayloadError{messages: []string{fmt.Sprint(a...)}}
 }
 
 // MergeMalformedPayload merges a list of MalformedPayloadError objects
-func MergeMalformedPayload(errors ...MalformedPayloadError) MalformedPayloadError {
+func MergeMalformedPayload(errors ...*MalformedPayloadError) *MalformedPayloadError {
 	messages := []string{}
 	for _, e := range errors {
 		messages = append(messages, e.messages...)
 	}
-	return MalformedPayloadError{messages: messages}
+	return &MalformedPayloadError{messages: messages}
 }
 
 // IsMalformedPayloadError casts error to MalformedPayloadError.
 //
 // This is mostly because it's hard to remember that error isn't supposed to be
 // cast to *MalformedPayloadError.
-func IsMalformedPayloadError(err error) (e MalformedPayloadError, ok bool) {
-	e, ok = err.(MalformedPayloadError)
+func IsMalformedPayloadError(err error) (e *MalformedPayloadError, ok bool) {
+	e, ok = err.(*MalformedPayloadError)
 	return
 }

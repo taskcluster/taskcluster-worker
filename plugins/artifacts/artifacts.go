@@ -55,11 +55,11 @@ type taskPlugin struct {
 	uploaded     map[string][]byte // Map from artifact to sha256 hash
 	mUploaded    sync.Mutex
 	monitor      runtime.Monitor
-	failed       atomics.Bool                    // If true, Stopped() returns false
-	mErrors      sync.Mutex                      // Guards errors
-	errors       []runtime.MalformedPayloadError // errors to be returned from Stopped()
-	nonFatalErr  atomics.Bool                    // if true, Stopped() returns non-fatal error
-	fatalErr     atomics.Bool                    // if true, Stopped() returns fatal error
+	failed       atomics.Bool                     // If true, Stopped() returns false
+	mErrors      sync.Mutex                       // Guards errors
+	errors       []*runtime.MalformedPayloadError // errors to be returned from Stopped()
+	nonFatalErr  atomics.Bool                     // if true, Stopped() returns non-fatal error
+	fatalErr     atomics.Bool                     // if true, Stopped() returns fatal error
 }
 
 func init() {

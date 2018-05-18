@@ -72,7 +72,7 @@ func prepare(t *TaskRun) error {
 	verr := payloadSchema.Validate(t.payload)
 	if e, ok := verr.(*schematypes.ValidationError); ok {
 		issues := e.Issues("task.payload")
-		errs := make([]runtime.MalformedPayloadError, len(issues))
+		errs := make([]*runtime.MalformedPayloadError, len(issues))
 		for i, issue := range issues {
 			errs[i] = runtime.NewMalformedPayloadError(issue.String())
 		}
