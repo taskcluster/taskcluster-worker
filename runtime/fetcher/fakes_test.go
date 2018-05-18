@@ -38,15 +38,23 @@ func (c *fakeContext) ProgressReports() []float64 {
 }
 
 type fakeWriteReseter struct {
-	buffer []byte
+	WriteErr error // Error to be returned from Write
+	ResetErr error // Error to be returned from Reset
+	buffer   []byte
 }
 
 func (w *fakeWriteReseter) Write(p []byte) (int, error) {
+	if w.WriteErr != nil {
+		return 0, w.WriteErr
+	}
 	w.buffer = append(w.buffer, p...)
 	return len(p), nil
 }
 
 func (w *fakeWriteReseter) Reset() error {
+	if w.ResetErr != nil {
+		return w.ResetErr
+	}
 	w.buffer = nil
 	return nil
 }

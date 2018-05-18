@@ -63,22 +63,25 @@ func fetchURLWithRetries(ctx Context, subject, u string, target WriteReseter) er
 	retry := 0
 	for {
 		// Fetch URL, if no error then we're done
-		err := fetchURL(ctx, subject, u, target)
-		if err == nil {
-			return nil
+		werr, rerr := fetchURL(ctx, subject, u, target)
+		if werr == nil && rerr == nil {
+			return werr
+		}
+		if werr != nil {
+			return werr
 		}
 
 		// Otherwise, reset the target (if there was an error)
 		target.Reset()
 
-		// If err is a persistentError or retry greater than maxRetries
+		// If rerr is a persistentError or retry greater than maxRetries
 		// then we return an error
 		retry++
-		if IsBrokenReferenceError(err) {
-			return err
+		if IsBrokenReferenceError(rerr) {
+			return rerr
 		}
 		if retry > maxRetries {
-			return newBrokenReferenceError(subject, fmt.Sprintf("exhausted retries with last error: %s", err))
+			return newBrokenReferenceError(subject, fmt.Sprintf("exhausted retries with last error: %s", rerr))
 		}
 
 		// Sleep before we retry
@@ -90,18 +93,20 @@ func fetchURLWithRetries(ctx Context, subject, u string, target WriteReseter) er
 	}
 }
 
-func fetchURL(ctx Context, subject, u string, target io.Writer) error {
+// fetchURL will fetch the URL and return werr if there is a write error otherwise
+// it'll return any reference error as rerr.
+func fetchURL(ctx Context, subject, u string, target io.Writer) (werr, rerr error) {
 	// Create a new request
 	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
-		return newBrokenReferenceError(subject, "invalid URL")
+		return nil, newBrokenReferenceError(subject, "invalid URL")
 	}
 
 	// Do the request with context
 	req = req.WithContext(ctx)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("request failed: %s", err)
+		return nil, fmt.Errorf("request failed: %s", err)
 	}
 	defer res.Body.Close()
 
@@ -114,18 +119,18 @@ func fetchURL(ctx Context, subject, u string, target io.Writer) error {
 			body = string(p)
 		}
 		if 400 <= res.StatusCode && res.StatusCode < 500 {
-			return newBrokenReferenceError(subject, fmt.Sprintf("statusCode: %d, body: %s", res.StatusCode, body))
+			return nil, newBrokenReferenceError(subject, fmt.Sprintf("statusCode: %d, body: %s", res.StatusCode, body))
 		}
-		return fmt.Errorf("statusCode: %d, body: %s", res.StatusCode, body)
+		return nil, fmt.Errorf("statusCode: %d, body: %s", res.StatusCode, body)
 	}
 
 	// Report download progress
 	r := ioext.TellReader{Reader: res.Body}
 	// We only progress, if some content length is provided
+	ctx.Progress(subject, 0) // always report that we started
 	done := make(chan struct{})
 	finishedReporting := make(chan struct{})
 	if res.ContentLength != -1 {
-		ctx.Progress(subject, 0)
 		go func() {
 			defer close(finishedReporting)
 			for {
@@ -144,20 +149,21 @@ func fetchURL(ctx Context, subject, u string, target io.Writer) error {
 	}
 
 	// Copy body to target
-	_, err = io.Copy(target, &r)
+	_, ew, er := ioext.Copy(target, &r)
 
 	close(done)         // Stop progress reporting
 	<-finishedReporting // wait for reporting to be finished
 
 	// Return any error
-	if err != nil {
-		return fmt.Errorf("connection broken: %s", err)
+	if ew != nil {
+		return ew, nil
+	}
+	if er != nil {
+		return nil, fmt.Errorf("connection broken: %s", er)
 	}
 
 	// Report download completed
-	if res.ContentLength != -1 {
-		ctx.Progress(subject, 1)
-	}
+	ctx.Progress(subject, 1)
 
-	return nil
+	return nil, nil
 }
