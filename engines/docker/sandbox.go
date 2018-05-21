@@ -15,6 +15,7 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
+	funk "github.com/thoas/go-funk"
 )
 
 const dockerEngineKillTimeout = 5 * time.Second
@@ -32,6 +33,7 @@ type sandbox struct {
 	taskCtx       *runtime.TaskContext
 	networkHandle *network.Handle
 	imageHandle   *imagecache.ImageHandle
+	videoDev      *device
 }
 
 func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
@@ -52,6 +54,21 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 		return nil, errors.Wrap(err, "docker.CreateNetwork failed")
 	}
 
+	devices := []docker.Device{}
+	var dev *device
+	if funk.InStrings(sb.payload.Devices, "video") {
+		dev = sb.e.video.claim()
+		if dev == nil {
+			return nil, errors.New("No video device available")
+		}
+		debug(fmt.Sprintf("Claimed %s", dev.path))
+		devices = append(devices, docker.Device{
+			PathOnHost:        dev.path,
+			PathInContainer:   dev.path,
+			CgroupPermissions: "rwm",
+		})
+	}
+
 	// Create the container
 	container, err := sb.e.docker.CreateContainer(docker.CreateContainerOptions{
 		Config: &docker.Config{
@@ -70,6 +87,7 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 			// to the proxies added to proxyMux above..
 			ExtraHosts: []string{fmt.Sprintf("taskcluster:%s", networkHandle.Gateway())},
 			Mounts:     sb.mounts,
+			Devices:    devices,
 		},
 		NetworkingConfig: &docker.NetworkingConfig{
 			EndpointsConfig: map[string]*docker.EndpointConfig{
@@ -79,6 +97,7 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 	})
 	if err != nil {
 		imageHandle.Release()
+		sb.e.video.release(dev)
 		return nil, runtime.NewMalformedPayloadError(
 			"could not create container: " + err.Error())
 	}
@@ -87,6 +106,7 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 	storage, err := sb.e.Environment.TemporaryStorage.NewFolder()
 	if err != nil {
 		imageHandle.Release()
+		sb.e.video.release(dev)
 		monitor.ReportError(err, "failed to create temporary folder")
 		return nil, runtime.ErrFatalInternalError
 	}
@@ -101,6 +121,7 @@ func newSandbox(sb *sandboxBuilder) (*sandbox, error) {
 			"containerId": container.ID,
 			"networkId":   networkHandle.NetworkID(),
 		}),
+		videoDev: dev,
 	}
 
 	// attach to the container before starting so that we get all the logs
@@ -276,6 +297,10 @@ func (s *sandbox) dispose() error {
 	// If ErrNonFatalInternalError if there was an error of any kind
 	if hasErr {
 		return runtime.ErrNonFatalInternalError
+	}
+
+	if s.videoDev != nil {
+		s.videoDev.claimed = false
 	}
 	return nil
 }

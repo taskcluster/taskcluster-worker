@@ -678,6 +678,12 @@
 			"revisionTime": "2016-08-05T02:05:43Z"
 		},
 		{
+			"checksumSHA1": "UHPK5Fi61Zqvf/ctF4s9hwjHFGU=",
+			"path": "github.com/thoas/go-funk",
+			"revision": "d2deeb5709c1da54d5da8c76b2f65421f5ff8de4",
+			"revisionTime": "2018-05-05T20:14:24Z"
+		},
+		{
 			"checksumSHA1": "HN3pLd5cC+QXkX8j8FsCCB3FzSI=",
 			"path": "github.com/tinylib/msgp/msgp",
 			"revision": "362bfb3384d53ae4d5dd745983a4d70b6d23628c",

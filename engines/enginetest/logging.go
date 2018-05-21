@@ -71,7 +71,13 @@ func (c *LoggingTestCase) TestSilentTask() {
 
 // Test will run all logging tests
 func (c *LoggingTestCase) Test() {
-	c.TestLogTarget()
-	c.TestLogTargetWhenFailing()
-	c.TestSilentTask()
+	if len(c.TargetPayload) > 0 {
+		c.TestLogTarget()
+	}
+	if len(c.FailingPayload) > 0 {
+		c.TestLogTargetWhenFailing()
+	}
+	if len(c.SilentPayload) > 0 {
+		c.TestSilentTask()
+	}
 }
