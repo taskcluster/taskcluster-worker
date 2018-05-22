@@ -189,7 +189,7 @@ func TestContext(t *testing.T) {
 	t.Run("CompressedContext", func(t *testing.T) {
 		c := enginetest.ShellTestCase{
 			EngineProvider: provider,
-			Command:        "folder/test.sh",
+			Command:        "folder/test.sh;\n",
 			Stdout:         "Test\n",
 			Stderr:         "",
 			BadCommand:     "exit 1;\n",

@@ -396,7 +396,7 @@ func (m *taskPluginManager) spawnEachPlugin(hook string, fn func(i int) error) e
 	// payload errors
 	fatalErr := false
 	nonFatalErr := false
-	malformedErrs := []runtime.MalformedPayloadError{}
+	malformedErrs := []*runtime.MalformedPayloadError{}
 	for _, err := range errors {
 		if err == runtime.ErrFatalInternalError {
 			fatalErr = true

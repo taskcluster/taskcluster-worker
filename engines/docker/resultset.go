@@ -1,3 +1,5 @@
+// +build linux
+
 package dockerengine
 
 import (
@@ -12,6 +14,7 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/pkg/errors"
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/engines/docker/imagecache"
 	"github.com/taskcluster/taskcluster-worker/engines/docker/network"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
@@ -40,6 +43,7 @@ type resultSet struct {
 	storage       runtime.TemporaryFolder
 	context       *runtime.TaskContext
 	networkHandle *network.Handle
+	imageHandle   *imagecache.ImageHandle
 }
 
 func (r *resultSet) Success() bool {
@@ -103,7 +107,7 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 		if !strings.HasPrefix(name, "/") {
 			name = "/" + name // Ensure we always have an absolute path
 		}
-		name = name[len(path+"/"):]
+		name = name[len(path):]
 		return handler(name, stream)
 	})
 }
@@ -260,6 +264,9 @@ func (r *resultSet) Dispose() error {
 
 	// Release the network
 	r.networkHandle.Release()
+
+	// Release the image handle
+	r.imageHandle.Release()
 
 	// If ErrNonFatalInternalError if there was an error of any kind
 	if hasErr {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/taskcluster/taskcluster-worker/engines"
 	"github.com/taskcluster/taskcluster-worker/engines/native/system"
+	"github.com/taskcluster/taskcluster-worker/engines/native/unpack"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 	"github.com/taskcluster/taskcluster-worker/runtime/ioext"
@@ -142,9 +143,9 @@ func fetchContext(context string, user *system.User) error {
 	unpackedFile := ""
 	switch filepath.Ext(filename) {
 	case ".zip":
-		err = runtime.Unzip(filename)
+		err = unpack.Unzip(filename)
 	case ".gz":
-		unpackedFile, err = runtime.Gunzip(filename)
+		unpackedFile, err = unpack.Gunzip(filename)
 	}
 
 	if err != nil {
@@ -152,7 +153,7 @@ func fetchContext(context string, user *system.User) error {
 	}
 
 	if filepath.Ext(unpackedFile) == ".tar" {
-		err = runtime.Untar(unpackedFile)
+		err = unpack.Untar(unpackedFile)
 		if err != nil {
 			return fmt.Errorf("Error unpacking '%s': %v", context, err)
 		}

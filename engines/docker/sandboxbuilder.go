@@ -1,3 +1,5 @@
+// +build linux
+
 package dockerengine
 
 import (
@@ -9,41 +11,59 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/engines/docker/imagecache"
 	"github.com/taskcluster/taskcluster-worker/runtime"
+	"github.com/taskcluster/taskcluster-worker/runtime/atomics"
 )
 
 type sandboxBuilder struct {
 	engines.SandboxBuilderBase
-	m         sync.Mutex
-	payload   *payloadType
-	image     interface{}
-	monitor   runtime.Monitor
-	e         *engine
-	client    *dockerClient
-	proxies   map[string]http.Handler
-	env       *docker.Env
-	taskCtx   *runtime.TaskContext
-	discarded bool
-	mounts    []docker.HostMount
+	m           sync.Mutex
+	payload     *payloadType
+	image       interface{}
+	monitor     runtime.Monitor
+	e           *engine
+	docker      *docker.Client
+	proxies     map[string]http.Handler
+	env         *docker.Env
+	taskCtx     *runtime.TaskContext
+	discarded   bool
+	mounts      []docker.HostMount
+	imageDone   atomics.Once
+	imageHandle *imagecache.ImageHandle
+	imageErr    error
 }
 
-func newSandboxBuilder(payload *payloadType, e *engine, monitor runtime.Monitor,
-	ctx *runtime.TaskContext) *sandboxBuilder {
+func newSandboxBuilder(
+	payload *payloadType, e *engine, monitor runtime.Monitor, ctx *runtime.TaskContext,
+) *sandboxBuilder {
+
 	sb := &sandboxBuilder{
 		payload: payload,
 		image:   payload.Image,
 		monitor: monitor,
 		e:       e,
-		client: &dockerClient{
-			Client: e.docker,
-			context: imageFetchContext{
-				TaskContext: ctx,
-			},
-		},
+		docker:  e.docker,
 		taskCtx: ctx,
 		env:     &docker.Env{},
 		proxies: make(map[string]http.Handler),
 	}
+	go sb.imageDone.Do(func() {
+		ih, err := e.imageCache.Require(ctx, payload.Image)
+
+		sb.m.Lock()
+		defer sb.m.Unlock()
+
+		if sb.discarded {
+			if ih != nil {
+				ih.Release()
+			}
+		} else {
+			sb.imageHandle = ih
+			sb.imageErr = err
+		}
+	})
+
 	return sb
 }
 
@@ -186,18 +206,39 @@ func (sb *sandboxBuilder) AttachVolume(mountPoint string, vol engines.Volume, re
 }
 
 func (sb *sandboxBuilder) StartSandbox() (engines.Sandbox, error) {
-	image, err := pullImage(sb.client, sb.image)
-	if err != nil {
-		sb.taskCtx.Log(fmt.Sprintf("Error pulling image: %v", err))
-		return nil, engines.ErrResourceNotFound
+	sb.imageDone.Wait()
+
+	sb.m.Lock()
+	defer sb.m.Unlock()
+
+	// If we were discarded while waiting for the image we done
+	if sb.discarded {
+		sb.m.Unlock()
+		return nil, engines.ErrSandboxBuilderDiscarded
 	}
-	return newSandbox(sb, image)
+	// Otherwise, set as discarded... Whatever happens here we free the resources
+	sb.discarded = true
+
+	// If there was an image error, we return it
+	if sb.imageErr != nil {
+		return nil, sb.imageErr
+	}
+
+	return newSandbox(sb)
 }
 
 func (sb *sandboxBuilder) Discard() error {
 	sb.m.Lock()
 	defer sb.m.Unlock()
 
+	// Mark SandboxBuilder as discarded
 	sb.discarded = true
+
+	// If the image is done, we release it
+	if sb.imageHandle != nil {
+		sb.imageHandle.Release()
+		sb.imageHandle = nil
+	}
+
 	return nil
 }

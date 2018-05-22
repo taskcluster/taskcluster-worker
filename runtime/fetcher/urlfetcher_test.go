@@ -2,6 +2,7 @@ package fetcher
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -84,7 +85,6 @@ func TestUrlFetcher(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "status-ok", w.String())
 		require.Equal(t, 1, count)
-
 	})
 
 	t.Run("streaming-ok", func(t *testing.T) {
@@ -96,7 +96,6 @@ func TestUrlFetcher(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, w.String(), "hello")
 		require.Equal(t, 1, count)
-
 	})
 
 	t.Run("slow progress reports", func(t *testing.T) {
@@ -181,5 +180,17 @@ func TestUrlFetcher(t *testing.T) {
 		require.Contains(t, err.Error(), "server-error")
 		require.Equal(t, "", w.String())
 		require.Equal(t, maxRetries+1, count)
+	})
+
+	t.Run("write error", func(t *testing.T) {
+		writeErr := errors.New("problem writing to target")
+		count = 0
+		w := &fakeWriteReseter{WriteErr: writeErr}
+		ref, err := URL.NewReference(ctx, s.URL+"/streaming")
+		require.NoError(t, err)
+		err = ref.Fetch(ctx, w)
+		require.Error(t, err)
+		require.Equal(t, writeErr, err)
+		require.Equal(t, 1, count)
 	})
 }

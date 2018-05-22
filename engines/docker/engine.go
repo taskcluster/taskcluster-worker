@@ -1,3 +1,5 @@
+// +build linux
+
 package dockerengine
 
 import (
@@ -7,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	schematypes "github.com/taskcluster/go-schematypes"
 	"github.com/taskcluster/taskcluster-worker/engines"
+	"github.com/taskcluster/taskcluster-worker/engines/docker/imagecache"
 	"github.com/taskcluster/taskcluster-worker/engines/docker/network"
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
@@ -19,6 +22,7 @@ type engine struct {
 	monitor     runtime.Monitor
 	config      configType
 	networks    *network.Pool
+	imageCache  *imagecache.ImageCache
 }
 
 type engineProvider struct {
@@ -48,12 +52,15 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 		return nil, errors.Wrapf(err, "failed to connect to docker socket at: %s", c.DockerSocket)
 	}
 
+	env := options.Environment
+	monitor := options.Monitor
 	return &engine{
 		config:      c,
 		docker:      client,
-		Environment: options.Environment,
-		monitor:     options.Monitor,
-		networks:    network.NewPool(client, options.Monitor.WithPrefix("network-pool")),
+		Environment: env,
+		monitor:     monitor,
+		networks:    network.NewPool(client, monitor.WithPrefix("network-pool")),
+		imageCache:  imagecache.New(client, env.GarbageCollector, monitor.WithPrefix("image-cache")),
 	}, nil
 }
 
@@ -66,7 +73,7 @@ type payloadType struct {
 func (e *engine) PayloadSchema() schematypes.Object {
 	payloadSchema := schematypes.Object{
 		Properties: schematypes.Properties{
-			"image": imageSchema,
+			"image": e.imageCache.ImageSchema(),
 			"command": schematypes.Array{
 				Title:       "Command",
 				Description: "Command to run inside the container.",

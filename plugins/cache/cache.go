@@ -278,7 +278,7 @@ func (tp *taskPlugin) getCaches() {
 	})
 
 	// Find malformedPayloadErrors and report internal errors
-	var malformedPayloadErrors []runtime.MalformedPayloadError
+	var malformedPayloadErrors []*runtime.MalformedPayloadError
 	for _, err := range errs {
 		if e, ok := runtime.IsMalformedPayloadError(err); ok {
 			malformedPayloadErrors = append(malformedPayloadErrors, e)
@@ -326,7 +326,7 @@ func (tp *taskPlugin) BuildSandbox(sandboxBuilder engines.SandboxBuilder) error 
 
 	// Attach volumes to sandboxBuilder
 	var internalError error
-	var malformedPayloadErrors []runtime.MalformedPayloadError
+	var malformedPayloadErrors []*runtime.MalformedPayloadError
 	for i, entry := range tp.payloadEntries {
 		volume := tp.cacheHandles[i].Resource().(*cacheVolume).Volume
 		readOnly := entry.Name == ""
