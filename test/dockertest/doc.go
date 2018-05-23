@@ -19,6 +19,7 @@ const pluginConfig = `{
 	"livelog": {},
 	"success": {},
 	"watchdog": {},
+	"cache": {},
 	"maxruntime": {
     "perTaskLimit": "require",
     "maxRunTime": "3 hours"
