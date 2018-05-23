@@ -10,9 +10,7 @@ import (
 )
 
 // Image and tag used in test cases below
-const (
-	dockerImageName = "alpine:3.6"
-)
+const dockerImageName = "alpine:3.6"
 
 var provider = &enginetest.EngineProvider{
 	Engine: "docker",

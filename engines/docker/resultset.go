@@ -61,7 +61,7 @@ func (r *resultSet) ExtractFile(path string) (ioext.ReadSeekCloser, error) {
 
 	var result ioext.ReadSeekCloser
 	var m sync.Mutex
-	err := r.extractResource(path, func(p string, stream ioext.ReadSeekCloser) error {
+	err := r.extractResource(path, false, func(p string, stream ioext.ReadSeekCloser) error {
 		m.Lock()
 		defer m.Unlock()
 		if result != nil {
@@ -102,7 +102,7 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 		))
 	}
 	path += "/"
-	return r.extractResource(path, func(name string, stream ioext.ReadSeekCloser) error {
+	return r.extractResource(path, true, func(name string, stream ioext.ReadSeekCloser) error {
 		// Make the name relative to path
 		if !strings.HasPrefix(name, "/") {
 			name = "/" + name // Ensure we always have an absolute path
@@ -112,7 +112,7 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 	})
 }
 
-func (r *resultSet) extractResource(path string, handler engines.FileHandler) error {
+func (r *resultSet) extractResource(path string, isFolder bool, handler engines.FileHandler) error {
 	// We force path to be absolute, this is the only sane thing
 	if !strings.HasPrefix(path, "/") {
 		debug("extractResource(%s) doesn't start with '/', hence it is a relative path", path)
@@ -125,9 +125,10 @@ func (r *resultSet) extractResource(path string, handler engines.FileHandler) er
 	stream, streamWriter := io.Pipe()
 
 	ctx, cancel := context.WithCancel(r.context)
-	notFound := false
+	var notFound atomics.Bool
 	var derr, rerr error
 	var interrupted atomics.Once
+	count := 0 // count entries in tar-stream
 	util.Parallel(func() {
 		var wg atomics.WaitGroup
 		defer wg.Wait()      // Wait for all handlers to be done
@@ -147,7 +148,19 @@ func (r *resultSet) extractResource(path string, handler engines.FileHandler) er
 				rerr = errors.Wrap(rerr, "failed to read tar-stream from docker")
 				return
 			}
+			// HACK: docker seems to happily return a stream even if the file pointed to is a directory
+			//       this is a problem. docker does require paths for directories to end in slash '/', so
+			//       it could be a bug, it just bad design. To workaround this issue we count the number
+			//       of entries and report file-not-found, if there is more than one entry in a tar-stream
+			//       that is supposed to contain a single file.
+			count++
+			if count > 1 && !isFolder {
+				debug("extractResource(%s) found more than one entry when extracting a file", path)
+				notFound.Set(true)
+				return
+			}
 			if !ioext.IsPlainFileInfo(hdr.FileInfo()) {
+				debug("skipping non file at: %s", hdr.Name)
 				continue // skip entries that aren't files
 			}
 			// Sanity check on the file size mostly in case someone tries to export
@@ -199,7 +212,7 @@ func (r *resultSet) extractResource(path string, handler engines.FileHandler) er
 			}(tmpfile)
 		}
 	}, func() {
-		debug("extractResource(%s) extracting a folder", path)
+		debug("extractResource(%s) calling docker.DownloadFromContainer(%s, %s)", path, r.containerID, path)
 		derr = r.docker.DownloadFromContainer(r.containerID, docker.DownloadFromContainerOptions{
 			Context:           ctx,
 			OutputStream:      streamWriter,
@@ -215,7 +228,13 @@ func (r *resultSet) extractResource(path string, handler engines.FileHandler) er
 			if e, ok := derr.(*docker.Error); ok && (e.Status == 400 || e.Status == 404) {
 				// Note: this could also be container is missing, but that would be an internal
 				//   		 error, as we haven't removed it yet. So we assume that can't happen.
-				notFound = true
+				notFound.Set(true)
+				derr = nil
+			} else if e, ok := derr.(*docker.Error); ok && e.Status == 500 && strings.Contains(e.Message, "not a directory") {
+				// HACK: docker returns 500 with a message explaining that path is "not a directory", if path is a file instead of
+				//       a directory. Ideally, docker should return 4xx, it's plausibly a bug, or inconsistency, anyways this
+				//       workarounds the issue by grepping the message for "not a directory"
+				notFound.Set(true)
 				derr = nil
 			} else {
 				derr = errors.Wrap(derr, "docker.DownloadFromContainer failed")
@@ -228,7 +247,7 @@ func (r *resultSet) extractResource(path string, handler engines.FileHandler) er
 	if interrupted.IsDone() {
 		return engines.ErrHandlerInterrupt
 	}
-	if notFound {
+	if notFound.Get() {
 		return engines.ErrResourceNotFound
 	}
 	if rerr != nil {
