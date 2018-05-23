@@ -13,6 +13,15 @@ func AnyArtifact() func(t *testing.T, a Artifact) {
 	return func(t *testing.T, a Artifact) {}
 }
 
+// AllOfArtifact creates an assertion that checks all assertions given
+func AllOfArtifact(assertions ...func(t *testing.T, a Artifact)) func(t *testing.T, a Artifact) {
+	return func(t *testing.T, a Artifact) {
+		for _, assertion := range assertions {
+			assertion(t, a)
+		}
+	}
+}
+
 // GrepArtifact creates an assertion that holds if the artifact contains the
 // given substring.
 func GrepArtifact(substring string) func(t *testing.T, a Artifact) {
