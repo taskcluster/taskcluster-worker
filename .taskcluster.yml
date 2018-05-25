@@ -243,7 +243,8 @@ tasks:
           taskcluster-worker schema config -o docs/config-schema.json
           # install taskcluster-lib-docs
           apt-get update -y
-          apt-get install -y nodejs npm
+          curl -sL https://deb.nodesource.com/setup_8.x | bash -
+          apt-get install -y nodejs
           npm install -g taskcluster-lib-docs@3.3.2
           # upload docs
           export DOCS_PROJECT=taskcluster-worker DOCS_TIER=workers DOCS_FOLDER=docs DOCS_README=README.md
