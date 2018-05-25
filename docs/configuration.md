@@ -24,6 +24,8 @@ config:
 Once configuration transforms have been applied to the `config` section the
 final object must have a form that satisfies the schema in `config-schema.json'
 
+<div data-render-schema='config-schema.json'></div>
+
 ## Transform `abs`
 
 ## Transform `env`
