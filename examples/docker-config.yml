@@ -1,0 +1,52 @@
+# Configuration file for taskcluster-worker
+transforms: []
+config:
+  credentials:
+    # This example uses the following scopes:
+    #   assume:worker-type:<provisionerId>/<workerType>
+    #   auth:sentry:<project>
+    #   auth:statsum:<project>
+    #   auth:webhooktunnel
+    #   queue:worker-id:<workerGroup>/<workerId>
+    clientId:       "clientId"
+    accessToken:    "superSecretAccessToken"
+  engine:           docker
+  engines:
+    docker:
+      privileged:   allow
+  minimumDiskSpace:   10000000  # 10 GB
+  minimumMemory:      1000000   # 1 GB
+  monitor:
+    type:           mock
+    panicOnError:   false
+  plugins:
+    disabled:
+      - reboot
+      - interactive
+    interactive:    {}
+    artifacts:      {}
+    env:            {}
+    livelog:        {}
+    logprefix:      {}
+    tcproxy:        {}
+    cache:          {}
+    maxruntime:
+      maxRunTime:   '4 hours'
+      perTaskLimit: 'allow'
+    success:        {}
+    watchdog:       {}
+    relengapi:
+      host:         "https://api.pub.build.mozilla.org/"
+      token:        "<token>"
+  temporaryFolder:  /tmp/tc-worker-tmp
+  webHookServer:
+    provider:       localhost
+  worker:
+    concurrency:          1
+    minimumReclaimDelay:  30
+    pollingInterval:      5
+    reclaimOffset:        300
+    provisionerId:        "provisionerId"
+    workerType:           "workerType"
+    workerGroup:          "workerGroup"
+    workerId:             "workerId"
