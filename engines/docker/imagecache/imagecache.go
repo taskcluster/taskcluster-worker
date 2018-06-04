@@ -57,7 +57,7 @@ func (ic *ImageCache) ImageSchema() schematypes.Schema {
 	// This should always be the same, but by gracefully falling back to the naive implementation
 	// things will be okay, even if the fetcher.Combine() internal implementation changes.
 	if oneOf, ok := imageFetcher.Schema().(schematypes.OneOf); ok {
-		return append(oneOf, imagePullSchema)
+		return append(schematypes.OneOf{imagePullSchema}, oneOf...)
 	}
 	return schematypes.OneOf{
 		imageFetcher.Schema(),
