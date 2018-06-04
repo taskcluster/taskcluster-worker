@@ -24,18 +24,18 @@ func TestArtifacts(t *testing.T) {
 			Title:   "Artifact File",
 			Success: true,
 			Payload: `{
-					"image": "` + dockerImageName + `",
-					"command": ["sh", "-c", "echo 'hello-world' && echo 42 > /my-file-` + filename + `.txt"],
-					"env": {},
-					"maxRunTime": "10 minutes",
-					"artifacts": [
-						{
-							"name": "public/result.txt",
-							"type": "file",
-							"path": "/my-file-` + filename + `.txt"
-						}
-					]
-				}`,
+						"image": "` + dockerImageName + `",
+						"command": ["sh", "-c", "echo 'hello-world' && echo 42 > /my-file-` + filename + `.txt"],
+						"env": {},
+						"maxRunTime": "10 minutes",
+						"artifacts": [
+							{
+								"name": "public/result.txt",
+								"type": "file",
+								"path": "/my-file-` + filename + `.txt"
+							}
+						]
+					}`,
 			Artifacts: workertest.ArtifactAssertions{
 				"public/logs/live.log":         workertest.ReferenceArtifact(),
 				"public/logs/live_backing.log": workertest.GrepArtifact("hello-world"),
@@ -48,20 +48,45 @@ func TestArtifacts(t *testing.T) {
 					"image": "` + dockerImageName + `",
 					"command": ["sh", "-c", "` + strings.Join([]string{
 				"echo 'hello-world'",
-				"mkdir -p /sub/subsub/subsubsub",
-				"echo 42 > /sub/subsub/result.txt",
-				"echo -n '<html></html>' > /sub/subsub/subsubsub/result.html",
+				"mkdir -p /etc/test",
+				"echo 'hello-world' > /etc/test/my-file.txt",
 			}, " && ") + `"],
 					"env": {},
 					"maxRunTime": "10 minutes",
 					"artifacts": [
 						{
-							"name": "public",
+							"name": "public/test",
 							"type": "directory",
-							"path": "/sub"
+							"path": "/etc/test"
 						}
 					]
 				}`,
+			Artifacts: workertest.ArtifactAssertions{
+				"public/logs/live.log":         workertest.ReferenceArtifact(),
+				"public/logs/live_backing.log": workertest.GrepArtifact("hello-world"),
+				"public/test/my-file.txt":      workertest.GrepArtifact("hello-world"),
+			},
+		}, {
+			Title:   "Nested Artifact Directory",
+			Success: true,
+			Payload: `{
+						"image": "` + dockerImageName + `",
+						"command": ["sh", "-c", "` + strings.Join([]string{
+				"echo 'hello-world'",
+				"mkdir -p /sub/subsub/subsubsub",
+				"echo 42 > /sub/subsub/result.txt",
+				"echo -n '<html></html>' > /sub/subsub/subsubsub/result.html",
+			}, " && ") + `"],
+						"env": {},
+						"maxRunTime": "10 minutes",
+						"artifacts": [
+							{
+								"name": "public",
+								"type": "directory",
+								"path": "/sub"
+							}
+						]
+					}`,
 			Artifacts: workertest.ArtifactAssertions{
 				"public/logs/live.log":                workertest.ReferenceArtifact(),
 				"public/logs/live_backing.log":        workertest.GrepArtifact("hello-world"),
@@ -72,18 +97,18 @@ func TestArtifacts(t *testing.T) {
 			Title:   "Artifact Directory Is File",
 			Success: false,
 			Payload: `{
-				"image": "` + dockerImageName + `",
-				"command": ["sh", "-c", "echo 42 > /notafolder"],
-				"env": {},
-				"maxRunTime": "10 minutes",
-				"artifacts": [
-					{
-						"name": "public/myfolder",
-						"type": "directory",
-						"path": "/notafolder"
-					}
-				]
-			}`,
+					"image": "` + dockerImageName + `",
+					"command": ["sh", "-c", "echo 42 > /notafolder"],
+					"env": {},
+					"maxRunTime": "10 minutes",
+					"artifacts": [
+						{
+							"name": "public/myfolder",
+							"type": "directory",
+							"path": "/notafolder"
+						}
+					]
+				}`,
 			Artifacts: workertest.ArtifactAssertions{
 				"public/logs/live.log":         workertest.ReferenceArtifact(),
 				"public/logs/live_backing.log": workertest.GrepArtifact("/notafolder"),
@@ -93,18 +118,18 @@ func TestArtifacts(t *testing.T) {
 			Title:   "Artifact File Is Directory",
 			Success: false,
 			Payload: `{
-					"image": "` + dockerImageName + `",
-					"command": ["sh", "-c", "mkdir -p /sub/subsub/ && echo 42 > /sub/subsub/result.txt"],
-					"env": {},
-					"maxRunTime": "10 minutes",
-					"artifacts": [
-						{
-							"name": "public/subsub",
-							"type": "file",
-							"path": "/sub/subsub"
-						}
-					]
-				}`,
+						"image": "` + dockerImageName + `",
+						"command": ["sh", "-c", "mkdir -p /sub/subsub/ && echo 42 > /sub/subsub/result.txt"],
+						"env": {},
+						"maxRunTime": "10 minutes",
+						"artifacts": [
+							{
+								"name": "public/subsub",
+								"type": "file",
+								"path": "/sub/subsub"
+							}
+						]
+					}`,
 			Artifacts: workertest.ArtifactAssertions{
 				// Expect some error message saying "sub/subsub"
 				"public/logs/live.log":         workertest.ReferenceArtifact(),
@@ -115,18 +140,18 @@ func TestArtifacts(t *testing.T) {
 			Title:   "Artifact File Not Found",
 			Success: false,
 			Payload: `{
-					"image": "` + dockerImageName + `",
-					"command": ["true"],
-					"env": {},
-					"maxRunTime": "10 minutes",
-					"artifacts": [
-						{
-							"name": "public/result.txt",
-							"type": "file",
-							"path": "/no-such-file-` + filename + `.txt"
-						}
-					]
-				}`,
+						"image": "` + dockerImageName + `",
+						"command": ["true"],
+						"env": {},
+						"maxRunTime": "10 minutes",
+						"artifacts": [
+							{
+								"name": "public/result.txt",
+								"type": "file",
+								"path": "/no-such-file-` + filename + `.txt"
+							}
+						]
+					}`,
 			Artifacts: workertest.ArtifactAssertions{
 				"public/logs/live.log":         workertest.ReferenceArtifact(),
 				"public/logs/live_backing.log": workertest.GrepArtifact("/no-such-file-" + filename + ".txt"),
@@ -136,18 +161,18 @@ func TestArtifacts(t *testing.T) {
 			Title:   "Artifact Directory Not Found",
 			Success: false,
 			Payload: `{
-					"image": "` + dockerImageName + `",
-					"command": ["sh", "-c", "true"],
-					"env": {},
-					"maxRunTime": "10 minutes",
-					"artifacts": [
-						{
-							"name": "public/myfolder",
-							"type": "directory",
-							"path": "/no-such-folder/no-sub-folder"
-						}
-					]
-				}`,
+						"image": "` + dockerImageName + `",
+						"command": ["sh", "-c", "true"],
+						"env": {},
+						"maxRunTime": "10 minutes",
+						"artifacts": [
+							{
+								"name": "public/myfolder",
+								"type": "directory",
+								"path": "/no-such-folder/no-sub-folder"
+							}
+						]
+					}`,
 			Artifacts: workertest.ArtifactAssertions{
 				"public/logs/live.log":         workertest.ReferenceArtifact(),
 				"public/logs/live_backing.log": workertest.GrepArtifact("/no-such-folder/no-sub-folder"),

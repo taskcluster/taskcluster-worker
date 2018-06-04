@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path"
 	"strings"
 	"sync"
 	"time"
@@ -104,20 +105,18 @@ func (r *resultSet) ExtractFolder(path string, handler engines.FileHandler) erro
 	path += "/"
 	return r.extractResource(path, true, func(name string, stream ioext.ReadSeekCloser) error {
 		// Make the name relative to path
-		if !strings.HasPrefix(name, "/") {
-			name = "/" + name // Ensure we always have an absolute path
-		}
 		name = name[len(path):]
+		debug("ExtractFolder(%s) found file '%s'", path, name)
 		return handler(name, stream)
 	})
 }
 
-func (r *resultSet) extractResource(path string, isFolder bool, handler engines.FileHandler) error {
-	// We force path to be absolute, this is the only sane thing
-	if !strings.HasPrefix(path, "/") {
-		debug("extractResource(%s) doesn't start with '/', hence it is a relative path", path)
+func (r *resultSet) extractResource(resourcePath string, isFolder bool, handler engines.FileHandler) error {
+	// We force resourcePath to be absolute, this is the only sane thing
+	if !strings.HasPrefix(resourcePath, "/") {
+		debug("extractResource(%s) doesn't start with '/', hence it is a relative path", resourcePath)
 		return runtime.NewMalformedPayloadError(fmt.Sprintf(
-			"docker path: '%s' is a relative path, paths must be absolute", path,
+			"docker path: '%s' is a relative path, paths must be absolute", resourcePath,
 		))
 	}
 
@@ -155,7 +154,7 @@ func (r *resultSet) extractResource(path string, isFolder bool, handler engines.
 			//       that is supposed to contain a single file.
 			count++
 			if count > 1 && !isFolder {
-				debug("extractResource(%s) found more than one entry when extracting a file", path)
+				debug("extractResource(%s) found more than one entry when extracting a file", resourcePath)
 				notFound.Set(true)
 				return
 			}
@@ -168,16 +167,16 @@ func (r *resultSet) extractResource(path string, isFolder bool, handler engines.
 			if hdr.Size > maxExtractedFileSizeAllowed*1024*1024*1024 {
 				rerr = fmt.Errorf(
 					"attempted to extract file: '%s' at size: %d larger than allowed %d GiB",
-					path, hdr.Size, maxExtractedFileSizeAllowed,
+					resourcePath, hdr.Size, maxExtractedFileSizeAllowed,
 				)
 				r.context.LogError(fmt.Sprintf(
 					"A plugin attempted to read the file: '%s' which has a size: %d greater than %d GiB, "+
 						"which is the maximum allowed file size hardcoded into the worker for sanity",
-					path, hdr.Size, maxExtractedFileSizeAllowed,
+					resourcePath, hdr.Size, maxExtractedFileSizeAllowed,
 				))
 				return
 			}
-			debug("extractResource(%s) found file: '%s' of size: %d bytes", path, hdr.Name, hdr.Size)
+			debug("extractResource(%s) found file: '%s' of size: %d bytes", resourcePath, hdr.Name, hdr.Size)
 
 			// Create temporary file that we extract this to
 			var tmpfile runtime.TemporaryFile
@@ -206,24 +205,24 @@ func (r *resultSet) extractResource(path string, isFolder bool, handler engines.
 			wg.Add(1)
 			go func(t runtime.TemporaryFile) {
 				defer wg.Done()
-				if handler(hdr.Name, t) != nil {
+				if handler(path.Join(path.Dir(path.Clean(resourcePath)), hdr.Name), t) != nil {
 					interrupted.Do(nil)
 				}
 			}(tmpfile)
 		}
 	}, func() {
-		debug("extractResource(%s) calling docker.DownloadFromContainer(%s, %s)", path, r.containerID, path)
+		debug("extractResource(%s) calling docker.DownloadFromContainer(%s, %s)", resourcePath, r.containerID, resourcePath)
 		derr = r.docker.DownloadFromContainer(r.containerID, docker.DownloadFromContainerOptions{
 			Context:           ctx,
 			OutputStream:      streamWriter,
-			Path:              path,
+			Path:              resourcePath,
 			InactivityTimeout: 5 * time.Second,
 		})
 		if derr != nil && derr == ctx.Err() {
 			derr = nil // Ignore any error
 			streamWriter.CloseWithError(errors.Wrap(ctx.Err(), "download from docker aborted"))
 		} else if derr != nil {
-			debug("DownloadFromContainer(%s, {Path: %s, ...) => %s", r.containerID, path, derr)
+			debug("DownloadFromContainer(%s, {Path: %s, ...) => %s", r.containerID, resourcePath, derr)
 			streamWriter.CloseWithError(derr)
 			if e, ok := derr.(*docker.Error); ok && (e.Status == 400 || e.Status == 404) {
 				// Note: this could also be container is missing, but that would be an internal
@@ -231,9 +230,9 @@ func (r *resultSet) extractResource(path string, isFolder bool, handler engines.
 				notFound.Set(true)
 				derr = nil
 			} else if e, ok := derr.(*docker.Error); ok && e.Status == 500 && strings.Contains(e.Message, "not a directory") {
-				// HACK: docker returns 500 with a message explaining that path is "not a directory", if path is a file instead of
-				//       a directory. Ideally, docker should return 4xx, it's plausibly a bug, or inconsistency, anyways this
-				//       workarounds the issue by grepping the message for "not a directory"
+				// HACK: docker returns 500 with a message explaining that resourcePath is "not a directory", if resourcePath
+				//       is a file instead of a directory. Ideally, docker should return 4xx, it's plausibly a bug, or inconsistency,
+				//       anyways this workarounds the issue by grepping the message for "not a directory"
 				notFound.Set(true)
 				derr = nil
 			} else {
