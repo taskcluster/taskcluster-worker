@@ -7,8 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"time"
-
-	"github.com/taskcluster/httpbackoff"
 )
 
 type relengapiTokenJSON struct {
@@ -45,7 +43,10 @@ func getTmpToken(urlPrefix string, issuingToken string, expires time.Time, perms
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", issuingToken))
-	resp, _, err := httpbackoff.ClientDo(client, req)
+
+	// Issuing a token is improbable to need a retry, but anyway better to
+	// use httpbackoff package when it is fixed
+	resp, err := client.Do(req)
 	if err != nil {
 		return
 	}
