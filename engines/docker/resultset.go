@@ -205,7 +205,12 @@ func (r *resultSet) extractResource(resourcePath string, isFolder bool, handler 
 			wg.Add(1)
 			go func(t runtime.TemporaryFile) {
 				defer wg.Done()
-				if handler(path.Join(path.Dir(path.Clean(resourcePath)), hdr.Name), t) != nil {
+				dirpath := path.Dir(path.Clean(resourcePath))
+				fullpath := path.Join(dirpath, hdr.Name)
+				if !strings.HasPrefix(fullpath, dirpath) {
+					panic(fmt.Errorf("%s: illegal path", hdr.Name))
+				}
+				if handler(fullpath, t) != nil {
 					interrupted.Do(nil)
 				}
 			}(tmpfile)

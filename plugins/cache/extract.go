@@ -5,6 +5,9 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/taskcluster/taskcluster-worker/runtime"
@@ -79,6 +82,20 @@ func extractArchive(source io.Reader, target fileSystem) error {
 			}
 		} else if info.Mode().IsRegular() {
 			debug("extracting file: '%s'", header.Name)
+
+			curdir, err := os.Getwd()
+			if err != nil {
+				panic(err)
+			}
+
+			cleanName, err := filepath.Abs(header.Name)
+			if err != nil {
+				panic(err)
+			}
+
+			if !strings.HasPrefix(cleanName, curdir) {
+				return runtime.NewMalformedPayloadError(fmt.Sprintf("%s: illegal file", header.Name))
+			}
 
 			w := target.WriteFile(header.Name)
 			// We capture errors from the reader, because we don't want these to become

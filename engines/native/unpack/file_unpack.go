@@ -22,7 +22,11 @@ func Unzip(filename string) error {
 
 	// Iterate through the files in the archive
 	for _, f := range r.File {
-		fileName := filepath.Join(filepath.Dir(filename), f.Name)
+		dirpath := filepath.Dir(filename)
+		fileName := filepath.Join(dirpath, f.Name)
+		if !strings.HasPrefix(fileName, dirpath) {
+			return fmt.Errorf("%s: illegal path", f.Name)
+		}
 		if f.FileInfo().IsDir() {
 			if err = os.MkdirAll(fileName, f.Mode()); err != nil {
 				return err
@@ -94,7 +98,11 @@ func Untar(filename string) error {
 			}
 			return err
 		}
-		fileName := filepath.Join(filepath.Dir(filename), hdr.Name)
+		dirpath := filepath.Dir(filename)
+		fileName := filepath.Join(dirpath, hdr.Name)
+		if !strings.HasPrefix(fileName, dirpath) {
+			return fmt.Errorf("%s: illegal path", hdr.Name)
+		}
 		switch hdr.Typeflag {
 		case tar.TypeDir:
 			err = os.MkdirAll(fileName, hdr.FileInfo().Mode())
