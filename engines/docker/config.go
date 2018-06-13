@@ -8,8 +8,9 @@ import (
 )
 
 type configType struct {
-	DockerSocket string `json:"dockerSocket"`
-	Privileged   string `json:"privileged"`
+	DockerSocket  string `json:"dockerSocket"`
+	Privileged    string `json:"privileged"`
+	EnableDevices bool   `json:"enableDevices"`
 }
 
 const (
@@ -48,6 +49,13 @@ var configSchema = schematypes.Object{
 				privilegedAllow,
 				privilegedNever,
 			},
+		},
+		"enableDevices": schematypes.Boolean{
+			Title: "Enable host devices",
+			Description: util.Markdown(`
+				When true, this enables the support for host devices inside the container,
+				such as video and sound.
+			`),
 		},
 	},
 	Required: []string{

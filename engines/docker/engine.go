@@ -23,6 +23,7 @@ type engine struct {
 	config      configType
 	networks    *network.Pool
 	imageCache  *imagecache.ImageCache
+	video       *videoDeviceManager
 }
 
 type engineProvider struct {
@@ -42,6 +43,8 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 	var c configType
 	schematypes.MustValidateAndMap(configSchema, options.Config, &c)
 
+	debug(fmt.Sprintf("Devices enabled = %v", c.EnableDevices))
+
 	if c.DockerSocket == "" {
 		c.DockerSocket = "unix:///var/run/docker.sock" // default docker socket
 	}
@@ -54,6 +57,14 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 
 	env := options.Environment
 	monitor := options.Monitor
+	var video *videoDeviceManager
+	if c.EnableDevices {
+		video, err = newVideoDeviceManager()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &engine{
 		config:      c,
 		docker:      client,
@@ -61,6 +72,7 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 		monitor:     monitor,
 		networks:    network.NewPool(client, monitor.WithPrefix("network-pool")),
 		imageCache:  imagecache.New(client, env.GarbageCollector, monitor.WithPrefix("image-cache")),
+		video:       video,
 	}, nil
 }
 
@@ -68,6 +80,7 @@ type payloadType struct {
 	Image      interface{} `json:"image"`
 	Command    []string    `json:"command"`
 	Privileged bool        `json:"privileged"`
+	Devices    []string    `json:"devices"`
 }
 
 func (e *engine) PayloadSchema() schematypes.Object {
@@ -78,6 +91,16 @@ func (e *engine) PayloadSchema() schematypes.Object {
 				Title:       "Command",
 				Description: "Command to run inside the container.",
 				Items:       schematypes.String{},
+			},
+			"devices": schematypes.Array{
+				Title:       "Devices",
+				Description: "List of host devices required.",
+				Items: schematypes.StringEnum{
+					Options: []string{
+						"video",
+					},
+				},
+				Unique: true,
 			},
 		},
 		Required: []string{
@@ -106,6 +129,11 @@ func (e *engine) PayloadSchema() schematypes.Object {
 func (e *engine) NewSandboxBuilder(options engines.SandboxOptions) (engines.SandboxBuilder, error) {
 	var p payloadType
 	schematypes.MustValidateAndMap(e.PayloadSchema(), options.Payload, &p)
+
+	if len(p.Devices) > 0 && e.config.EnableDevices == false {
+		options.TaskContext.LogError(fmt.Sprintf("Task requests device %v, but device support is not enabled", p.Devices))
+		return nil, runtime.NewMalformedPayloadError("Devices feature is not enabled")
+	}
 
 	// Check if privileged == true is allowed
 	switch e.config.Privileged {
