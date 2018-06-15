@@ -34,8 +34,7 @@ type configType struct {
 	MinimumMemory    int64                  `json:"minimumMemory"`
 	Monitor          interface{}            `json:"monitor"`
 	Credentials      tcclient.Credentials   `json:"credentials"`
-	QueueBaseURL     string                 `json:"queueBaseUrl"`
-	AuthBaseURL      string                 `json:"authBaseUrl"`
+	RootURL          string                 `json:"rootURL"`
 	WorkerOptions    options                `json:"worker"`
 }
 
@@ -224,11 +223,10 @@ func ConfigSchema() schematypes.Object {
 				Minimum: 0,
 				Maximum: math.MaxInt64,
 			},
-			"monitor":      monitoring.ConfigSchema,
-			"credentials":  credentialsSchema,
-			"queueBaseUrl": schematypes.String{},
-			"authBaseUrl":  schematypes.String{},
-			"worker":       optionsSchema,
+			"rootURL":     schematypes.String{},
+			"monitor":     monitoring.ConfigSchema,
+			"credentials": credentialsSchema,
+			"worker":      optionsSchema,
 		},
 		Required: []string{
 			"engine",

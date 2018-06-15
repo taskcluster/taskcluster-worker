@@ -18,7 +18,6 @@ import (
 	"github.com/taskcluster/taskcluster-worker/runtime/caching"
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
 	"github.com/taskcluster/taskcluster-worker/runtime/fetcher"
-	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 	"github.com/taskcluster/taskcluster-worker/runtime/util"
 )
 
@@ -28,15 +27,17 @@ type ImageCache struct {
 	cache   *caching.Cache
 	docker  *docker.Client
 	monitor runtime.Monitor
+	env     *runtime.Environment
 }
 
 // New creates a new ImageCache object
-func New(d *docker.Client, tracker gc.ResourceTracker, monitor runtime.Monitor) *ImageCache {
+func New(d *docker.Client, env *runtime.Environment, monitor runtime.Monitor) *ImageCache {
 	ic := &ImageCache{
 		docker:  d,
 		monitor: monitor,
+		env:     env,
 	}
-	ic.cache = caching.New(ic.constructor, true, tracker, monitor)
+	ic.cache = caching.New(ic.constructor, true, env.GarbageCollector, monitor)
 	return ic
 }
 
@@ -83,7 +84,7 @@ func (ic *ImageCache) constructor(ctx caching.Context, opts interface{}) (cachin
 	}
 
 	// Load from reference
-	return ic.dockerLoadFromReference(cachingContextWithQueue{ctx, options.queue}, options.reference)
+	return ic.dockerLoadFromReference(cachingContextWithQueue{ctx, options.queue, ic.env.RootURL}, options.reference)
 }
 
 // ImageHandle wraps caching.Handle such that we don't need to do any casting
@@ -109,7 +110,7 @@ func (ic *ImageCache) Require(ctx *runtime.TaskContext, imagePayload interface{}
 		options.Image = s
 	} else {
 		prefix = "Fetching image"
-		ref, err := imageFetcher.NewReference(taskContextWithProgress{ctx, "Resolving image reference"}, imagePayload)
+		ref, err := imageFetcher.NewReference(taskContextWithProgress{ctx, "Resolving image reference", ic.env.RootURL}, imagePayload)
 		if err != nil {
 			return nil, runtime.NewMalformedPayloadError(fmt.Sprintf(
 				"unable to resolve docker image reference error: %s", err.Error(),
@@ -132,7 +133,7 @@ func (ic *ImageCache) Require(ctx *runtime.TaskContext, imagePayload interface{}
 		options.queue = ctx.Queue
 	}
 
-	handle, err := ic.cache.Require(taskContextWithProgress{ctx, prefix}, options)
+	handle, err := ic.cache.Require(taskContextWithProgress{ctx, prefix, ic.env.RootURL}, options)
 	if err != nil {
 		return nil, err
 	}

@@ -40,7 +40,6 @@ func setupTestWorker(t *testing.T, queueBaseURL string, concurrency int) *Worker
 			"clientId": "my-test-client-id",
 			"accessToken": "my-super-secret-access-token"
 		},
-		"queueBaseUrl": "` + queueBaseURL + `",
 		"worker": {
 			"provisionerId": "test-provisioner-id",
 			"workerType": "test-worker-type",
@@ -55,6 +54,7 @@ func setupTestWorker(t *testing.T, queueBaseURL string, concurrency int) *Worker
 	var config interface{}
 	require.NoError(t, json.Unmarshal([]byte(raw), &config))
 	w, err := New(config)
+	w.queueBaseURL = queueBaseURL
 	require.NoError(t, err)
 	return w
 }

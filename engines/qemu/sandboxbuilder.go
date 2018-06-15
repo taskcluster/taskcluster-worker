@@ -58,7 +58,7 @@ func newSandboxBuilder(
 		var scopeSets [][]string
 		var inst *image.Instance
 
-		ctx := &fetchImageContext{c}
+		ctx := &fetchImageContext{c, e.Environment.RootURL}
 		ref, err := imageFetcher.NewReference(ctx, payload.Image)
 		if err != nil {
 			goto handleErr

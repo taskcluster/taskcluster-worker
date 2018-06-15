@@ -120,7 +120,7 @@ func (p *plugin) getVolume(ctx *runtime.TaskContext, options payloadEntry) (*cac
 	}
 
 	// Create a context with progress reporting capability
-	progressCtx := progressContext{ctx, options.Name}
+	progressCtx := progressContext{ctx, options.Name, p.environment.RootURL}
 
 	// First we resolve the reference, if there is any
 	var ref fetcher.Reference

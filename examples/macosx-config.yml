@@ -31,7 +31,6 @@ config:
         TERM_PROGRAM: {$env: TERM_PROGRAM}
         SHELL: /bin/bash
   pollingInterval:  10
-  queueBaseUrl:     https://queue.taskcluster.net/v1
   reclaimOffset:    120
   temporaryFolder:  /tmp/tc-worker-tmp
   serverIp:           127.0.0.1

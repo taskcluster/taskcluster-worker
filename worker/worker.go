@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -51,18 +52,25 @@ func New(config interface{}) (w *Worker, err error) {
 	var c configType
 	schematypes.MustValidateAndMap(ConfigSchema(), config, &c)
 
+	if c.RootURL == "" {
+		c.RootURL = "https://taskcluster.net"
+	}
+
+	rootURL, err := url.Parse(c.RootURL)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create monitor
 	a := tcauth.New(&c.Credentials)
-	if c.AuthBaseURL != "" {
-		a.BaseURL = c.AuthBaseURL
-	}
+	a.BaseURL = runtime.GetServiceURL(rootURL, "auth")
 	monitor := monitoring.New(c.Monitor, a)
 
 	// Create worker
 	w = &Worker{
 		monitor:          monitor.WithPrefix("worker"),
 		garbageCollector: gc.New(c.TemporaryFolder, c.MinimumDiskSpace, c.MinimumMemory),
-		queueBaseURL:     c.QueueBaseURL,
+		queueBaseURL:     runtime.GetServiceURL(rootURL, "queue"),
 		options:          c.WorkerOptions,
 	}
 
@@ -102,6 +110,7 @@ func New(config interface{}) (w *Worker, err error) {
 		WorkerID:         c.WorkerOptions.WorkerID,
 		ProvisionerID:    c.WorkerOptions.ProvisionerID,
 		WorkerType:       c.WorkerOptions.WorkerType,
+		RootURL:          rootURL,
 	}
 
 	// Create engine

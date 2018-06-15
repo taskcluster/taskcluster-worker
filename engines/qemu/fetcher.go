@@ -2,6 +2,7 @@ package qemuengine
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/taskcluster/taskcluster-worker/runtime"
 	"github.com/taskcluster/taskcluster-worker/runtime/fetcher"
@@ -21,8 +22,13 @@ var imageFetcher = fetcher.Combine(
 
 type fetchImageContext struct {
 	*runtime.TaskContext
+	rootURL *url.URL
 }
 
 func (c fetchImageContext) Progress(description string, percent float64) {
 	c.Log(fmt.Sprintf("Fetching image: %s - %.0f %%", description, percent*100))
+}
+
+func (c fetchImageContext) RootURL() *url.URL {
+	return c.rootURL
 }
