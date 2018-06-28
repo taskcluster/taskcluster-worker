@@ -72,3 +72,11 @@ func TestDownload(t *testing.T) {
 	content := string(data)
 	assert.Equal(t, content, expectedContent)
 }
+
+func TestDownloadError(t *testing.T) {
+	s := newHTTPServer()
+	defer s.close()
+
+	_, err := Download(s.url()+"/", ".")
+	assert.EqualError(t, err, "Got status: 404")
+}

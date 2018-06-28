@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"io"
 	"mime"
 	"net/http"
@@ -14,6 +15,10 @@ func Download(url, destdir string) (string, error) {
 
 	if err != nil {
 		return "", err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("Got status: %d", resp.StatusCode)
 	}
 
 	defer resp.Body.Close()
