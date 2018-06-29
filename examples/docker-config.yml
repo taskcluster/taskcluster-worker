@@ -36,7 +36,7 @@ config:
     success:        {}
     watchdog:       {}
     relengapi:
-      host:         "https://api.pub.build.mozilla.org/"
+      domain:       "mozilla-releng.net"
       token:        "<token>"
   temporaryFolder:  /tmp/tc-worker-tmp
   webHookServer:

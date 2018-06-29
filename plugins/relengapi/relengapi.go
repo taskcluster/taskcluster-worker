@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"time"
+    "strings"
 
 	"github.com/pkg/errors"
 	schematypes "github.com/taskcluster/go-schematypes"
@@ -33,7 +34,7 @@ type taskPlugin struct {
 	tmpToken          string
 	tmpTokenGoodUntil time.Time
 	permissions       []string
-	relengapiHost     string
+	relengapiDomain     string
 }
 
 func init() {
@@ -51,8 +52,8 @@ func (p *plugin) PayloadSchema() schematypes.Object {
 func (provider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
 	var c config
 	schematypes.MustValidateAndMap(configSchema, options.Config, &c)
-	if c.Host == "" {
-		c.Host = "api.pub.build.mozilla.org"
+	if c.Domain == "" {
+		c.Domain = "mozilla-releng.net"
 	}
 
 	if c.Token == "" {
@@ -99,17 +100,39 @@ func (p *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskP
 	}
 
 	tp := &taskPlugin{
-		monitor:       options.Monitor,
-		context:       options.TaskContext,
-		permissions:   perms,
-		relengapiHost: p.config.Host,
+		monitor:         options.Monitor,
+		context:         options.TaskContext,
+		permissions:     perms,
+		relengapiDomain: p.config.Domain,
 	}
 
 	// stolen from relengapi-proxy
 	director := func(req *http.Request) {
-		req.URL.Scheme = "https"
-		req.URL.Host = p.config.Host
-		req.Host = p.config.Host
+		if strings.HasPrefix(req.URL.Path, "/tooltool") {
+			req.URL.Scheme = "https"
+			req.URL.Path = strings.TrimPrefix(req.URL.Path, "/tooltool")
+			req.URL.RawPath = ""
+            host := fmt.Sprintf("tooltool.%s", p.config.Domain)
+			req.URL.Host = host
+			req.Host = host
+		} else if strings.HasPrefix(req.URL.Path, "/treestatus") {
+			req.URL.Scheme = "https"
+			req.URL.Path = strings.TrimPrefix(req.URL.Path, "/treestatus")
+			req.URL.RawPath = ""
+            host := fmt.Sprintf("treestatus.%s", p.config.Domain)
+			req.URL.Host = host
+			req.Host = host
+		} else if strings.HasPrefix(req.URL.Path, "/mapper") {
+			req.URL.Scheme = "https"
+			req.URL.Path = strings.TrimPrefix(req.URL.Path, "/mapper")
+			req.URL.RawPath = ""
+            host := fmt.Sprintf("mapper.%s", p.config.Domain)
+			req.URL.Host = host
+			req.Host = host
+		} else {
+            // ignore everything else
+			return
+		}
 		tok, err := tp.getToken(p.config.Token)
 		if err != nil {
 			err = errors.Wrap(err, "Error retrieving token")
@@ -157,9 +180,8 @@ func (p *taskPlugin) getToken(issuingToken string) (string, error) {
 	if now.After(p.tmpTokenGoodUntil) {
 		expires := now.Add(tmpTokenLifetime)
 		debug("Generating new temporary token; expires at " + expires.String())
-		urlPrefix := fmt.Sprintf("https://%s", p.relengapiHost)
-		tok, err := getTmpToken(
-			urlPrefix, issuingToken, expires, p.permissions)
+		url := fmt.Sprintf("https://tokens.%s", p.relengapiDomain)
+		tok, err := getTmpToken(url, issuingToken, expires, p.permissions)
 		if err != nil {
 			return "", err
 		}

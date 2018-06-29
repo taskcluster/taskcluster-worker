@@ -6,7 +6,7 @@ import (
 )
 
 type config struct {
-	Host  string `json:"host"`
+	Domain string `json:"domain"`
 	Token string `json:"token"`
 }
 
@@ -17,10 +17,10 @@ var configSchema = schematypes.Object{
 	[Releng API](https://wiki.mozilla.org/ReleaseEngineering/Applications/RelengAPI).
 	`),
 	Properties: schematypes.Properties{
-		"host": schematypes.String{
-			Title: "Releng API host endpoint",
+		"domain": schematypes.String{
+			Title: "Releng API base domain",
 			Description: util.Markdown(`
-			The releng API host endpoint. Default: api.pub.build.mozilla.org/.
+			The releng API base domain. Default: mozilla-releng.net.
 			`),
 		},
 		"token": schematypes.String{
