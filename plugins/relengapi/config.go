@@ -7,7 +7,7 @@ import (
 
 type config struct {
 	Domain string `json:"domain"`
-	Token string `json:"token"`
+	Token  string `json:"token"`
 }
 
 var configSchema = schematypes.Object{

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httputil"
-	"time"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	schematypes "github.com/taskcluster/go-schematypes"
@@ -34,7 +34,7 @@ type taskPlugin struct {
 	tmpToken          string
 	tmpTokenGoodUntil time.Time
 	permissions       []string
-	relengapiDomain     string
+	relengapiDomain   string
 }
 
 func init() {
