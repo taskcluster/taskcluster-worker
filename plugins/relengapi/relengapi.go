@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"time"
-    "strings"
+	"strings"
 
 	"github.com/pkg/errors"
 	schematypes "github.com/taskcluster/go-schematypes"
@@ -112,25 +112,25 @@ func (p *plugin) NewTaskPlugin(options plugins.TaskPluginOptions) (plugins.TaskP
 			req.URL.Scheme = "https"
 			req.URL.Path = strings.TrimPrefix(req.URL.Path, "/tooltool")
 			req.URL.RawPath = ""
-            host := fmt.Sprintf("tooltool.%s", p.config.Domain)
+			host := fmt.Sprintf("tooltool.%s", p.config.Domain)
 			req.URL.Host = host
 			req.Host = host
 		} else if strings.HasPrefix(req.URL.Path, "/treestatus") {
 			req.URL.Scheme = "https"
 			req.URL.Path = strings.TrimPrefix(req.URL.Path, "/treestatus")
 			req.URL.RawPath = ""
-            host := fmt.Sprintf("treestatus.%s", p.config.Domain)
+			host := fmt.Sprintf("treestatus.%s", p.config.Domain)
 			req.URL.Host = host
 			req.Host = host
 		} else if strings.HasPrefix(req.URL.Path, "/mapper") {
 			req.URL.Scheme = "https"
 			req.URL.Path = strings.TrimPrefix(req.URL.Path, "/mapper")
 			req.URL.RawPath = ""
-            host := fmt.Sprintf("mapper.%s", p.config.Domain)
+			host := fmt.Sprintf("mapper.%s", p.config.Domain)
 			req.URL.Host = host
 			req.Host = host
 		} else {
-            // ignore everything else
+			// ignore everything else
 			return
 		}
 		tok, err := tp.getToken(p.config.Token)
