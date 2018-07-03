@@ -12,7 +12,7 @@ func TestTCProxySuccess(t *testing.T) {
 		Payload: `{
 			"delay": 100,
 			"function": "ping-proxy",
-			"argument": "http://relengapi/versions",
+			"argument": "https://relengapi/tooltool/docs/index.html",
 			"enableRelengAPIProxy": true
 		}`,
 		Plugin: "relengapi",
@@ -32,7 +32,7 @@ func TestTCProxyFail(t *testing.T) {
 		Payload: `{
 			"delay": 100,
 			"function": "ping-proxy",
-			"argument": "http://relengapi/foo/bar",
+			"argument": "https://relengapi/foo/bar",
 			"enableRelengAPIProxy": true
 		}`,
 		Plugin: "relengapi",
