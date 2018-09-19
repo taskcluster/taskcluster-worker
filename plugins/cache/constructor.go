@@ -3,6 +3,7 @@ package cache
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"time"
 
 	"github.com/pkg/errors"
@@ -26,15 +27,21 @@ type cacheOptions struct {
 type preloadFetchContext struct {
 	caching.Context
 	InitialTaskContext *runtime.TaskContext
+	rootURL            *url.URL
 }
 
 func (c *preloadFetchContext) Queue() client.Queue {
 	return c.InitialTaskContext.Queue()
 }
 
+func (c *preloadFetchContext) RootURL() *url.URL {
+	return c.rootURL
+}
+
 type progressContext struct {
 	*runtime.TaskContext
-	Name string
+	Name    string
+	rootURL *url.URL
 }
 
 func (c *progressContext) Progress(description string, percent float64) {
@@ -43,6 +50,10 @@ func (c *progressContext) Progress(description string, percent float64) {
 	} else {
 		c.Log(fmt.Sprintf("Fetching cache preload for %s from: %s - %.0f %%", c.Name, description, percent*100))
 	}
+}
+
+func (c *progressContext) RootURL() *url.URL {
+	return c.rootURL
 }
 
 func constructor(ctx caching.Context, opts interface{}) (caching.Resource, error) {

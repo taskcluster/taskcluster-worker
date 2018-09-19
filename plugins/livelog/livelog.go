@@ -202,7 +202,12 @@ func (tp *taskPlugin) uploadLog() error {
 		return err // Upload error isn't fatal
 	}
 
-	backingURL := fmt.Sprintf("https://queue.taskcluster.net/v1/task/%s/runs/%d/artifacts/public/logs/live_backing.log", tp.context.TaskInfo.TaskID, tp.context.TaskInfo.RunID)
+	backingURL := fmt.Sprintf(
+		"%s/v1/task/%s/runs/%d/artifacts/public/logs/live_backing.log",
+		tp.environment.GetServiceURL("queue"),
+		tp.context.TaskInfo.TaskID,
+		tp.context.TaskInfo.RunID,
+	)
 	err = tp.context.CreateRedirectArtifact(runtime.RedirectArtifact{
 		Name:     "public/logs/live.log",
 		Mimetype: "text/plain; charset=utf-8",

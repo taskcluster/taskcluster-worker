@@ -1,6 +1,8 @@
 package runtime
 
 import (
+	"net/url"
+
 	"github.com/taskcluster/taskcluster-worker/runtime/gc"
 	"github.com/taskcluster/taskcluster-worker/runtime/webhookserver"
 )
@@ -19,4 +21,21 @@ type Environment struct {
 	WorkerType    string
 	WorkerGroup   string
 	WorkerID      string
+	RootURL       *url.URL
+}
+
+// GetServiceURL takes a service name and returns the full taskcluster
+// URL of it.
+func GetServiceURL(rootURL *url.URL, serviceName string) string {
+	copyURL, err := url.Parse(rootURL.String())
+	if err != nil {
+		panic("WAT???")
+	}
+	copyURL.Host = serviceName + "." + copyURL.Host
+	return copyURL.String()
+}
+
+// GetServiceURL returns the URL of the given service
+func (env *Environment) GetServiceURL(serviceName string) string {
+	return GetServiceURL(env.RootURL, serviceName)
 }

@@ -60,7 +60,7 @@ func (p engineProvider) NewEngine(options engines.EngineOptions) (engines.Engine
 		Environment: env,
 		monitor:     monitor,
 		networks:    network.NewPool(client, monitor.WithPrefix("network-pool")),
-		imageCache:  imagecache.New(client, env.GarbageCollector, monitor.WithPrefix("image-cache")),
+		imageCache:  imagecache.New(client, env, monitor.WithPrefix("image-cache")),
 	}, nil
 }
 

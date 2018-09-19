@@ -2,6 +2,7 @@ package fetcher
 
 import (
 	"context"
+	"net/url"
 	"time"
 
 	"github.com/taskcluster/taskcluster-worker/runtime/client"
@@ -21,11 +22,13 @@ type Context interface {
 	// consumers may wish to round to one decimal using "%.0f" formatting.
 	// Progress reports won't be sent more than once every 5 seconds.
 	Progress(description string, percent float64)
+	RootURL() *url.URL
 }
 
 type contextWithCancel struct {
 	context.Context
-	parent Context
+	parent  Context
+	rootURL *url.URL
 }
 
 func (c *contextWithCancel) Queue() client.Queue {
@@ -36,8 +39,12 @@ func (c *contextWithCancel) Progress(description string, percent float64) {
 	c.parent.Progress(description, percent)
 }
 
+func (c *contextWithCancel) RootURL() *url.URL {
+	return c.rootURL
+}
+
 // WithCancel returns a Context and a cancel function similar to context.WithCancel
-func WithCancel(ctx Context) (Context, func()) {
+func WithCancel(ctx Context, rootURL *url.URL) (Context, func()) {
 	child, cancel := context.WithCancel(ctx)
-	return &contextWithCancel{child, ctx}, cancel
+	return &contextWithCancel{child, ctx, rootURL}, cancel
 }

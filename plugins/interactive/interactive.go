@@ -21,14 +21,6 @@ import (
 // configured or given in the task definition
 const defaultArtifactPrefix = "private/interactive/"
 
-// defaultShellToolURL is the default URL for the tool that can connect to the
-// shell socket and display an interactive shell session.
-const defaultShellToolURL = "https://tools.taskcluster.net/shell/"
-
-// defaultShellToolURL is the default URL for the tool that can list displays
-// and connect to the display socket with interactive noVNC session.
-const defaultDisplayToolURL = "https://tools.taskcluster.net/display/"
-
 type provider struct {
 	plugins.PluginProviderBase
 }
@@ -39,15 +31,16 @@ func (provider) ConfigSchema() schematypes.Schema {
 func (provider) NewPlugin(options plugins.PluginOptions) (plugins.Plugin, error) {
 	var c config
 	schematypes.MustValidateAndMap(configSchema, options.Config, &c)
+	toolsURL := options.Environment.GetServiceURL("tools")
 
 	if c.ArtifactPrefix == "" {
 		c.ArtifactPrefix = defaultArtifactPrefix
 	}
 	if c.ShellToolURL == "" {
-		c.ShellToolURL = defaultShellToolURL
+		c.ShellToolURL = fmt.Sprintf("%s/shell", toolsURL)
 	}
 	if c.DisplayToolURL == "" {
-		c.DisplayToolURL = defaultDisplayToolURL
+		c.DisplayToolURL = fmt.Sprintf("%s/display", toolsURL)
 	}
 
 	// IF no WebHookServer is available we disabling the interactive plugin

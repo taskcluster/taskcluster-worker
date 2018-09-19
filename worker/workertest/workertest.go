@@ -225,7 +225,6 @@ func (c Case) testWithQueue(t *testing.T, q *tcqueue.Queue, l fakequeue.Listener
 		"minimumMemory":    0,
 		"monitor":          mustUnmarshalJSON(`{"panicOnError": false, "type": "mock"}`),
 		"plugins":          mustUnmarshalJSON(c.PluginConfig),
-		"queueBaseUrl":     q.BaseURL,
 		"temporaryFolder":  tempFolder,
 		"webHookServer":    mustUnmarshalJSON(webHookServerConfig),
 		"worker": map[string]interface{}{
